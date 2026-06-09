@@ -28,17 +28,22 @@ async def latest_snapshot(current_user=Depends(get_current_user), db=Depends(get
 async def list_expenses(
     month: Optional[str] = None,
     category: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    query = select(FinanceExpense).order_by(desc(FinanceExpense.logged_at)).limit(200)
+    limit = min(limit, 200)
+    query = select(FinanceExpense).order_by(desc(FinanceExpense.logged_at))
     result = await db.execute(query)
-    expenses = result.scalars().all()
+    all_expenses = result.scalars().all()
     if month:
-        expenses = [e for e in expenses if e.logged_at.strftime("%Y-%m") == month]
+        all_expenses = [e for e in all_expenses if e.logged_at.strftime("%Y-%m") == month]
     if category:
-        expenses = [e for e in expenses if e.category.lower() == category.lower()]
-    return expenses
+        all_expenses = [e for e in all_expenses if e.category.lower() == category.lower()]
+    total = len(all_expenses)
+    page = all_expenses[offset: offset + limit]
+    return {"items": page, "total": total, "has_more": offset + limit < total}
 
 
 class ExpenseCreate(BaseModel):

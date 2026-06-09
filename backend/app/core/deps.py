@@ -1,5 +1,6 @@
-from typing import AsyncGenerator
-from fastapi import Cookie, Depends, HTTPException, status
+from typing import AsyncGenerator, Optional
+
+from fastapi import Cookie, Depends, HTTPException, WebSocket, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_access_token
@@ -22,5 +23,12 @@ async def get_current_user(
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
 
-    # Single-user app — just validate the token is structurally valid
     return {"user_id": payload.get("sub", "utsav"), "token": aios_token}
+
+
+async def ws_auth(websocket: WebSocket) -> Optional[dict]:
+    """Extract and validate JWT from WebSocket cookie. Returns user dict or None if invalid."""
+    token = websocket.cookies.get("aios_token")
+    if not token:
+        return None
+    return decode_access_token(token)

@@ -1,10 +1,30 @@
 import { useRef, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Send, Plus, ChevronDown, ChevronRight, Wifi, WifiOff } from 'lucide-react'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { Send, Plus, ChevronDown, ChevronRight, Wifi, WifiOff, Loader2, Bot } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { useChat } from '@/hooks/useChat'
 import { chatApi } from '@/api/chat'
 import { cn } from '@/lib/utils'
+
+const QUICK_PROMPTS = [
+  'Log today\'s gym session',
+  'What did I spend this week?',
+  'Summarize my career progress',
+]
+
+function formatToolInput(tool: string, input: Record<string, unknown>): string {
+  switch (tool) {
+    case 'append_log': return `Logging to ${input.area}: ${String(input.entry ?? '').slice(0, 60)}${String(input.entry ?? '').length > 60 ? '…' : ''}`
+    case 'read_context': return `Reading ${input.area} context`
+    case 'update_context': return `Updating ${input.area}: ${Object.keys(input.updates as object ?? {}).join(', ')}`
+    case 'search_vault': return `Searching vault: "${input.query}"`
+    case 'get_calendar_events': return `Calendar: ${input.date_from} → ${input.date_to}`
+    case 'get_github_activity': return `GitHub activity (${input.days ?? 7} days)`
+    case 'get_notion_page': return `Reading Notion: "${input.title}"`
+    default: return tool
+  }
+}
 
 function ToolCallBlock({
   tool,
@@ -22,14 +42,19 @@ function ToolCallBlock({
     <div className="my-2 border border-border rounded-lg overflow-hidden text-xs font-mono">
       <button
         onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-label={`${open ? 'Collapse' : 'Expand'} tool call: ${tool}`}
         className="flex items-center gap-2 w-full px-3 py-2 bg-muted/50 hover:bg-muted text-muted-foreground text-left"
       >
         {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-        <span className="text-primary font-semibold">Tool:</span>
-        <span>{tool}</span>
-        {affected && affected.length > 0 && (
-          <span className="ml-auto text-emerald-500">✓ {affected.join(', ')}</span>
-        )}
+        <span className="text-primary font-semibold">⚙</span>
+        <span>{formatToolInput(tool, input)}</span>
+        {result === undefined
+          ? <Loader2 className="w-3 h-3 ml-auto animate-spin text-muted-foreground" />
+          : affected && affected.length > 0
+          ? <span className="ml-auto text-emerald-500">✓ saved</span>
+          : null
+        }
       </button>
       {open && (
         <div className="px-3 py-2 space-y-1 border-t border-border bg-background/50">
@@ -103,12 +128,22 @@ function Message({ message }: { message: ReturnType<typeof useChat>['messages'][
 export function ChatPage() {
   const { messages, isStreaming, sendMessage, newSession, connected, tokenInfo } = useChat()
   const [input, setInput] = useState('')
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const { data: sessions } = useQuery({ queryKey: ['chat', 'sessions'], queryFn: chatApi.sessions })
 
+  const virtualizer = useVirtualizer({
+    count: messages.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 120,
+    overscan: 5,
+  })
+
+  // Scroll to bottom on new messages
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    if (messages.length > 0) {
+      virtualizer.scrollToIndex(messages.length - 1, { behavior: 'smooth' })
+    }
+  }, [messages.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSend = () => {
     const trimmed = input.trim()
@@ -159,25 +194,63 @@ export function ChatPage() {
           </div>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-              <div className="text-4xl mb-3">🤖</div>
-              <p className="font-medium text-foreground">AIOS Agent</p>
-              <p className="text-sm mt-1">Log workouts, expenses, learnings — or ask anything about your life OS.</p>
+        {/* Messages — virtualised for performance */}
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto"
+          aria-live="polite"
+          aria-relevant="additions"
+          aria-label="Chat messages"
+        >
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                <Bot className="w-6 h-6 text-primary" />
+              </div>
+              <p className="font-semibold text-foreground">AIOS Agent</p>
+              <p className="text-sm mt-1 max-w-xs">Log workouts, expenses, learnings — or ask anything about your life OS.</p>
+              <div className="flex flex-wrap gap-2 mt-4 justify-center">
+                {QUICK_PROMPTS.map(prompt => (
+                  <button
+                    key={prompt}
+                    onClick={() => setInput(prompt)}
+                    className="px-3 py-1.5 text-xs rounded-full border border-border bg-card hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div
+              style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
+            >
+              {virtualizer.getVirtualItems().map(vItem => (
+                <div
+                  key={vItem.key}
+                  data-index={vItem.index}
+                  ref={virtualizer.measureElement}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vItem.start}px)` }}
+                  className="p-4"
+                >
+                  <Message message={messages[vItem.index]} />
+                </div>
+              ))}
             </div>
           )}
-          {messages.map(msg => <Message key={msg.id} message={msg} />)}
-          <div ref={bottomRef} />
         </div>
 
         {/* Input */}
         <div className="p-4 border-t border-border">
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-end">
             <textarea
               value={input}
               onChange={e => setInput(e.target.value)}
+              onInput={e => {
+                const el = e.currentTarget
+                el.style.height = 'auto'
+                el.style.height = `${Math.min(el.scrollHeight, 128)}px`
+              }}
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
@@ -186,14 +259,20 @@ export function ChatPage() {
               }}
               placeholder="Message AIOS… (Enter to send, Shift+Enter for newline)"
               rows={1}
-              className="flex-1 resize-none px-4 py-3 rounded-xl bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm min-h-[48px] max-h-32 overflow-y-auto"
+              aria-label="Chat message input"
+              aria-multiline="true"
+              className="flex-1 resize-none px-4 py-3 rounded-xl bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background text-sm min-h-[48px] max-h-32 overflow-y-auto"
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || isStreaming || !connected}
-              className="px-4 py-3 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition flex items-center gap-2"
+              aria-label="Send message"
+              className="px-4 py-3 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition flex items-center gap-2 shrink-0"
             >
-              <Send className="w-4 h-4" />
+              {isStreaming
+                ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                : <Send className="w-4 h-4" aria-hidden="true" />
+              }
             </button>
           </div>
         </div>

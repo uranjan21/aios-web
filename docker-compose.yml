@@ -28,11 +28,11 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      - ${VAULT_PATH}:${VAULT_PATH}:ro
+      - ${VAULT_PATH}:${VAULT_PATH}:rw
     depends_on:
       db:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   frontend:
     build:

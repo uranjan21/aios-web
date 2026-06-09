@@ -95,6 +95,26 @@ async def create_event(body: CareerEventCreate, current_user=Depends(get_current
     return event
 
 
+@router.get("/summary")
+async def get_summary(current_user=Depends(get_current_user), db=Depends(get_db)):
+    skills_result = await db.execute(
+        select(SkillInventory).order_by(desc(SkillInventory.last_updated))
+    )
+    skills = skills_result.scalars().all()
+
+    events_result = await db.execute(
+        select(CareerEvent).order_by(desc(CareerEvent.occurred_at)).limit(1)
+    )
+    latest_event = events_result.scalar_one_or_none()
+
+    return {
+        "total_skills": len(skills),
+        "last_skill_update": skills[0].last_updated.isoformat() if skills else None,
+        "last_event_title": latest_event.title if latest_event else None,
+        "last_event_at": latest_event.occurred_at.isoformat() if latest_event else None,
+    }
+
+
 @router.get("/roadmap")
 async def get_roadmap(current_user=Depends(get_current_user)):
     from app.core.config import get_settings

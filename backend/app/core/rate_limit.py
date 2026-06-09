@@ -1,4 +1,12 @@
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from starlette.requests import Request
 
-limiter = Limiter(key_func=get_remote_address)
+
+def _get_client_ip(request: Request) -> str:
+    """Use raw socket address — not spoofable via X-Forwarded-For."""
+    if request.client:
+        return request.client.host
+    return "unknown"
+
+
+limiter = Limiter(key_func=_get_client_ip)

@@ -1,10 +1,20 @@
-from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response
 import logging
 import time
 
+from fastapi import Request
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+
 logger = logging.getLogger(__name__)
+
+_CSP = (
+    "default-src 'self'; "
+    "connect-src 'self' ws: wss:; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob:; "
+    "font-src 'self' data:;"
+)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -14,6 +24,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Content-Security-Policy"] = _CSP
         return response
 
 

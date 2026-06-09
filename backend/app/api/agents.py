@@ -1,8 +1,8 @@
-import json
 import asyncio
+import json
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Set
 
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -74,6 +74,11 @@ async def patch_agent(agent_id: str, body: AgentPatch, current_user=Depends(get_
     db.add(agent)
     await db.commit()
     await db.refresh(agent)
+    try:
+        from app.services.agents.scheduler import reschedule_agent
+        reschedule_agent(agent.task_id, agent.cron_expression, agent.is_active)
+    except Exception as e:
+        logger.warning("Scheduler sync failed for agent %s: %s", agent_id, e)
     return agent
 
 
@@ -91,26 +96,42 @@ async def trigger_agent(request: Request, agent_id: str, current_user=Depends(ge
     db.add(agent)
     await db.commit()
 
-    asyncio.create_task(_run_agent(agent_id, run_id))
+    task = asyncio.create_task(_run_agent(agent_id, run_id))
+    task.add_done_callback(_agent_task_done)
     return {"run_id": run_id}
+
+
+def _agent_task_done(task: asyncio.Task) -> None:
+    if not task.cancelled() and task.exception():
+        logger.error("Agent background task failed: %s", task.exception())
 
 
 async def _run_agent(task_id: str, run_id: str) -> None:
     await _broadcast_agent({"type": "agent_started", "task_id": task_id, "run_id": run_id})
-    # Placeholder — real implementation would call Cowork scheduled tasks API
-    await asyncio.sleep(2)
     now = datetime.utcnow()
+    run_status = "success"
+    try:
+        # Placeholder — real implementation calls the agent service
+        await asyncio.sleep(2)
+    except Exception as e:
+        logger.error("Agent %s run %s failed: %s", task_id, run_id, e)
+        run_status = "error"
+
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(Agent).where(Agent.task_id == task_id))
         agent = result.scalar_one_or_none()
         if agent:
             agent.last_run_at = now
-            agent.last_run_status = "success"
-            agent.run_count += 1
-            agent.updated_at = now
+            agent.last_run_status = run_status
+            if run_status == "success":
+                agent.run_count += 1
+                agent.last_output_text = f"Agent completed at {now.strftime('%Y-%m-%d %H:%M UTC')}. Run #{agent.run_count}."
+            else:
+                agent.last_output_text = f"Agent failed at {now.strftime('%Y-%m-%d %H:%M UTC')}."
+            agent.updated_at = datetime.utcnow()
             session.add(agent)
             await session.commit()
-    await _broadcast_agent({"type": "agent_complete", "task_id": task_id, "run_id": run_id, "status": "success"})
+    await _broadcast_agent({"type": "agent_complete", "task_id": task_id, "run_id": run_id, "status": run_status})
 
 
 async def _broadcast_agent(event: dict) -> None:

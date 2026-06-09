@@ -54,6 +54,7 @@ export interface Agent {
   last_run_at: string | null
   last_run_status: 'success' | 'error' | 'running' | null
   last_output_path: string | null
+  last_output_text: string | null
   run_count: number
 }
 

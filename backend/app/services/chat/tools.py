@@ -111,6 +111,17 @@ TOOL_DEFINITIONS = [
             },
         },
     },
+    {
+        "name": "get_notion_page",
+        "description": "Read a Notion page by title. Returns the page content if the Notion integration is connected.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Title of the Notion page to retrieve"},
+            },
+            "required": ["title"],
+        },
+    },
 ]
 
 
@@ -172,5 +183,8 @@ async def execute_tool(tool_name: str, tool_input: dict) -> tuple[str, list[str]
 
     elif tool_name == "get_github_activity":
         return "(GitHub integration not connected)", []
+
+    elif tool_name == "get_notion_page":
+        return "(Notion integration not connected. Connect Notion in the Integrations page to enable this.)", []
 
     return f"Unknown tool: {tool_name}", []

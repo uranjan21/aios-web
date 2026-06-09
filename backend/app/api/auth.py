@@ -35,7 +35,7 @@ async def login(request: Request, body: LoginRequest, response: Response):
         value=token,
         httponly=True,
         samesite="strict",
-        secure=False,  # True in production
+        secure=settings.environment == "production",
         max_age=30 * 24 * 3600,
     )
     return {"status": "ok"}

@@ -25,12 +25,15 @@ export function BottomNav() {
             <NavLink
               key={to}
               to={to}
+              onClick={() => { if (navigator.vibrate) navigator.vibrate(8) }}
               className={cn(
-                'flex flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors',
+                'flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors',
                 isActive ? 'text-primary' : 'text-muted-foreground'
               )}
             >
-              <Icon className="w-5 h-5" />
+              <div className={cn('p-1.5 rounded-xl transition-colors', isActive && 'bg-primary/10')}>
+                <Icon className="w-5 h-5" />
+              </div>
               {label}
             </NavLink>
           )

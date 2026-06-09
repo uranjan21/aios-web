@@ -8,8 +8,10 @@ import type {
 export const financeApi = {
   snapshots: () => api.get<FinanceSnapshot[]>('/areas/finance/snapshots').then(r => r.data),
   latestSnapshot: () => api.get<FinanceSnapshot | null>('/areas/finance/snapshots/latest').then(r => r.data),
-  expenses: (month?: string, category?: string) =>
-    api.get<FinanceExpense[]>('/areas/finance/expenses', { params: { month, category } }).then(r => r.data),
+  expenses: (month?: string, category?: string, limit = 50, offset = 0) =>
+    api.get<{ items: FinanceExpense[]; total: number; has_more: boolean }>(
+      '/areas/finance/expenses', { params: { month, category, limit, offset } }
+    ).then(r => r.data),
   createExpense: (data: { amount: number; category: string; description?: string }) =>
     api.post<FinanceExpense>('/areas/finance/expenses', data).then(r => r.data),
   goals: () => api.get('/areas/finance/goals').then(r => r.data),
@@ -27,6 +29,7 @@ export const healthApi = {
 
 // Career
 export const careerApi = {
+  summary: () => api.get<{ total_skills: number; last_skill_update: string | null; last_event_title: string | null; last_event_at: string | null }>('/areas/career/summary').then(r => r.data),
   skills: () => api.get<SkillInventory[]>('/areas/career/skills').then(r => r.data),
   updateSkill: (id: string, data: { level: string; notes?: string }) =>
     api.put<SkillInventory>(`/areas/career/skills/${id}`, data).then(r => r.data),
@@ -42,6 +45,12 @@ export const businessApi = {
   createEvent: (data: { event_type: string; title: string; description?: string; mrr?: number }) =>
     api.post<BusinessEvent>('/areas/business/events', data).then(r => r.data),
   summary: () => api.get('/areas/business/summary').then(r => r.data),
+}
+
+// Captures (quick log inbox)
+export const capturesApi = {
+  create: (raw_text: string) => api.post('/captures', { raw_text }).then(r => r.data),
+  list: () => api.get('/captures').then(r => r.data),
 }
 
 // Content

@@ -1,5 +1,5 @@
-import json
 import asyncio
+import json
 import logging
 from typing import Set
 
@@ -32,8 +32,14 @@ async def force_sync(request: Request, current_user=Depends(get_current_user)):
             rel = str(md_file.relative_to(vault))
             await sync_engine.handle_file_change(rel, "modified")
 
-    asyncio.create_task(_resync())
+    task = asyncio.create_task(_resync())
+    task.add_done_callback(_resync_done)
     return {"status": "resync_started"}
+
+
+def _resync_done(task: asyncio.Task) -> None:
+    if not task.cancelled() and task.exception():
+        logger.error("Vault resync task failed: %s", task.exception())
 
 
 @router.get("/conflicts")
@@ -70,7 +76,7 @@ async def resolve_conflict(
     body: ResolveRequest,
     current_user=Depends(get_current_user),
 ):
-    from datetime import datetime, timezone
+    from datetime import datetime
     from sqlmodel import select
     from app.models.vault import VaultConflict, VaultFile
     from app.db.session import AsyncSessionLocal
@@ -87,7 +93,6 @@ async def resolve_conflict(
         conflict.resolution = body.resolution
         session.add(conflict)
 
-        # Update vault file status
         file_result = await session.execute(
             select(VaultFile).where(VaultFile.id == conflict.file_id)
         )
@@ -99,7 +104,6 @@ async def resolve_conflict(
                 settings = get_settings()
                 from app.services.vault_sync.writer import VaultWriteGuard
                 guard = VaultWriteGuard(settings.vault_path)
-                # Write vault version back as app version
                 vf.content = conflict.vault_content
             session.add(vf)
 
@@ -108,7 +112,6 @@ async def resolve_conflict(
     return {"status": "resolved"}
 
 
-# WebSocket for sync events
 async def sync_ws_handler(websocket: WebSocket) -> None:
     await websocket.accept()
 

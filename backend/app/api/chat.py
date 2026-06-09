@@ -1,13 +1,11 @@
 import json
-import uuid
 import logging
-from typing import Optional
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlmodel import select, desc
 
 from app.core.deps import get_current_user, get_db
-from app.core.rate_limit import limiter
 from app.db.session import AsyncSessionLocal
 from app.models.chat import ChatSession, ChatMessage
 from app.services.chat.agent import stream_chat_response
@@ -73,7 +71,6 @@ async def chat_ws_handler(websocket: WebSocket) -> None:
             session_id_str = data.get("session_id")
 
             if not session_id_str:
-                # Create new session
                 async with AsyncSessionLocal() as session:
                     new_session = ChatSession()
                     session.add(new_session)
@@ -81,21 +78,28 @@ async def chat_ws_handler(websocket: WebSocket) -> None:
                     await session.refresh(new_session)
                     session_id = new_session.id
             else:
-                session_id = uuid.UUID(session_id_str)
+                try:
+                    session_id = uuid.UUID(session_id_str)
+                except ValueError:
+                    await websocket.send_text(json.dumps({"type": "error", "message": "Invalid session ID"}))
+                    continue
 
-            # Load recent history
+            # Load newest 20 messages in chronological order
             async with AsyncSessionLocal() as session:
                 history_result = await session.execute(
                     select(ChatMessage)
                     .where(ChatMessage.session_id == session_id)
-                    .order_by(ChatMessage.created_at)
+                    .order_by(desc(ChatMessage.created_at))
                     .limit(20)
                 )
-                history_rows = history_result.scalars().all()
+                history_rows = list(reversed(history_result.scalars().all()))
 
-            history = [{"role": m.role, "content": m.content} for m in history_rows if m.role in ("user", "assistant")]
+            history = [
+                {"role": m.role, "content": m.content}
+                for m in history_rows
+                if m.role in ("user", "assistant")
+            ]
 
-            # Save user message
             async with AsyncSessionLocal() as session:
                 session.add(ChatMessage(
                     session_id=session_id,
@@ -104,27 +108,28 @@ async def chat_ws_handler(websocket: WebSocket) -> None:
                 ))
                 await session.commit()
 
+            # Always persist partial response — save in finally so disconnect doesn't lose it
             full_response = ""
-            async for event in stream_chat_response(session_id, user_content, history):
-                await websocket.send_text(json.dumps(event))
-                if event.get("type") == "chunk":
-                    full_response += event.get("content", "")
-
-            # Save assistant message
-            if full_response:
-                async with AsyncSessionLocal() as session:
-                    session.add(ChatMessage(
-                        session_id=session_id,
-                        role="assistant",
-                        content=full_response,
-                    ))
-                    await session.commit()
+            try:
+                async for event in stream_chat_response(session_id, user_content, history):
+                    await websocket.send_text(json.dumps(event))
+                    if event.get("type") == "chunk":
+                        full_response += event.get("content", "")
+            finally:
+                if full_response:
+                    async with AsyncSessionLocal() as session:
+                        session.add(ChatMessage(
+                            session_id=session_id,
+                            role="assistant",
+                            content=full_response,
+                        ))
+                        await session.commit()
 
     except WebSocketDisconnect:
         pass
     except Exception as e:
         logger.error("Chat WebSocket error: %s", e)
         try:
-            await websocket.send_text(json.dumps({"type": "error", "message": str(e)}))
+            await websocket.send_text(json.dumps({"type": "error", "message": "Internal server error"}))
         except Exception:
             pass

@@ -1,8 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Plus, Rocket } from 'lucide-react'
+import { toast } from 'sonner'
+import { Plus, Rocket, History } from 'lucide-react'
 import { businessApi } from '@/api/areas'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorCard } from '@/components/ErrorCard'
+import { EmptyState } from '@/components/EmptyState'
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
   feature_shipped: 'bg-emerald-500/10 text-emerald-500',
@@ -14,11 +18,18 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
 }
 
 export function BusinessPage() {
-  const { data: events } = useQuery({ queryKey: ['business', 'events'], queryFn: businessApi.events })
-  const { data: summary } = useQuery({ queryKey: ['business', 'summary'], queryFn: businessApi.summary })
+  const { data: events, isLoading: loadingEvents, isError: errorEvents, refetch: refetchEvents } = useQuery({
+    queryKey: ['business', 'events'],
+    queryFn: businessApi.events,
+  })
+  const { data: summary, isLoading: loadingSummary, isError: errorSummary, refetch: refetchSummary } = useQuery({
+    queryKey: ['business', 'summary'],
+    queryFn: businessApi.summary,
+  })
   const queryClient = useQueryClient()
 
   const [form, setForm] = useState({ event_type: 'feature_shipped', title: '', description: '' })
+  const [titleError, setTitleError] = useState('')
 
   const addEvent = useMutation({
     mutationFn: () => businessApi.createEvent({
@@ -29,18 +40,30 @@ export function BusinessPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['business'] })
       setForm(f => ({ ...f, title: '', description: '' }))
+      setTitleError('')
+      toast.success('Event logged')
     },
+    onError: () => toast.error('Failed to log event'),
   })
+
+  const handleLog = () => {
+    if (!form.title.trim()) {
+      setTitleError('Title is required')
+      return
+    }
+    setTitleError('')
+    addEvent.mutate()
+  }
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">Business</h1>
+      <h1 className="text-2xl font-semibold text-foreground">Business</h1>
 
       {/* Ledgr status */}
       <div className="bg-card border border-border rounded-xl p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 rounded-lg bg-violet-500/10">
-            <Rocket className="w-5 h-5 text-violet-400" />
+            <Rocket className="w-5 h-5 text-violet-400" aria-hidden="true" />
           </div>
           <div>
             <h2 className="font-semibold text-foreground">Ledgr</h2>
@@ -48,73 +71,115 @@ export function BusinessPage() {
           </div>
           <span className="ml-auto text-xs px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 font-medium">Building</span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div>
-            <p className="text-xs text-muted-foreground">MRR</p>
-            <p className="text-xl font-bold font-mono mt-0.5">{formatCurrency(summary?.mrr ?? 0)}</p>
+
+        {errorSummary ? (
+          <ErrorCard message="Could not load Ledgr metrics" onRetry={() => refetchSummary()} />
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">MRR</p>
+              {loadingSummary
+                ? <Skeleton className="h-7 w-24 mt-0.5" />
+                : <p className="text-xl font-bold font-mono mt-0.5">{formatCurrency(summary?.mrr ?? 0)}</p>
+              }
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Last feature</p>
+              {loadingSummary
+                ? <Skeleton className="h-5 w-32 mt-0.5" />
+                : <p className="text-sm font-medium mt-0.5 truncate">{summary?.last_feature ?? '—'}</p>
+              }
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Shipped at</p>
+              {loadingSummary
+                ? <Skeleton className="h-5 w-20 mt-0.5" />
+                : <p className="text-sm font-medium mt-0.5">{formatDate(summary?.last_feature_at)}</p>
+              }
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Last feature</p>
-            <p className="text-sm font-medium mt-0.5 truncate">{summary?.last_feature ?? '—'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Shipped at</p>
-            <p className="text-sm font-medium mt-0.5">{formatDate(summary?.last_feature_at)}</p>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Log event */}
       <div className="bg-card border border-border rounded-xl p-4">
         <h2 className="text-sm font-semibold mb-3">Log Event</h2>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-start">
           <select
             value={form.event_type}
             onChange={e => setForm(f => ({ ...f, event_type: e.target.value }))}
-            className="px-3 py-2 text-sm rounded-lg bg-muted border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+            aria-label="Event type"
+            className="px-3 py-2 text-sm rounded-lg bg-muted border border-border text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           >
             {Object.keys(EVENT_TYPE_COLORS).map(t => (
               <option key={t} value={t}>{t.replace('_', ' ')}</option>
             ))}
           </select>
-          <input
-            placeholder="Title"
-            value={form.title}
-            onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-            className="flex-1 min-w-[140px] px-3 py-2 text-sm rounded-lg bg-muted border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-          />
+          <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
+            <input
+              placeholder="Title"
+              value={form.title}
+              onChange={e => { setForm(f => ({ ...f, title: e.target.value })); setTitleError('') }}
+              onKeyDown={e => { if (e.key === 'Enter') handleLog() }}
+              aria-label="Event title"
+              aria-invalid={!!titleError}
+              className="px-3 py-2 text-sm rounded-lg bg-muted border border-border text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 aria-invalid:border-destructive"
+            />
+            {titleError && <span className="text-xs text-destructive">{titleError}</span>}
+          </div>
           <button
-            onClick={() => addEvent.mutate()}
-            disabled={!form.title || addEvent.isPending}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition"
+            onClick={handleLog}
+            disabled={addEvent.isPending}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            <Plus className="w-4 h-4" /> Log
+            <Plus className="w-4 h-4" aria-hidden="true" /> Log
           </button>
         </div>
       </div>
 
-      {/* Feature timeline */}
+      {/* Event timeline */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-border">
           <h2 className="text-sm font-semibold">Event Timeline</h2>
         </div>
-        <div className="divide-y divide-border">
-          {events?.map(e => (
-            <div key={e.id} className="flex items-start gap-3 px-4 py-3">
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${EVENT_TYPE_COLORS[e.event_type] ?? 'bg-muted text-muted-foreground'}`}>
-                {e.event_type.replace('_', ' ')}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{e.title}</p>
-                {e.description && <p className="text-xs text-muted-foreground mt-0.5">{e.description}</p>}
+
+        {errorEvents ? (
+          <ErrorCard message="Could not load events" onRetry={() => refetchEvents()} />
+        ) : loadingEvents ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-start gap-3 px-4 py-3">
+                <Skeleton className="h-5 w-24 rounded-full shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+                <Skeleton className="h-3 w-16 shrink-0" />
               </div>
-              <span className="text-xs text-muted-foreground shrink-0">{formatDate(e.occurred_at)}</span>
-            </div>
-          ))}
-          {!events?.length && (
-            <p className="px-4 py-8 text-center text-sm text-muted-foreground">No events logged yet</p>
-          )}
-        </div>
+            ))}
+          </div>
+        ) : events?.length === 0 ? (
+          <EmptyState
+            icon={History}
+            title="No events logged yet"
+            description="Use the form above or the chat agent to log Ledgr milestones and decisions."
+          />
+        ) : (
+          <div className="divide-y divide-border">
+            {events?.map(e => (
+              <div key={e.id} className="flex items-start gap-3 px-4 py-3">
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${EVENT_TYPE_COLORS[e.event_type] ?? 'bg-muted text-muted-foreground'}`}>
+                  {e.event_type.replace('_', ' ')}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">{e.title}</p>
+                  {e.description && <p className="text-xs text-muted-foreground mt-0.5">{e.description}</p>}
+                </div>
+                <span className="text-xs text-muted-foreground shrink-0">{formatDate(e.occurred_at)}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
