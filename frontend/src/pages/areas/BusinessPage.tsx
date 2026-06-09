@@ -60,7 +60,7 @@ export function BusinessPage() {
       <h1 className="text-2xl font-semibold text-foreground">Business</h1>
 
       {/* Ledgr status */}
-      <div className="bg-card border border-border rounded-xl p-5">
+      <div className="bg-card premium-shadow rounded-3xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 rounded-lg bg-violet-500/10">
             <Rocket className="w-5 h-5 text-violet-400" aria-hidden="true" />
@@ -102,7 +102,7 @@ export function BusinessPage() {
       </div>
 
       {/* Log event */}
-      <div className="bg-card border border-border rounded-xl p-4">
+      <div className="bg-card premium-shadow rounded-3xl p-6">
         <h2 className="text-sm font-semibold mb-3">Log Event</h2>
         <div className="flex gap-2 flex-wrap items-start">
           <select
@@ -138,8 +138,8 @@ export function BusinessPage() {
       </div>
 
       {/* Event timeline */}
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-border">
+      <div className="bg-card premium-shadow rounded-3xl overflow-hidden pb-2">
+        <div className="px-6 py-4 border-b border-border">
           <h2 className="text-sm font-semibold">Event Timeline</h2>
         </div>
 

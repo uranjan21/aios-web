@@ -1,12 +1,74 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { Dumbbell, Scale, Plus, Download } from 'lucide-react'
+import {
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  CartesianGrid, TooltipProps,
+} from 'recharts'
+import { Dumbbell, Scale, Plus, Download, Flame } from 'lucide-react'
 import { healthApi } from '@/api/areas'
-import { formatRelativeTime, exportToCsv } from '@/lib/utils'
+import { cn, formatRelativeTime, exportToCsv } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorCard } from '@/components/ErrorCard'
+import { useCountUp } from '@/hooks/useCountUp'
+
+// ─── Weight tooltip ──────────────────────────────────────────────────────────
+
+function WeightTooltip({ active, payload, label, data }: TooltipProps<number, string> & { data: { date: string; weight: number }[] }) {
+  if (!active || !payload?.length) return null
+  const current = payload[0].value ?? 0
+  const idx = data.findIndex(d => d.date === label)
+  const prev = idx > 0 ? data[idx - 1].weight : null
+  const delta = prev !== null ? current - prev : null
+  return (
+    <div className="bg-popover border border-border rounded-lg px-3 py-2 text-sm shadow-lg">
+      <p className="text-muted-foreground text-xs mb-1">{label}</p>
+      <p className="font-semibold font-mono">{current.toFixed(1)} kg</p>
+      {delta !== null && (
+        <p className={delta <= 0 ? 'text-emerald-400 text-xs' : 'text-red-400 text-xs'}>
+          {delta <= 0 ? '↓' : '↑'} {Math.abs(delta).toFixed(1)} kg
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ─── Heatmap helpers ──────────────────────────────────────────────────────────
+
+const WEEKS = 16 // show 16 weeks (112 days)
+
+/** Returns a Tailwind class for heatmap intensity 0–3 */
+function heatIntensity(count: number): string {
+  if (count === 0) return 'bg-muted'
+  if (count === 1) return 'bg-emerald-600/60'
+  if (count === 2) return 'bg-emerald-500'
+  return 'bg-emerald-400'           // 3+ days in a week treated as weekly agg
+}
+
+// ─── Stat card ────────────────────────────────────────────────────────────────
+
+function StatCard({ label, value, sub, icon: Icon }: {
+  label: string
+  value: string
+  sub?: string
+  icon?: React.FC<{ className?: string }>
+}) {
+  return (
+    <div className="bg-card premium-shadow rounded-3xl p-6">
+      {Icon && (
+        <div className="flex items-center gap-2 mb-1">
+          <Icon className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+          <p className="text-xs text-muted-foreground">{label}</p>
+        </div>
+      )}
+      {!Icon && <p className="text-xs text-muted-foreground mb-1">{label}</p>}
+      <p className="text-2xl font-bold text-foreground font-mono">{value}</p>
+      {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+    </div>
+  )
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export function HealthPage() {
   const { data: streak, isLoading: loadingStreak, isError: errorStreak, refetch: refetchStreak } = useQuery({
@@ -31,6 +93,10 @@ export function HealthPage() {
   const [logValue, setLogValue] = useState('')
   const [logNote, setLogNote] = useState('')
   const [valueError, setValueError] = useState('')
+
+  // Count-up animations for KPI values
+  const animatedStreak = useCountUp(streak?.current_streak ?? null)
+  const animatedSessions = useCountUp(gymLogs?.length ?? null)
 
   const addLog = useMutation({
     mutationFn: () => healthApi.createLog({
@@ -66,25 +132,45 @@ export function HealthPage() {
     [weightLogs]
   )
 
+  // 3-level heatmap: count sessions per day, then aggregate per cell
   const heatmapDays = useMemo(() => {
-    const gymDates = new Set(gymLogs?.map(l => l.logged_at.slice(0, 10)) ?? [])
-    return Array.from({ length: 84 }, (_, i) => {
+    // count sessions per day
+    const countByDate = (gymLogs ?? []).reduce<Record<string, number>>((acc, l) => {
+      const date = l.logged_at.slice(0, 10)
+      acc[date] = (acc[date] ?? 0) + 1
+      return acc
+    }, {})
+
+    return Array.from({ length: WEEKS * 7 }, (_, i) => {
       const d = new Date()
-      d.setDate(d.getDate() - (83 - i))
+      d.setDate(d.getDate() - (WEEKS * 7 - 1 - i))
       const iso = d.toISOString().slice(0, 10)
-      return { date: iso, worked: gymDates.has(iso) }
+      const count = countByDate[iso] ?? 0
+      return { date: iso, count }
     })
   }, [gymLogs])
+
+  // Month labels for heatmap (one per week column)
+  const weekLabels = useMemo(() =>
+    Array.from({ length: WEEKS }, (_, week) => {
+      const day = heatmapDays[week * 7]
+      const prevDay = week > 0 ? heatmapDays[(week - 1) * 7] : null
+      const month = day?.date.slice(5, 7)
+      const prevMonth = prevDay?.date.slice(5, 7)
+      return { week, show: month !== prevMonth, label: day ? new Date(day.date).toLocaleDateString('en', { month: 'short' }) : '' }
+    }),
+    [heatmapDays]
+  )
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <h1 className="text-2xl font-semibold text-foreground">Health</h1>
 
-      {/* Stats */}
+      {/* KPI Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {loadingSummary || loadingStreak || loadingGym ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-card border border-border rounded-xl p-4 space-y-2">
+            <div key={i} className="bg-card premium-shadow rounded-3xl p-6 space-y-2">
               <Skeleton className="h-3 w-20" />
               <Skeleton className="h-8 w-24" />
             </div>
@@ -94,55 +180,67 @@ export function HealthPage() {
             <ErrorCard message="Could not load health data" onRetry={() => { refetchStreak(); refetchGym() }} />
           </div>
         ) : <>
-            <div className="bg-card border border-border rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <Scale className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
-                <p className="text-xs text-muted-foreground">Weight</p>
-              </div>
-              <p className="text-2xl font-bold font-mono">{summary?.weight ?? '—'} <span className="text-sm font-normal text-muted-foreground">kg</span></p>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <Dumbbell className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
-                <p className="text-xs text-muted-foreground">Gym Streak</p>
-              </div>
-              <p className="text-2xl font-bold font-mono">{streak?.current_streak ?? '—'} <span className="text-sm font-normal text-muted-foreground">days</span></p>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-4">
-              <p className="text-xs text-muted-foreground mb-1">Last Workout</p>
-              <p className="text-lg font-semibold">{formatRelativeTime(streak?.last_workout_at ?? null)}</p>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-4">
-              <p className="text-xs text-muted-foreground mb-1">Total Sessions</p>
-              <p className="text-2xl font-bold font-mono">{gymLogs?.length ?? 0}</p>
-            </div>
+            <StatCard label="Weight" icon={Scale} value={summary?.weight != null ? `${summary.weight} kg` : '—'} />
+            <StatCard
+              label="Gym Streak"
+              icon={Flame}
+              value={animatedStreak != null ? `${Math.round(animatedStreak)}` : '—'}
+              sub="days in a row"
+            />
+            <StatCard
+              label="Last Workout"
+              value={formatRelativeTime(streak?.last_workout_at ?? null)}
+            />
+            <StatCard
+              label="Total Sessions"
+              value={animatedSessions != null ? String(Math.round(animatedSessions)) : '0'}
+            />
           </>
         }
       </div>
 
-      {/* Weight chart */}
+      {/* Weight trend chart — upgraded to AreaChart */}
       {(loadingWeight || weightData.length > 0) && (
-        <div className="bg-card border border-border rounded-xl p-4">
+        <div className="bg-card premium-shadow rounded-3xl p-6">
           <h2 className="text-sm font-semibold mb-4">Weight Trend</h2>
           {loadingWeight
             ? <Skeleton className="h-[200px]" />
             : <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={weightData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                <AreaChart data={weightData}>
+                  <defs>
+                    <linearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.4} />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 10 }}
+                    tickFormatter={v => new Date(v).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    interval="preserveStartEnd"
+                  />
                   <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11 }} unit=" kg" />
-                  <Tooltip formatter={(v: number) => `${v} kg`} />
-                  <Line type="monotone" dataKey="weight" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                </LineChart>
+                  <Tooltip content={<WeightTooltip data={weightData} />} />
+                  <Area
+                    type="monotone"
+                    dataKey="weight"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    fill="url(#weightGradient)"
+                    dot={false}
+                  />
+                </AreaChart>
               </ResponsiveContainer>
           }
         </div>
       )}
 
-      {/* Workout heatmap */}
-      <div className="bg-card border border-border rounded-xl p-4">
+      {/* Workout heatmap — 16 weeks, 3-level intensity */}
+      <div className="bg-card premium-shadow rounded-3xl p-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold">Workout Calendar (Last 12 weeks)</h2>
+          <h2 className="text-sm font-semibold">Workout Calendar <span className="text-xs font-normal text-muted-foreground">(last {WEEKS} weeks)</span></h2>
           {gymLogs && gymLogs.length > 0 && (
             <button
               onClick={() => exportToCsv(
@@ -156,26 +254,19 @@ export function HealthPage() {
             </button>
           )}
         </div>
+
         {loadingGym
-          ? <Skeleton className="h-24" />
+          ? <Skeleton className="h-32" />
           : <div className="overflow-x-auto" role="region" aria-label="Workout heatmap">
-              <div className="min-w-[280px]">
-                {/* Month labels row */}
+              <div style={{ minWidth: `${WEEKS * 16 + 24}px` }}>
+                {/* Month labels */}
                 <div className="flex gap-1 mb-1 pl-6">
-                  <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: 'repeat(12, 1fr)' }}>
-                    {Array.from({ length: 12 }, (_, week) => {
-                      const weekDate = heatmapDays[week * 7]?.date
-                      const prevDate = week > 0 ? heatmapDays[(week - 1) * 7]?.date : null
-                      const month = weekDate?.slice(5, 7)
-                      const prevMonth = prevDate?.slice(5, 7)
-                      return (
-                        <div key={week} className="text-[9px] text-muted-foreground text-center truncate">
-                          {month !== prevMonth && weekDate
-                            ? new Date(weekDate).toLocaleDateString('en', { month: 'short' })
-                            : ''}
-                        </div>
-                      )
-                    })}
+                  <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: `repeat(${WEEKS}, 1fr)` }}>
+                    {weekLabels.map(({ week, show, label }) => (
+                      <div key={week} className="text-[9px] text-muted-foreground text-center truncate">
+                        {show ? label : ''}
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -184,23 +275,30 @@ export function HealthPage() {
                   {/* Mon/Wed/Fri labels */}
                   <div className="flex flex-col gap-1 w-5 shrink-0">
                     {['', 'M', '', 'W', '', 'F', ''].map((d, i) => (
-                      <div key={i} className="text-[9px] text-muted-foreground text-right pr-1 leading-none" style={{ height: '0.75rem', lineHeight: '0.75rem', marginBottom: '1px' }}>
+                      <div
+                        key={i}
+                        className="text-[9px] text-muted-foreground text-right pr-1 leading-none"
+                        style={{ height: '0.75rem', lineHeight: '0.75rem', marginBottom: '1px' }}
+                      >
                         {d}
                       </div>
                     ))}
                   </div>
 
-                  {/* Heatmap cells */}
-                  <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: 'repeat(12, 1fr)' }}>
-                    {Array.from({ length: 12 }, (_, week) => (
+                  {/* Cells */}
+                  <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: `repeat(${WEEKS}, 1fr)` }}>
+                    {Array.from({ length: WEEKS }, (_, week) => (
                       <div key={week} className="flex flex-col gap-1" role="row">
                         {heatmapDays.slice(week * 7, week * 7 + 7).map(day => (
                           <div
                             key={day.date}
                             role="gridcell"
-                            title={`${day.date}${day.worked ? ' — worked out' : ''}`}
-                            aria-label={`${day.date}${day.worked ? ', worked out' : ', rest day'}`}
-                            className={`aspect-square rounded-sm min-w-[6px] ${day.worked ? 'bg-emerald-500' : 'bg-muted'}`}
+                            title={`${day.date}${day.count > 0 ? ` — ${day.count} session${day.count > 1 ? 's' : ''}` : ''}`}
+                            aria-label={`${day.date}${day.count > 0 ? `, ${day.count} session${day.count > 1 ? 's' : ''}` : ', rest day'}`}
+                            className={cn(
+                              'aspect-square rounded-sm min-w-[8px] transition-colors',
+                              heatIntensity(day.count)
+                            )}
                           />
                         ))}
                       </div>
@@ -210,14 +308,21 @@ export function HealthPage() {
               </div>
             </div>
         }
-        <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm bg-muted" aria-hidden="true" /> Rest</div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm bg-emerald-500" aria-hidden="true" /> Gym session</div>
+
+        {/* Legend */}
+        <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+          <span>Less</span>
+          <div className="flex items-center gap-1">
+            {(['bg-muted', 'bg-emerald-600/60', 'bg-emerald-500', 'bg-emerald-400'] as const).map((cls, i) => (
+              <div key={i} className={cn('w-3 h-3 rounded-sm', cls)} aria-hidden="true" />
+            ))}
+          </div>
+          <span>More</span>
         </div>
       </div>
 
-      {/* Log entry */}
-      <div className="bg-card border border-border rounded-xl p-4">
+      {/* Quick Log */}
+      <div className="bg-card premium-shadow rounded-3xl p-6">
         <h2 className="text-sm font-semibold mb-3">Quick Log</h2>
         <div className="flex gap-2 flex-wrap items-start">
           <select

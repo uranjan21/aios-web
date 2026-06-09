@@ -17,13 +17,14 @@ async def list_items(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    result = await db.execute(select(ContentItem).order_by(desc(ContentItem.updated_at)).limit(200))
-    items = result.scalars().all()
+    query = select(ContentItem).order_by(desc(ContentItem.updated_at))
     if status:
-        items = [i for i in items if i.status == status]
+        query = query.where(ContentItem.status == status)
     if platform:
-        items = [i for i in items if i.platform == platform]
-    return items
+        query = query.where(ContentItem.platform == platform)
+    query = query.limit(200)
+    result = await db.execute(query)
+    return result.scalars().all()
 
 
 class ContentItemCreate(BaseModel):
@@ -51,6 +52,9 @@ async def create_item(body: ContentItemCreate, current_user=Depends(get_current_
 
 
 class ContentItemPatch(BaseModel):
+    title: Optional[str] = None
+    platform: Optional[str] = None
+    content_type: Optional[str] = None
     status: Optional[str] = None
     publish_date: Optional[date] = None
     notes: Optional[str] = None
@@ -62,6 +66,12 @@ async def patch_item(item_id: str, body: ContentItemPatch, current_user=Depends(
     item = result.scalar_one_or_none()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
+    if body.title is not None:
+        item.title = body.title
+    if body.platform is not None:
+        item.platform = body.platform
+    if body.content_type is not None:
+        item.content_type = body.content_type
     if body.status is not None:
         item.status = body.status
     if body.publish_date is not None:
@@ -73,6 +83,16 @@ async def patch_item(item_id: str, body: ContentItemPatch, current_user=Depends(
     await db.commit()
     await db.refresh(item)
     return item
+
+@router.delete("/items/{item_id}")
+async def delete_item(item_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(ContentItem).where(ContentItem.id == item_id))
+    item = result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    await db.delete(item)
+    await db.commit()
+    return {"status": "deleted"}
 
 
 @router.get("/twitter-queue")

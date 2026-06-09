@@ -14,7 +14,7 @@ export function BottomNav() {
   const location = useLocation()
 
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 bg-card border-t border-border z-50">
+    <nav className="md:hidden fixed bottom-0 inset-x-0 glass-panel border-t z-50">
       <div className="grid grid-cols-5 h-16">
         {TABS.map(({ to, icon: Icon, label }) => {
           const isActive = to === '/'

@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-50 select-none',
+  'inline-flex items-center justify-center gap-1.5 rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-50 select-none',
   {
     variants: {
       variant: {

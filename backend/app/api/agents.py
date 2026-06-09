@@ -118,19 +118,22 @@ async def _run_agent(task_id: str, run_id: str) -> None:
         run_status = "error"
 
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(Agent).where(Agent.task_id == task_id))
-        agent = result.scalar_one_or_none()
-        if agent:
-            agent.last_run_at = now
-            agent.last_run_status = run_status
-            if run_status == "success":
-                agent.run_count += 1
-                agent.last_output_text = f"Agent completed at {now.strftime('%Y-%m-%d %H:%M UTC')}. Run #{agent.run_count}."
-            else:
-                agent.last_output_text = f"Agent failed at {now.strftime('%Y-%m-%d %H:%M UTC')}."
-            agent.updated_at = datetime.utcnow()
-            session.add(agent)
-            await session.commit()
+        try:
+            result = await session.execute(select(Agent).where(Agent.task_id == task_id))
+            agent = result.scalar_one_or_none()
+            if agent:
+                agent.last_run_at = now
+                agent.last_run_status = run_status
+                if run_status == "success":
+                    agent.run_count += 1
+                    agent.last_output_text = f"Agent completed at {now.strftime('%Y-%m-%d %H:%M UTC')}. Run #{agent.run_count}."
+                else:
+                    agent.last_output_text = f"Agent failed at {now.strftime('%Y-%m-%d %H:%M UTC')}."
+                agent.updated_at = datetime.utcnow()
+                session.add(agent)
+                await session.commit()
+        except Exception as e:
+            logger.error("Failed to commit agent run status: %s", e)
     await _broadcast_agent({"type": "agent_complete", "task_id": task_id, "run_id": run_id, "status": run_status})
 
 

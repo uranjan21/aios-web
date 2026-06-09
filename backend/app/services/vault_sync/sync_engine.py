@@ -78,8 +78,8 @@ async def handle_file_change(rel_path: str, change_type: str) -> None:
         if existing and existing.checksum == new_checksum:
             return  # No actual change
 
-        if existing and existing.sync_status == "ok" and existing.content != content:
-            # Conflict: app already has content, vault diverged
+        if existing and existing.sync_status == "pending" and existing.content != content:
+            # Conflict: app has un-synced changes, and vault diverged
             await _create_conflict(session, existing, content)
             return
 

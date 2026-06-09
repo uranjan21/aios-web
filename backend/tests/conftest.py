@@ -11,6 +11,8 @@ from sqlmodel import SQLModel
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("APP_SECRET_KEY", "test-secret-key-minimum-32-chars!!")
 os.environ.setdefault("APP_PASSWORD", "testpass")
+os.environ.setdefault("LLM_PROVIDER", "nvidia")
+os.environ.setdefault("NVIDIA_API_KEY", "nvapi-placeholder")
 os.environ.setdefault("ANTHROPIC_API_KEY", "sk-placeholder")
 os.environ.setdefault("ALLOWED_ORIGIN", "http://localhost:5173")
 os.environ.setdefault("VAULT_PATH", "/tmp/vault-test")

@@ -4,10 +4,13 @@ import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { BottomNav } from './BottomNav'
 import { CommandPalette } from '@/components/CommandPalette'
+import { GlobalCapture } from '@/components/GlobalCapture'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { useNotifications } from '@/hooks/useNotifications'
 
 export function AppShell() {
   useKeyboardShortcuts()
+  useNotifications() // bridge vault conflicts + agent events → notification store
   const location = useLocation()
 
   return (
@@ -29,6 +32,7 @@ export function AppShell() {
       </div>
       <BottomNav />
       <CommandPalette />
+      <GlobalCapture />
     </div>
   )
 }

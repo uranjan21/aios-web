@@ -18,7 +18,10 @@ logger = logging.getLogger(__name__)
 @router.get("/sessions")
 async def list_sessions(current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(
-        select(ChatSession).order_by(desc(ChatSession.last_message_at)).limit(50)
+        select(ChatSession)
+        .where(ChatSession.is_archived == False)
+        .order_by(desc(ChatSession.last_message_at))
+        .limit(50)
     )
     return result.scalars().all()
 
@@ -46,9 +49,37 @@ async def delete_session(session_id: str, current_user=Depends(get_current_user)
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+        
+    messages_result = await db.execute(select(ChatMessage).where(ChatMessage.session_id == session_id))
+    for msg in messages_result.scalars().all():
+        await db.delete(msg)
+        
     await db.delete(session)
     await db.commit()
     return {"status": "deleted"}
+
+
+from pydantic import BaseModel
+class ChatSessionPatch(BaseModel):
+    title: str | None = None
+    is_archived: bool | None = None
+
+@router.patch("/sessions/{session_id}")
+async def patch_session(session_id: str, body: ChatSessionPatch, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(ChatSession).where(ChatSession.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if body.title is not None:
+        session.title = body.title
+    if body.is_archived is not None:
+        session.is_archived = body.is_archived
+        
+    db.add(session)
+    await db.commit()
+    await db.refresh(session)
+    return session
 
 
 @router.get("/token-budget")

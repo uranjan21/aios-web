@@ -23,7 +23,11 @@ async def get_current_user(
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
 
-    return {"user_id": payload.get("sub", "utsav"), "token": aios_token}
+    sub = payload.get("sub")
+    if not sub:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token claims")
+
+    return {"user_id": sub, "token": aios_token}
 
 
 async def ws_auth(websocket: WebSocket) -> Optional[dict]:
@@ -31,4 +35,7 @@ async def ws_auth(websocket: WebSocket) -> Optional[dict]:
     token = websocket.cookies.get("aios_token")
     if not token:
         return None
-    return decode_access_token(token)
+    payload = decode_access_token(token)
+    if not payload or not payload.get("sub"):
+        return None
+    return payload

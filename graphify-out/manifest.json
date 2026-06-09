@@ -1,0 +1,498 @@
+{
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/tailwind.config.ts": {
+    "mtime": 1781022650.871404,
+    "hash": "fd29334259403819e4ce14208b3c46a7"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/vite.config.ts": {
+    "mtime": 1781010885.218103,
+    "hash": "9b4699ecf1f9d6a08f50165f0615aa3f"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/postcss.config.js": {
+    "mtime": 1781010895.3862247,
+    "hash": "ef3ba2a81ba19f8ea5ddf625521e96f0"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/App.tsx": {
+    "mtime": 1781017298.1344435,
+    "hash": "a64a5bda72d3ff864baaa9a97c7f2dd4"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/main.tsx": {
+    "mtime": 1781011312.4177873,
+    "hash": "cc304c6f4a04cd2954d48ab662b021fc"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/router.tsx": {
+    "mtime": 1781024132.0106921,
+    "hash": "e572c3d583d208a6bd753c3ef2e9bf32"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/types/index.ts": {
+    "mtime": 1781021714.5119448,
+    "hash": "139c17b16d14c0373d0c60b14380fd10"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/stores/authStore.ts": {
+    "mtime": 1781010934.6086447,
+    "hash": "60917f6b7f615e128f07cb846bb65123"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/stores/uiStore.ts": {
+    "mtime": 1781022441.574939,
+    "hash": "72e8362839abbdd5f64e0c81fa044dd7"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/stores/notificationStore.ts": {
+    "mtime": 1781020689.566024,
+    "hash": "ddf5d8973bac0b555bb284d552783362"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/PageTransition.tsx": {
+    "mtime": 1781018079.3183162,
+    "hash": "c3bbfad380477e6dda76e9e125aa8bce"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/CommandPalette.tsx": {
+    "mtime": 1781017273.760857,
+    "hash": "ff31f3d54fde034d4a9803733b9b52be"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/ErrorCard.tsx": {
+    "mtime": 1781016515.1799626,
+    "hash": "21b78bab524b5778486acf13163665f8"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/RouteErrorBoundary.tsx": {
+    "mtime": 1781016519.64905,
+    "hash": "f07fb1552275824cec381f7124759291"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/NotificationBell.tsx": {
+    "mtime": 1781020731.338603,
+    "hash": "2458c203af07c95b5ef50990f917ece1"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/GlobalCapture.tsx": {
+    "mtime": 1781022456.413712,
+    "hash": "e0ff28104f76fd612b03b620af9b5b45"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/ThemeProvider.tsx": {
+    "mtime": 1781017250.6336095,
+    "hash": "801c464f612d121c706788e7d0399dd3"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/EmptyState.tsx": {
+    "mtime": 1781016523.662387,
+    "hash": "59adede47b14c53b0c5f9b788d864e5d"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/ui/alert-dialog.tsx": {
+    "mtime": 1781016928.573635,
+    "hash": "e4b53c2f78c9fb3dde789b1d1aaedbf4"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/ui/progress.tsx": {
+    "mtime": 1781017356.82649,
+    "hash": "ea6bc75375723b737c6edc3dcf216c24"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/ui/button.tsx": {
+    "mtime": 1781022700.8141265,
+    "hash": "71e9ee2c99ea618dff128e155f22298d"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/ui/skeleton.tsx": {
+    "mtime": 1781016511.6666722,
+    "hash": "926d59cbfffdb4ec2c858abdfe8248c2"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/areas/finance/WalletWidgets.tsx": {
+    "mtime": 1781023663.0739398,
+    "hash": "6369a6fcaa6f6bd355f63044c4837bb8"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/layout/TopBar.tsx": {
+    "mtime": 1781022910.1616383,
+    "hash": "210c7a395578277eb3573757a287c522"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/layout/BottomNav.tsx": {
+    "mtime": 1781022936.0911348,
+    "hash": "21d899c2b9029e85c55f69f6481abdcf"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/layout/AppShell.tsx": {
+    "mtime": 1781022462.4202967,
+    "hash": "3b3c579f5724f0b2fc90faa179b9222a"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/components/layout/Sidebar.tsx": {
+    "mtime": 1781024159.755682,
+    "hash": "8461aa25b39f787c34fc8772725ed168"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/hooks/useChat.ts": {
+    "mtime": 1781010998.200219,
+    "hash": "83602c5a13ac17d961e50f7e98ab23b2"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/hooks/useNotifications.ts": {
+    "mtime": 1781020704.4162397,
+    "hash": "67098edae0c5d15654540cca39157a37"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/hooks/useKeyboardShortcuts.ts": {
+    "mtime": 1781017283.9252138,
+    "hash": "724f4ba0ab6c747d1e748b5e0952424b"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/hooks/useVaultSync.ts": {
+    "mtime": 1781010980.1924205,
+    "hash": "16cbfb642fae740a389526e912952d37"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/hooks/useCountUp.ts": {
+    "mtime": 1781021920.2179756,
+    "hash": "601f08b16e5748a713fab4473b27b9c7"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/lib/utils.ts": {
+    "mtime": 1781017400.2981057,
+    "hash": "3044ae2251dda186469a2a0a85fbfc3b"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/api/integrations.ts": {
+    "mtime": 1781010969.4983184,
+    "hash": "4fbdb9dba2a05d9a9f74fcea095684ea"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/api/chat.ts": {
+    "mtime": 1781010964.857947,
+    "hash": "5d0269beb5ffd8e20719bffb17a86db9"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/api/agents.ts": {
+    "mtime": 1781010960.7305307,
+    "hash": "53dcfb35b15da1575a0fc55de9e878a0"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/api/areas.ts": {
+    "mtime": 1781021728.5629795,
+    "hash": "b24961741856221a5d7a9e979e73eb80"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/api/client.ts": {
+    "mtime": 1781016266.915489,
+    "hash": "afcdee3bce55d7ed6f0d94fd980608b1"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/pages/LoginPage.tsx": {
+    "mtime": 1781011073.0251899,
+    "hash": "15081395c4c9013ceff9c0022507def5"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/pages/SettingsPage.tsx": {
+    "mtime": 1781019351.6852322,
+    "hash": "01d89451554af08f5ad16337946cdfdd"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/pages/AgentsPage.tsx": {
+    "mtime": 1781020219.5499532,
+    "hash": "0f54b46f1ba157c536cad39fee4d45fb"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/pages/IntegrationsPage.tsx": {
+    "mtime": 1781019351.6831765,
+    "hash": "d4667c2457f853f516d53c76cb0f01d3"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/pages/ChatPage.tsx": {
+    "mtime": 1781022092.9556887,
+    "hash": "2e84ed346c4ed1b3b204894df665128f"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/pages/DashboardPage.tsx": {
+    "mtime": 1781022731.240737,
+    "hash": "32adab8adeaabcac99336bcda6906857"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/pages/areas/ContentPage.tsx": {
+    "mtime": 1781022897.526611,
+    "hash": "b72c1bfa6f7279a47993268f2e0d62b2"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/pages/areas/CareerPage.tsx": {
+    "mtime": 1781022868.8061674,
+    "hash": "7c53a41f1adcfd60215004fb5204ae7a"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/pages/areas/HealthPage.tsx": {
+    "mtime": 1781022838.1427286,
+    "hash": "ffa90874ef7b0770c768faea00cb1827"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/pages/areas/Placeholders.tsx": {
+    "mtime": 1781024117.805,
+    "hash": "f0878cff3c2c0af36b4ba31bf5768aba"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/pages/areas/FinancePage.tsx": {
+    "mtime": 1781023854.9680872,
+    "hash": "254e70272c9666b0a295bc66ff0a9692"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/src/pages/areas/BusinessPage.tsx": {
+    "mtime": 1781022884.724994,
+    "hash": "57d2c8ac214367b45fbe42b766c55724"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/seed_dummy_data.py": {
+    "mtime": 1781023487.31576,
+    "hash": "b945a6f95a3890d9a8ffa89892113c50"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/__init__.py": {
+    "mtime": 1781013688.3609006,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/main.py": {
+    "mtime": 1781020089.542855,
+    "hash": "0f70b4f1caff72c9248c742eb2a1ca5a"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/core/deps.py": {
+    "mtime": 1781015938.7246604,
+    "hash": "00d7f9cda63a180571a76b2f126c4c24"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/core/config.py": {
+    "mtime": 1781025081.2178032,
+    "hash": "fdbe633b4a28385efd0fb39eb4842c28"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/core/security.py": {
+    "mtime": 1781015948.1814725,
+    "hash": "38b3fb8b55d8e05d9e0eab69ea38230e"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/core/__init__.py": {
+    "mtime": 1781013688.3630018,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/core/rate_limit.py": {
+    "mtime": 1781015913.2766907,
+    "hash": "f6bbc0efc63658469f4d074c527df294"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/core/middleware.py": {
+    "mtime": 1781015920.4173481,
+    "hash": "9c148aabfd188b25f8e36d3b6634a3ae"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/models/user.py": {
+    "mtime": 1781013688.3643007,
+    "hash": "8da89f51353a7781777e508ffb2e3306"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/models/finance.py": {
+    "mtime": 1781021675.16811,
+    "hash": "2fbfdb8e2f943dfe604d733cd146b3db"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/models/health.py": {
+    "mtime": 1781013688.3650718,
+    "hash": "d57e3a11f49fcb0b96e895a8f6171281"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/models/__init__.py": {
+    "mtime": 1781013688.365294,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/models/integration.py": {
+    "mtime": 1781013688.365778,
+    "hash": "28ae7097396d4ecbba2e73c54bcbc3d9"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/models/captures.py": {
+    "mtime": 1781020071.1025152,
+    "hash": "0fdaf0d0ee982df58983526af0151ade"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/models/chat.py": {
+    "mtime": 1781013688.3661687,
+    "hash": "e05000a94153e617271de57ffa6525fd"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/models/content.py": {
+    "mtime": 1781013688.366522,
+    "hash": "282261db64904e59a830a66397715919"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/models/business.py": {
+    "mtime": 1781013688.3670645,
+    "hash": "c9bee3716e5b39df13d2a358dd7a8b1c"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/models/vault.py": {
+    "mtime": 1781013688.3676045,
+    "hash": "8da70c76a775239dea3fb1916d186558"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/models/agent.py": {
+    "mtime": 1781020171.2858734,
+    "hash": "20fe609876e4638aeca319b36a0ac14c"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/models/career.py": {
+    "mtime": 1781020776.9634273,
+    "hash": "97486cbc8513f7c5b00f000b8bd9b507"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/db/session.py": {
+    "mtime": 1781013688.368874,
+    "hash": "c16335a4b1c193a18a75d36e3e18fc17"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/db/__init__.py": {
+    "mtime": 1781013688.3690856,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/db/base.py": {
+    "mtime": 1781021681.3849537,
+    "hash": "adcedd8899681fad81b8ebb175e36dd7"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/api/sync.py": {
+    "mtime": 1781016032.7245653,
+    "hash": "48986dd29f77322135cc79c0221ed351"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/api/auth.py": {
+    "mtime": 1781015943.054011,
+    "hash": "70db84e6a2b869af5b28eeae07f9a2a3"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/api/__init__.py": {
+    "mtime": 1781013688.3709567,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/api/agents.py": {
+    "mtime": 1781020181.822637,
+    "hash": "b4faecfee87426e89b9c3737de3e9287"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/api/captures.py": {
+    "mtime": 1781020082.2567,
+    "hash": "60dd4f3f61ecec9c1b82fe2a4f79a28d"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/api/chat.py": {
+    "mtime": 1781015992.070047,
+    "hash": "5cf5c65ea823c97fbf6a96f9a852c15b"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/api/integrations.py": {
+    "mtime": 1781013688.3730197,
+    "hash": "36d517fe4703400bcca8d19ce53cf7dc"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/api/areas/finance.py": {
+    "mtime": 1781021703.3970904,
+    "hash": "084d988f190026578ee5436ab519626f"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/api/areas/health.py": {
+    "mtime": 1781013688.3743415,
+    "hash": "c698021f5d68451910adb802162f767b"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/api/areas/__init__.py": {
+    "mtime": 1781013688.374572,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/api/areas/content.py": {
+    "mtime": 1781013688.3751397,
+    "hash": "96116b52c253cb7a3dc6d6e9b39adcc8"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/api/areas/business.py": {
+    "mtime": 1781013688.375692,
+    "hash": "afeb68a30685727decfd95215e002c22"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/api/areas/career.py": {
+    "mtime": 1781020802.4655507,
+    "hash": "a5e89ee7450e6a034c6a9693272ad7c4"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/__init__.py": {
+    "mtime": 1781013688.373225,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/vault_sync/sync_engine.py": {
+    "mtime": 1781013688.376968,
+    "hash": "1bf7a28d6e85d9eedca974ff929977ff"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/vault_sync/__init__.py": {
+    "mtime": 1781013688.3775842,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/vault_sync/parser.py": {
+    "mtime": 1781013688.3782444,
+    "hash": "b89999ba8d711d5a4c32e7b2a176b951"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/vault_sync/writer.py": {
+    "mtime": 1781013688.3790483,
+    "hash": "b7bad3cc65381dbcdc82302933966dcc"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/vault_sync/watcher.py": {
+    "mtime": 1781013688.379797,
+    "hash": "4fed72e40af527b0f6a78843ec616d20"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/chat/memory.py": {
+    "mtime": 1781016055.4789646,
+    "hash": "84c79a002deb2f1c692abde31f13c29a"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/chat/context_builder.py": {
+    "mtime": 1781019255.084517,
+    "hash": "4ce7a6ad22bbc358d54ed4396795b5e4"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/chat/tools.py": {
+    "mtime": 1781019270.1406283,
+    "hash": "391f9496eaafcba06aaa3b4dd08bf030"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/chat/__init__.py": {
+    "mtime": 1781013688.3815742,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/chat/nvidia_agent.py": {
+    "mtime": 1781025080.14955,
+    "hash": "d3fb6e313c8833eebc36c30b1f7de46c"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/chat/agent.py": {
+    "mtime": 1781025082.0010812,
+    "hash": "19a15878afa0cbf8c9b7bec192a84db7"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/agents/__init__.py": {
+    "mtime": 1781017510.4741788,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/agents/scheduler.py": {
+    "mtime": 1781017529.2343106,
+    "hash": "9243e3c1888902bbf6d417f855b8637f"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/rag/retriever.py": {
+    "mtime": 1781016088.8579836,
+    "hash": "71cbd21bf53241f444da5ec3dde00c44"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/rag/__init__.py": {
+    "mtime": 1781013688.3830218,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/rag/embedder.py": {
+    "mtime": 1781016100.7233174,
+    "hash": "2fb1b0c9cb82ff9a60f090af817a216d"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/integrations/__init__.py": {
+    "mtime": 1781013688.3837836,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/app/services/ai/nvidia_client.py": {
+    "mtime": 1781025074.8666027,
+    "hash": "ebf20236795d50096b135eb5ef33ffff"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/tests/conftest.py": {
+    "mtime": 1781025091.426548,
+    "hash": "cb90e63b98c91612ed72667e7f747991"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/tests/test_auth.py": {
+    "mtime": 1781018032.2501404,
+    "hash": "3dc5ec6f75b3bddf9705e8b44ffed769"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/tests/__init__.py": {
+    "mtime": 1781017997.8153827,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/tests/test_health.py": {
+    "mtime": 1781018024.4040787,
+    "hash": "6f7b02274f6eeb7fa33634f197d4c3b5"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/tests/test_token_budget.py": {
+    "mtime": 1781018044.4789965,
+    "hash": "5e27336c3490da0764061769f98f817f"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/alembic/env.py": {
+    "mtime": 1781010467.2041574,
+    "hash": "4ffbbdb53b8d9b9fcda7640c1c1962da"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/alembic/__init__.py": {
+    "mtime": 1781010860.8171926,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/alembic/versions/0001_initial_schema.py": {
+    "mtime": 1781013473.460283,
+    "hash": "e9fac50b042e3782d47892cc0fbd3f92"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/alembic/versions/0002_add_captures.py": {
+    "mtime": 1781020076.4452543,
+    "hash": "41854ba354651976705dbc188cf93901"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/alembic/versions/390b9014df81_merge_heads.py": {
+    "mtime": 1781023459.082394,
+    "hash": "9614d052bb2a5ba1dad79a6a24154dcf"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/alembic/versions/add_job_opportunities.py": {
+    "mtime": 1781020785.3809566,
+    "hash": "100818c4b008a4323b1bfda1ed8f357e"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/alembic/versions/0003_add_agent_output_text.py": {
+    "mtime": 1781020175.6868248,
+    "hash": "315f90b93b3481ce424cb54d797c34b1"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/backend/alembic/versions/6e3b68412e0d_add_missing_tables.py": {
+    "mtime": 1781023520.3193426,
+    "hash": "7ab732aadc64703a9506d389ad21d709"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/MEMORY.md": {
+    "mtime": 1781023382.8476093,
+    "hash": "67aa6d723d61e931e998dcb4062f7ddc"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/docker-compose.yml": {
+    "mtime": 1781015925.0583832,
+    "hash": "7f0ecfebc1393e36655e258cad0893d0"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/index.html": {
+    "mtime": 1781022650.7535331,
+    "hash": "1aede2d8e4278b9f40204d62935ee5c1"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/pnpm-workspace.yaml": {
+    "mtime": 1781011377.8525944,
+    "hash": "7bb23c19c0343fac40d375bacca550d0"
+  },
+  "/Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web/frontend/public/favicon.svg": {
+    "mtime": 1781011321.4412093,
+    "hash": "2b848e9030b2f50e0034ff2943334228"
+  }
+}

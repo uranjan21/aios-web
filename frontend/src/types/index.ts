@@ -141,3 +141,23 @@ export interface Integration {
   metadata: Record<string, unknown> | null
   token_expires_at: string | null
 }
+
+export type OpportunityStatus = 'prospect' | 'applied' | 'screening' | 'interview' | 'offer' | 'rejected' | 'closed'
+
+export interface JobOpportunity {
+  id: string
+  company: string
+  role: string
+  status: OpportunityStatus
+  applied_date: string | null
+  notes: string | null
+  url: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface BudgetLimit {
+  category: string
+  monthly_limit: number
+  updated_at: string
+}

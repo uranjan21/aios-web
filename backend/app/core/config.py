@@ -1,6 +1,8 @@
 from functools import lru_cache
 
-from pydantic import model_validator
+import secrets
+
+from pydantic import model_validator, Field
 from pydantic_settings import BaseSettings
 
 _INSECURE_DEFAULTS = {"change-me-in-production", "changeme", "secret", ""}
@@ -8,21 +10,25 @@ _INSECURE_DEFAULTS = {"change-me-in-production", "changeme", "secret", ""}
 
 class Settings(BaseSettings):
     # App
-    app_secret_key: str = "change-me-in-production"
-    app_password: str = "changeme"
+    app_secret_key: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
+    app_password: str = Field(default_factory=lambda: secrets.token_urlsafe(16))
     allowed_origin: str = "http://localhost:5173"
     environment: str = "development"  # "production" | "development"
 
     # Database
-    database_url: str = "postgresql+asyncpg://aios:aios_dev_password@localhost:5432/aios_web"
+    database_url: str = "postgresql+asyncpg://localhost:5432/aios_web"
 
     # Vault
     vault_path: str = "/tmp/vault"
     vault_watch_interval_seconds: int = 5
 
     # AI
+    llm_provider: str = "nvidia"  # "nvidia" | "anthropic"
     anthropic_api_key: str = ""
     claude_model: str = "claude-sonnet-4-5"
+    nvidia_api_key: str = ""
+    nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
+    nvidia_chat_model: str = "meta/llama-3.3-70b-instruct"
     openai_api_key: str = ""
     claude_daily_token_limit: int = 200000
     claude_session_token_limit: int = 50000

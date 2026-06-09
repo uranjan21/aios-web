@@ -128,16 +128,20 @@ export function SettingsPage() {
   const { theme, setTheme } = useUIStore()
 
   const handleLogout = async () => {
-    await api.post('/auth/logout')
-    logout()
-    navigate('/login')
+    try {
+      await api.post('/auth/logout')
+    } catch (e) {
+      console.error("Logout failed:", e)
+    } finally {
+      logout()
+      navigate('/login')
+    }
   }
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Settings</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Configure your AIOS instance</p>
+        <p className="text-muted-foreground text-[13px] mt-0.5">Configure your AIOS instance</p>
       </div>
 
       {/* Appearance */}

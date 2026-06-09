@@ -16,11 +16,12 @@ async def list_logs(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    result = await db.execute(select(HealthLog).order_by(desc(HealthLog.logged_at)).limit(200))
-    logs = result.scalars().all()
+    query = select(HealthLog).order_by(desc(HealthLog.logged_at))
     if entry_type:
-        logs = [l for l in logs if l.entry_type == entry_type]
-    return logs
+        query = query.where(HealthLog.entry_type == entry_type)
+    query = query.limit(200)
+    result = await db.execute(query)
+    return result.scalars().all()
 
 
 class HealthLogCreate(BaseModel):

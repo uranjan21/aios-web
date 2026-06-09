@@ -1,6 +1,6 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, constr
+from pydantic import BaseModel, Field
 
 from app.core.deps import get_current_user, get_db
 from app.models.captures import Capture
@@ -9,7 +9,7 @@ router = APIRouter(prefix="/api/captures", tags=["captures"])
 
 
 class CaptureCreate(BaseModel):
-    raw_text: str = constr(min_length=1, max_length=2000)
+    raw_text: str = Field(min_length=1, max_length=2000)
 
 
 @router.post("", status_code=201)

@@ -14,6 +14,9 @@ interface UIState {
 
   cmdPaletteOpen: boolean
   setCmdPaletteOpen: (v: boolean) => void
+
+  captureModalOpen: boolean
+  setCaptureModalOpen: (v: boolean) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -29,6 +32,9 @@ export const useUIStore = create<UIState>()(
 
       cmdPaletteOpen: false,
       setCmdPaletteOpen: (v) => set({ cmdPaletteOpen: v }),
+
+      captureModalOpen: false,
+      setCaptureModalOpen: (v) => set({ captureModalOpen: v }),
     }),
     { name: 'aios-ui', partialize: (s) => ({ sidebarOpen: s.sidebarOpen, theme: s.theme }) }
   )

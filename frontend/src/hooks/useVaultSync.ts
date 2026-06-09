@@ -17,6 +17,8 @@ export function useVaultSync(): UseSyncResult {
   const wsRef = useRef<WebSocket | null>(null)
   const queryClient = useQueryClient()
 
+  const isMounted = useRef(true)
+
   const connect = useCallback(() => {
     const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
     const ws = new WebSocket(`${protocol}://${location.host}/ws/sync`)
@@ -24,8 +26,8 @@ export function useVaultSync(): UseSyncResult {
 
     ws.onopen = () => setState('synced')
     ws.onclose = () => {
+      if (!isMounted.current) return
       setState('disconnected')
-      // Reconnect after 5s
       setTimeout(connect, 5000)
     }
     ws.onerror = () => setState('error')
@@ -49,13 +51,19 @@ export function useVaultSync(): UseSyncResult {
           setState('synced')
           setLastSynced(new Date().toISOString())
         }
-      } catch {}
+      } catch (e) {
+        console.error("Failed to parse sync WS message:", e)
+      }
     }
   }, [queryClient])
 
   useEffect(() => {
+    isMounted.current = true
     connect()
-    return () => wsRef.current?.close()
+    return () => {
+      isMounted.current = false
+      wsRef.current?.close()
+    }
   }, [connect])
 
   return { state, lastSynced, conflicts }

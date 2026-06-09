@@ -15,6 +15,7 @@ class ChatSession(SQLModel, table=True):
     output_tokens: int = Field(default=0, nullable=False)
     started_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
     last_message_at: Optional[datetime] = None
+    is_archived: bool = Field(default=False, nullable=False)
 
 
 class ChatMessage(SQLModel, table=True):

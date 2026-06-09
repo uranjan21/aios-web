@@ -35,6 +35,8 @@ export function useChat(initialSessionId?: string): UseChatResult {
   const wsRef = useRef<WebSocket | null>(null)
   const currentAssistantId = useRef<string | null>(null)
 
+  const isMounted = useRef(true)
+
   const connect = useCallback(() => {
     const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
     const ws = new WebSocket(`${protocol}://${location.host}/ws/chat`)
@@ -42,6 +44,7 @@ export function useChat(initialSessionId?: string): UseChatResult {
 
     ws.onopen = () => setConnected(true)
     ws.onclose = () => {
+      if (!isMounted.current) return
       setConnected(false)
       setTimeout(connect, 3000)
     }
@@ -50,7 +53,9 @@ export function useChat(initialSessionId?: string): UseChatResult {
       try {
         const event: ChatEvent = JSON.parse(evt.data)
         handleEvent(event)
-      } catch {}
+      } catch (e) {
+        console.error("Failed to parse chat WS message:", e)
+      }
     }
   }, [])
 
@@ -116,8 +121,12 @@ export function useChat(initialSessionId?: string): UseChatResult {
   }, [])
 
   useEffect(() => {
+    isMounted.current = true
     connect()
-    return () => wsRef.current?.close()
+    return () => {
+      isMounted.current = false
+      wsRef.current?.close()
+    }
   }, [connect])
 
   const sendMessage = useCallback((content: string) => {

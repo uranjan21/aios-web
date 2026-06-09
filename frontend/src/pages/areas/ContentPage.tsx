@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Plus, LayoutGrid } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   DndContext,
   DragOverlay,
@@ -11,8 +12,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { useDroppable } from '@dnd-kit/core'
-import { useDraggable } from '@dnd-kit/core'
+import { useDroppable, useDraggable } from '@dnd-kit/core'
 import { contentApi } from '@/api/areas'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -22,21 +22,39 @@ import type { ContentItem } from '@/types'
 
 const STATUS_COLS: ContentItem['status'][] = ['idea', 'in_progress', 'scheduled', 'published']
 
+const STATUS_LABELS: Record<ContentItem['status'], string> = {
+  idea:        'Ideas',
+  in_progress: 'In Progress',
+  scheduled:   'Scheduled',
+  published:   'Published',
+  archived:    'Archived',
+}
+
 const STATUS_STYLES: Record<ContentItem['status'], string> = {
-  idea: 'border-border bg-card',
+  idea:        'border-border bg-card',
   in_progress: 'border-blue-500/30 bg-blue-500/5',
-  scheduled: 'border-amber-500/30 bg-amber-500/5',
-  published: 'border-emerald-500/30 bg-emerald-500/5',
-  archived: 'border-border bg-muted/20',
+  scheduled:   'border-amber-500/30 bg-amber-500/5',
+  published:   'border-emerald-500/30 bg-emerald-500/5',
+  archived:    'border-border bg-muted/20',
+}
+
+const STATUS_ACCENT: Record<ContentItem['status'], string> = {
+  idea:        'bg-zinc-500/20 text-zinc-400',
+  in_progress: 'bg-blue-500/20 text-blue-400',
+  scheduled:   'bg-amber-500/20 text-amber-400',
+  published:   'bg-emerald-500/20 text-emerald-400',
+  archived:    'bg-muted text-muted-foreground',
 }
 
 const PLATFORM_BADGE: Record<string, string> = {
-  linkedin: 'bg-blue-600/20 text-blue-400',
-  twitter: 'bg-sky-500/20 text-sky-400',
+  linkedin:  'bg-blue-600/20 text-blue-400',
+  twitter:   'bg-sky-500/20 text-sky-400',
   instagram: 'bg-pink-500/20 text-pink-400',
-  youtube: 'bg-red-500/20 text-red-400',
-  blog: 'bg-amber-500/20 text-amber-400',
+  youtube:   'bg-red-500/20 text-red-400',
+  blog:      'bg-amber-500/20 text-amber-400',
 }
+
+// ─── Card ──────────────────────────────────────────────────────────────────────
 
 function ItemCard({ item, isDragging }: { item: ContentItem; isDragging?: boolean }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: item.id })
@@ -46,30 +64,46 @@ function ItemCard({ item, isDragging }: { item: ContentItem; isDragging?: boolea
     : undefined
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...listeners}
-      {...attributes}
-      className={cn(
-        'bg-background border border-border rounded-lg p-3 space-y-2 cursor-grab active:cursor-grabbing touch-none',
-        isDragging && 'opacity-50 ring-2 ring-primary',
-      )}
-      aria-roledescription="Draggable content card"
+    <motion.div
+      layout
+      initial={{ opacity: 0, scale: 0.96, y: 8 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.94, y: -4 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
     >
-      <p className="text-sm font-medium text-foreground leading-tight">{item.title}</p>
-      <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded', PLATFORM_BADGE[item.platform] ?? 'bg-muted text-muted-foreground')}>
-        {item.platform}
-      </span>
-    </div>
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...listeners}
+        {...attributes}
+        className={cn(
+          'bg-background border border-border rounded-lg p-3 space-y-2',
+          'cursor-grab active:cursor-grabbing touch-none select-none',
+          'hover:border-border/80 hover:shadow-sm transition-shadow',
+          isDragging && 'opacity-50 ring-2 ring-primary shadow-lg',
+        )}
+        aria-roledescription="Draggable content card"
+      >
+        <p className="text-sm font-medium text-foreground leading-tight">{item.title}</p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded', PLATFORM_BADGE[item.platform] ?? 'bg-muted text-muted-foreground')}>
+            {item.platform}
+          </span>
+          {item.publish_date && (
+            <span className="text-[10px] text-muted-foreground">
+              {new Date(item.publish_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+            </span>
+          )}
+        </div>
+      </div>
+    </motion.div>
   )
 }
 
+// ─── Column ────────────────────────────────────────────────────────────────────
+
 function ColumnDropZone({
-  status,
-  items,
-  isLoading,
-  activeId,
+  status, items, isLoading, activeId,
 }: {
   status: ContentItem['status']
   items: ContentItem[]
@@ -82,36 +116,53 @@ function ColumnDropZone({
     <div
       ref={setNodeRef}
       className={cn(
-        'rounded-xl border p-3 space-y-2 min-h-[120px] transition-colors',
+        'rounded-3xl border p-4 min-h-[180px] transition-colors',
         STATUS_STYLES[status],
         isOver && 'ring-2 ring-primary/50 bg-primary/5',
       )}
       role="region"
-      aria-label={`${status.replace('_', ' ')} column`}
+      aria-label={`${STATUS_LABELS[status]} column`}
     >
-      <div className="flex items-center justify-between mb-1">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground capitalize">
-          {status.replace('_', ' ')}
-        </h3>
-        <span className="text-xs text-muted-foreground" aria-label={`${items.length} items`}>
-          {isLoading ? '…' : items.length}
-        </span>
+      {/* Column header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {STATUS_LABELS[status]}
+          </h3>
+          <span className={cn(
+            'text-[10px] font-semibold px-1.5 py-0.5 rounded-full min-w-[1.2rem] text-center',
+            STATUS_ACCENT[status]
+          )}>
+            {isLoading ? '·' : items.length}
+          </span>
+        </div>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-16" />)}
-        </div>
-      ) : items.length === 0 ? (
-        <EmptyState icon={LayoutGrid} title="Empty" description="Drag cards here" />
-      ) : (
-        items.map(item => (
-          <ItemCard key={item.id} item={item} isDragging={item.id === activeId} />
-        ))
-      )}
+      {/* Cards with AnimatePresence */}
+      <div className="space-y-2">
+        {isLoading ? (
+          <>
+            <Skeleton className="h-16 rounded-lg" />
+            <Skeleton className="h-14 rounded-lg" />
+          </>
+        ) : items.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-6 text-center">
+            <LayoutGrid className="w-5 h-5 text-muted-foreground/30 mb-2" aria-hidden="true" />
+            <p className="text-xs text-muted-foreground/50">Drop cards here</p>
+          </div>
+        ) : (
+          <AnimatePresence initial={false} mode="popLayout">
+            {items.map(item => (
+              <ItemCard key={item.id} item={item} isDragging={item.id === activeId} />
+            ))}
+          </AnimatePresence>
+        )}
+      </div>
     </div>
   )
 }
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export function ContentPage() {
   const { data: items, isLoading, isError, refetch } = useQuery({
@@ -133,7 +184,7 @@ export function ContentPage() {
       contentApi.patchItem(id, { status }),
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ['content', 'items'] })
-      toast.success(`Moved to ${status.replace('_', ' ')}`)
+      toast.success(`Moved to ${STATUS_LABELS[status]}`)
     },
     onError: () => toast.error('Failed to update status'),
   })
@@ -160,10 +211,7 @@ export function ContentPage() {
     return acc
   }, {})
 
-  const handleDragStart = (e: DragStartEvent) => {
-    setActiveId(String(e.active.id))
-  }
-
+  const handleDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id))
   const handleDragEnd = (e: DragEndEvent) => {
     setActiveId(null)
     const { active, over } = e
@@ -176,12 +224,23 @@ export function ContentPage() {
 
   const activeItem = activeId ? items?.find(i => i.id === activeId) : null
 
+  // Total counts for summary bar
+  const total = items?.length ?? 0
+  const published = items?.filter(i => i.status === 'published').length ?? 0
+
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <h1 className="text-2xl font-semibold text-foreground">Content</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-foreground">Content</h1>
+        {total > 0 && (
+          <div className="text-xs text-muted-foreground">
+            <span className="font-semibold text-emerald-500">{published}</span> published · {total} total
+          </div>
+        )}
+      </div>
 
-      {/* Add idea */}
-      <div className="bg-card border border-border rounded-xl p-4">
+      {/* Add idea form */}
+      <div className="bg-card premium-shadow rounded-3xl p-6">
         <h2 className="text-sm font-semibold mb-3">New Idea</h2>
         <div className="flex gap-2 flex-wrap items-start">
           <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
@@ -216,15 +275,11 @@ export function ContentPage() {
         </div>
       </div>
 
-      {/* Kanban */}
+      {/* Kanban board */}
       {isError ? (
         <ErrorCard message="Could not load content pipeline" onRetry={() => refetch()} />
       ) : (
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {STATUS_COLS.map(status => (
               <ColumnDropZone
@@ -239,7 +294,7 @@ export function ContentPage() {
 
           <DragOverlay>
             {activeItem && (
-              <div className="bg-background border-2 border-primary rounded-lg p-3 shadow-xl rotate-1 opacity-95">
+              <div className="bg-background border-2 border-primary rounded-lg p-3 shadow-2xl rotate-1 opacity-95 scale-105">
                 <p className="text-sm font-medium text-foreground">{activeItem.title}</p>
                 <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded mt-1 inline-block', PLATFORM_BADGE[activeItem.platform] ?? 'bg-muted text-muted-foreground')}>
                   {activeItem.platform}

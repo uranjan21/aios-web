@@ -28,3 +28,19 @@ class SkillInventory(SQLModel, table=True):
     level: str = Field(nullable=False)
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
     last_updated: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
+
+
+# Job opportunity / application tracker
+class JobOpportunity(SQLModel, table=True):
+    __tablename__ = "job_opportunities"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    company: str = Field(nullable=False)
+    role: str = Field(nullable=False)
+    # status: prospect | applied | screening | interview | offer | rejected | closed
+    status: str = Field(default="prospect", nullable=False)
+    applied_date: Optional[datetime] = None
+    notes: Optional[str] = Field(default=None, sa_column=Column(Text))
+    url: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)

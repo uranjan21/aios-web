@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 from typing import Set
+from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
@@ -66,8 +67,12 @@ async def list_conflicts(current_user=Depends(get_current_user)):
     ]
 
 
+class ResolutionState(str, Enum):
+    kept_app = "kept_app"
+    kept_vault = "kept_vault"
+
 class ResolveRequest(BaseModel):
-    resolution: str  # "kept_app" | "kept_vault"
+    resolution: ResolutionState
 
 
 @router.post("/conflicts/{conflict_id}/resolve")
@@ -99,12 +104,15 @@ async def resolve_conflict(
         vf = file_result.scalar_one_or_none()
         if vf:
             vf.sync_status = "ok"
-            if body.resolution == "kept_vault":
-                from app.core.config import get_settings
-                settings = get_settings()
-                from app.services.vault_sync.writer import VaultWriteGuard
-                guard = VaultWriteGuard(settings.vault_path)
+            from app.core.config import get_settings
+            settings = get_settings()
+            from app.services.vault_sync.writer import VaultWriteGuard
+            guard = VaultWriteGuard(settings.vault_path)
+            
+            if body.resolution == ResolutionState.kept_vault:
                 vf.content = conflict.vault_content
+            else:
+                guard.write_file(vf.path, vf.content)
             session.add(vf)
 
         await session.commit()

@@ -33,3 +33,12 @@ class FinanceExpense(SQLModel, table=True):
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     source: str = Field(default="agent", nullable=False)
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
+
+
+class BudgetLimit(SQLModel, table=True):
+    """Monthly spending cap per category. One row per category."""
+    __tablename__ = "budget_limits"
+
+    category: str = Field(primary_key=True, nullable=False)
+    monthly_limit: Decimal = Field(sa_column=Column(Numeric(10, 2), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)

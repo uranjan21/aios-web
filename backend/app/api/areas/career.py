@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlmodel import select, desc
 
 from app.core.deps import get_current_user, get_db
-from app.models.career import CareerEvent, SkillInventory
+from app.models.career import CareerEvent, SkillInventory, JobOpportunity
 
 router = APIRouter(prefix="/api/areas/career", tags=["career"])
 
@@ -97,19 +97,20 @@ async def create_event(body: CareerEventCreate, current_user=Depends(get_current
 
 @router.get("/summary")
 async def get_summary(current_user=Depends(get_current_user), db=Depends(get_db)):
-    skills_result = await db.execute(
-        select(SkillInventory).order_by(desc(SkillInventory.last_updated))
-    )
-    skills = skills_result.scalars().all()
+    from sqlalchemy import func as sa_func
+    total_skills = (await db.execute(select(sa_func.count(SkillInventory.id)))).scalar_one()
 
-    events_result = await db.execute(
+    latest_skill = (await db.execute(
+        select(SkillInventory).order_by(desc(SkillInventory.last_updated)).limit(1)
+    )).scalar_one_or_none()
+
+    latest_event = (await db.execute(
         select(CareerEvent).order_by(desc(CareerEvent.occurred_at)).limit(1)
-    )
-    latest_event = events_result.scalar_one_or_none()
+    )).scalar_one_or_none()
 
     return {
-        "total_skills": len(skills),
-        "last_skill_update": skills[0].last_updated.isoformat() if skills else None,
+        "total_skills": total_skills,
+        "last_skill_update": latest_skill.last_updated.isoformat() if latest_skill else None,
         "last_event_title": latest_event.title if latest_event else None,
         "last_event_at": latest_event.occurred_at.isoformat() if latest_event else None,
     }
@@ -123,3 +124,65 @@ async def get_roadmap(current_user=Depends(get_current_user)):
     guard = VaultWriteGuard(settings.vault_path)
     content = guard.read_file("03-career/context.md")
     return {"raw_context": content[:3000] if content else None}
+
+
+# ── Job Opportunities ───────────────────────────────────────────
+
+@router.get("/opportunities")
+async def list_opportunities(current_user=Depends(get_current_user), db=Depends(get_db)):
+    from sqlmodel import asc
+    result = await db.execute(
+        select(JobOpportunity).order_by(desc(JobOpportunity.created_at)).limit(100)
+    )
+    return result.scalars().all()
+
+
+class OpportunityCreate(BaseModel):
+    company: str
+    role: str
+    status: str = "prospect"
+    applied_date: Optional[datetime] = None
+    notes: Optional[str] = None
+    url: Optional[str] = None
+
+
+class OpportunityPatch(BaseModel):
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    url: Optional[str] = None
+    applied_date: Optional[datetime] = None
+
+
+@router.post("/opportunities")
+async def create_opportunity(body: OpportunityCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    opp = JobOpportunity(**body.model_dump())
+    db.add(opp)
+    await db.commit()
+    await db.refresh(opp)
+    return opp
+
+
+@router.patch("/opportunities/{opp_id}")
+async def patch_opportunity(opp_id: str, body: OpportunityPatch, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(JobOpportunity).where(JobOpportunity.id == opp_id))
+    opp = result.scalar_one_or_none()
+    if not opp:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(opp, field, value)
+    opp.updated_at = datetime.utcnow()
+    db.add(opp)
+    await db.commit()
+    await db.refresh(opp)
+    return opp
+
+
+@router.delete("/opportunities/{opp_id}")
+async def delete_opportunity(opp_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(JobOpportunity).where(JobOpportunity.id == opp_id))
+    opp = result.scalar_one_or_none()
+    if not opp:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    await db.delete(opp)
+    await db.commit()
+    return {"status": "deleted"}

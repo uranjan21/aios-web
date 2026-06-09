@@ -51,6 +51,13 @@ async def stream_chat_response(
 ) -> AsyncGenerator[dict, None]:
     settings = get_settings()
 
+    if settings.llm_provider == "nvidia":
+        from app.services.chat.nvidia_agent import stream_nvidia_chat_response
+
+        async for event in stream_nvidia_chat_response(session_id, user_message, history):
+            yield event
+        return
+
     try:
         await reserve_budget(session_id, estimated_input=ESTIMATED_TOKENS)
     except Exception as e:

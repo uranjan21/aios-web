@@ -1,20 +1,26 @@
 import { api } from './client'
 import type {
   FinanceSnapshot, FinanceExpense, HealthLog, HealthStreak,
-  SkillInventory, CareerEvent, BusinessEvent, ContentItem,
+  SkillInventory, CareerEvent, BusinessEvent, ContentItem, JobOpportunity, BudgetLimit,
 } from '@/types'
 
 // Finance
 export const financeApi = {
   snapshots: () => api.get<FinanceSnapshot[]>('/areas/finance/snapshots').then(r => r.data),
   latestSnapshot: () => api.get<FinanceSnapshot | null>('/areas/finance/snapshots/latest').then(r => r.data),
-  expenses: (month?: string, category?: string, limit = 50, offset = 0) =>
+  expenses: (month?: string, category?: string, limit = 50, offset = 0, time_range?: string) =>
     api.get<{ items: FinanceExpense[]; total: number; has_more: boolean }>(
-      '/areas/finance/expenses', { params: { month, category, limit, offset } }
+      '/areas/finance/expenses', { params: { month, category, limit, offset, time_range } }
     ).then(r => r.data),
   createExpense: (data: { amount: number; category: string; description?: string }) =>
     api.post<FinanceExpense>('/areas/finance/expenses', data).then(r => r.data),
   goals: () => api.get('/areas/finance/goals').then(r => r.data),
+  // Budget limits
+  budgets: () => api.get<BudgetLimit[]>('/areas/finance/budgets').then(r => r.data),
+  upsertBudget: (data: { category: string; monthly_limit: number }) =>
+    api.put<BudgetLimit>('/areas/finance/budgets', data).then(r => r.data),
+  deleteBudget: (category: string) =>
+    api.delete(`/areas/finance/budgets/${encodeURIComponent(category)}`).then(r => r.data),
 }
 
 // Health
@@ -37,6 +43,14 @@ export const careerApi = {
   createEvent: (data: { event_type: string; title: string; description?: string }) =>
     api.post<CareerEvent>('/areas/career/events', data).then(r => r.data),
   roadmap: () => api.get('/areas/career/roadmap').then(r => r.data),
+  // Job opportunities
+  opportunities: () => api.get<JobOpportunity[]>('/areas/career/opportunities').then(r => r.data),
+  createOpportunity: (data: { company: string; role: string; status?: string; notes?: string; url?: string; applied_date?: string | null }) =>
+    api.post<JobOpportunity>('/areas/career/opportunities', data).then(r => r.data),
+  patchOpportunity: (id: string, data: { status?: string; notes?: string; url?: string; applied_date?: string | null }) =>
+    api.patch<JobOpportunity>(`/areas/career/opportunities/${id}`, data).then(r => r.data),
+  deleteOpportunity: (id: string) =>
+    api.delete(`/areas/career/opportunities/${id}`).then(r => r.data),
 }
 
 // Business
@@ -59,7 +73,8 @@ export const contentApi = {
     api.get<ContentItem[]>('/areas/content/items', { params: { status, platform } }).then(r => r.data),
   createItem: (data: { title: string; platform: string; content_type?: string; notes?: string }) =>
     api.post<ContentItem>('/areas/content/items', data).then(r => r.data),
-  patchItem: (id: string, data: { status?: string; publish_date?: string; notes?: string }) =>
+  patchItem: (id: string, data: { title?: string; platform?: string; content_type?: string; status?: string; publish_date?: string; notes?: string }) =>
     api.patch<ContentItem>(`/areas/content/items/${id}`, data).then(r => r.data),
+  deleteItem: (id: string) => api.delete(`/areas/content/items/${id}`).then(r => r.data),
   twitterQueue: () => api.get('/areas/content/twitter-queue').then(r => r.data),
 }
