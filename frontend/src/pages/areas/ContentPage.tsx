@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, LayoutGrid } from 'lucide-react'
+import { Plus, LayoutGrid, Edit2, Calendar, Trash2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   DndContext,
@@ -56,7 +56,13 @@ const PLATFORM_BADGE: Record<string, string> = {
 
 // ─── Card ──────────────────────────────────────────────────────────────────────
 
-function ItemCard({ item, isDragging }: { item: ContentItem; isDragging?: boolean }) {
+function ItemCard({ item, isDragging, onEdit, onSchedule, onDelete }: { 
+  item: ContentItem; 
+  isDragging?: boolean;
+  onEdit: (id: string, current: string) => void;
+  onSchedule: (id: string, current: string | null) => void;
+  onDelete: (id: string) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: item.id })
 
   const style = transform
@@ -77,14 +83,21 @@ function ItemCard({ item, isDragging }: { item: ContentItem; isDragging?: boolea
         {...listeners}
         {...attributes}
         className={cn(
-          'bg-background border border-border rounded-lg p-3 space-y-2',
+          'bg-background border border-border rounded-lg p-3 space-y-2 group relative',
           'cursor-grab active:cursor-grabbing touch-none select-none',
           'hover:border-border/80 hover:shadow-sm transition-shadow',
           isDragging && 'opacity-50 ring-2 ring-primary shadow-lg',
         )}
         aria-roledescription="Draggable content card"
       >
-        <p className="text-sm font-medium text-foreground leading-tight">{item.title}</p>
+        <p className="text-sm font-medium text-foreground leading-tight pr-14">{item.title}</p>
+        
+        <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-0.5 bg-background/90 backdrop-blur rounded border border-border shadow-sm p-0.5 z-10">
+           <button onClick={(e) => { e.stopPropagation(); onEdit(item.id, item.title) }} className="p-1 hover:text-foreground text-muted-foreground transition" title="Edit title"><Edit2 className="w-3 h-3" /></button>
+           <button onClick={(e) => { e.stopPropagation(); onSchedule(item.id, item.publish_date ?? null) }} className="p-1 hover:text-amber-500 text-muted-foreground transition" title="Schedule"><Calendar className="w-3 h-3" /></button>
+           <button onClick={(e) => { e.stopPropagation(); onDelete(item.id) }} className="p-1 hover:text-destructive text-muted-foreground transition" title="Delete"><Trash2 className="w-3 h-3" /></button>
+        </div>
+
         <div className="flex items-center gap-2 flex-wrap">
           <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded', PLATFORM_BADGE[item.platform] ?? 'bg-muted text-muted-foreground')}>
             {item.platform}
@@ -103,12 +116,15 @@ function ItemCard({ item, isDragging }: { item: ContentItem; isDragging?: boolea
 // ─── Column ────────────────────────────────────────────────────────────────────
 
 function ColumnDropZone({
-  status, items, isLoading, activeId,
+  status, items, isLoading, activeId, onEdit, onSchedule, onDelete
 }: {
   status: ContentItem['status']
   items: ContentItem[]
   isLoading: boolean
   activeId: string | null
+  onEdit: (id: string, current: string) => void;
+  onSchedule: (id: string, current: string | null) => void;
+  onDelete: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status })
 
@@ -153,7 +169,14 @@ function ColumnDropZone({
         ) : (
           <AnimatePresence initial={false} mode="popLayout">
             {items.map(item => (
-              <ItemCard key={item.id} item={item} isDragging={item.id === activeId} />
+              <ItemCard 
+                key={item.id} 
+                item={item} 
+                isDragging={item.id === activeId} 
+                onEdit={onEdit}
+                onSchedule={onSchedule}
+                onDelete={onDelete}
+              />
             ))}
           </AnimatePresence>
         )}
@@ -188,6 +211,46 @@ export function ContentPage() {
     },
     onError: () => toast.error('Failed to update status'),
   })
+
+  const patchMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => contentApi.patchItem(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['content', 'items'] })
+      toast.success('Updated task')
+    }
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => contentApi.deleteItem(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['content', 'items'] })
+      toast.success('Deleted task')
+    }
+  })
+
+  const handleEdit = (id: string, current: string) => {
+    const title = window.prompt('Edit task title:', current)
+    if (title !== null && title.trim()) {
+      patchMutation.mutate({ id, data: { title: title.trim() } })
+    }
+  }
+
+  const handleSchedule = (id: string, current: string | null) => {
+    const date = window.prompt('Set publish date (YYYY-MM-DD):', current || new Date().toISOString().split('T')[0])
+    if (date !== null) {
+      if (!date.trim()) {
+        patchMutation.mutate({ id, data: { publish_date: null } })
+      } else {
+        patchMutation.mutate({ id, data: { publish_date: date.trim() } })
+      }
+    }
+  }
+
+  const handleDelete = (id: string) => {
+    if (window.confirm('Delete this task?')) {
+      deleteMutation.mutate(id)
+    }
+  }
 
   const addItem = useMutation({
     mutationFn: () => contentApi.createItem({ title: form.title, platform: form.platform }),
@@ -288,6 +351,9 @@ export function ContentPage() {
                 items={byStatus[status] ?? []}
                 isLoading={isLoading}
                 activeId={activeId}
+                onEdit={handleEdit}
+                onSchedule={handleSchedule}
+                onDelete={handleDelete}
               />
             ))}
           </div>

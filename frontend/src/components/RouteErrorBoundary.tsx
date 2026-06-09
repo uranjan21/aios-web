@@ -3,7 +3,7 @@ import { AlertCircle } from 'lucide-react'
 
 interface State { hasError: boolean }
 
-export class RouteErrorBoundary extends Component<{ children: ReactNode }, State> {
+export class RouteErrorBoundary extends Component<{ children?: ReactNode }, State> {
   state: State = { hasError: false }
 
   static getDerivedStateFromError() {

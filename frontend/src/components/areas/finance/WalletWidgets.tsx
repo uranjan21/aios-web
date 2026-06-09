@@ -1,6 +1,7 @@
 import { cn, formatCurrency } from '@/lib/utils'
 import { MoreHorizontal, Plus, Home, Heart, CreditCard, ShoppingBag, Shirt } from 'lucide-react'
-import { ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie, Tooltip } from 'recharts'
+import Highcharts from 'highcharts'
+import HighchartsReact from 'highcharts-react-official'
 import { useNavigate } from 'react-router-dom'
 
 export function BalanceWidget({ balance = 5318, chartData = [], activeTab = 'General', onTabChange }: { balance?: number, chartData?: any[], activeTab?: string, onTabChange?: (tab: string) => void }) {
@@ -37,15 +38,37 @@ export function BalanceWidget({ balance = 5318, chartData = [], activeTab = 'Gen
         <h1 className="text-3xl font-bold mb-4 tracking-tight">{formatCurrency(balance)}</h1>
         
         <div className="h-20 w-full mt-auto">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <Bar dataKey="value" radius={[2, 2, 2, 2]}>
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={index === chartData.length - 1 ? "hsl(var(--primary))" : "hsl(var(--muted))"} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <HighchartsReact
+            highcharts={Highcharts}
+            options={{
+              chart: { type: 'column', backgroundColor: 'transparent', margin: [0, 0, 0, 0], height: 80 },
+              title: { text: null },
+              xAxis: { visible: false },
+              yAxis: { visible: false },
+              legend: { enabled: false },
+              credits: { enabled: false },
+              tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                style: { color: '#fff', fontSize: '11px' },
+                borderWidth: 0,
+                shadow: false,
+                formatter: function(this: any) {
+                  return `<b>${this.point.category || ''}</b><br/>${formatCurrency(this.y as number)}`;
+                }
+              },
+              plotOptions: {
+                column: {
+                  borderRadius: 2,
+                  borderWidth: 0,
+                  colorByPoint: true,
+                  colors: chartData.map((_, i) => i === chartData.length - 1 ? 'hsl(var(--primary))' : 'hsl(var(--muted))')
+                }
+              },
+              series: [{
+                data: chartData.map(d => ({ name: d.name, y: d.value }))
+              }]
+            }}
+          />
         </div>
       </div>
     </div>
@@ -139,28 +162,34 @@ export function ExpensesDonutWidget({ total = 2540, data = [], activeTab = 'Mont
       
       <div className="flex-1 flex items-center justify-center relative mb-6">
         <div className="h-32 w-32 relative">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                innerRadius={45}
-                outerRadius={60}
-                paddingAngle={4}
-                dataKey="value"
-                stroke="none"
-              >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', fontSize: '11px', padding: '4px 8px' }}
-                itemStyle={{ color: 'hsl(var(--foreground))' }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+          <HighchartsReact
+            highcharts={Highcharts}
+            options={{
+              chart: { type: 'pie', backgroundColor: 'transparent', margin: [0, 0, 0, 0], height: 128, width: 128 },
+              title: { text: null },
+              credits: { enabled: false },
+              tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                style: { color: '#fff', fontSize: '11px' },
+                borderWidth: 0,
+                shadow: false,
+                pointFormatter: function(this: Highcharts.Point) {
+                  return `${this.name}: <b>${formatCurrency(this.y as number)}</b>`;
+                }
+              },
+              plotOptions: {
+                pie: {
+                  innerSize: '75%',
+                  borderWidth: 0,
+                  colors: COLORS,
+                  dataLabels: { enabled: false }
+                }
+              },
+              series: [{
+                data: data.map(d => ({ name: d.name, y: d.value }))
+              }]
+            }}
+          />
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Total</span>
             <span className="text-base font-bold tracking-tight">{formatCurrency(total)}</span>

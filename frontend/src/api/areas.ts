@@ -21,6 +21,16 @@ export const financeApi = {
     api.put<BudgetLimit>('/areas/finance/budgets', data).then(r => r.data),
   deleteBudget: (category: string) =>
     api.delete(`/areas/finance/budgets/${encodeURIComponent(category)}`).then(r => r.data),
+  // Accounts
+  accounts: () => api.get<any[]>('/areas/finance/accounts').then(r => r.data),
+  createAccount: (data: { name: string; type: string; balance?: number; currency?: string }) =>
+    api.post<any>('/areas/finance/accounts', data).then(r => r.data),
+  deleteAccount: (id: string) => api.delete(`/areas/finance/accounts/${id}`).then(r => r.data),
+  // Categories
+  categories: () => api.get<any[]>('/areas/finance/categories').then(r => r.data),
+  createCategory: (data: { name: string; parent_id?: string | null; icon?: string | null }) =>
+    api.post<any>('/areas/finance/categories', data).then(r => r.data),
+  deleteCategory: (id: string) => api.delete(`/areas/finance/categories/${id}`).then(r => r.data),
 }
 
 // Health

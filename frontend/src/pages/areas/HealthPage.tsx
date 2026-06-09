@@ -1,74 +1,93 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid, TooltipProps,
-} from 'recharts'
-import { Dumbbell, Scale, Plus, Download, Flame } from 'lucide-react'
+import { Dumbbell, Scale, Plus, Download, Flame, Trophy, Activity, Target, Zap } from 'lucide-react'
 import { healthApi } from '@/api/areas'
 import { cn, formatRelativeTime, exportToCsv } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorCard } from '@/components/ErrorCard'
 import { useCountUp } from '@/hooks/useCountUp'
+import styled, { keyframes } from 'styled-components'
+import { Card, Row, Col, Typography, Button, Input, Select, Tag, Avatar, Space } from 'antd'
 
-// ─── Weight tooltip ──────────────────────────────────────────────────────────
+import Highcharts from 'highcharts'
+import HighchartsReact from 'highcharts-react-official'
+import highchartsMore from 'highcharts/highcharts-more'
+import solidGauge from 'highcharts/modules/solid-gauge'
+import heatmap from 'highcharts/modules/heatmap'
 
-function WeightTooltip({ active, payload, label, data }: TooltipProps<number, string> & { data: { date: string; weight: number }[] }) {
-  if (!active || !payload?.length) return null
-  const current = payload[0].value ?? 0
-  const idx = data.findIndex(d => d.date === label)
-  const prev = idx > 0 ? data[idx - 1].weight : null
-  const delta = prev !== null ? current - prev : null
-  return (
-    <div className="bg-popover border border-border rounded-lg px-3 py-2 text-sm shadow-lg">
-      <p className="text-muted-foreground text-xs mb-1">{label}</p>
-      <p className="font-semibold font-mono">{current.toFixed(1)} kg</p>
-      {delta !== null && (
-        <p className={delta <= 0 ? 'text-emerald-400 text-xs' : 'text-red-400 text-xs'}>
-          {delta <= 0 ? '↓' : '↑'} {Math.abs(delta).toFixed(1)} kg
-        </p>
-      )}
-    </div>
-  )
+if (typeof Highcharts === 'object') {
+  try {
+    if (!(Highcharts as any).seriesTypes.solidgauge) {
+      ;(highchartsMore as any)(Highcharts)
+      ;(solidGauge as any)(Highcharts)
+      ;(heatmap as any)(Highcharts)
+    }
+  } catch (e) {}
 }
 
-// ─── Heatmap helpers ──────────────────────────────────────────────────────────
+const { Title, Text } = Typography
 
-const WEEKS = 16 // show 16 weeks (112 days)
+const floatAnimation = keyframes`
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+  100% { transform: translateY(0px); }
+`
 
-/** Returns a Tailwind class for heatmap intensity 0–3 */
-function heatIntensity(count: number): string {
-  if (count === 0) return 'bg-muted'
-  if (count === 1) return 'bg-emerald-600/60'
-  if (count === 2) return 'bg-emerald-500'
-  return 'bg-emerald-400'           // 3+ days in a week treated as weekly agg
+const PremiumCard = styled(Card)`
+  border-radius: 24px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  }
+  .ant-card-head {
+    border-bottom: 1px solid var(--border);
+    min-height: 48px;
+    padding: 0 24px;
+    color: var(--foreground);
+    font-weight: 600;
+  }
+  .ant-card-body {
+    padding: 24px;
+  }
+`
+
+const PRWidget = styled.div`
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 24px;
+  padding: 24px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);
+  animation: ${floatAnimation} 4s ease-in-out infinite;
+  
+  h3 {
+    color: white;
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+  p {
+    margin: 0;
+    opacity: 0.9;
+  }
+`
+
+const commonChartOptions = {
+  chart: {
+    backgroundColor: 'transparent',
+    style: { fontFamily: 'inherit' }
+  },
+  title: { text: null },
+  credits: { enabled: false }
 }
-
-// ─── Stat card ────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, sub, icon: Icon }: {
-  label: string
-  value: string
-  sub?: string
-  icon?: React.FC<{ className?: string }>
-}) {
-  return (
-    <div className="bg-card premium-shadow rounded-3xl p-6">
-      {Icon && (
-        <div className="flex items-center gap-2 mb-1">
-          <Icon className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
-          <p className="text-xs text-muted-foreground">{label}</p>
-        </div>
-      )}
-      {!Icon && <p className="text-xs text-muted-foreground mb-1">{label}</p>}
-      <p className="text-2xl font-bold text-foreground font-mono">{value}</p>
-      {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
-    </div>
-  )
-}
-
-// ─── Main page ────────────────────────────────────────────────────────────────
 
 export function HealthPage() {
   const { data: streak, isLoading: loadingStreak, isError: errorStreak, refetch: refetchStreak } = useQuery({
@@ -94,7 +113,6 @@ export function HealthPage() {
   const [logNote, setLogNote] = useState('')
   const [valueError, setValueError] = useState('')
 
-  // Count-up animations for KPI values
   const animatedStreak = useCountUp(streak?.current_streak ?? null)
   const animatedSessions = useCountUp(gymLogs?.length ?? null)
 
@@ -124,247 +142,317 @@ export function HealthPage() {
     addLog.mutate()
   }
 
-  const weightData = useMemo(
-    () => weightLogs?.slice(0, 30).reverse().map(l => ({
-      date: l.logged_at.slice(0, 10),
-      weight: Number(l.value),
-    })) ?? [],
-    [weightLogs]
-  )
+  const weightDataProcessed = useMemo(() => {
+    return weightLogs?.slice(0, 30).reverse().map(l => [
+      new Date(l.logged_at).getTime(),
+      Number(l.value)
+    ]) ?? [];
+  }, [weightLogs])
 
-  // 3-level heatmap: count sessions per day, then aggregate per cell
-  const heatmapDays = useMemo(() => {
-    // count sessions per day
-    const countByDate = (gymLogs ?? []).reduce<Record<string, number>>((acc, l) => {
-      const date = l.logged_at.slice(0, 10)
-      acc[date] = (acc[date] ?? 0) + 1
-      return acc
-    }, {})
+  const weightOptions = {
+    ...commonChartOptions,
+    chart: { ...commonChartOptions.chart, type: 'area', height: 250 },
+    xAxis: {
+      type: 'datetime',
+      labels: { style: { color: 'var(--muted-foreground)' } }
+    },
+    yAxis: {
+      title: { text: null },
+      labels: { style: { color: 'var(--muted-foreground)' }, format: '{value} kg' }
+    },
+    tooltip: { valueSuffix: ' kg' },
+    series: [{
+      name: 'Weight',
+      data: weightDataProcessed,
+      color: '#3b82f6',
+      fillColor: {
+        linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+        stops: [
+          [0, 'rgba(59, 130, 246, 0.4)'],
+          [1, 'rgba(59, 130, 246, 0)']
+        ]
+      }
+    }]
+  }
 
-    return Array.from({ length: WEEKS * 7 }, (_, i) => {
-      const d = new Date()
-      d.setDate(d.getDate() - (WEEKS * 7 - 1 - i))
-      const iso = d.toISOString().slice(0, 10)
-      const count = countByDate[iso] ?? 0
-      return { date: iso, count }
-    })
-  }, [gymLogs])
+  const radarOptions = {
+    ...commonChartOptions,
+    chart: { ...commonChartOptions.chart, polar: true, type: 'line', height: 250 },
+    xAxis: {
+      categories: ['Sleep', 'Diet', 'Exercise', 'Hydration', 'Recovery'],
+      tickmarkPlacement: 'on',
+      lineWidth: 0,
+      labels: { style: { color: 'var(--muted-foreground)' } }
+    },
+    yAxis: {
+      gridLineInterpolation: 'polygon',
+      lineWidth: 0,
+      min: 0,
+      max: 100,
+      labels: { enabled: false }
+    },
+    tooltip: {
+      shared: true,
+      pointFormat: '<span style="color:{series.color}">{series.name}: <b>{point.y}%</b><br/>'
+    },
+    series: [{
+      name: 'Balance',
+      data: [85, 75, 90, 80, 70],
+      pointPlacement: 'on',
+      color: '#8b5cf6',
+      fillOpacity: 0.3,
+      type: 'area'
+    }]
+  }
 
-  // Month labels for heatmap (one per week column)
-  const weekLabels = useMemo(() =>
-    Array.from({ length: WEEKS }, (_, week) => {
-      const day = heatmapDays[week * 7]
-      const prevDay = week > 0 ? heatmapDays[(week - 1) * 7] : null
-      const month = day?.date.slice(5, 7)
-      const prevMonth = prevDay?.date.slice(5, 7)
-      return { week, show: month !== prevMonth, label: day ? new Date(day.date).toLocaleDateString('en', { month: 'short' }) : '' }
-    }),
-    [heatmapDays]
-  )
+  const muscleHeatmapOptions = {
+    ...commonChartOptions,
+    chart: { ...commonChartOptions.chart, type: 'heatmap', height: 250 },
+    xAxis: {
+      categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      labels: { style: { color: 'var(--muted-foreground)' } }
+    },
+    yAxis: {
+      categories: ['Chest', 'Back', 'Legs', 'Arms', 'Core'],
+      title: null,
+      reversed: true,
+      labels: { style: { color: 'var(--muted-foreground)' } }
+    },
+    colorAxis: {
+      min: 0,
+      minColor: 'transparent',
+      maxColor: '#ef4444',
+      stops: [
+        [0, 'rgba(239, 68, 68, 0.05)'],
+        [0.5, 'rgba(239, 68, 68, 0.5)'],
+        [1, 'rgba(239, 68, 68, 1)']
+      ]
+    },
+    legend: { enabled: false },
+    tooltip: {
+      formatter: function(this: any) {
+        return `<b>${this.series.yAxis.categories[this.point.y]}</b> on <b>${this.series.xAxis.categories[this.point.x]}</b>: ${this.point.value} intensity`
+      }
+    },
+    series: [{
+      name: 'Muscle Activation',
+      borderWidth: 1,
+      borderColor: 'var(--border)',
+      data: [
+        [0, 0, 10], [0, 1, 0], [0, 2, 0], [0, 3, 5], [0, 4, 8],
+        [1, 0, 0], [1, 1, 10], [1, 2, 2], [1, 3, 0], [1, 4, 0],
+        [2, 0, 0], [2, 1, 0], [2, 2, 10], [2, 3, 2], [2, 4, 0],
+        [3, 0, 8], [3, 1, 2], [3, 2, 0], [3, 3, 10], [3, 4, 0],
+        [4, 0, 0], [4, 1, 8], [4, 2, 0], [4, 3, 0], [4, 4, 10],
+        [5, 0, 0], [5, 1, 0], [5, 2, 0], [5, 3, 0], [5, 4, 0],
+        [6, 0, 2], [6, 1, 2], [6, 2, 2], [6, 3, 2], [6, 4, 8],
+      ],
+      dataLabels: { enabled: false }
+    }]
+  }
+
+  const fastingGaugeOptions = {
+    ...commonChartOptions,
+    chart: { ...commonChartOptions.chart, type: 'solidgauge', height: 250 },
+    pane: {
+      startAngle: 0,
+      endAngle: 360,
+      background: [{
+        outerRadius: '112%',
+        innerRadius: '88%',
+        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+        borderWidth: 0
+      }]
+    },
+    yAxis: {
+      min: 0,
+      max: 16,
+      lineWidth: 0,
+      tickPositions: []
+    },
+    plotOptions: {
+      solidgauge: {
+        dataLabels: { y: -20, borderWidth: 0, useHTML: true },
+        linecap: 'round',
+        stickyTracking: false,
+        rounded: true
+      }
+    },
+    series: [{
+      name: 'Fasting',
+      data: [{
+        color: '#f59e0b',
+        radius: '112%',
+        innerRadius: '88%',
+        y: 14
+      }],
+      dataLabels: {
+        format: '<div style="text-align:center"><span style="font-size:24px;color:var(--foreground);font-weight:bold">{y}h</span><br/><span style="font-size:12px;color:var(--muted-foreground)">Fasted</span></div>'
+      }
+    }]
+  }
+
+  if (errorStreak || errorGym) {
+    return <ErrorCard message="Could not load health data" onRetry={() => { refetchStreak(); refetchGym() }} />
+  }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <h1 className="text-2xl font-semibold text-foreground">Health</h1>
-
-      {/* KPI Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {loadingSummary || loadingStreak || loadingGym ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-card premium-shadow rounded-3xl p-6 space-y-2">
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-8 w-24" />
-            </div>
-          ))
-        ) : errorStreak || errorGym ? (
-          <div className="col-span-4">
-            <ErrorCard message="Could not load health data" onRetry={() => { refetchStreak(); refetchGym() }} />
-          </div>
-        ) : <>
-            <StatCard label="Weight" icon={Scale} value={summary?.weight != null ? `${summary.weight} kg` : '—'} />
-            <StatCard
-              label="Gym Streak"
-              icon={Flame}
-              value={animatedStreak != null ? `${Math.round(animatedStreak)}` : '—'}
-              sub="days in a row"
-            />
-            <StatCard
-              label="Last Workout"
-              value={formatRelativeTime(streak?.last_workout_at ?? null)}
-            />
-            <StatCard
-              label="Total Sessions"
-              value={animatedSessions != null ? String(Math.round(animatedSessions)) : '0'}
-            />
-          </>
-        }
+    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Health Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Your premium wellness overview</p>
+        </div>
       </div>
 
-      {/* Weight trend chart — upgraded to AreaChart */}
-      {(loadingWeight || weightData.length > 0) && (
-        <div className="bg-card premium-shadow rounded-3xl p-6">
-          <h2 className="text-sm font-semibold mb-4">Weight Trend</h2>
-          {loadingWeight
-            ? <Skeleton className="h-[200px]" />
-            : <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={weightData}>
-                  <defs>
-                    <linearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="hsl(var(--primary))" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.4} />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 10 }}
-                    tickFormatter={v => new Date(v).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11 }} unit=" kg" />
-                  <Tooltip content={<WeightTooltip data={weightData} />} />
-                  <Area
-                    type="monotone"
-                    dataKey="weight"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    fill="url(#weightGradient)"
-                    dot={false}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-          }
+      <PRWidget>
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Trophy className="w-6 h-6 text-yellow-200" />
+            <span className="text-emerald-100 font-medium uppercase tracking-wider text-sm">New Personal Record</span>
+          </div>
+          <h3>100kg Bench Press</h3>
+          <p>You shattered your previous record of 95kg. Keep pushing!</p>
         </div>
-      )}
-
-      {/* Workout heatmap — 16 weeks, 3-level intensity */}
-      <div className="bg-card premium-shadow rounded-3xl p-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold">Workout Calendar <span className="text-xs font-normal text-muted-foreground">(last {WEEKS} weeks)</span></h2>
-          {gymLogs && gymLogs.length > 0 && (
-            <button
-              onClick={() => exportToCsv(
-                gymLogs.map(l => ({ date: l.logged_at, type: l.entry_type, value: l.value ?? '', notes: l.notes ?? '' })),
-                `health-logs-${new Date().toISOString().slice(0, 10)}`
-              )}
-              aria-label="Export health logs as CSV"
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
-            >
-              <Download className="w-3.5 h-3.5" aria-hidden="true" /> Export
-            </button>
-          )}
+        <div className="hidden sm:block">
+          <Avatar size={64} style={{ backgroundColor: 'rgba(255,255,255,0.2)' }} icon={<Zap className="w-8 h-8" />} />
         </div>
+      </PRWidget>
 
-        {loadingGym
-          ? <Skeleton className="h-32" />
-          : <div className="overflow-x-auto" role="region" aria-label="Workout heatmap">
-              <div style={{ minWidth: `${WEEKS * 16 + 24}px` }}>
-                {/* Month labels */}
-                <div className="flex gap-1 mb-1 pl-6">
-                  <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: `repeat(${WEEKS}, 1fr)` }}>
-                    {weekLabels.map(({ week, show, label }) => (
-                      <div key={week} className="text-[9px] text-muted-foreground text-center truncate">
-                        {show ? label : ''}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Day labels + grid */}
-                <div className="flex gap-1" role="grid" aria-label="Workout calendar">
-                  {/* Mon/Wed/Fri labels */}
-                  <div className="flex flex-col gap-1 w-5 shrink-0">
-                    {['', 'M', '', 'W', '', 'F', ''].map((d, i) => (
-                      <div
-                        key={i}
-                        className="text-[9px] text-muted-foreground text-right pr-1 leading-none"
-                        style={{ height: '0.75rem', lineHeight: '0.75rem', marginBottom: '1px' }}
-                      >
-                        {d}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Cells */}
-                  <div className="grid gap-1 flex-1" style={{ gridTemplateColumns: `repeat(${WEEKS}, 1fr)` }}>
-                    {Array.from({ length: WEEKS }, (_, week) => (
-                      <div key={week} className="flex flex-col gap-1" role="row">
-                        {heatmapDays.slice(week * 7, week * 7 + 7).map(day => (
-                          <div
-                            key={day.date}
-                            role="gridcell"
-                            title={`${day.date}${day.count > 0 ? ` — ${day.count} session${day.count > 1 ? 's' : ''}` : ''}`}
-                            aria-label={`${day.date}${day.count > 0 ? `, ${day.count} session${day.count > 1 ? 's' : ''}` : ', rest day'}`}
-                            className={cn(
-                              'aspect-square rounded-sm min-w-[8px] transition-colors',
-                              heatIntensity(day.count)
-                            )}
-                          />
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+      <Row gutter={[24, 24]}>
+        <Col xs={24} sm={12} lg={6}>
+          <PremiumCard>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-blue-500/10 rounded-xl text-blue-500">
+                <Scale className="w-5 h-5" />
               </div>
+              <Text type="secondary" className="font-medium text-muted-foreground">Current Weight</Text>
             </div>
-        }
+            <div className="text-3xl font-bold text-foreground">
+              {loadingSummary ? <Skeleton className="h-9 w-24" /> : `${summary?.weight ?? '—'} kg`}
+            </div>
+          </PremiumCard>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <PremiumCard>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-orange-500/10 rounded-xl text-orange-500">
+                <Flame className="w-5 h-5" />
+              </div>
+              <Text type="secondary" className="font-medium text-muted-foreground">Gym Streak</Text>
+            </div>
+            <div className="text-3xl font-bold text-foreground">
+              {loadingStreak ? <Skeleton className="h-9 w-24" /> : `${Math.round(animatedStreak ?? 0)} days`}
+            </div>
+          </PremiumCard>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <PremiumCard>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-purple-500/10 rounded-xl text-purple-500">
+                <Activity className="w-5 h-5" />
+              </div>
+              <Text type="secondary" className="font-medium text-muted-foreground">Last Workout</Text>
+            </div>
+            <div className="text-xl font-bold text-foreground mt-2">
+              {loadingStreak ? <Skeleton className="h-7 w-32" /> : formatRelativeTime(streak?.last_workout_at ?? null)}
+            </div>
+          </PremiumCard>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <PremiumCard>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-500">
+                <Target className="w-5 h-5" />
+              </div>
+              <Text type="secondary" className="font-medium text-muted-foreground">Total Sessions</Text>
+            </div>
+            <div className="text-3xl font-bold text-foreground">
+              {loadingGym ? <Skeleton className="h-9 w-24" /> : Math.round(animatedSessions ?? 0)}
+            </div>
+          </PremiumCard>
+        </Col>
+      </Row>
 
-        {/* Legend */}
-        <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-          <span>Less</span>
-          <div className="flex items-center gap-1">
-            {(['bg-muted', 'bg-emerald-600/60', 'bg-emerald-500', 'bg-emerald-400'] as const).map((cls, i) => (
-              <div key={i} className={cn('w-3 h-3 rounded-sm', cls)} aria-hidden="true" />
-            ))}
-          </div>
-          <span>More</span>
-        </div>
-      </div>
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={16}>
+          <PremiumCard title={<span className="text-foreground">Weight Progression</span>} extra={<Tag color="blue">Past 30 Days</Tag>}>
+            {loadingWeight ? <Skeleton className="h-[250px]" /> : <HighchartsReact highcharts={Highcharts} options={weightOptions} />}
+          </PremiumCard>
+        </Col>
+        <Col xs={24} lg={8}>
+          <PremiumCard title={<span className="text-foreground">Wellness Balance</span>} extra={<Tag color="purple">Current</Tag>}>
+            <HighchartsReact highcharts={Highcharts} options={radarOptions} />
+          </PremiumCard>
+        </Col>
+      </Row>
 
-      {/* Quick Log */}
-      <div className="bg-card premium-shadow rounded-3xl p-6">
-        <h2 className="text-sm font-semibold mb-3">Quick Log</h2>
-        <div className="flex gap-2 flex-wrap items-start">
-          <select
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={12}>
+          <PremiumCard title={<span className="text-foreground">Muscle Activation</span>} extra={<Tag color="red">This Week</Tag>}>
+            <HighchartsReact highcharts={Highcharts} options={muscleHeatmapOptions} />
+          </PremiumCard>
+        </Col>
+        <Col xs={24} lg={12}>
+          <PremiumCard title={<span className="text-foreground">Fasting Tracker</span>} extra={<Tag color="orange">Live</Tag>}>
+            <div className="flex items-center justify-center relative">
+               <HighchartsReact highcharts={Highcharts} options={fastingGaugeOptions} />
+            </div>
+          </PremiumCard>
+        </Col>
+      </Row>
+
+      {/* Quick Log Form */}
+      <PremiumCard title={<span className="text-foreground">Quick Log</span>}>
+        <div className="flex gap-4 flex-wrap items-start">
+          <Select
             value={logType}
-            onChange={e => { setLogType(e.target.value as typeof logType); setValueError('') }}
-            aria-label="Log type"
-            className="px-3 py-2 text-sm rounded-lg bg-muted border border-border text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-          >
-            <option value="gym">Gym session</option>
-            <option value="weight">Weight</option>
-            <option value="water">Water intake</option>
-          </select>
+            onChange={(value) => { setLogType(value); setValueError('') }}
+            style={{ width: 140 }}
+            size="large"
+            className="bg-muted text-foreground"
+            dropdownStyle={{ backgroundColor: 'var(--card)' }}
+            options={[
+              { value: 'gym', label: 'Gym session' },
+              { value: 'weight', label: 'Weight' },
+              { value: 'water', label: 'Water intake' },
+            ]}
+          />
           {logType !== 'gym' && (
             <div className="flex flex-col gap-1">
-              <input
+              <Input
                 type="number"
                 placeholder={logType === 'weight' ? 'kg' : 'litres'}
                 value={logValue}
                 onChange={e => { setLogValue(e.target.value); setValueError('') }}
-                aria-label={logType === 'weight' ? 'Weight in kg' : 'Water in litres'}
-                aria-invalid={!!valueError}
-                className="w-24 px-3 py-2 text-sm rounded-lg bg-muted border border-border text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 aria-invalid:border-destructive"
+                size="large"
+                style={{ width: 120 }}
+                status={valueError ? 'error' : ''}
+                className="bg-muted text-foreground border-border"
               />
               {valueError && <span className="text-xs text-destructive">{valueError}</span>}
             </div>
           )}
-          <input
+          <Input
             placeholder="Note (optional)"
             value={logNote}
             onChange={e => setLogNote(e.target.value)}
-            aria-label="Log note (optional)"
-            className="flex-1 min-w-[100px] px-3 py-2 text-sm rounded-lg bg-muted border border-border text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            size="large"
+            style={{ flex: 1, minWidth: 200 }}
+            className="bg-muted text-foreground border-border"
           />
-          <button
+          <Button
+            type="primary"
             onClick={handleLog}
-            disabled={addLog.isPending}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            loading={addLog.isPending}
+            size="large"
+            icon={<Plus className="w-4 h-4" />}
+            className="bg-primary hover:bg-primary/90"
           >
-            <Plus className="w-4 h-4" aria-hidden="true" /> Log
-          </button>
+            Log
+          </Button>
         </div>
-      </div>
+      </PremiumCard>
     </div>
   )
 }

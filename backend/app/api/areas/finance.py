@@ -5,7 +5,8 @@ from pydantic import BaseModel
 from sqlmodel import select, desc
 
 from app.core.deps import get_current_user, get_db
-from app.models.finance import FinanceSnapshot, FinanceExpense, BudgetLimit
+from app.models.finance import FinanceSnapshot, FinanceExpense, BudgetLimit, Account, Category, AccountType
+import uuid
 
 router = APIRouter(prefix="/api/areas/finance", tags=["finance"])
 
@@ -139,5 +140,70 @@ async def delete_budget(category: str, current_user=Depends(get_current_user), d
     if not budget:
         raise HTTPException(status_code=404, detail="Budget not found")
     await db.delete(budget)
+    await db.commit()
+    return {"status": "deleted"}
+
+# ── Accounts ────────────────────────────────────────────
+
+@router.get("/accounts")
+async def list_accounts(current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(Account).order_by(Account.name))
+    return result.scalars().all()
+
+class AccountCreate(BaseModel):
+    name: str
+    type: AccountType
+    balance: float = 0
+    currency: str = "USD"
+
+@router.post("/accounts")
+async def create_account(body: AccountCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    account = Account(name=body.name, type=body.type, balance=body.balance, currency=body.currency)
+    db.add(account)
+    await db.commit()
+    await db.refresh(account)
+    return account
+
+@router.delete("/accounts/{account_id}")
+async def delete_account(account_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(Account).where(Account.id == account_id))
+    account = result.scalar_one_or_none()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    await db.delete(account)
+    await db.commit()
+    return {"status": "deleted"}
+
+# ── Categories ────────────────────────────────────────────
+
+@router.get("/categories")
+async def list_categories(current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(Category).order_by(Category.name))
+    return result.scalars().all()
+
+class CategoryCreate(BaseModel):
+    name: str
+    parent_id: Optional[uuid.UUID] = None
+    icon: Optional[str] = None
+
+@router.post("/categories")
+async def create_category(body: CategoryCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    existing = await db.execute(select(Category).where(Category.name == body.name))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Category with this name already exists")
+    
+    category = Category(name=body.name, parent_id=body.parent_id, icon=body.icon)
+    db.add(category)
+    await db.commit()
+    await db.refresh(category)
+    return category
+
+@router.delete("/categories/{category_id}")
+async def delete_category(category_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(Category).where(Category.id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    await db.delete(category)
     await db.commit()
     return {"status": "deleted"}

@@ -3,7 +3,7 @@ from sqlmodel import SQLModel
 # Import all models here so Alembic can detect them
 from app.models.user import User  # noqa
 from app.models.vault import VaultFile, VaultConflict, VaultChunk  # noqa
-from app.models.finance import FinanceSnapshot, FinanceExpense, BudgetLimit  # noqa
+from app.models.finance import FinanceSnapshot, FinanceExpense, BudgetLimit, Account, Category, AccountType  # noqa
 from app.models.health import HealthLog  # noqa
 from app.models.career import CareerEvent, SkillInventory, JobOpportunity  # noqa
 from app.models.business import BusinessEvent  # noqa

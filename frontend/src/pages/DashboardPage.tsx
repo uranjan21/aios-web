@@ -28,6 +28,7 @@ function KPICard({
   title,
   stats,
   loading,
+  className,
   onClick,
 }: {
   icon: React.FC<{ className?: string }>
@@ -35,6 +36,7 @@ function KPICard({
   title: string
   stats: Array<{ label: string; value: string }>
   loading?: boolean
+  className?: string
   onClick?: () => void
 }) {
   if (loading) {
@@ -55,19 +57,22 @@ function KPICard({
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick() } : undefined}
-      className="bg-card premium-shadow rounded-xl p-4 hover:-translate-y-0.5 hover:shadow-md transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background border border-border/50"
+      className={cn(
+        "bg-card premium-shadow rounded-xl p-5 hover:-translate-y-1 hover:shadow-lg transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary border border-border/40",
+        className
+      )}
     >
-      <div className="flex items-center gap-2 mb-2.5">
-        <div className={cn('p-1 rounded-md', color)}>
-          <Icon className="w-[14px] h-[14px]" aria-hidden="true" />
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className={cn('p-1.5 rounded-lg', color)}>
+          <Icon className="w-[18px] h-[18px]" aria-hidden="true" />
         </div>
-        <span className="text-[13px] font-semibold text-foreground tracking-tight">{title}</span>
+        <span className="text-[15px] font-bold text-foreground tracking-tight">{title}</span>
       </div>
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {stats.map(({ label, value }) => (
           <div key={label} className="flex items-baseline justify-between">
-            <span className="text-[11px] text-muted-foreground">{label}</span>
-            <span className="text-[11px] font-medium text-foreground font-mono">{value}</span>
+            <span className="text-[12px] font-medium text-muted-foreground">{label}</span>
+            <span className="text-[13px] font-bold text-foreground font-mono">{value}</span>
           </div>
         ))}
       </div>
@@ -150,89 +155,95 @@ export function DashboardPage() {
         </p>
       </div>
 
-      <motion.div
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
-        variants={staggerContainer}
-        initial="initial"
-        animate="animate"
-      >
-        <KPICard
-          icon={IndianRupee}
-          color="bg-emerald-500/10 text-emerald-500"
-          title="Finance"
-          loading={loadingFinance}
-          onClick={() => navigate('/areas/finance')}
-          stats={[
-            { label: 'Net worth', value: animatedNetWorth != null ? formatCurrency(animatedNetWorth) : '—' },
-            { label: 'CC Debt', value: animatedCCDebt != null ? formatCurrency(animatedCCDebt) : '—' },
-            { label: 'Take-home', value: animatedTakeHome != null ? formatCurrency(animatedTakeHome) : '—' },
-          ]}
-        />
-        <KPICard
-          icon={Heart}
-          color="bg-rose-500/10 text-rose-500"
-          title="Health"
-          loading={loadingHealth || loadingStreak}
-          onClick={() => navigate('/areas/health')}
-          stats={[
-            { label: 'Weight', value: animatedWeight != null ? `${animatedWeight.toFixed(1)} kg` : '—' },
-            { label: 'Gym streak', value: animatedStreak != null ? `${Math.round(animatedStreak)} days` : '—' },
-            { label: 'Last workout', value: formatRelativeTime(streak?.last_workout_at ?? null) },
-          ]}
-        />
-        <KPICard
-          icon={Briefcase}
-          color="bg-blue-500/10 text-blue-500"
-          title="Career"
-          loading={loadingCareer}
-          onClick={() => navigate('/areas/career')}
-          stats={[
-            { label: 'Skills tracked', value: animatedSkills != null ? String(Math.round(animatedSkills)) : '—' },
-            { label: 'Last activity', value: formatRelativeTime(careerSummary?.last_event_at ?? null) },
-            { label: 'Last skill update', value: formatRelativeTime(careerSummary?.last_skill_update ?? null) },
-          ]}
-        />
-        <KPICard
-          icon={Rocket}
-          color="bg-violet-500/10 text-violet-500"
-          title="Business"
-          loading={loadingBusiness}
-          onClick={() => navigate('/areas/business')}
-          stats={[
-            { label: 'MRR', value: animatedMrr != null ? formatCurrency(animatedMrr) : '₹0' },
-            { label: 'Last feature', value: businessSummary?.last_feature ?? '—' },
-            { label: 'Last shipped', value: formatRelativeTime(businessSummary?.last_feature_at ?? null) },
-          ]}
-        />
-        <KPICard
-          icon={PenLine}
-          color="bg-amber-500/10 text-amber-500"
-          title="Content"
-          loading={loadingContent}
-          onClick={() => navigate('/areas/content')}
-          stats={[
-            { label: 'In pipeline', value: animatedContentPipeline != null ? String(Math.round(animatedContentPipeline)) : '—' },
-            { label: 'Published this month', value: animatedContentMonth != null ? String(Math.round(animatedContentMonth)) : '—' },
-            { label: 'Last post', value: formatRelativeTime(contentLatest) },
-          ]}
-        />
-        <KPICard
-          icon={Zap}
-          color="bg-sky-500/10 text-sky-500"
-          title="Agents"
-          loading={loadingAgents}
-          onClick={() => navigate('/agents')}
-          stats={[
-            { label: 'Active automations', value: String(activeAgents) },
-            { label: 'Last run', value: formatRelativeTime(lastAgentRun) },
-            { label: 'Total agents', value: animatedAgents != null ? String(Math.round(animatedAgents)) : '0' },
-          ]}
-        />
-      </motion.div>
+      <div className="grid grid-cols-12 gap-4">
+        <motion.div
+          className="col-span-12 lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-4"
+          variants={staggerContainer}
+          initial="initial"
+          animate="animate"
+        >
+          <KPICard
+            icon={IndianRupee}
+            color="bg-emerald-500/10 text-emerald-500"
+            title="Finance"
+            loading={loadingFinance}
+            onClick={() => navigate('/areas/finance')}
+            stats={[
+              { label: 'Net worth', value: animatedNetWorth != null ? formatCurrency(animatedNetWorth) : '—' },
+              { label: 'CC Debt', value: animatedCCDebt != null ? formatCurrency(animatedCCDebt) : '—' },
+              { label: 'Take-home', value: animatedTakeHome != null ? formatCurrency(animatedTakeHome) : '—' },
+            ]}
+          />
+          <KPICard
+            icon={Heart}
+            color="bg-rose-500/10 text-rose-500"
+            title="Health"
+            loading={loadingHealth || loadingStreak}
+            onClick={() => navigate('/areas/health')}
+            stats={[
+              { label: 'Weight', value: animatedWeight != null ? `${animatedWeight.toFixed(1)} kg` : '—' },
+              { label: 'Gym streak', value: animatedStreak != null ? `${Math.round(animatedStreak)} days` : '—' },
+              { label: 'Last workout', value: formatRelativeTime(streak?.last_workout_at ?? null) },
+            ]}
+          />
+          <KPICard
+            icon={Briefcase}
+            color="bg-blue-500/10 text-blue-500"
+            title="Career"
+            loading={loadingCareer}
+            onClick={() => navigate('/areas/career')}
+            stats={[
+              { label: 'Skills tracked', value: animatedSkills != null ? String(Math.round(animatedSkills)) : '—' },
+              { label: 'Last activity', value: formatRelativeTime(careerSummary?.last_event_at ?? null) },
+              { label: 'Last skill update', value: formatRelativeTime(careerSummary?.last_skill_update ?? null) },
+            ]}
+          />
+          <KPICard
+            icon={Rocket}
+            color="bg-violet-500/10 text-violet-500"
+            title="Business"
+            loading={loadingBusiness}
+            onClick={() => navigate('/areas/business')}
+            stats={[
+              { label: 'MRR', value: animatedMrr != null ? formatCurrency(animatedMrr) : '₹0' },
+              { label: 'Last feature', value: businessSummary?.last_feature ?? '—' },
+              { label: 'Last shipped', value: formatRelativeTime(businessSummary?.last_feature_at ?? null) },
+            ]}
+          />
+          <KPICard
+            icon={PenLine}
+            color="bg-amber-500/10 text-amber-500"
+            title="Content"
+            loading={loadingContent}
+            onClick={() => navigate('/areas/content')}
+            stats={[
+              { label: 'In pipeline', value: animatedContentPipeline != null ? String(Math.round(animatedContentPipeline)) : '—' },
+              { label: 'Published this month', value: animatedContentMonth != null ? String(Math.round(animatedContentMonth)) : '—' },
+              { label: 'Last post', value: formatRelativeTime(contentLatest) },
+            ]}
+          />
+          <KPICard
+            icon={Zap}
+            color="bg-sky-500/10 text-sky-500"
+            title="Agents"
+            loading={loadingAgents}
+            onClick={() => navigate('/agents')}
+            stats={[
+              { label: 'Active automations', value: String(activeAgents) },
+              { label: 'Last run', value: formatRelativeTime(lastAgentRun) },
+              { label: 'Total agents', value: animatedAgents != null ? String(Math.round(animatedAgents)) : '0' },
+            ]}
+          />
+        </motion.div>
 
-      <div className="bg-card premium-shadow rounded-xl p-4 border border-border/50">
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Quick Log</h2>
-        <QuickLogInput />
+        <div className="col-span-12 lg:col-span-4">
+          <div className="bg-card premium-shadow rounded-xl p-5 border border-border/40 h-full flex flex-col">
+            <h2 className="text-[13px] font-bold uppercase tracking-wider text-muted-foreground mb-4">Quick Log</h2>
+            <div className="flex-1">
+              <QuickLogInput />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

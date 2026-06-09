@@ -1,186 +1,237 @@
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { Rocket, History, Plus, DollarSign, Activity, TrendingUp } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
-import { Plus, Rocket, History } from 'lucide-react'
+import styled from 'styled-components'
+import { Card, Button, Timeline, Tag, Select, Input, Form, Skeleton, Row, Col, Space, Statistic, Slider } from 'antd'
 import { businessApi } from '@/api/areas'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorCard } from '@/components/ErrorCard'
 import { EmptyState } from '@/components/EmptyState'
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
-  feature_shipped: 'bg-emerald-500/10 text-emerald-500',
-  decision: 'bg-blue-500/10 text-blue-400',
-  revenue: 'bg-amber-500/10 text-amber-500',
-  blocker: 'bg-red-500/10 text-red-400',
-  milestone: 'bg-violet-500/10 text-violet-400',
-  note: 'bg-muted text-muted-foreground',
+  feature_shipped: 'green',
+  decision: 'blue',
+  revenue: 'gold',
+  blocker: 'red',
+  milestone: 'purple',
+  note: 'default',
 }
 
-export function BusinessPage() {
-  const { data: events, isLoading: loadingEvents, isError: errorEvents, refetch: refetchEvents } = useQuery({
-    queryKey: ['business', 'events'],
-    queryFn: businessApi.events,
-  })
-  const { data: summary, isLoading: loadingSummary, isError: errorSummary, refetch: refetchSummary } = useQuery({
-    queryKey: ['business', 'summary'],
-    queryFn: businessApi.summary,
-  })
+const PageContainer = styled(motion.div)`
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  color: var(--foreground);
+`
+
+const HeaderTitle = styled.h1`
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, #10b981, #3b82f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 2rem;
+`
+
+const PremiumCard = styled(Card)`
+  border-radius: 24px;
+  background: rgba(24, 24, 27, 0.6);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  margin-bottom: 2rem;
+  overflow: hidden;
+
+  .ant-card-head {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    color: #f4f4f5;
+  }
+  .ant-card-body {
+    color: #a1a1aa;
+  }
+  .ant-statistic-title {
+    color: #a1a1aa;
+  }
+  .ant-statistic-content {
+    color: #f4f4f5;
+  }
+`
+
+const AnimatedTimelineItem = styled(motion.div)`
+  padding: 1rem;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  margin-bottom: 1rem;
+  border: 1px solid rgba(255,255,255,0.05);
+  transition: all 0.3s ease;
+  &:hover {
+    background: rgba(255,255,255,0.06);
+    transform: translateY(-2px);
+  }
+`
+
+function RunwayCalculator() {
+  const [cash, setCash] = useState(50000)
+  const [burnRate, setBurnRate] = useState(5000)
+
+  const runwayMonths = burnRate > 0 ? (cash / burnRate).toFixed(1) : '∞'
+  const isHealthy = burnRate === 0 || cash / burnRate > 6
+
+  return (
+    <PremiumCard title={<Space><TrendingUp size={18} /><span>Runway Calculator</span></Space>}>
+      <Row gutter={[16, 16]}>
+        <Col span={12}>
+          <Statistic title="Current Cash" value={cash} prefix={<DollarSign size={16} />} precision={0} />
+          <Slider min={0} max={200000} step={1000} value={cash} onChange={setCash} tooltip={{ formatter: v => `$${v}` }} />
+        </Col>
+        <Col span={12}>
+          <Statistic title="Monthly Burn" value={burnRate} prefix={<Activity size={16} />} precision={0} />
+          <Slider min={0} max={20000} step={500} value={burnRate} onChange={setBurnRate} tooltip={{ formatter: v => `$${v}` }} />
+        </Col>
+      </Row>
+      <div className={`mt-6 p-4 rounded-xl border flex items-center justify-between ${isHealthy ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+        <div>
+          <div className="text-xs text-gray-400 mb-1">Estimated Runway</div>
+          <div className={`text-3xl font-bold ${isHealthy ? 'text-green-400' : 'text-red-400'}`}>{runwayMonths} <span className="text-lg font-normal opacity-70">months</span></div>
+        </div>
+        <div className="text-right max-w-[120px]">
+          <span className="text-xs text-gray-400 leading-tight block">
+            {isHealthy ? 'Looking solid! Keep focusing on growth.' : 'Warning: Runway is critically low.'}
+          </span>
+        </div>
+      </div>
+    </PremiumCard>
+  )
+}
+
+function EventForm({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient()
+  const [form] = Form.useForm()
 
-  const [form, setForm] = useState({ event_type: 'feature_shipped', title: '', description: '' })
-  const [titleError, setTitleError] = useState('')
-
-  const addEvent = useMutation({
-    mutationFn: () => businessApi.createEvent({
-      event_type: form.event_type,
-      title: form.title,
-      description: form.description || undefined,
+  const { mutate, isPending } = useMutation({
+    mutationFn: (values: any) => businessApi.createEvent({
+      event_type: values.eventType,
+      title: values.title.trim(),
+      description: values.description?.trim() || undefined,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['business'] })
-      setForm(f => ({ ...f, title: '', description: '' }))
-      setTitleError('')
+      form.resetFields()
       toast.success('Event logged')
+      onClose()
     },
     onError: () => toast.error('Failed to log event'),
   })
 
-  const handleLog = () => {
-    if (!form.title.trim()) {
-      setTitleError('Title is required')
-      return
-    }
-    setTitleError('')
-    addEvent.mutate()
-  }
+  return (
+    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+      <Form form={form} layout="vertical" onFinish={mutate} className="p-4 bg-black/20 rounded-xl mb-4 border border-white/5">
+        <Row gutter={16}>
+          <Col span={8}>
+            <Form.Item name="eventType" initialValue="feature_shipped" rules={[{ required: true }]}>
+              <Select>
+                {Object.keys(EVENT_TYPE_COLORS).map(t => (
+                  <Select.Option key={t} value={t}>{t.replace('_', ' ')}</Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col span={16}>
+            <Form.Item name="title" rules={[{ required: true, message: 'Title is required' }]}>
+              <Input placeholder="Event Title" />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Form.Item name="description">
+          <Input.TextArea placeholder="Description (optional)" autoSize={{ minRows: 2, maxRows: 4 }} />
+        </Form.Item>
+        <Space className="w-full justify-end">
+          <Button type="text" onClick={onClose} style={{ color: '#a1a1aa' }}>Cancel</Button>
+          <Button type="primary" htmlType="submit" loading={isPending} style={{ background: '#10b981', borderColor: '#10b981' }}>
+            Log Event
+          </Button>
+        </Space>
+      </Form>
+    </motion.div>
+  )
+}
+
+export function BusinessPage() {
+  const [showEventForm, setShowEventForm] = useState(false)
+  const { data: events, isLoading: loadingEvents } = useQuery({ queryKey: ['business', 'events'], queryFn: businessApi.events })
+  const { data: summary, isLoading: loadingSummary } = useQuery({ queryKey: ['business', 'summary'], queryFn: businessApi.summary })
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <h1 className="text-2xl font-semibold text-foreground">Business</h1>
+    <PageContainer initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+      <HeaderTitle>Business HQ</HeaderTitle>
 
-      {/* Ledgr status */}
-      <div className="bg-card premium-shadow rounded-3xl p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 rounded-lg bg-violet-500/10">
-            <Rocket className="w-5 h-5 text-violet-400" aria-hidden="true" />
-          </div>
-          <div>
-            <h2 className="font-semibold text-foreground">Ledgr</h2>
-            <p className="text-xs text-muted-foreground">SaaS accounting for Indian freelancers</p>
-          </div>
-          <span className="ml-auto text-xs px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 font-medium">Building</span>
-        </div>
-
-        {errorSummary ? (
-          <ErrorCard message="Could not load Ledgr metrics" onRetry={() => refetchSummary()} />
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground">MRR</p>
-              {loadingSummary
-                ? <Skeleton className="h-7 w-24 mt-0.5" />
-                : <p className="text-xl font-bold font-mono mt-0.5">{formatCurrency(summary?.mrr ?? 0)}</p>
-              }
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Last feature</p>
-              {loadingSummary
-                ? <Skeleton className="h-5 w-32 mt-0.5" />
-                : <p className="text-sm font-medium mt-0.5 truncate">{summary?.last_feature ?? '—'}</p>
-              }
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Shipped at</p>
-              {loadingSummary
-                ? <Skeleton className="h-5 w-20 mt-0.5" />
-                : <p className="text-sm font-medium mt-0.5">{formatDate(summary?.last_feature_at)}</p>
-              }
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Log event */}
-      <div className="bg-card premium-shadow rounded-3xl p-6">
-        <h2 className="text-sm font-semibold mb-3">Log Event</h2>
-        <div className="flex gap-2 flex-wrap items-start">
-          <select
-            value={form.event_type}
-            onChange={e => setForm(f => ({ ...f, event_type: e.target.value }))}
-            aria-label="Event type"
-            className="px-3 py-2 text-sm rounded-lg bg-muted border border-border text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-          >
-            {Object.keys(EVENT_TYPE_COLORS).map(t => (
-              <option key={t} value={t}>{t.replace('_', ' ')}</option>
-            ))}
-          </select>
-          <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
-            <input
-              placeholder="Title"
-              value={form.title}
-              onChange={e => { setForm(f => ({ ...f, title: e.target.value })); setTitleError('') }}
-              onKeyDown={e => { if (e.key === 'Enter') handleLog() }}
-              aria-label="Event title"
-              aria-invalid={!!titleError}
-              className="px-3 py-2 text-sm rounded-lg bg-muted border border-border text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 aria-invalid:border-destructive"
-            />
-            {titleError && <span className="text-xs text-destructive">{titleError}</span>}
-          </div>
-          <button
-            onClick={handleLog}
-            disabled={addEvent.isPending}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            <Plus className="w-4 h-4" aria-hidden="true" /> Log
-          </button>
-        </div>
-      </div>
-
-      {/* Event timeline */}
-      <div className="bg-card premium-shadow rounded-3xl overflow-hidden pb-2">
-        <div className="px-6 py-4 border-b border-border">
-          <h2 className="text-sm font-semibold">Event Timeline</h2>
-        </div>
-
-        {errorEvents ? (
-          <ErrorCard message="Could not load events" onRetry={() => refetchEvents()} />
-        ) : loadingEvents ? (
-          <div className="divide-y divide-border">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex items-start gap-3 px-4 py-3">
-                <Skeleton className="h-5 w-24 rounded-full shrink-0 mt-0.5" />
-                <div className="flex-1 space-y-1.5">
-                  <Skeleton className="h-4 w-48" />
-                  <Skeleton className="h-3 w-32" />
-                </div>
-                <Skeleton className="h-3 w-16 shrink-0" />
+      <Row gutter={[24, 24]}>
+        {/* Left Column: Metrics & Timeline */}
+        <Col xs={24} lg={14}>
+          <PremiumCard>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/10">
+                <Rocket className="w-6 h-6 text-blue-400" />
               </div>
-            ))}
-          </div>
-        ) : events?.length === 0 ? (
-          <EmptyState
-            icon={History}
-            title="No events logged yet"
-            description="Use the form above or the chat agent to log Ledgr milestones and decisions."
-          />
-        ) : (
-          <div className="divide-y divide-border">
-            {events?.map(e => (
-              <div key={e.id} className="flex items-start gap-3 px-4 py-3">
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${EVENT_TYPE_COLORS[e.event_type] ?? 'bg-muted text-muted-foreground'}`}>
-                  {e.event_type.replace('_', ' ')}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">{e.title}</p>
-                  {e.description && <p className="text-xs text-muted-foreground mt-0.5">{e.description}</p>}
-                </div>
-                <span className="text-xs text-muted-foreground shrink-0">{formatDate(e.occurred_at)}</span>
+              <div>
+                <h2 className="text-xl font-bold text-white m-0">Ledgr</h2>
+                <p className="text-sm text-gray-400 m-0">SaaS accounting for Indian freelancers</p>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+              <Tag color="blue" className="ml-auto">Building</Tag>
+            </div>
+
+            <Row gutter={[16, 16]}>
+              <Col span={8}>
+                <Statistic title="MRR" value={summary?.mrr ?? 0} prefix="$" precision={2} loading={loadingSummary} />
+              </Col>
+              <Col span={8}>
+                <div className="ant-statistic-title mb-1">Last Feature</div>
+                {loadingSummary ? <Skeleton.Input size="small" active /> : <div className="text-white font-medium truncate">{summary?.last_feature ?? '—'}</div>}
+              </Col>
+              <Col span={8}>
+                <div className="ant-statistic-title mb-1">Shipped At</div>
+                {loadingSummary ? <Skeleton.Input size="small" active /> : <div className="text-white font-medium">{formatDate(summary?.last_feature_at)}</div>}
+              </Col>
+            </Row>
+          </PremiumCard>
+
+          <PremiumCard 
+            title={<Space><History size={18} /><span>Event Timeline</span></Space>}
+            extra={<Button type="primary" icon={<Plus size={14} />} onClick={() => setShowEventForm(!showEventForm)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none' }}>Log</Button>}
+          >
+            <AnimatePresence>{showEventForm && <EventForm onClose={() => setShowEventForm(false)} />}</AnimatePresence>
+            
+            {loadingEvents ? <Skeleton active /> : events?.length ? (
+              <Timeline className="mt-4 text-gray-300"
+                items={events.map((e: any, i: number) => ({
+                  color: EVENT_TYPE_COLORS[e.event_type] || 'blue',
+                  children: (
+                    <AnimatedTimelineItem initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <Space>
+                            <Tag color={EVENT_TYPE_COLORS[e.event_type] || 'default'}>{e.event_type.replace('_', ' ')}</Tag>
+                            <span className="font-semibold text-white">{e.title}</span>
+                          </Space>
+                          {e.description && <div className="text-xs text-gray-400 mt-2">{e.description}</div>}
+                        </div>
+                        <div className="text-xs text-gray-500">{formatDate(e.occurred_at)}</div>
+                      </div>
+                    </AnimatedTimelineItem>
+                  )
+                }))}
+              />
+            ) : <EmptyState icon={History} title="No events" description="Log your business milestones." />}
+          </PremiumCard>
+        </Col>
+
+        {/* Right Column: Runway */}
+        <Col xs={24} lg={10}>
+          <RunwayCalculator />
+        </Col>
+      </Row>
+    </PageContainer>
   )
 }
