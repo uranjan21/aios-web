@@ -18,8 +18,8 @@ class VaultFile(SQLModel, table=True):
     sync_status: str = Field(default="ok", nullable=False)
     last_synced_at: Optional[datetime] = None
     error_message: Optional[str] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
 
 
 class VaultConflict(SQLModel, table=True):
@@ -29,7 +29,7 @@ class VaultConflict(SQLModel, table=True):
     file_id: uuid.UUID = Field(foreign_key="vault_files.id", nullable=False)
     app_content: str = Field(sa_column=Column(Text, nullable=False))
     vault_content: str = Field(sa_column=Column(Text, nullable=False))
-    detected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    detected_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
     resolved_at: Optional[datetime] = None
     resolution: Optional[str] = None
 
@@ -42,4 +42,4 @@ class VaultChunk(SQLModel, table=True):
     chunk_index: int = Field(nullable=False)
     content: str = Field(sa_column=Column(Text, nullable=False))
     embedding: Optional[List[float]] = Field(default=None, sa_column=Column(Vector(1536)))
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)

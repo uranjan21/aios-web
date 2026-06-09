@@ -68,7 +68,7 @@ async def patch_item(item_id: str, body: ContentItemPatch, current_user=Depends(
         item.publish_date = body.publish_date
     if body.notes is not None:
         item.notes = body.notes
-    item.updated_at = datetime.now(timezone.utc)
+    item.updated_at = datetime.utcnow()
     db.add(item)
     await db.commit()
     await db.refresh(item)

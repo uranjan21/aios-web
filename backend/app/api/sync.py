@@ -3,7 +3,7 @@ import asyncio
 import logging
 from typing import Set
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from app.core.deps import get_current_user
@@ -21,7 +21,7 @@ async def sync_status(current_user=Depends(get_current_user)):
 
 @router.post("/force")
 @limiter.limit("1/minute")
-async def force_sync(current_user=Depends(get_current_user)):
+async def force_sync(request: Request, current_user=Depends(get_current_user)):
     from app.core.config import get_settings
     from pathlib import Path
     settings = get_settings()
@@ -83,7 +83,7 @@ async def resolve_conflict(
         if not conflict:
             raise HTTPException(status_code=404, detail="Conflict not found")
 
-        conflict.resolved_at = datetime.now(timezone.utc)
+        conflict.resolved_at = datetime.utcnow()
         conflict.resolution = body.resolution
         session.add(conflict)
 

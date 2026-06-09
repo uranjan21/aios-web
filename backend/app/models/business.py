@@ -17,4 +17,4 @@ class BusinessEvent(SQLModel, table=True):
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     mrr: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(10, 2)))
     source: str = Field(default="agent", nullable=False)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)

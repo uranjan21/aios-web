@@ -14,6 +14,8 @@ down_revision = None
 branch_labels = None
 depends_on = None
 
+TZ = sa.TIMESTAMP(timezone=True)
+
 
 def upgrade() -> None:
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
@@ -25,7 +27,7 @@ def upgrade() -> None:
         sa.Column("email", sa.Text, unique=True, nullable=False),
         sa.Column("name", sa.Text, nullable=False),
         sa.Column("password_hash", sa.Text, nullable=False),
-        sa.Column("created_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", TZ, nullable=False, server_default=sa.text("now()")),
     )
 
     op.create_table(
@@ -37,10 +39,10 @@ def upgrade() -> None:
         sa.Column("content", sa.Text, nullable=False),
         sa.Column("checksum", sa.Text, nullable=False),
         sa.Column("sync_status", sa.Text, nullable=False, server_default="ok"),
-        sa.Column("last_synced_at", sa.TIMESTAMPTZ),
+        sa.Column("last_synced_at", TZ),
         sa.Column("error_message", sa.Text),
-        sa.Column("created_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", TZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("updated_at", TZ, nullable=False, server_default=sa.text("now()")),
         sa.CheckConstraint("sync_status IN ('ok','syncing','conflict','error','missing')", name="vault_files_sync_status_check"),
     )
 
@@ -50,8 +52,8 @@ def upgrade() -> None:
         sa.Column("file_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("vault_files.id"), nullable=False),
         sa.Column("app_content", sa.Text, nullable=False),
         sa.Column("vault_content", sa.Text, nullable=False),
-        sa.Column("detected_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
-        sa.Column("resolved_at", sa.TIMESTAMPTZ),
+        sa.Column("detected_at", TZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("resolved_at", TZ),
         sa.Column("resolution", sa.Text),
     )
 
@@ -61,11 +63,10 @@ def upgrade() -> None:
         sa.Column("file_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("vault_files.id", ondelete="CASCADE"), nullable=False),
         sa.Column("chunk_index", sa.Integer, nullable=False),
         sa.Column("content", sa.Text, nullable=False),
-        sa.Column("embedding", sa.Column("embedding", sa.Text)),  # will be vector(1536) via raw SQL
-        sa.Column("created_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", TZ, nullable=False, server_default=sa.text("now()")),
         sa.UniqueConstraint("file_id", "chunk_index"),
     )
-    # pgvector column needs raw SQL
+    # pgvector column needs raw SQL (SQLAlchemy has no native Vector type without pgvector package mapped)
     op.execute("ALTER TABLE vault_chunks ADD COLUMN IF NOT EXISTS embedding vector(1536)")
     op.execute("CREATE INDEX IF NOT EXISTS vault_chunks_embedding_idx ON vault_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100)")
 
@@ -82,44 +83,44 @@ def upgrade() -> None:
         sa.Column("notes", sa.Text),
         sa.Column("is_estimated", sa.Boolean, nullable=False, server_default="false"),
         sa.Column("source", sa.Text, nullable=False, server_default="vault_sync"),
-        sa.Column("created_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", TZ, nullable=False, server_default=sa.text("now()")),
     )
 
     op.create_table(
         "finance_expenses",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("logged_at", sa.TIMESTAMPTZ, nullable=False),
+        sa.Column("logged_at", TZ, nullable=False),
         sa.Column("amount", sa.Numeric(10, 2), nullable=False),
         sa.Column("category", sa.Text, nullable=False),
         sa.Column("description", sa.Text),
         sa.Column("source", sa.Text, nullable=False, server_default="agent"),
-        sa.Column("created_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", TZ, nullable=False, server_default=sa.text("now()")),
     )
 
     op.create_table(
         "health_logs",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("logged_at", sa.TIMESTAMPTZ, nullable=False),
+        sa.Column("logged_at", TZ, nullable=False),
         sa.Column("entry_type", sa.Text, nullable=False),
         sa.Column("value", sa.Numeric(8, 2)),
         sa.Column("unit", sa.Text),
         sa.Column("notes", sa.Text),
         sa.Column("source", sa.Text, nullable=False, server_default="agent"),
-        sa.Column("created_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", TZ, nullable=False, server_default=sa.text("now()")),
         sa.CheckConstraint("entry_type IN ('gym','weight','food','water','body_fat','note')", name="health_logs_entry_type_check"),
     )
 
     op.create_table(
         "career_events",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("occurred_at", sa.TIMESTAMPTZ, nullable=False),
+        sa.Column("occurred_at", TZ, nullable=False),
         sa.Column("event_type", sa.Text, nullable=False),
         sa.Column("title", sa.Text, nullable=False),
         sa.Column("description", sa.Text),
         sa.Column("skill", sa.Text),
         sa.Column("skill_level", sa.Text),
         sa.Column("source", sa.Text, nullable=False, server_default="agent"),
-        sa.Column("created_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", TZ, nullable=False, server_default=sa.text("now()")),
     )
 
     op.create_table(
@@ -129,20 +130,20 @@ def upgrade() -> None:
         sa.Column("category", sa.Text, nullable=False),
         sa.Column("level", sa.Text, nullable=False),
         sa.Column("notes", sa.Text),
-        sa.Column("last_updated", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("last_updated", TZ, nullable=False, server_default=sa.text("now()")),
     )
 
     op.create_table(
         "business_events",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("occurred_at", sa.TIMESTAMPTZ, nullable=False),
+        sa.Column("occurred_at", TZ, nullable=False),
         sa.Column("product", sa.Text, nullable=False, server_default="ledgr"),
         sa.Column("event_type", sa.Text, nullable=False),
         sa.Column("title", sa.Text, nullable=False),
         sa.Column("description", sa.Text),
         sa.Column("mrr", sa.Numeric(10, 2)),
         sa.Column("source", sa.Text, nullable=False, server_default="agent"),
-        sa.Column("created_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", TZ, nullable=False, server_default=sa.text("now()")),
     )
 
     op.create_table(
@@ -155,8 +156,8 @@ def upgrade() -> None:
         sa.Column("publish_date", sa.Date),
         sa.Column("content_type", sa.Text),
         sa.Column("notes", sa.Text),
-        sa.Column("created_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", TZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("updated_at", TZ, nullable=False, server_default=sa.text("now()")),
     )
 
     op.create_table(
@@ -166,8 +167,8 @@ def upgrade() -> None:
         sa.Column("tokens_used", sa.Integer, nullable=False, server_default="0"),
         sa.Column("input_tokens", sa.Integer, nullable=False, server_default="0"),
         sa.Column("output_tokens", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("started_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
-        sa.Column("last_message_at", sa.TIMESTAMPTZ),
+        sa.Column("started_at", TZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("last_message_at", TZ),
     )
 
     op.create_table(
@@ -179,7 +180,7 @@ def upgrade() -> None:
         sa.Column("tool_calls", postgresql.JSONB),
         sa.Column("tool_results", postgresql.JSONB),
         sa.Column("tokens_used", sa.Integer),
-        sa.Column("created_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", TZ, nullable=False, server_default=sa.text("now()")),
     )
     op.create_index("chat_messages_session_created", "chat_messages", ["session_id", "created_at"])
 
@@ -187,7 +188,7 @@ def upgrade() -> None:
         "daily_token_usage",
         sa.Column("usage_date", sa.Date, primary_key=True, server_default=sa.text("CURRENT_DATE")),
         sa.Column("tokens_used", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("updated_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("updated_at", TZ, nullable=False, server_default=sa.text("now()")),
     )
 
     op.create_table(
@@ -196,12 +197,12 @@ def upgrade() -> None:
         sa.Column("provider", sa.Text, unique=True, nullable=False),
         sa.Column("access_token_encrypted", sa.Text),
         sa.Column("refresh_token_encrypted", sa.Text),
-        sa.Column("token_expires_at", sa.TIMESTAMPTZ),
+        sa.Column("token_expires_at", TZ),
         sa.Column("status", sa.Text, nullable=False, server_default="disconnected"),
         sa.Column("scopes", postgresql.JSONB),
         sa.Column("metadata", postgresql.JSONB),
-        sa.Column("created_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", TZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("updated_at", TZ, nullable=False, server_default=sa.text("now()")),
     )
 
     op.create_table(
@@ -212,12 +213,12 @@ def upgrade() -> None:
         sa.Column("description", sa.Text),
         sa.Column("cron_expression", sa.Text, nullable=False),
         sa.Column("is_active", sa.Boolean, nullable=False, server_default="true"),
-        sa.Column("last_run_at", sa.TIMESTAMPTZ),
+        sa.Column("last_run_at", TZ),
         sa.Column("last_run_status", sa.Text),
         sa.Column("last_output_path", sa.Text),
         sa.Column("run_count", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("created_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.TIMESTAMPTZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", TZ, nullable=False, server_default=sa.text("now()")),
+        sa.Column("updated_at", TZ, nullable=False, server_default=sa.text("now()")),
     )
 
 

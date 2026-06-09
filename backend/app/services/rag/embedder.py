@@ -77,7 +77,7 @@ async def embed_vault_file(rel_path: str, content: str) -> None:
                 chunk_index=i,
                 content=chunk_text,
                 embedding=embedding,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.utcnow(),
             ))
 
         await session.commit()

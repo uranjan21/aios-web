@@ -24,7 +24,7 @@ class SessionTokenLimitExceeded(Exception):
 
 
 def _seconds_until_midnight() -> int:
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     return int((midnight - now).total_seconds())
 
@@ -66,7 +66,7 @@ async def check_budget(session_id: UUID, estimated_input: int = 1000) -> None:
 async def record_usage(session_id: UUID, input_tokens: int, output_tokens: int) -> None:
     total = input_tokens + output_tokens
     today = date.today()
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
 
     async with AsyncSessionLocal() as session:
         # Upsert daily usage

@@ -16,7 +16,7 @@ class CareerEvent(SQLModel, table=True):
     skill: Optional[str] = None
     skill_level: Optional[str] = None
     source: str = Field(default="agent", nullable=False)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
 
 
 class SkillInventory(SQLModel, table=True):
@@ -27,4 +27,4 @@ class SkillInventory(SQLModel, table=True):
     category: str = Field(nullable=False)
     level: str = Field(nullable=False)
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
-    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    last_updated: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)

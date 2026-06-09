@@ -28,7 +28,7 @@ class BusinessEventCreate(BaseModel):
 @router.post("/events")
 async def create_event(body: BusinessEventCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
     event = BusinessEvent(
-        occurred_at=body.occurred_at or datetime.now(timezone.utc),
+        occurred_at=body.occurred_at or datetime.utcnow(),
         product=body.product,
         event_type=body.event_type,
         title=body.title,

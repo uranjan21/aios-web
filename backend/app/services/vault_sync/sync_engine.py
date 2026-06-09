@@ -83,7 +83,7 @@ async def handle_file_change(rel_path: str, change_type: str) -> None:
             await _create_conflict(session, existing, content)
             return
 
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
         if existing:
             existing.content = content
             existing.checksum = new_checksum
@@ -121,7 +121,7 @@ async def _mark_missing(rel_path: str) -> None:
         existing = result.scalar_one_or_none()
         if existing:
             existing.sync_status = "missing"
-            existing.updated_at = datetime.now(timezone.utc)
+            existing.updated_at = datetime.utcnow()
             session.add(existing)
             await session.commit()
     await _broadcast({"type": "vault_missing", "path": rel_path})
@@ -129,7 +129,7 @@ async def _mark_missing(rel_path: str) -> None:
 
 async def _create_conflict(session: AsyncSession, existing: VaultFile, vault_content: str) -> None:
     existing.sync_status = "conflict"
-    existing.updated_at = datetime.now(timezone.utc)
+    existing.updated_at = datetime.utcnow()
     session.add(existing)
 
     conflict = VaultConflict(

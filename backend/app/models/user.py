@@ -10,4 +10,4 @@ class User(SQLModel, table=True):
     email: str = Field(unique=True, nullable=False)
     name: str = Field(nullable=False)
     password_hash: str = Field(nullable=False)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)

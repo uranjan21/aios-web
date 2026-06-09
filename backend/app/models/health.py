@@ -16,4 +16,4 @@ class HealthLog(SQLModel, table=True):
     unit: Optional[str] = None
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
     source: str = Field(default="agent", nullable=False)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)

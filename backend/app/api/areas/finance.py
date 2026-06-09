@@ -51,7 +51,7 @@ class ExpenseCreate(BaseModel):
 @router.post("/expenses")
 async def create_expense(body: ExpenseCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
     expense = FinanceExpense(
-        logged_at=body.logged_at or datetime.now(timezone.utc),
+        logged_at=body.logged_at or datetime.utcnow(),
         amount=body.amount,
         category=body.category,
         description=body.description,

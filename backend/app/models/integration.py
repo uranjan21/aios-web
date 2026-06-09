@@ -18,5 +18,5 @@ class IntegrationCredential(SQLModel, table=True):
     status: str = Field(default="disconnected", nullable=False)
     scopes: Optional[Any] = Field(default=None, sa_column=Column(JSON))
     metadata_: Optional[Any] = Field(default=None, sa_column=Column(JSON, name="metadata"))
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)

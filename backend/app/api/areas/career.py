@@ -16,9 +16,35 @@ async def list_skills(current_user=Depends(get_current_user), db=Depends(get_db)
     return result.scalars().all()
 
 
-class SkillUpdate(BaseModel):
+class SkillUpsert(BaseModel):
+    skill_name: str
+    category: str
     level: str
     notes: Optional[str] = None
+
+
+class SkillUpdate(BaseModel):
+    category: Optional[str] = None
+    level: str
+    notes: Optional[str] = None
+
+
+@router.post("/skills")
+async def upsert_skill(body: SkillUpsert, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(SkillInventory).where(SkillInventory.skill_name == body.skill_name))
+    skill = result.scalar_one_or_none()
+    if skill:
+        skill.level = body.level
+        skill.category = body.category
+        if body.notes is not None:
+            skill.notes = body.notes
+        skill.last_updated = datetime.utcnow()
+    else:
+        skill = SkillInventory(skill_name=body.skill_name, category=body.category, level=body.level, notes=body.notes)
+    db.add(skill)
+    await db.commit()
+    await db.refresh(skill)
+    return skill
 
 
 @router.put("/skills/{skill_id}")
@@ -30,7 +56,7 @@ async def update_skill(skill_id: str, body: SkillUpdate, current_user=Depends(ge
     skill.level = body.level
     if body.notes is not None:
         skill.notes = body.notes
-    skill.last_updated = datetime.now(timezone.utc)
+    skill.last_updated = datetime.utcnow()
     db.add(skill)
     await db.commit()
     await db.refresh(skill)
@@ -55,7 +81,7 @@ class CareerEventCreate(BaseModel):
 @router.post("/events")
 async def create_event(body: CareerEventCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
     event = CareerEvent(
-        occurred_at=body.occurred_at or datetime.now(timezone.utc),
+        occurred_at=body.occurred_at or datetime.utcnow(),
         event_type=body.event_type,
         title=body.title,
         description=body.description,

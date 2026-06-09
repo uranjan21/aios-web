@@ -34,7 +34,7 @@ class HealthLogCreate(BaseModel):
 @router.post("/logs")
 async def create_log(body: HealthLogCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
     log = HealthLog(
-        logged_at=body.logged_at or datetime.now(timezone.utc),
+        logged_at=body.logged_at or datetime.utcnow(),
         entry_type=body.entry_type,
         value=body.value,
         unit=body.unit,

@@ -52,7 +52,7 @@ class VaultWriteGuard:
         abs_path = self._resolve(rel_path)
         abs_path.parent.mkdir(parents=True, exist_ok=True)
 
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
         formatted_entry = f"\n{timestamp} — {entry.strip()}\n"
 
         current = abs_path.read_text(encoding="utf-8") if abs_path.exists() else ""

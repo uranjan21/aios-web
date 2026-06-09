@@ -16,5 +16,5 @@ class ContentItem(SQLModel, table=True):
     publish_date: Optional[date] = None
     content_type: Optional[str] = None
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)

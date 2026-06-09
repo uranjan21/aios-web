@@ -13,7 +13,7 @@ class ChatSession(SQLModel, table=True):
     tokens_used: int = Field(default=0, nullable=False)
     input_tokens: int = Field(default=0, nullable=False)
     output_tokens: int = Field(default=0, nullable=False)
-    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    started_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
     last_message_at: Optional[datetime] = None
 
 
@@ -27,7 +27,7 @@ class ChatMessage(SQLModel, table=True):
     tool_calls: Optional[Any] = Field(default=None, sa_column=Column(JSON))
     tool_results: Optional[Any] = Field(default=None, sa_column=Column(JSON))
     tokens_used: Optional[int] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
 
 
 class DailyTokenUsage(SQLModel, table=True):
@@ -35,4 +35,4 @@ class DailyTokenUsage(SQLModel, table=True):
 
     usage_date: date = Field(primary_key=True, default_factory=date.today)
     tokens_used: int = Field(default=0, nullable=False)
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)

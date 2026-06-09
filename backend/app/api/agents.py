@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Set
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from sqlmodel import select
 
@@ -70,7 +70,7 @@ async def patch_agent(agent_id: str, body: AgentPatch, current_user=Depends(get_
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
     agent.is_active = body.is_active
-    agent.updated_at = datetime.now(timezone.utc)
+    agent.updated_at = datetime.utcnow()
     db.add(agent)
     await db.commit()
     await db.refresh(agent)
@@ -79,7 +79,7 @@ async def patch_agent(agent_id: str, body: AgentPatch, current_user=Depends(get_
 
 @router.post("/{agent_id}/trigger")
 @limiter.limit("5/minute")
-async def trigger_agent(agent_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
+async def trigger_agent(request: Request, agent_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(select(Agent).where(Agent.task_id == agent_id))
     agent = result.scalar_one_or_none()
     if not agent:
@@ -87,7 +87,7 @@ async def trigger_agent(agent_id: str, current_user=Depends(get_current_user), d
 
     run_id = str(uuid.uuid4())
     agent.last_run_status = "running"
-    agent.updated_at = datetime.now(timezone.utc)
+    agent.updated_at = datetime.utcnow()
     db.add(agent)
     await db.commit()
 
@@ -99,7 +99,7 @@ async def _run_agent(task_id: str, run_id: str) -> None:
     await _broadcast_agent({"type": "agent_started", "task_id": task_id, "run_id": run_id})
     # Placeholder — real implementation would call Cowork scheduled tasks API
     await asyncio.sleep(2)
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(Agent).where(Agent.task_id == task_id))
         agent = result.scalar_one_or_none()

@@ -20,7 +20,7 @@ class FinanceSnapshot(SQLModel, table=True):
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
     is_estimated: bool = Field(default=False, nullable=False)
     source: str = Field(default="vault_sync", nullable=False)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
 
 
 class FinanceExpense(SQLModel, table=True):
@@ -32,4 +32,4 @@ class FinanceExpense(SQLModel, table=True):
     category: str = Field(nullable=False)
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     source: str = Field(default="agent", nullable=False)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)

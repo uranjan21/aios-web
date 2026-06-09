@@ -61,7 +61,7 @@ async def disconnect(provider: str, current_user=Depends(get_current_user), db=D
         cred.status = "disconnected"
         cred.access_token_encrypted = None
         cred.refresh_token_encrypted = None
-        cred.updated_at = datetime.now(timezone.utc)
+        cred.updated_at = datetime.utcnow()
         db.add(cred)
         await db.commit()
     return {"status": "disconnected"}
