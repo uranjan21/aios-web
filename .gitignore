@@ -1,0 +1,84 @@
+# Environment Variables
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.staging
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+.Python
+
+# Node
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.pnpm-debug.log
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+.AppleDouble
+.LSOverride
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database & Data
+pgdata/
+*.db
+*.sqlite
+*.sqlite3
+
+# Credentials & Secrets
+*.pem
+*.key
+*.crt
+.ssl/
+secrets/
+.credentials
+config/secrets.json
+
+# Build & Temp
+dist/
+build/
+.cache/
+.next/
+out/
+temp/
+tmp/
+
+# IDE specific
+.eslintcache
+.prettierignore
+
+# Docker
+.dockerignore
+docker-compose.override.yml
