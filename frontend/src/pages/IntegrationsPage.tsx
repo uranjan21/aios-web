@@ -34,7 +34,7 @@ function StatusIcon({ status }: { status: Integration['status'] }) {
 
 function IntegrationCardSkeleton() {
   return (
-    <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-4 space-y-3">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <Skeleton className="w-5 h-5 rounded-full" />
@@ -72,12 +72,12 @@ function IntegrationCard({ integration }: { integration: Integration }) {
   const [dialogOpen, setDialogOpen] = useState(false)
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5">
+    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-4">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           <StatusIcon status={integration.status} />
           <div>
-            <h3 className="font-semibold text-foreground">{info.label}</h3>
+            <h3 className="text-sm font-medium text-foreground">{info.label}</h3>
             <p className="text-xs text-muted-foreground mt-0.5">{info.desc}</p>
           </div>
         </div>
@@ -153,16 +153,16 @@ export function IntegrationsPage() {
   })
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
+    <div className="p-4 space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Integrations</h1>
+        <h1 className="text-lg font-semibold text-foreground">Integrations</h1>
         <p className="text-muted-foreground text-sm mt-0.5">Connect external services to enrich your AI OS context</p>
       </div>
 
       {isError ? (
         <ErrorCard message="Could not load integrations" onRetry={() => refetch()} />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {isLoading
             ? Array.from({ length: 3 }).map((_, i) => <IntegrationCardSkeleton key={i} />)
             : integrations?.map(i => <IntegrationCard key={i.provider} integration={i} />)

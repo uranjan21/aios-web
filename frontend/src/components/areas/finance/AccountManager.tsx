@@ -6,11 +6,12 @@ import styled from 'styled-components';
 import { financeApi } from '@/api/areas';
 
 const Container = styled.div`
-  background: var(--card-bg, #1a1a1a);
-  border-radius: 8px;
-  padding: 24px;
-  border: 1px solid var(--border-color, #333);
+  background: hsl(var(--card));
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid hsl(var(--border) / 0.6);
   margin-bottom: 24px;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   
   /* Quick Antd dark mode overrides for this container */
   .ant-table {
@@ -38,7 +39,7 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
-  h3 { margin: 0; color: #fff; font-size: 1.1rem; font-weight: 500; }
+  h3 { margin: 0; color: hsl(var(--muted-foreground)); font-size: 14px; font-weight: 500; }
 `;
 
 export const AccountManager: React.FC = () => {

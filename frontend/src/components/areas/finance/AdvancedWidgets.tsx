@@ -9,20 +9,22 @@ import { formatCurrency } from '@/lib/utils';
 const { Title, Text } = Typography;
 
 const PremiumCard = styled(Card)`
-  background: linear-gradient(145deg, #1e1e1e, #2a2a2a);
-  border: 1px solid #333;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.6);
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
 
   .ant-card-head {
-    border-bottom: 1px solid #333;
-    color: #fff;
-    font-weight: 600;
+    border-bottom: none;
+    padding: 16px 16px 0;
+    color: hsl(var(--muted-foreground));
+    font-size: 14px;
+    font-weight: 500;
   }
   
   .ant-card-body {
-    padding: 20px;
+    padding: 16px;
   }
 `;
 
@@ -65,7 +67,7 @@ export const AIInsightsEngine = () => {
   ];
 
   return (
-    <PremiumCard title={<div className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-purple-400" /> AI Financial Insights</div>}>
+    <PremiumCard title={<div className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-purple-400" /> AI Financial Insights</div>}>
       {insights.map(insight => (
         <AIInsightWrapper key={insight.id}>
           <div className="mt-0.5">{insight.icon}</div>
@@ -128,7 +130,7 @@ export const CashflowForecasting = () => {
   };
 
   return (
-    <PremiumCard title={<div className="flex items-center gap-2"><TrendingUp className="w-5 h-5 text-emerald-400" /> Cashflow Forecast</div>}>
+    <PremiumCard title={<div className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-emerald-400" /> Cashflow Forecast</div>} extra={<button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Report</button>}>
       <HighchartsReact highcharts={Highcharts} options={options} />
     </PremiumCard>
   );
@@ -142,7 +144,7 @@ export const GoalTrackingRings = () => {
   ];
 
   return (
-    <PremiumCard title="Goal Tracking">
+    <PremiumCard title="Goal Tracking" extra={<button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Details</button>}>
       <div className="flex justify-around items-center h-full py-4">
         {goals.map(goal => (
           <div key={goal.name} className="flex flex-col items-center gap-3">
@@ -183,7 +185,7 @@ export const SubscriptionManagement = () => {
   ];
 
   return (
-    <PremiumCard title="Subscriptions">
+    <PremiumCard title="Subscriptions" extra={<button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Manage</button>}>
       <List
         itemLayout="horizontal"
         dataSource={subs}

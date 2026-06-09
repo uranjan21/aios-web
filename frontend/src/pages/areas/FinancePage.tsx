@@ -22,31 +22,9 @@ import { ShoppingBag, Clapperboard, Home, Heart, CreditCard, Shirt, Tv, DollarSi
 import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { Tabs } from 'antd'
-import styled from 'styled-components'
+import { AreaTabs } from '@/components/ui/AreaTabs'
 
-const StyledTabs = styled(Tabs)`
-  .ant-tabs-nav {
-    margin-bottom: 24px;
-    &::before { border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
-  }
-  .ant-tabs-tab {
-    color: #888;
-    font-size: 15px;
-    padding: 12px 0;
-    margin-right: 32px;
-    transition: all 0.3s;
-    &:hover { color: #fff; }
-  }
-  .ant-tabs-tab-active .ant-tabs-tab-btn {
-    color: #fff !important;
-    font-weight: 600;
-  }
-  .ant-tabs-ink-bar {
-    background: linear-gradient(90deg, #8B5CF6 0%, #EC4899 100%);
-    height: 3px;
-    border-radius: 3px 3px 0 0;
-  }
-`;
+
 
 export function FinancePage() {
   const [balanceTab, setBalanceTab] = useState('General')
@@ -128,95 +106,85 @@ export function FinancePage() {
   }, [expenses])
 
   if (loadingSnapshot || loadingExpenses || loadingBudgets) {
-    return <div className="p-6 space-y-6">
-      <Skeleton className="w-full h-32 rounded-3xl" />
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <Skeleton className="lg:col-span-4 h-[400px] rounded-3xl" />
-        <Skeleton className="lg:col-span-4 h-[400px] rounded-3xl" />
-        <Skeleton className="lg:col-span-4 h-[400px] rounded-3xl" />
+    return <div className="p-4 space-y-4">
+      <Skeleton className="w-full h-32 rounded-xl" />
+      <div className="grid grid-cols-12 gap-4">
+        <Skeleton className="col-span-12 xl:col-span-4 h-[400px] rounded-xl" />
+        <Skeleton className="col-span-12 xl:col-span-4 h-[400px] rounded-xl" />
+        <Skeleton className="col-span-12 xl:col-span-4 h-[400px] rounded-xl" />
       </div>
     </div>
   }
 
   if (errorSnapshot) {
-    return <div className="p-6"><ErrorCard message="Could not load financial data" /></div>
+    return <div className="p-4"><ErrorCard message="Could not load financial data" /></div>
   }
 
   const OverviewContent = (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 auto-rows-min">
-        {/* Left Column (Span 4) */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
-          <div className="h-[300px]">
-            <BalanceWidget 
-              balance={balanceTab === 'General' ? Number(snapshot?.net_worth ?? 0) : balanceTab === 'Expenses' ? totalExpenses : Number(snapshot?.take_home ?? 0)} 
-              chartData={chartData} 
-              activeTab={balanceTab}
-              onTabChange={setBalanceTab}
-            />
-          </div>
-          <GoalTrackingRings />
+    <div className="grid grid-cols-12 gap-4">
+      {/* Left Column (Span 4) */}
+      <div className="col-span-12 xl:col-span-4 flex flex-col gap-4">
+        <div className="h-[300px]">
+          <BalanceWidget 
+            balance={balanceTab === 'General' ? Number(snapshot?.net_worth ?? 0) : balanceTab === 'Expenses' ? totalExpenses : Number(snapshot?.take_home ?? 0)} 
+            chartData={chartData} 
+            activeTab={balanceTab}
+            onTabChange={setBalanceTab}
+          />
         </div>
+        <GoalTrackingRings />
+      </div>
 
-        {/* Middle Column (Span 4) */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
-          <MonthlyBudgetWidget spent={totalExpenses} total={totalBudget} />
-          <div className="flex-1 min-h-[220px]">
-            <ExpensesDonutWidget 
-              total={totalExpenses} 
-              data={donutData} 
-              activeTab={donutTab}
-              onTabChange={setDonutTab}
-            />
-          </div>
+      {/* Middle Column (Span 4) */}
+      <div className="col-span-12 xl:col-span-4 flex flex-col gap-4">
+        <MonthlyBudgetWidget spent={totalExpenses} total={totalBudget} />
+        <div className="flex-1 min-h-[220px]">
+          <ExpensesDonutWidget 
+            total={totalExpenses} 
+            data={donutData} 
+            activeTab={donutTab}
+            onTabChange={setDonutTab}
+          />
         </div>
+      </div>
 
-        {/* Right Column (Span 4) */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
-          <VisaCardWidget balance={Number(snapshot?.cc_debt ?? 0)} />
-          <QuickTransactionsWidget />
-          <div className="flex-1 min-h-[200px]">
-            <LastTransactionsWidget transactions={recentTransactions} />
-          </div>
+      {/* Right Column (Span 4) */}
+      <div className="col-span-12 xl:col-span-4 flex flex-col gap-4">
+        <VisaCardWidget balance={Number(snapshot?.cc_debt ?? 0)} />
+        <QuickTransactionsWidget />
+        <div className="flex-1 min-h-[200px]">
+          <LastTransactionsWidget transactions={recentTransactions} />
         </div>
       </div>
     </div>
   );
 
   const InsightsContent = (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="space-y-6">
+    <div className="grid grid-cols-12 gap-4">
+      <div className="col-span-12 xl:col-span-6 flex flex-col gap-4">
         <AIInsightsEngine />
         <CashflowForecasting />
       </div>
-      <div className="space-y-6">
+      <div className="col-span-12 xl:col-span-6 flex flex-col gap-4">
         <SubscriptionManagement />
       </div>
     </div>
   );
 
   const ManagementContent = (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <AccountManager />
-      <CategoryManager />
+    <div className="grid grid-cols-12 gap-4">
+      <div className="col-span-12 xl:col-span-6">
+        <AccountManager />
+      </div>
+      <div className="col-span-12 xl:col-span-6">
+        <CategoryManager />
+      </div>
     </div>
   );
 
   return (
-    <div className="p-3 sm:p-4 lg:p-6 min-h-screen max-w-6xl mx-auto">
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-12 w-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg border border-white/10">
-            <CreditCard className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white">Finance</h1>
-            <p className="text-sm text-muted-foreground">Manage your wealth & insights</p>
-          </div>
-        </div>
-      </div>
-
-      <StyledTabs defaultActiveKey="1">
+    <div className="p-4 min-h-screen pb-24">
+      <AreaTabs defaultActiveKey="1">
         <Tabs.TabPane tab="Overview" key="1">
           {OverviewContent}
         </Tabs.TabPane>
@@ -226,7 +194,13 @@ export function FinancePage() {
         <Tabs.TabPane tab="Management" key="3">
           {ManagementContent}
         </Tabs.TabPane>
-      </StyledTabs>
+        <Tabs.TabPane tab="Log Transaction" key="4">
+          <div></div>
+        </Tabs.TabPane>
+        <Tabs.TabPane tab="Budgets" key="5">
+          <div></div>
+        </Tabs.TabPane>
+      </AreaTabs>
     </div>
   )
 }

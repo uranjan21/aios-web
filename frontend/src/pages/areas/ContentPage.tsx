@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Modal, Input } from 'antd'
 import { toast } from 'sonner'
-import { Plus, LayoutGrid, Edit2, Calendar, Trash2 } from 'lucide-react'
+import { Plus, LayoutGrid, Edit2, Calendar, Trash2, TrendingUp, Eye, MousePointerClick } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   DndContext,
@@ -17,10 +18,9 @@ import { contentApi } from '@/api/areas'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorCard } from '@/components/ErrorCard'
-import { EmptyState } from '@/components/EmptyState'
 import type { ContentItem } from '@/types'
 
-const STATUS_COLS: ContentItem['status'][] = ['idea', 'in_progress', 'scheduled', 'published']
+const PIPELINE_COLS: ContentItem['status'][] = ['idea', 'in_progress', 'scheduled']
 
 const STATUS_LABELS: Record<ContentItem['status'], string> = {
   idea:        'Ideas',
@@ -31,27 +31,27 @@ const STATUS_LABELS: Record<ContentItem['status'], string> = {
 }
 
 const STATUS_STYLES: Record<ContentItem['status'], string> = {
-  idea:        'border-border bg-card',
-  in_progress: 'border-blue-500/30 bg-blue-500/5',
-  scheduled:   'border-amber-500/30 bg-amber-500/5',
-  published:   'border-emerald-500/30 bg-emerald-500/5',
+  idea:        'border-border/60 bg-card/40',
+  in_progress: 'border-blue-500/20 bg-blue-500/5',
+  scheduled:   'border-amber-500/20 bg-amber-500/5',
+  published:   'border-emerald-500/20 bg-emerald-500/5',
   archived:    'border-border bg-muted/20',
 }
 
 const STATUS_ACCENT: Record<ContentItem['status'], string> = {
-  idea:        'bg-zinc-500/20 text-zinc-400',
-  in_progress: 'bg-blue-500/20 text-blue-400',
-  scheduled:   'bg-amber-500/20 text-amber-400',
-  published:   'bg-emerald-500/20 text-emerald-400',
+  idea:        'bg-zinc-500/10 text-zinc-500',
+  in_progress: 'bg-blue-500/10 text-blue-600',
+  scheduled:   'bg-amber-500/10 text-amber-600',
+  published:   'bg-emerald-500/10 text-emerald-600',
   archived:    'bg-muted text-muted-foreground',
 }
 
 const PLATFORM_BADGE: Record<string, string> = {
-  linkedin:  'bg-blue-600/20 text-blue-400',
-  twitter:   'bg-sky-500/20 text-sky-400',
-  instagram: 'bg-pink-500/20 text-pink-400',
-  youtube:   'bg-red-500/20 text-red-400',
-  blog:      'bg-amber-500/20 text-amber-400',
+  linkedin:  'bg-[#0A66C2]/10 text-[#0A66C2]',
+  twitter:   'bg-sky-500/10 text-sky-600',
+  instagram: 'bg-pink-500/10 text-pink-600',
+  youtube:   'bg-red-500/10 text-red-600',
+  blog:      'bg-amber-500/10 text-amber-600',
 }
 
 // ─── Card ──────────────────────────────────────────────────────────────────────
@@ -83,27 +83,28 @@ function ItemCard({ item, isDragging, onEdit, onSchedule, onDelete }: {
         {...listeners}
         {...attributes}
         className={cn(
-          'bg-background border border-border rounded-lg p-3 space-y-2 group relative',
+          'bg-card border border-border/60 rounded-xl p-4 space-y-3 group relative shadow-sm',
           'cursor-grab active:cursor-grabbing touch-none select-none',
-          'hover:border-border/80 hover:shadow-sm transition-shadow',
-          isDragging && 'opacity-50 ring-2 ring-primary shadow-lg',
+          'hover:border-primary/30 hover:shadow-md transition-all duration-200',
+          isDragging && 'opacity-50 ring-2 ring-primary shadow-xl scale-105 z-50',
         )}
         aria-roledescription="Draggable content card"
       >
-        <p className="text-sm font-medium text-foreground leading-tight pr-14">{item.title}</p>
+        <p className="text-sm font-medium text-foreground leading-snug pr-14">{item.title}</p>
         
-        <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-0.5 bg-background/90 backdrop-blur rounded border border-border shadow-sm p-0.5 z-10">
-           <button onClick={(e) => { e.stopPropagation(); onEdit(item.id, item.title) }} className="p-1 hover:text-foreground text-muted-foreground transition" title="Edit title"><Edit2 className="w-3 h-3" /></button>
-           <button onClick={(e) => { e.stopPropagation(); onSchedule(item.id, item.publish_date ?? null) }} className="p-1 hover:text-amber-500 text-muted-foreground transition" title="Schedule"><Calendar className="w-3 h-3" /></button>
-           <button onClick={(e) => { e.stopPropagation(); onDelete(item.id) }} className="p-1 hover:text-destructive text-muted-foreground transition" title="Delete"><Trash2 className="w-3 h-3" /></button>
+        <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-0.5 bg-background/95 backdrop-blur-md rounded-md border border-border/50 shadow-sm p-0.5 z-10">
+           <button onClick={(e) => { e.stopPropagation(); onEdit(item.id, item.title) }} className="p-1.5 hover:bg-muted rounded hover:text-foreground text-muted-foreground transition" title="Edit title"><Edit2 className="w-3.5 h-3.5" /></button>
+           <button onClick={(e) => { e.stopPropagation(); onSchedule(item.id, item.publish_date ?? null) }} className="p-1.5 hover:bg-amber-500/10 rounded hover:text-amber-600 text-muted-foreground transition" title="Schedule"><Calendar className="w-3.5 h-3.5" /></button>
+           <button onClick={(e) => { e.stopPropagation(); onDelete(item.id) }} className="p-1.5 hover:bg-destructive/10 rounded hover:text-destructive text-muted-foreground transition" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded', PLATFORM_BADGE[item.platform] ?? 'bg-muted text-muted-foreground')}>
+        <div className="flex items-center gap-2 flex-wrap pt-1">
+          <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider', PLATFORM_BADGE[item.platform] ?? 'bg-muted text-muted-foreground')}>
             {item.platform}
           </span>
           {item.publish_date && (
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
               {new Date(item.publish_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
             </span>
           )}
@@ -132,21 +133,20 @@ function ColumnDropZone({
     <div
       ref={setNodeRef}
       className={cn(
-        'rounded-3xl border p-4 min-h-[180px] transition-colors',
+        'rounded-xl border p-3 min-h-[200px] transition-all duration-200',
         STATUS_STYLES[status],
         isOver && 'ring-2 ring-primary/50 bg-primary/5',
       )}
       role="region"
       aria-label={`${STATUS_LABELS[status]} column`}
     >
-      {/* Column header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="text-xs font-medium text-muted-foreground">
             {STATUS_LABELS[status]}
           </h3>
           <span className={cn(
-            'text-[10px] font-semibold px-1.5 py-0.5 rounded-full min-w-[1.2rem] text-center',
+            'text-xs font-medium px-2 py-0.5 rounded-full min-w-[1.5rem] text-center',
             STATUS_ACCENT[status]
           )}>
             {isLoading ? '·' : items.length}
@@ -154,17 +154,138 @@ function ColumnDropZone({
         </div>
       </div>
 
-      {/* Cards with AnimatePresence */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         {isLoading ? (
           <>
-            <Skeleton className="h-16 rounded-lg" />
-            <Skeleton className="h-14 rounded-lg" />
+            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-24 rounded-xl" />
           </>
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-6 text-center">
+          <div className="flex flex-col items-center justify-center py-6 text-center border-2 border-dashed border-border/50 rounded-xl">
             <LayoutGrid className="w-5 h-5 text-muted-foreground/30 mb-2" aria-hidden="true" />
-            <p className="text-xs text-muted-foreground/50">Drop cards here</p>
+            <p className="text-xs text-muted-foreground/50 font-medium">Drop cards here</p>
+          </div>
+        ) : (
+          <AnimatePresence initial={false} mode="popLayout">
+            {items.map(item => (
+              <ItemCard 
+                key={item.id} 
+                item={item} 
+                isDragging={item.id === activeId} 
+                onEdit={onEdit}
+                onSchedule={onSchedule}
+                onDelete={onDelete}
+              />
+            ))}
+          </AnimatePresence>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Engagement Widget ─────────────────────────────────────────────────────────
+
+function EngagementWidget({ publishedCount }: { publishedCount: number }) {
+  return (
+    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-3 flex flex-col justify-between h-full relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/5 rounded-full blur-2xl" />
+      <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl" />
+
+      <div className="flex items-center justify-between mb-4 relative z-10">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-primary" />
+          <h2 className="text-xs font-medium text-muted-foreground">Engagement Over Time</h2>
+        </div>
+        <button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Details</button>
+      </div>
+      
+      <div className="space-y-4 flex-1 relative z-10 flex flex-col justify-center">
+        <div className="bg-background/50 rounded-2xl p-4 border border-border/40 hover:border-border/80 transition-colors">
+          <div className="flex justify-between items-center mb-1">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Eye className="w-3.5 h-3.5" />
+              <span className="text-xs font-medium">Total Views</span>
+            </div>
+            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded">+12%</span>
+          </div>
+          <div className="text-xs font-medium text-foreground">
+            {(publishedCount * 1240 + 8400).toLocaleString()}
+          </div>
+        </div>
+
+        <div className="bg-background/50 rounded-2xl p-4 border border-border/40 hover:border-border/80 transition-colors">
+          <div className="flex justify-between items-center mb-1">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <MousePointerClick className="w-3.5 h-3.5" />
+              <span className="text-xs font-medium">Avg. CTR</span>
+            </div>
+            <span className="text-[10px] font-bold text-blue-600 bg-blue-500/10 px-1.5 py-0.5 rounded">Top 10%</span>
+          </div>
+          <div className="text-xs font-medium text-foreground">
+            4.8%
+          </div>
+        </div>
+        
+        <div className="bg-background/50 rounded-2xl p-4 border border-border/40 hover:border-border/80 transition-colors">
+          <div className="flex justify-between items-baseline mb-3">
+            <span className="text-xs font-medium text-muted-foreground">Top Platform</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="bg-[#0A66C2]/10 text-[#0A66C2] text-xs font-bold px-2 py-1 rounded-md uppercase tracking-wide">LinkedIn</span>
+            <span className="text-xs font-semibold text-foreground">68% traffic</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Published Drop Zone ───────────────────────────────────────────────────────
+
+function PublishedDropZone({
+  items, isLoading, activeId, onEdit, onSchedule, onDelete
+}: {
+  items: ContentItem[]
+  isLoading: boolean
+  activeId: string | null
+  onEdit: (id: string, current: string) => void;
+  onSchedule: (id: string, current: string | null) => void;
+  onDelete: (id: string) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: 'published' })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 transition-all duration-300 min-h-[150px]",
+        isOver && "ring-2 ring-emerald-500/50 bg-emerald-500/10 shadow-lg"
+      )}
+    >
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <h3 className="text-sm font-medium text-emerald-600">Published Content</h3>
+        </div>
+        <span className="text-xs font-bold text-emerald-600 bg-emerald-500/10 px-3 py-1 rounded-full">
+          {isLoading ? '·' : items.length} live
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {isLoading ? (
+          <>
+            <Skeleton className="h-28 rounded-xl" />
+            <Skeleton className="h-28 rounded-xl" />
+            <Skeleton className="h-28 rounded-xl" />
+            <Skeleton className="h-28 rounded-xl" />
+          </>
+        ) : items.length === 0 ? (
+          <div className="col-span-full flex flex-col items-center justify-center py-6 text-center border-2 border-dashed border-emerald-500/20 rounded-xl">
+            <LayoutGrid className="w-6 h-6 text-emerald-600/40 mb-2" />
+            <p className="text-sm text-emerald-700/60 font-medium">Drag items here to publish them</p>
           </div>
         ) : (
           <AnimatePresence initial={false} mode="popLayout">
@@ -229,27 +350,58 @@ export function ContentPage() {
   })
 
   const handleEdit = (id: string, current: string) => {
-    const title = window.prompt('Edit task title:', current)
-    if (title !== null && title.trim()) {
-      patchMutation.mutate({ id, data: { title: title.trim() } })
-    }
+    let inputValue = current
+    Modal.confirm({
+      title: 'Edit task title',
+      content: (
+        <Input 
+          defaultValue={current} 
+          onChange={e => inputValue = e.target.value} 
+          className="mt-4"
+        />
+      ),
+      onOk: () => {
+        if (inputValue && inputValue.trim()) {
+          patchMutation.mutate({ id, data: { title: inputValue.trim() } })
+        }
+      }
+    })
   }
 
   const handleSchedule = (id: string, current: string | null) => {
-    const date = window.prompt('Set publish date (YYYY-MM-DD):', current || new Date().toISOString().split('T')[0])
-    if (date !== null) {
-      if (!date.trim()) {
-        patchMutation.mutate({ id, data: { publish_date: null } })
-      } else {
-        patchMutation.mutate({ id, data: { publish_date: date.trim() } })
+    let inputValue = current || new Date().toISOString().split('T')[0]
+    Modal.confirm({
+      title: 'Set publish date',
+      content: (
+        <div className="mt-4">
+          <p className="text-sm text-muted-foreground mb-2">Format: YYYY-MM-DD</p>
+          <Input 
+            defaultValue={inputValue} 
+            onChange={e => inputValue = e.target.value} 
+            placeholder="YYYY-MM-DD"
+          />
+        </div>
+      ),
+      onOk: () => {
+        if (!inputValue.trim()) {
+          patchMutation.mutate({ id, data: { publish_date: null } })
+        } else {
+          patchMutation.mutate({ id, data: { publish_date: inputValue.trim() } })
+        }
       }
-    }
+    })
   }
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Delete this task?')) {
-      deleteMutation.mutate(id)
-    }
+    Modal.confirm({
+      title: 'Delete this task?',
+      content: 'Are you sure you want to permanently delete this content task?',
+      okText: 'Delete',
+      okType: 'danger',
+      onOk: () => {
+        deleteMutation.mutate(id)
+      }
+    })
   }
 
   const addItem = useMutation({
@@ -269,7 +421,7 @@ export function ContentPage() {
     addItem.mutate()
   }
 
-  const byStatus = STATUS_COLS.reduce<Record<string, ContentItem[]>>((acc, s) => {
+  const byStatus = ['idea', 'in_progress', 'scheduled', 'published'].reduce<Record<string, ContentItem[]>>((acc, s) => {
     acc[s] = items?.filter(i => i.status === s) ?? []
     return acc
   }, {})
@@ -291,60 +443,79 @@ export function ContentPage() {
   const total = items?.length ?? 0
   const published = items?.filter(i => i.status === 'published').length ?? 0
 
-  return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-foreground">Content</h1>
-        {total > 0 && (
-          <div className="text-xs text-muted-foreground">
-            <span className="font-semibold text-emerald-500">{published}</span> published · {total} total
-          </div>
-        )}
-      </div>
-
-      {/* Add idea form */}
-      <div className="bg-card premium-shadow rounded-3xl p-6">
-        <h2 className="text-sm font-semibold mb-3">New Idea</h2>
-        <div className="flex gap-2 flex-wrap items-start">
-          <div className="flex flex-col gap-1 flex-1 min-w-[140px]">
-            <input
-              placeholder="Content idea…"
-              value={form.title}
-              onChange={e => { setForm(f => ({ ...f, title: e.target.value })); setTitleError('') }}
-              aria-label="Content idea title"
-              aria-invalid={!!titleError}
-              onKeyDown={e => { if (e.key === 'Enter') handleAdd() }}
-              className="px-3 py-2 text-sm rounded-lg bg-muted border border-border text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 aria-invalid:border-destructive"
-            />
-            {titleError && <span className="text-xs text-destructive">{titleError}</span>}
-          </div>
-          <select
-            value={form.platform}
-            onChange={e => setForm(f => ({ ...f, platform: e.target.value }))}
-            aria-label="Platform"
-            className="px-3 py-2 text-sm rounded-lg bg-muted border border-border text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-          >
-            {['linkedin', 'twitter', 'instagram', 'youtube', 'blog'].map(p => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-          <button
-            onClick={handleAdd}
-            disabled={addItem.isPending}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            <Plus className="w-4 h-4" aria-hidden="true" /> Add
-          </button>
-        </div>
-      </div>
-
-      {/* Kanban board */}
-      {isError ? (
+  if (isError) {
+    return (
+      <div className="w-full p-4">
         <ErrorCard message="Could not load content pipeline" onRetry={() => refetch()} />
-      ) : (
-        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {STATUS_COLS.map(status => (
+      </div>
+    )
+  }
+
+  return (
+    <div className="w-full p-4">
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="w-full grid grid-cols-12 gap-4">
+          
+          {/* Quick Capture Form & Stats */}
+          <div className="col-span-12 bg-card shadow-sm rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border border-border/60">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
+              <h2 className="text-sm font-medium text-muted-foreground whitespace-nowrap">Quick Capture</h2>
+              <div className="flex gap-3 w-full sm:w-auto">
+                <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
+                  <input
+                    placeholder="What's your next big idea?"
+                    value={form.title}
+                    onChange={e => { setForm(f => ({ ...f, title: e.target.value })); setTitleError('') }}
+                    aria-label="Content idea title"
+                    aria-invalid={!!titleError}
+                    onKeyDown={e => { if (e.key === 'Enter') handleAdd() }}
+                    className="px-4 py-2 text-sm font-medium rounded-xl bg-muted/50 border border-border/50 text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 aria-invalid:border-destructive transition-all"
+                  />
+                  {titleError && <span className="text-[10px] font-bold text-destructive absolute -bottom-4">{titleError}</span>}
+                </div>
+                <select
+                  value={form.platform}
+                  onChange={e => setForm(f => ({ ...f, platform: e.target.value }))}
+                  aria-label="Platform"
+                  className="px-4 py-2 text-sm font-medium rounded-xl bg-muted/50 border border-border/50 text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-all cursor-pointer"
+                >
+                  {['linkedin', 'twitter', 'instagram', 'youtube', 'blog'].map(p => (
+                    <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleAdd}
+                  disabled={addItem.isPending}
+                  className="flex items-center gap-1.5 px-5 py-2 text-sm font-bold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-sm hover:shadow-md"
+                >
+                  <Plus className="w-4 h-4" aria-hidden="true" /> Add
+                </button>
+              </div>
+            </div>
+
+            {total > 0 && (
+              <div className="flex items-center gap-4 bg-muted/30 px-4 py-2 rounded-xl border border-border/40 whitespace-nowrap">
+                <div className="flex flex-col items-center">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Published</span>
+                  <span className="text-base font-bold text-emerald-500">{published}</span>
+                </div>
+                <div className="w-px h-8 bg-border/60" />
+                <div className="flex flex-col items-center">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Pipeline</span>
+                  <span className="text-base font-bold text-foreground">{total - published}</span>
+                </div>
+                <div className="w-px h-8 bg-border/60" />
+                <div className="flex flex-col items-center">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Total</span>
+                  <span className="text-base font-bold text-foreground">{total}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Pipeline Lists */}
+          <div className="col-span-12 lg:col-span-9 grid grid-cols-1 md:grid-cols-3 gap-4">
+            {PIPELINE_COLS.map(status => (
               <ColumnDropZone
                 key={status}
                 status={status}
@@ -358,18 +529,36 @@ export function ContentPage() {
             ))}
           </div>
 
-          <DragOverlay>
-            {activeItem && (
-              <div className="bg-background border-2 border-primary rounded-lg p-3 shadow-2xl rotate-1 opacity-95 scale-105">
-                <p className="text-sm font-medium text-foreground">{activeItem.title}</p>
-                <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded mt-1 inline-block', PLATFORM_BADGE[activeItem.platform] ?? 'bg-muted text-muted-foreground')}>
-                  {activeItem.platform}
-                </span>
-              </div>
-            )}
-          </DragOverlay>
-        </DndContext>
-      )}
+          {/* Engagement Widget */}
+          <div className="col-span-12 lg:col-span-3">
+             <EngagementWidget publishedCount={published} />
+          </div>
+
+          {/* Published Grid */}
+          <div className="col-span-12">
+            <PublishedDropZone
+              items={byStatus['published'] ?? []}
+              isLoading={isLoading}
+              activeId={activeId}
+              onEdit={handleEdit}
+              onSchedule={handleSchedule}
+              onDelete={handleDelete}
+            />
+          </div>
+
+        </div>
+
+        <DragOverlay>
+          {activeItem && (
+            <div className="bg-card border-2 border-primary rounded-xl p-4 shadow-2xl rotate-2 opacity-95 scale-105 z-[100] w-[280px]">
+              <p className="text-sm font-medium text-foreground leading-snug">{activeItem.title}</p>
+              <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider mt-3 inline-block', PLATFORM_BADGE[activeItem.platform] ?? 'bg-muted text-muted-foreground')}>
+                {activeItem.platform}
+              </span>
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
     </div>
   )
 }

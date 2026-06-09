@@ -1,9 +1,19 @@
 # AIOS Memory
 
+## STRICT GLOBAL UI/UX GUIDELINES
+Before making *any* code changes in any session, all Agents MUST adhere to these absolute rules:
+1. **No Page-Level Headers/Titles**: Do NOT render titles or subtitles inside page content areas. The page title must ONLY be displayed as a Breadcrumb inside the global Header bar.
+6. **Max Grid Layout & Extreme Density**: Every single page must use a max 12-column grid layout, but cards must NOT unnecessarily stretch (avoid massive `col-span-12` wrappers). Cards should **only take the space required for them**. Use strict auto-fitting grids or tightly packed columns (e.g. `col-span-3` or `col-span-4`) to ensure maximum data density.
+7. **No Chart Bloat**: NEVER use massive data visualizations (like giant Highcharts area charts, massive Radar charts, or oversized Heatmaps) that force cards to become artificially large. Cards must remain tiny and horizontally tight.
+8. **Optimized Space & Catalyst Design**: Cards/widgets should use the Catalyst/AlignUI aesthetic: pure `bg-card` (white) on a soft gray background, faint borders (`border border-border/60`), and flat shadows (`shadow-sm`). Border radii should be `rounded-xl` or `rounded-2xl` (~12px-16px). Use tight padding (`p-2` or `p-3`, never `p-4` or `p-6`).
+9. **Theme**: Default Light Mode for all app elements. Global theme management must be used.
+10. **Responsiveness**: All designs must be responsive for mobile, tablet, and laptop screens.
+11. **Catalyst Aesthetics & Sidebar Typography**: Use ONLY premium, clean sans-serif fonts (like `Inter`). NEVER use `font-mono`. Widget titles must be Title Case, styled as `text-xs font-medium text-muted-foreground`. **CRITICAL**: KPI numbers and values must STRICTLY match the compact sidebar font sizes (e.g., `text-[12px]` or `text-xs`). NEVER use `font-bold`, `text-lg`, `text-2xl`, or `text-3xl` for values inside widget cards. The user strictly hates massive, bold fonts. Add small top-right action buttons (e.g., "Report") styled as `text-[10px] px-2 py-0.5 bg-muted/50 text-muted-foreground rounded` where appropriate.
+12. **Navigation & Area Tabs**: The Sidebar must ONLY contain top-level links (e.g., Finance, Health). **NEVER use sub-menus or accordions in the Sidebar**. All sub-navigation within an Area MUST be handled by the shared `<AreaTabs>` component placed at the top of the Area page (e.g., Dashboard, Log Transaction, Budgets).
+13. **Flat Tabs Only**: Do NOT use nested tabs (e.g., an outer `<Tabs>` wrapping an inner `<Tabs>`). Flatten all sections into a single, top-level `<AreaTabs>` list to avoid UI stacking and clutter.
+14. **AreaTabs Styling**: Always import `<AreaTabs>` from `@/components/ui/AreaTabs`. It ensures semantic coloring for light/dark modes (`hsl(var(--foreground))`), tight spacing (`margin-right: 20px`), and left padding to prevent sidebar clipping.
+
 ## Architecture & Tech Stack
-- **Frontend**: React, Vite, Ant Design (`antd`), Styled Components, Highcharts (`highcharts-react-official`), Framer Motion, Zustand, React Query.
-  - *Note: We recently migrated from Tailwind/Radix/Recharts to Ant Design and Styled Components for a more premium, programmatic, and customizable UI.*
-  - **Theme**: Premium Dark Mode. Uses deep backgrounds (`#09090b`, `#0f172a`), frosted glassmorphism (`backdrop-filter: blur`), gradient borders, glowing pulse animations for active states, and Highcharts for advanced visualizations (spider webs, gauges, heatmaps, areasplines).
 - **Backend**: Python, FastAPI, SQLModel (SQLAlchemy/asyncpg), PostgreSQL (with pgvector), Alembic.
   - Dependencies managed via `uv` / `poetry`.
 

@@ -8,12 +8,12 @@ export function BalanceWidget({ balance = 5318, chartData = [], activeTab = 'Gen
   const tabs = ['General', 'Expenses', 'Income']
   
   return (
-    <div className="bg-card premium-shadow rounded-2xl p-5 flex flex-col h-full relative overflow-hidden">
+    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-3 flex flex-col h-full relative overflow-hidden">
       {/* 3D abstract shape placeholder - using a CSS gradient mesh */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-300 via-purple-300 to-pink-300 rounded-full blur-2xl opacity-30 -mr-6 -mt-6" />
       
       <div className="flex items-center justify-between z-10 mb-4">
-        <h2 className="text-sm font-semibold text-muted-foreground">Total Balance</h2>
+        <h2 className="text-xs font-medium text-muted-foreground">Total Balance</h2>
         <button className="text-[11px] px-3 py-1 rounded-full bg-muted/50 text-foreground border border-border flex items-center gap-1.5 hover:bg-muted/80 transition font-medium">
           All Accounts <span className="text-[8px]">▼</span>
         </button>
@@ -35,7 +35,7 @@ export function BalanceWidget({ balance = 5318, chartData = [], activeTab = 'Gen
       </div>
 
       <div className="flex-1 flex flex-col justify-end z-10">
-        <h1 className="text-3xl font-bold mb-4 tracking-tight">{formatCurrency(balance)}</h1>
+        <h1 className="text-xs font-medium text-foreground mb-2 tracking-tight">{formatCurrency(balance)}</h1>
         
         <div className="h-20 w-full mt-auto">
           <HighchartsReact
@@ -78,12 +78,8 @@ export function BalanceWidget({ balance = 5318, chartData = [], activeTab = 'Gen
 export function VisaCardWidget({ balance = 3540 }: { balance?: number }) {
   return (
     <div className="relative h-40 w-full group cursor-pointer">
-      {/* Stacked cards effect */}
-      <div className="absolute inset-0 bg-gradient-to-r from-pink-400 to-orange-400 rounded-2xl translate-y-3 scale-90 opacity-60 blur-sm transition-transform group-hover:translate-y-4" />
-      <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-2xl translate-y-1.5 scale-95 opacity-80 transition-transform group-hover:translate-y-2" />
-      
       {/* Main card */}
-      <div className="absolute inset-0 rounded-2xl p-5 flex flex-col justify-between text-white overflow-hidden shadow-lg border border-white/10"
+      <div className="absolute inset-0 rounded-xl p-4 flex flex-col justify-between text-white overflow-hidden shadow-sm border border-white/10"
            style={{ background: 'linear-gradient(135deg, #1E1B4B 0%, #4C1D95 50%, #7C3AED 100%)' }}>
         <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
         <div className="absolute -left-8 -bottom-8 w-32 h-32 bg-pink-500/20 rounded-full blur-2xl" />
@@ -93,8 +89,8 @@ export function VisaCardWidget({ balance = 3540 }: { balance?: number }) {
           <div className="text-lg font-bold italic tracking-wider opacity-90">VISA</div>
         </div>
         <div className="z-10 mt-auto">
-          <h2 className="text-2xl font-bold mb-1 tracking-tight">{formatCurrency(balance)}</h2>
-          <p className="font-mono text-[11px] tracking-widest opacity-70">**** **** **** 4242</p>
+          <h2 className="text-sm font-semibold mb-1 tracking-tight">{formatCurrency(balance)}</h2>
+          <p className="text-[11px] tracking-widest opacity-70">**** **** **** 4242</p>
         </div>
       </div>
     </div>
@@ -106,9 +102,9 @@ export function MonthlyBudgetWidget({ spent = 2100, total = 4000 }: { spent?: nu
   const pct = Math.min((spent / total) * 100, 100)
   
   return (
-    <div className="bg-card premium-shadow rounded-2xl p-5">
+    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-3">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="font-semibold text-sm">Monthly Budget</h3>
+        <h3 className="text-xs font-medium text-muted-foreground">Monthly Budget</h3>
         <button 
           onClick={() => navigate('/areas/finance/budget')}
           className="w-6 h-6 rounded-md bg-muted/50 flex items-center justify-center hover:bg-muted transition text-muted-foreground hover:text-foreground">
@@ -120,7 +116,7 @@ export function MonthlyBudgetWidget({ spent = 2100, total = 4000 }: { spent?: nu
       </p>
       
       <div className="flex items-baseline gap-1.5 mb-2.5">
-        <span className="text-xl font-bold tracking-tight">{formatCurrency(spent)}</span>
+        <span className="text-xs font-medium text-foreground tracking-tight">{formatCurrency(spent)}</span>
         <span className="text-[11px] text-muted-foreground font-medium">/ {formatCurrency(total)}</span>
       </div>
       
@@ -141,10 +137,11 @@ export function ExpensesDonutWidget({ total = 2540, data = [], activeTab = 'Mont
   const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6']
 
   return (
-    <div className="bg-card premium-shadow rounded-2xl p-5 h-full flex flex-col">
+    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-3 h-full flex flex-col">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="font-semibold text-sm">Expenses</h2>
-        <div className="flex gap-0.5 p-0.5 bg-muted/60 border border-border/50 rounded-md">
+        <h2 className="text-xs font-medium text-muted-foreground">Expenses</h2>
+        <div className="flex gap-2 items-center">
+          <div className="flex gap-0.5 p-0.5 bg-muted/60 border border-border/50 rounded-md">
           {tabs.map((tab) => (
             <button 
               key={tab}
@@ -157,6 +154,8 @@ export function ExpensesDonutWidget({ total = 2540, data = [], activeTab = 'Mont
               {tab}
             </button>
           ))}
+          </div>
+          <button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Report</button>
         </div>
       </div>
       
@@ -225,9 +224,9 @@ export function QuickTransactionsWidget() {
   ]
   
   return (
-    <div className="bg-card premium-shadow rounded-2xl p-5">
+    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold text-sm">Quick Pay</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">Quick Pay</h3>
       </div>
       
       <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
@@ -257,9 +256,9 @@ export function QuickTransactionsWidget() {
 export function LastTransactionsWidget({ transactions = [] }: { transactions?: any[] }) {
   const navigate = useNavigate()
   return (
-    <div className="bg-card premium-shadow rounded-2xl p-5 h-full flex flex-col">
+    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-4 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-sm">Recent</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">Recent</h3>
         <button 
           onClick={() => navigate('/areas/finance/log')}
           className="text-[11px] font-medium text-primary hover:underline">See all</button>
@@ -277,7 +276,7 @@ export function LastTransactionsWidget({ transactions = [] }: { transactions?: a
                 <p className="text-[10px] text-muted-foreground mt-0.5">{t.category} • {t.date}</p>
               </div>
             </div>
-            <span className="font-semibold font-mono text-[13px] text-foreground">
+            <span className="font-semibold text-[13px] text-foreground">
               {formatCurrency(t.amount)}
             </span>
           </div>

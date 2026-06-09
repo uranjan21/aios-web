@@ -4,7 +4,8 @@ import { Rocket, History, Plus, DollarSign, Activity, TrendingUp } from 'lucide-
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import styled from 'styled-components'
-import { Card, Button, Timeline, Tag, Select, Input, Form, Skeleton, Row, Col, Space, Statistic, Slider } from 'antd'
+import { Card, Button, Timeline, Tag, Select, Input, Form, Skeleton, Space, Statistic, Tabs } from 'antd'
+import { AreaTabs } from '@/components/ui/AreaTabs'
 import { businessApi } from '@/api/areas'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { ErrorCard } from '@/components/ErrorCard'
@@ -19,56 +20,21 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
   note: 'default',
 }
 
-const PageContainer = styled(motion.div)`
-  padding: 1.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
-  color: var(--foreground);
-`
-
-const HeaderTitle = styled.h1`
-  font-size: 2rem;
-  font-weight: 700;
-  background: linear-gradient(90deg, #10b981, #3b82f6);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 2rem;
-`
-
-const PremiumCard = styled(Card)`
-  border-radius: 24px;
-  background: rgba(24, 24, 27, 0.6);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  margin-bottom: 2rem;
-  overflow: hidden;
-
-  .ant-card-head {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    color: #f4f4f5;
-  }
-  .ant-card-body {
-    color: #a1a1aa;
-  }
-  .ant-statistic-title {
-    color: #a1a1aa;
-  }
-  .ant-statistic-content {
-    color: #f4f4f5;
-  }
-`
+const FlatCard = ({ className, ...props }: any) => (
+  <Card 
+    className={`bg-card border border-border/60 shadow-sm rounded-xl overflow-hidden [&>.ant-card-head]:border-border/40 [&>.ant-card-head]:min-h-[40px] [&>.ant-card-head]:px-3 [&>.ant-card-body]:p-3 ${className || ''}`}
+    bordered={false}
+    {...props} 
+  />
+)
 
 const AnimatedTimelineItem = styled(motion.div)`
-  padding: 1rem;
-  border-radius: 12px;
-  background: rgba(255,255,255,0.03);
-  margin-bottom: 1rem;
-  border: 1px solid rgba(255,255,255,0.05);
-  transition: all 0.3s ease;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  margin-bottom: 0.25rem;
+  transition: all 0.2s ease;
   &:hover {
-    background: rgba(255,255,255,0.06);
-    transform: translateY(-2px);
+    background: hsl(var(--muted) / 0.3);
   }
 `
 
@@ -80,29 +46,38 @@ function RunwayCalculator() {
   const isHealthy = burnRate === 0 || cash / burnRate > 6
 
   return (
-    <PremiumCard title={<Space><TrendingUp size={18} /><span>Runway Calculator</span></Space>}>
-      <Row gutter={[16, 16]}>
-        <Col span={12}>
-          <Statistic title="Current Cash" value={cash} prefix={<DollarSign size={16} />} precision={0} />
-          <Slider min={0} max={200000} step={1000} value={cash} onChange={setCash} tooltip={{ formatter: v => `$${v}` }} />
-        </Col>
-        <Col span={12}>
-          <Statistic title="Monthly Burn" value={burnRate} prefix={<Activity size={16} />} precision={0} />
-          <Slider min={0} max={20000} step={500} value={burnRate} onChange={setBurnRate} tooltip={{ formatter: v => `$${v}` }} />
-        </Col>
-      </Row>
-      <div className={`mt-6 p-4 rounded-xl border flex items-center justify-between ${isHealthy ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+    <FlatCard 
+      title={<Space className="text-xs font-medium text-muted-foreground"><TrendingUp size={14} /><span>Runway Calculator</span></Space>}
+      extra={<button className="text-xs font-medium px-2 py-0.5 bg-muted/50 hover:bg-muted text-muted-foreground rounded transition-colors">Details</button>}
+    >
+      <div className="flex flex-row items-center justify-between gap-4">
+        <Statistic 
+          title={<span className="text-[10px] text-gray-500 uppercase tracking-wider">Current Cash</span>} 
+          value={cash} 
+          prefix={<DollarSign size={14} />} 
+          precision={0} 
+          valueStyle={{ fontSize: '16px', fontWeight: 600 }} 
+        />
+        <Statistic 
+          title={<span className="text-[10px] text-gray-500 uppercase tracking-wider">Monthly Burn</span>} 
+          value={burnRate} 
+          prefix={<Activity size={14} />} 
+          precision={0} 
+          valueStyle={{ fontSize: '16px', fontWeight: 600 }} 
+        />
+      </div>
+      <div className={`mt-3 p-2 rounded-lg border flex items-center justify-between ${isHealthy ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
         <div>
-          <div className="text-xs text-gray-400 mb-1">Estimated Runway</div>
-          <div className={`text-3xl font-bold ${isHealthy ? 'text-green-400' : 'text-red-400'}`}>{runwayMonths} <span className="text-lg font-normal opacity-70">months</span></div>
+          <div className="text-[10px] text-gray-400 mb-0.5">Estimated Runway</div>
+          <div className={`text-xs font-semibold ${isHealthy ? 'text-green-500' : 'text-red-500'}`}>{runwayMonths} <span className="text-[10px] font-normal opacity-70">months</span></div>
         </div>
         <div className="text-right max-w-[120px]">
-          <span className="text-xs text-gray-400 leading-tight block">
-            {isHealthy ? 'Looking solid! Keep focusing on growth.' : 'Warning: Runway is critically low.'}
+          <span className="text-[10px] text-gray-400 leading-tight block">
+            {isHealthy ? 'Looking solid!' : 'Warning: Low runway.'}
           </span>
         </div>
       </div>
-    </PremiumCard>
+    </FlatCard>
   )
 }
 
@@ -127,9 +102,9 @@ function EventForm({ onClose }: { onClose: () => void }) {
 
   return (
     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-      <Form form={form} layout="vertical" onFinish={mutate} className="p-4 bg-black/20 rounded-xl mb-4 border border-white/5">
-        <Row gutter={16}>
-          <Col span={8}>
+      <Form form={form} layout="vertical" onFinish={mutate} className="p-3 bg-black/5 rounded-xl mb-4 border border-black/5">
+        <div className="grid grid-cols-12 gap-4">
+          <div className="col-span-12 md:col-span-4">
             <Form.Item name="eventType" initialValue="feature_shipped" rules={[{ required: true }]}>
               <Select>
                 {Object.keys(EVENT_TYPE_COLORS).map(t => (
@@ -137,19 +112,19 @@ function EventForm({ onClose }: { onClose: () => void }) {
                 ))}
               </Select>
             </Form.Item>
-          </Col>
-          <Col span={16}>
+          </div>
+          <div className="col-span-12 md:col-span-8">
             <Form.Item name="title" rules={[{ required: true, message: 'Title is required' }]}>
               <Input placeholder="Event Title" />
             </Form.Item>
-          </Col>
-        </Row>
+          </div>
+        </div>
         <Form.Item name="description">
           <Input.TextArea placeholder="Description (optional)" autoSize={{ minRows: 2, maxRows: 4 }} />
         </Form.Item>
         <Space className="w-full justify-end">
-          <Button type="text" onClick={onClose} style={{ color: '#a1a1aa' }}>Cancel</Button>
-          <Button type="primary" htmlType="submit" loading={isPending} style={{ background: '#10b981', borderColor: '#10b981' }}>
+          <Button type="text" onClick={onClose}>Cancel</Button>
+          <Button type="primary" htmlType="submit" loading={isPending}>
             Log Event
           </Button>
         </Space>
@@ -164,74 +139,98 @@ export function BusinessPage() {
   const { data: summary, isLoading: loadingSummary } = useQuery({ queryKey: ['business', 'summary'], queryFn: businessApi.summary })
 
   return (
-    <PageContainer initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-      <HeaderTitle>Business HQ</HeaderTitle>
-
-      <Row gutter={[24, 24]}>
-        {/* Left Column: Metrics & Timeline */}
-        <Col xs={24} lg={14}>
-          <PremiumCard>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/10">
-                <Rocket className="w-6 h-6 text-blue-400" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-white m-0">Ledgr</h2>
-                <p className="text-sm text-gray-400 m-0">SaaS accounting for Indian freelancers</p>
-              </div>
-              <Tag color="blue" className="ml-auto">Building</Tag>
-            </div>
-
-            <Row gutter={[16, 16]}>
-              <Col span={8}>
-                <Statistic title="MRR" value={summary?.mrr ?? 0} prefix="$" precision={2} loading={loadingSummary} />
-              </Col>
-              <Col span={8}>
-                <div className="ant-statistic-title mb-1">Last Feature</div>
-                {loadingSummary ? <Skeleton.Input size="small" active /> : <div className="text-white font-medium truncate">{summary?.last_feature ?? '—'}</div>}
-              </Col>
-              <Col span={8}>
-                <div className="ant-statistic-title mb-1">Shipped At</div>
-                {loadingSummary ? <Skeleton.Input size="small" active /> : <div className="text-white font-medium">{formatDate(summary?.last_feature_at)}</div>}
-              </Col>
-            </Row>
-          </PremiumCard>
-
-          <PremiumCard 
-            title={<Space><History size={18} /><span>Event Timeline</span></Space>}
-            extra={<Button type="primary" icon={<Plus size={14} />} onClick={() => setShowEventForm(!showEventForm)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none' }}>Log</Button>}
-          >
-            <AnimatePresence>{showEventForm && <EventForm onClose={() => setShowEventForm(false)} />}</AnimatePresence>
-            
-            {loadingEvents ? <Skeleton active /> : events?.length ? (
-              <Timeline className="mt-4 text-gray-300"
-                items={events.map((e: any, i: number) => ({
-                  color: EVENT_TYPE_COLORS[e.event_type] || 'blue',
-                  children: (
-                    <AnimatedTimelineItem initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <Space>
-                            <Tag color={EVENT_TYPE_COLORS[e.event_type] || 'default'}>{e.event_type.replace('_', ' ')}</Tag>
-                            <span className="font-semibold text-white">{e.title}</span>
-                          </Space>
-                          {e.description && <div className="text-xs text-gray-400 mt-2">{e.description}</div>}
-                        </div>
-                        <div className="text-xs text-gray-500">{formatDate(e.occurred_at)}</div>
+    <motion.div className="w-full p-3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+      <AreaTabs
+        defaultActiveKey="1"
+        items={[
+          {
+            key: '1',
+            label: 'Dashboard',
+            children: (
+              <div className="grid grid-cols-12 gap-4 w-full items-start">
+                {/* Left Column: Metrics & Timeline */}
+                <div className="col-span-12 xl:col-span-8 flex flex-col gap-4">
+                  <FlatCard>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 rounded-lg bg-blue-50 border border-blue-100">
+                        <Rocket className="w-4 h-4 text-blue-500" />
                       </div>
-                    </AnimatedTimelineItem>
-                  )
-                }))}
-              />
-            ) : <EmptyState icon={History} title="No events" description="Log your business milestones." />}
-          </PremiumCard>
-        </Col>
+                      <div>
+                        <h2 className="text-xs font-medium text-gray-800 m-0">Ledgr</h2>
+                        <p className="text-xs text-gray-500 m-0">SaaS accounting for Indian freelancers</p>
+                      </div>
+                      <Tag color="blue" className="ml-auto">Building</Tag>
+                    </div>
 
-        {/* Right Column: Runway */}
-        <Col xs={24} lg={10}>
-          <RunwayCalculator />
-        </Col>
-      </Row>
-    </PageContainer>
+                    <div className="grid grid-cols-12 gap-4">
+                      <div className="col-span-12 md:col-span-4">
+                        <Statistic title="MRR" value={summary?.mrr ?? 0} prefix="$" precision={2} loading={loadingSummary} />
+                      </div>
+                      <div className="col-span-12 md:col-span-4">
+                        <div className="ant-statistic-title mb-1">Last Feature</div>
+                        {loadingSummary ? <Skeleton.Input size="small" active /> : <div className="text-gray-800 font-medium truncate">{summary?.last_feature ?? '—'}</div>}
+                      </div>
+                      <div className="col-span-12 md:col-span-4">
+                        <div className="ant-statistic-title mb-1">Shipped At</div>
+                        {loadingSummary ? <Skeleton.Input size="small" active /> : <div className="text-gray-800 font-medium">{formatDate(summary?.last_feature_at)}</div>}
+                      </div>
+                    </div>
+                  </FlatCard>
+
+                  <FlatCard 
+                    title={<Space className="text-sm font-medium text-muted-foreground"><History size={16} /><span>Event Timeline</span></Space>}
+                    extra={
+                      <Space>
+                        <Button type="primary" icon={<Plus size={14} />} onClick={() => setShowEventForm(!showEventForm)}>Log</Button>
+                        <button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Details</button>
+                      </Space>
+                    }
+                  >
+                    <AnimatePresence>{showEventForm && <EventForm onClose={() => setShowEventForm(false)} />}</AnimatePresence>
+                    
+                    {loadingEvents ? <Skeleton active /> : events?.length ? (
+                      <Timeline className="mt-2 text-gray-300"
+                        items={events.map((e: any, i: number) => ({
+                          color: EVENT_TYPE_COLORS[e.event_type] || 'blue',
+                          children: (
+                            <AnimatedTimelineItem initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
+                              <div className="flex justify-between items-start gap-2">
+                                <div className="flex flex-col">
+                                  <Space size="small">
+                                    <Tag className="m-0 text-[10px] leading-tight px-1 py-0 border-transparent bg-muted/50" color={EVENT_TYPE_COLORS[e.event_type] || 'default'}>{e.event_type.replace('_', ' ')}</Tag>
+                                    <span className="text-xs font-medium text-gray-800">{e.title}</span>
+                                  </Space>
+                                  {e.description && <div className="text-[10px] text-gray-400 mt-1 leading-snug">{e.description}</div>}
+                                </div>
+                                <div className="text-[10px] text-gray-400 whitespace-nowrap mt-0.5">{formatDate(e.occurred_at)}</div>
+                              </div>
+                            </AnimatedTimelineItem>
+                          )
+                        }))}
+                      />
+                    ) : <EmptyState icon={History} title="No events" description="Log your business milestones." />}
+                  </FlatCard>
+                </div>
+
+                {/* Right Column: Runway */}
+                <div className="col-span-12 xl:col-span-4">
+                  <RunwayCalculator />
+                </div>
+              </div>
+            ),
+          },
+          {
+            key: '2',
+            label: 'Events',
+            children: <div></div>,
+          },
+          {
+            key: '3',
+            label: 'Summary',
+            children: <div></div>,
+          },
+        ]}
+      />
+    </motion.div>
   )
 }

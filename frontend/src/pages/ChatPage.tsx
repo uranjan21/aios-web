@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState } from 'react'
+import { Modal, Input } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
@@ -207,10 +208,23 @@ export function ChatPage() {
   })
 
   const handleRename = (id: string, current: string | null) => {
-    const title = window.prompt('Enter new session name:', current || 'New conversation')
-    if (title !== null && title.trim()) {
-      updateSessionMut.mutate({ id, data: { title: title.trim() } })
-    }
+    let inputValue = current || ''
+    Modal.confirm({
+      title: 'Rename session',
+      content: (
+        <Input 
+          defaultValue={inputValue} 
+          onChange={e => inputValue = e.target.value} 
+          placeholder="New conversation"
+          className="mt-4"
+        />
+      ),
+      onOk: () => {
+        if (inputValue && inputValue.trim()) {
+          updateSessionMut.mutate({ id, data: { title: inputValue.trim() } })
+        }
+      }
+    })
   }
 
   const handleArchive = (id: string) => {
@@ -218,9 +232,13 @@ export function ChatPage() {
   }
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this session?')) {
-      deleteSessionMut.mutate(id)
-    }
+    Modal.confirm({
+      title: 'Delete Session',
+      content: 'Are you sure you want to permanently delete this chat session?',
+      okText: 'Delete',
+      okType: 'danger',
+      onOk: () => deleteSessionMut.mutate(id)
+    })
   }
 
   const virtualizer = useVirtualizer({

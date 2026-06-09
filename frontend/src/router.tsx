@@ -64,23 +64,16 @@ export const router = createBrowserRouter([
       
       // Finance Area
       { path: '/areas/finance', element: <Page><FinancePage /></Page> },
-      { path: '/areas/finance/log', element: <Page><PlaceholderPage title="Log Transaction" /></Page> },
-      { path: '/areas/finance/budget', element: <Page><PlaceholderPage title="Manage Budgets" /></Page> },
+
       
       // Health Area
       { path: '/areas/health', element: <Page><HealthPage /></Page> },
-      { path: '/areas/health/logs', element: <Page><PlaceholderPage title="Health Logs" /></Page> },
-      { path: '/areas/health/goals', element: <Page><PlaceholderPage title="Fitness Goals" /></Page> },
 
       // Career Area
       { path: '/areas/career', element: <Page><CareerPage /></Page> },
-      { path: '/areas/career/roadmap', element: <Page><PlaceholderPage title="Career Roadmap" /></Page> },
-      { path: '/areas/career/opportunities', element: <Page><PlaceholderPage title="Opportunities" /></Page> },
 
       // Business Area
       { path: '/areas/business', element: <Page><BusinessPage /></Page> },
-      { path: '/areas/business/events', element: <Page><PlaceholderPage title="Business Events" /></Page> },
-      { path: '/areas/business/summary', element: <Page><PlaceholderPage title="Business Summary" /></Page> },
 
       // Content Area
       { path: '/areas/content', element: <Page><ContentPage /></Page> },

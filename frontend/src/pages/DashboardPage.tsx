@@ -41,7 +41,7 @@ function KPICard({
 }) {
   if (loading) {
     return (
-      <div className="bg-card premium-shadow rounded-xl p-4 space-y-2">
+      <div className="bg-card border border-border/60 shadow-sm rounded-xl p-4 space-y-2">
         <Skeleton className="h-3 w-20" />
         <Skeleton className="h-2 w-full" />
         <Skeleton className="h-2 w-4/5" />
@@ -58,21 +58,26 @@ function KPICard({
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick() } : undefined}
       className={cn(
-        "bg-card premium-shadow rounded-xl p-5 hover:-translate-y-1 hover:shadow-lg transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary border border-border/40",
+        "bg-card border border-border/60 shadow-sm rounded-xl p-3 hover:-translate-y-1 hover:shadow-md transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
         className
       )}
     >
-      <div className="flex items-center gap-2.5 mb-4">
-        <div className={cn('p-1.5 rounded-lg', color)}>
-          <Icon className="w-[18px] h-[18px]" aria-hidden="true" />
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2.5">
+          <div className={cn('p-1.5 rounded-lg', color)}>
+            <Icon className="w-[18px] h-[18px]" aria-hidden="true" />
+          </div>
+          <span className="text-xs font-medium text-muted-foreground">{title}</span>
         </div>
-        <span className="text-[15px] font-bold text-foreground tracking-tight">{title}</span>
+        <button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors" onClick={(e) => { e.stopPropagation(); }}>
+          Report
+        </button>
       </div>
       <div className="space-y-2">
         {stats.map(({ label, value }) => (
-          <div key={label} className="flex items-baseline justify-between">
-            <span className="text-[12px] font-medium text-muted-foreground">{label}</span>
-            <span className="text-[13px] font-bold text-foreground font-mono">{value}</span>
+          <div key={label} className="flex justify-between items-end pb-2 border-b border-border/30 last:border-0 last:pb-0">
+            <span className="text-xs font-medium text-muted-foreground">{label}</span>
+            <span className="text-xs font-medium text-foreground">{value}</span>
           </div>
         ))}
       </div>
@@ -155,9 +160,9 @@ export function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-12 gap-4">
+      <div className="grid grid-cols-12 gap-3">
         <motion.div
-          className="col-span-12 lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-4"
+          className="col-span-12 lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-3"
           variants={staggerContainer}
           initial="initial"
           animate="animate"
@@ -237,8 +242,11 @@ export function DashboardPage() {
         </motion.div>
 
         <div className="col-span-12 lg:col-span-4">
-          <div className="bg-card premium-shadow rounded-xl p-5 border border-border/40 h-full flex flex-col">
-            <h2 className="text-[13px] font-bold uppercase tracking-wider text-muted-foreground mb-4">Quick Log</h2>
+          <div className="bg-card border border-border/60 shadow-sm rounded-xl p-3 h-full flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xs font-medium text-muted-foreground">Quick Log</h2>
+              <button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Details</button>
+            </div>
             <div className="flex-1">
               <QuickLogInput />
             </div>
