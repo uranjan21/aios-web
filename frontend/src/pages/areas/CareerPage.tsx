@@ -6,6 +6,8 @@ import { toast } from 'sonner'
 import styled from 'styled-components'
 import { Button, Tag, Timeline, Select, Input, Form, Skeleton, Card, Space, Tabs } from 'antd'
 import { AreaTabs } from '@/components/ui/AreaTabs'
+import { RoadmapTab } from '@/components/areas/career/RoadmapTab'
+import { OpportunitiesTab } from '@/components/areas/career/OpportunitiesTab'
 import { careerApi } from '@/api/areas'
 import { ErrorCard } from '@/components/ErrorCard'
 import { EmptyState } from '@/components/EmptyState'
@@ -54,19 +56,19 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
 }
 
 const FlatCard = ({ className, ...props }: any) => (
-  <Card 
-    className={`bg-card border border-border/60 shadow-sm rounded-2xl h-full overflow-hidden [&>.ant-card-head]:border-border/40 [&>.ant-card-head]:min-h-[48px] ${className || ''}`}
+  <Card
+    className={`bg-card border border-border shadow-sm rounded-xl h-full overflow-hidden [&>.ant-card-head]:border-border [&>.ant-card-head]:min-h-[40px] [&>.ant-card-head]:px-4 [&>.ant-card-body]:p-4 ${className || ''}`}
     bordered={false}
-    {...props} 
+    {...props}
   />
 )
 
 const AnimatedTimelineItem = styled(motion.div)`
-  padding: 1rem;
-  border-radius: 12px;
-  background: hsl(var(--muted) / 0.3);
-  margin-bottom: 1rem;
-  border: 1px solid hsl(var(--border) / 0.6);
+  padding: 0.625rem 0.75rem;
+  border-radius: 8px;
+  background: hsl(var(--muted) / 0.5);
+  border: 1px solid hsl(var(--border));
+  margin-bottom: 0.5rem;
   transition: all 0.2s ease;
   &:hover {
     background: hsl(var(--muted) / 0.5);
@@ -95,7 +97,7 @@ function MilestoneForm({ onClose }: { onClose: () => void }) {
 
   return (
     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-      <Form form={form} layout="vertical" onFinish={mutate} className="p-3 bg-black/5 rounded-xl mb-4 border border-black/5">
+      <Form form={form} layout="vertical" onFinish={mutate} className="p-3 bg-muted/40 rounded-xl mb-4 border border-border">
         <div className="grid grid-cols-12 gap-4">
           <div className="col-span-12 md:col-span-4">
             <Form.Item name="eventType" initialValue="milestone" rules={[{ required: true }]}>
@@ -144,7 +146,7 @@ function OpportunityForm({ onClose }: { onClose: () => void }) {
 
   return (
     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-      <Form form={form} layout="vertical" onFinish={mutate} className="p-3 bg-black/5 rounded-xl mb-4 border border-black/5">
+      <Form form={form} layout="vertical" onFinish={mutate} className="p-3 bg-muted/40 rounded-xl mb-4 border border-border">
         <div className="grid grid-cols-12 gap-4">
           <div className="col-span-12 md:col-span-6">
             <Form.Item name="company" rules={[{ required: true }]}>
@@ -192,10 +194,10 @@ function OpportunityRow({ opp }: { opp: JobOpportunity }) {
 
   return (
     <motion.div layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} 
-      className="flex items-center justify-between p-3 mb-2 rounded-lg bg-black/5 hover:bg-black/10 transition-all border border-black/5">
+      className="flex items-center justify-between p-3 mb-2 rounded-lg bg-muted/40 border border-border hover:bg-muted/70 transition-all">
       <div>
-        <div className="font-semibold text-gray-800">{opp.company}</div>
-        <div className="text-xs text-gray-500">{opp.role}</div>
+        <div className="text-[13px] font-semibold text-foreground">{opp.company}</div>
+        <div className="text-[11px] text-muted-foreground">{opp.role}</div>
       </div>
       <Space>
         {opp.url && <a href={opp.url} target="_blank" rel="noreferrer"><ExternalLink size={14} className="text-gray-500 hover:text-gray-800" /></a>}
@@ -222,7 +224,8 @@ export function CareerPage() {
   const activeOpps = opportunities?.filter(o => !['rejected', 'closed'].includes(o.status)) ?? []
   
   return (
-    <motion.div className="w-full p-3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+    <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
+      <div className="mx-auto max-w-[1200px]">
       <AreaTabs
         defaultActiveKey="1"
         items={[
@@ -266,11 +269,11 @@ export function CareerPage() {
                                 <div>
                                   <Space>
                                     <Tag color={EVENT_TYPE_COLORS[e.event_type] || 'default'}>{EVENT_TYPE_LABELS[e.event_type] || e.event_type}</Tag>
-                                    <span className="font-semibold text-gray-800">{e.title}</span>
+                                    <span className="text-[11px] font-semibold text-foreground">{e.title}</span>
                                   </Space>
-                                  {e.description && <div className="text-xs text-gray-400 mt-2">{e.description}</div>}
+                                  {e.description && <div className="text-[11px] text-muted-foreground mt-2">{e.description}</div>}
                                 </div>
-                                <div className="text-xs text-gray-500">{new Date(e.occurred_at).toLocaleDateString()}</div>
+                                <div className="text-[11px] text-muted-foreground">{new Date(e.occurred_at).toLocaleDateString()}</div>
                               </div>
                             </AnimatedTimelineItem>
                           )
@@ -295,15 +298,16 @@ export function CareerPage() {
           {
             key: '2',
             label: 'Roadmap',
-            children: <div></div>,
+            children: <RoadmapTab />,
           },
           {
             key: '3',
             label: 'Opportunities',
-            children: <div></div>,
+            children: <OpportunitiesTab />,
           },
         ]}
       />
-    </motion.div>
+      </div>
+    </div>
   )
 }

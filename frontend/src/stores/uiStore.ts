@@ -17,6 +17,9 @@ interface UIState {
 
   captureModalOpen: boolean
   setCaptureModalOpen: (v: boolean) => void
+
+  recentPages: string[]
+  pushRecentPage: (path: string) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -35,6 +38,12 @@ export const useUIStore = create<UIState>()(
 
       captureModalOpen: false,
       setCaptureModalOpen: (v) => set({ captureModalOpen: v }),
+
+      recentPages: [],
+      pushRecentPage: (path) => set((s) => {
+        const filtered = s.recentPages.filter(p => p !== path)
+        return { recentPages: [path, ...filtered].slice(0, 5) }
+      }),
     }),
     { name: 'aios-ui', partialize: (s) => ({ sidebarOpen: s.sidebarOpen, theme: s.theme }) }
   )

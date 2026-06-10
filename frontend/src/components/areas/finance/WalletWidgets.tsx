@@ -8,9 +8,9 @@ export function BalanceWidget({ balance = 5318, chartData = [], activeTab = 'Gen
   const tabs = ['General', 'Expenses', 'Income']
   
   return (
-    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-3 flex flex-col h-full relative overflow-hidden">
+    <div className="bg-card border border-border/40 shadow-sm rounded-2xl p-4 flex flex-col h-full relative overflow-hidden">
       {/* 3D abstract shape placeholder - using a CSS gradient mesh */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-300 via-purple-300 to-pink-300 rounded-full blur-2xl opacity-30 -mr-6 -mt-6" />
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-teal-300 via-emerald-300 to-cyan-200 rounded-full blur-2xl opacity-20 -mr-6 -mt-6 dark:opacity-10" />
       
       <div className="flex items-center justify-between z-10 mb-4">
         <h2 className="text-xs font-medium text-muted-foreground">Total Balance</h2>
@@ -41,7 +41,7 @@ export function BalanceWidget({ balance = 5318, chartData = [], activeTab = 'Gen
           <HighchartsReact
             highcharts={Highcharts}
             options={{
-              chart: { type: 'column', backgroundColor: 'transparent', margin: [0, 0, 0, 0], height: 80 },
+              chart: { type: 'column', backgroundColor: 'transparent', margin: [0, 0, 0, 0], height: 100 },
               title: { text: null },
               xAxis: { visible: false },
               yAxis: { visible: false },
@@ -102,9 +102,9 @@ export function MonthlyBudgetWidget({ spent = 2100, total = 4000 }: { spent?: nu
   const pct = Math.min((spent / total) * 100, 100)
   
   return (
-    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-3">
+    <div className="bg-card border border-border/40 shadow-sm rounded-2xl p-4">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs font-medium text-muted-foreground">Monthly Budget</h3>
+        <h3 className="text-sm font-semibold text-foreground">Monthly Budget</h3>
         <button 
           onClick={() => navigate('/areas/finance/budget')}
           className="w-6 h-6 rounded-md bg-muted/50 flex items-center justify-center hover:bg-muted transition text-muted-foreground hover:text-foreground">
@@ -137,9 +137,9 @@ export function ExpensesDonutWidget({ total = 2540, data = [], activeTab = 'Mont
   const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6']
 
   return (
-    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-3 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xs font-medium text-muted-foreground">Expenses</h2>
+    <div className="bg-card border border-border/40 shadow-sm rounded-2xl p-4 h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-semibold text-foreground">Expenses</h2>
         <div className="flex gap-2 items-center">
           <div className="flex gap-0.5 p-0.5 bg-muted/60 border border-border/50 rounded-md">
           {tabs.map((tab) => (
@@ -224,9 +224,9 @@ export function QuickTransactionsWidget() {
   ]
   
   return (
-    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-4">
+    <div className="bg-card border border-border/40 shadow-sm rounded-2xl p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-muted-foreground">Quick Pay</h3>
+        <h3 className="text-sm font-semibold text-foreground">Quick Pay</h3>
       </div>
       
       <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
@@ -256,9 +256,9 @@ export function QuickTransactionsWidget() {
 export function LastTransactionsWidget({ transactions = [] }: { transactions?: any[] }) {
   const navigate = useNavigate()
   return (
-    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-4 h-full flex flex-col">
+    <div className="bg-card border border-border/40 shadow-sm rounded-2xl p-4 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-muted-foreground">Recent</h3>
+        <h3 className="text-sm font-semibold text-foreground">Recent</h3>
         <button 
           onClick={() => navigate('/areas/finance/log')}
           className="text-[11px] font-medium text-primary hover:underline">See all</button>
@@ -272,11 +272,11 @@ export function LastTransactionsWidget({ transactions = [] }: { transactions?: a
                 {t.icon}
               </div>
               <div>
-                <h4 className="font-semibold text-[13px] leading-tight">{t.merchant}</h4>
+                <h4 className="font-medium text-[11px] leading-tight">{t.merchant}</h4>
                 <p className="text-[10px] text-muted-foreground mt-0.5">{t.category} • {t.date}</p>
               </div>
             </div>
-            <span className="font-semibold text-[13px] text-foreground">
+            <span className="font-semibold text-[11px] text-foreground">
               {formatCurrency(t.amount)}
             </span>
           </div>

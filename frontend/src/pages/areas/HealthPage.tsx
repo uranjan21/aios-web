@@ -10,6 +10,12 @@ import { useCountUp } from '@/hooks/useCountUp'
 import styled, { keyframes } from 'styled-components'
 import { Card, Typography, Button, Input, Select, Tag, Avatar, Space, Tabs } from 'antd'
 import { AreaTabs } from '@/components/ui/AreaTabs'
+import { HealthLogsTab } from '@/components/areas/health/HealthLogsTab'
+import { FitnessGoalsTab } from '@/components/areas/health/FitnessGoalsTab'
+import { NutritionTab } from '@/components/areas/health/NutritionTab'
+import { WaterTrackerWidget } from '@/components/areas/health/WaterTrackerWidget'
+import { SleepTab } from '@/components/areas/health/SleepTab'
+import { BodyTab } from '@/components/areas/health/BodyTab'
 
 import Highcharts from 'highcharts'
 import HighchartsReact from 'highcharts-react-official'
@@ -23,9 +29,9 @@ const floatAnimation = keyframes`
 `
 
 const PremiumCard = styled(Card)`
-  border-radius: 16px;
+  border-radius: 12px;
   background: hsl(var(--card));
-  border: 1px solid hsl(var(--border) / 0.6);
+  border: 1px solid hsl(var(--border));
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   transition: all 0.2s ease;
   overflow: hidden;
@@ -36,9 +42,9 @@ const PremiumCard = styled(Card)`
     border-bottom: none;
     min-height: 40px;
     padding: 16px 16px 0;
-    color: hsl(var(--muted-foreground));
+    color: hsl(var(--foreground));
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
   }
   .ant-card-body {
     padding: 16px;
@@ -47,9 +53,9 @@ const PremiumCard = styled(Card)`
 
 const PRWidget = styled.div`
   background: hsl(var(--card));
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 16px;
-  border: 1px solid hsl(var(--border) / 0.6);
+  border: 1px solid hsl(var(--border));
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   display: flex;
   align-items: center;
@@ -139,7 +145,7 @@ export function HealthPage() {
 
   const weightOptions = {
     ...commonChartOptions,
-    chart: { ...commonChartOptions.chart, type: 'area', height: 120 },
+    chart: { ...commonChartOptions.chart, type: 'area', height: 180 },
     xAxis: {
       type: 'datetime',
       labels: { style: { color: 'var(--muted-foreground)' } }
@@ -152,12 +158,12 @@ export function HealthPage() {
     series: [{
       name: 'Weight',
       data: weightDataProcessed,
-      color: '#3b82f6',
+      color: '#0D9488',
       fillColor: {
         linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
         stops: [
-          [0, 'rgba(59, 130, 246, 0.4)'],
-          [1, 'rgba(59, 130, 246, 0)']
+          [0, 'rgba(13, 148, 136, 0.35)'],
+          [1, 'rgba(13, 148, 136, 0)']
         ]
       }
     }]
@@ -170,7 +176,8 @@ export function HealthPage() {
   }
 
   return (
-    <div className="p-4 min-h-screen pb-24">
+    <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
+      <div className="mx-auto max-w-[1200px]">
       <AreaTabs defaultActiveKey="1">
         <Tabs.TabPane tab="Dashboard" key="1">
           <div className="grid grid-cols-12 gap-4">
@@ -190,54 +197,54 @@ export function HealthPage() {
           </PRWidget>
         </div>
 
-        <div className="col-span-6 md:col-span-3">
+        <div className="col-span-12 sm:col-span-6 xl:col-span-3">
           <PremiumCard>
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 bg-blue-500/10 rounded-lg text-blue-500">
+              <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
                 <Scale className="w-4 h-4" />
               </div>
-              <Text type="secondary" className="text-xs font-medium text-muted-foreground">Current Weight</Text>
+              <Text type="secondary" className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Current Weight</Text>
             </div>
-            <div className="text-xs font-medium text-foreground">
+            <div className="text-2xl font-bold text-foreground tracking-tight">
               {loadingSummary ? <Skeleton className="h-6 w-24" /> : `${summary?.weight ?? '—'} kg`}
             </div>
           </PremiumCard>
         </div>
-        <div className="col-span-6 md:col-span-3">
+        <div className="col-span-12 sm:col-span-6 xl:col-span-3">
           <PremiumCard>
             <div className="flex items-center gap-2 mb-2">
               <div className="p-1.5 bg-orange-500/10 rounded-lg text-orange-500">
                 <Flame className="w-4 h-4" />
               </div>
-              <Text type="secondary" className="text-xs font-medium text-muted-foreground">Gym Streak</Text>
+              <Text type="secondary" className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Gym Streak</Text>
             </div>
-            <div className="text-xs font-medium text-foreground">
+            <div className="text-2xl font-bold text-foreground tracking-tight">
               {loadingStreak ? <Skeleton className="h-6 w-24" /> : `${Math.round(animatedStreak ?? 0)} days`}
             </div>
           </PremiumCard>
         </div>
-        <div className="col-span-6 md:col-span-3">
+        <div className="col-span-12 sm:col-span-6 xl:col-span-3">
           <PremiumCard>
             <div className="flex items-center gap-2 mb-2">
               <div className="p-1.5 bg-purple-500/10 rounded-lg text-purple-500">
                 <Activity className="w-4 h-4" />
               </div>
-              <Text type="secondary" className="text-xs font-medium text-muted-foreground">Last Workout</Text>
+              <Text type="secondary" className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Last Workout</Text>
             </div>
-            <div className="text-xs font-medium text-foreground mt-0.5">
+            <div className="text-2xl font-bold text-foreground tracking-tight mt-0.5">
               {loadingStreak ? <Skeleton className="h-5 w-32" /> : formatRelativeTime(streak?.last_workout_at ?? null)}
             </div>
           </PremiumCard>
         </div>
-        <div className="col-span-6 md:col-span-3">
+        <div className="col-span-12 sm:col-span-6 xl:col-span-3">
           <PremiumCard>
             <div className="flex items-center gap-2 mb-2">
               <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-500">
                 <Target className="w-4 h-4" />
               </div>
-              <Text type="secondary" className="text-xs font-medium text-muted-foreground">Total Sessions</Text>
+              <Text type="secondary" className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Total Sessions</Text>
             </div>
-            <div className="text-xs font-medium text-foreground">
+            <div className="text-2xl font-bold text-foreground tracking-tight">
               {loadingGym ? <Skeleton className="h-6 w-24" /> : Math.round(animatedSessions ?? 0)}
             </div>
           </PremiumCard>
@@ -247,6 +254,10 @@ export function HealthPage() {
           <PremiumCard title={<span className="text-foreground">Weight Progression</span>} extra={<div className="flex items-center gap-2"><Tag color="blue">Past 30 Days</Tag><button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Report</button></div>}>
             {loadingWeight ? <Skeleton className="h-[120px]" /> : <HighchartsReact highcharts={Highcharts} options={weightOptions} />}
           </PremiumCard>
+        </div>
+
+        <div className="col-span-12 lg:col-span-6">
+          <WaterTrackerWidget />
         </div>
 
         <div className="col-span-12 flex justify-start">
@@ -312,12 +323,22 @@ export function HealthPage() {
           </div>
         </Tabs.TabPane>
         <Tabs.TabPane tab="Health Logs" key="2">
-          <div></div>
+          <HealthLogsTab />
         </Tabs.TabPane>
         <Tabs.TabPane tab="Fitness Goals" key="3">
-          <div></div>
+          <FitnessGoalsTab />
+        </Tabs.TabPane>
+        <Tabs.TabPane tab="Nutrition" key="4">
+          <NutritionTab />
+        </Tabs.TabPane>
+        <Tabs.TabPane tab="Sleep" key="5">
+          <SleepTab />
+        </Tabs.TabPane>
+        <Tabs.TabPane tab="Body" key="6">
+          <BodyTab />
         </Tabs.TabPane>
       </AreaTabs>
+      </div>
     </div>
   )
 }

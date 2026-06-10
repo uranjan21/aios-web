@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState, Component, ErrorInfo, ReactNode } from 'react'
+import { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Play, RefreshCw, CheckCircle, XCircle, Zap, Terminal, Activity, Calendar } from 'lucide-react'
 import { agentsApi } from '@/api/agents'
@@ -44,17 +44,18 @@ const fadeIn = keyframes`
 `;
 
 const pulseGlow = keyframes`
-  0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-  70% { box-shadow: 0 0 15px 10px rgba(99, 102, 241, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.4); }
+  70% { box-shadow: 0 0 15px 10px rgba(13, 148, 136, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0); }
 `;
 
 const PageContainer = styled.div`
-  padding: 1.25rem;
+  padding: 1.25rem 1.5rem;
   max-width: 1400px;
   margin: 0 auto;
   color: hsl(var(--foreground));
   min-height: calc(100vh - 64px);
+  background: hsl(var(--page-bg));
 `;
 
 // Removed page headers as per global UI rules
@@ -67,9 +68,9 @@ const AgentsGrid = styled.div`
 
 const CardContainer = styled.div<{ $status?: string }>`
   background: hsl(var(--card));
-  border: 1px solid hsl(var(--border) / 0.6);
+  border: 1px solid hsl(var(--border));
   border-radius: 12px;
-  padding: 0.75rem 1.25rem;
+  padding: 0.625rem 1rem;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   position: relative;
@@ -92,7 +93,7 @@ const CardContainer = styled.div<{ $status?: string }>`
     width: 4px;
     height: 100%;
     background: ${({ $status }) => 
-      $status === 'running' ? 'linear-gradient(180deg, #3b82f6, #8b5cf6)' :
+      $status === 'running' ? 'linear-gradient(180deg, #0D9488, #14B8A6)' :
       $status === 'error' ? 'hsl(var(--destructive))' :
       $status === 'success' ? '#10b981' : 'transparent'};
     transition: background 0.3s ease;
@@ -111,14 +112,14 @@ const CardContainer = styled.div<{ $status?: string }>`
 `;
 
 const AgentName = styled.h3`
-  font-size: 0.95rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: hsl(var(--foreground));
   margin: 0;
 `;
 
 const AgentDesc = styled.p`
-  font-size: 0.8rem;
+  font-size: 0.6875rem;
   color: hsl(var(--muted-foreground));
   margin: 0;
   white-space: nowrap;
@@ -144,7 +145,7 @@ const StatusIndicator = styled.div<{ $status: string }>`
     $status === 'error' ? 'rgba(239, 68, 68, 0.1)' :
     $status === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(148, 163, 184, 0.1)'};
   color: ${({ $status }) => 
-    $status === 'running' ? '#3b82f6' :
+    $status === 'running' ? '#0D9488' :
     $status === 'error' ? '#ef4444' :
     $status === 'success' ? '#10b981' : 'hsl(var(--muted-foreground))'};
   text-transform: uppercase;
@@ -171,7 +172,7 @@ const InfoLabel = styled.span`
 `;
 
 const InfoValue = styled.span`
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: hsl(var(--foreground));
 `;
@@ -226,6 +227,62 @@ const TerminalWindow = styled.div`
   }
 `;
 
+// --- Cron next-run utility ---
+
+function getNextCronRun(cron: string): Date | null {
+  const parts = cron.trim().split(/\s+/)
+  if (parts.length !== 5) return null
+  const [minute, hour, dom, month, dow] = parts
+
+  const matchField = (field: string, val: number): boolean => {
+    if (field === '*') return true
+    if (field.startsWith('*/')) return val % Number(field.slice(2)) === 0
+    return Number(field) === val
+  }
+
+  const next = new Date()
+  next.setSeconds(0, 0)
+  next.setMinutes(next.getMinutes() + 1)
+
+  // Try up to 64,800 minutes (45 days — handles monthly crons)
+  for (let i = 0; i < 64800; i++) {
+    if (
+      matchField(month, next.getMonth() + 1) &&
+      matchField(dom,   next.getDate()) &&
+      matchField(dow,   next.getDay()) &&
+      matchField(hour,  next.getHours()) &&
+      matchField(minute, next.getMinutes())
+    ) return new Date(next)
+    next.setMinutes(next.getMinutes() + 1)
+  }
+  return null
+}
+
+function NextRunCountdown({ cron }: { cron: string | null }) {
+  const [label, setLabel] = useState('—')
+
+  useEffect(() => {
+    if (!cron || cron === 'Manual') { setLabel('Manual'); return }
+
+    const tick = () => {
+      const next = getNextCronRun(cron)
+      if (!next) { setLabel('—'); return }
+      const diff = next.getTime() - Date.now()
+      if (diff <= 0) { setLabel('now'); return }
+      const h = Math.floor(diff / 3600000)
+      const m = Math.floor((diff % 3600000) / 60000)
+      const s = Math.floor((diff % 60000) / 1000)
+      setLabel(h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`)
+    }
+
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [cron])
+
+  return <InfoValue style={{ fontVariantNumeric: 'tabular-nums' }}>{label}</InfoValue>
+}
+
 // --- Component ---
 
 function AgentCard({ agent }: { agent: Agent }) {
@@ -261,7 +318,7 @@ function AgentCard({ agent }: { agent: Agent }) {
     <>
       <CardContainer $status={status}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0 }}>
-          <Activity size={18} className="text-indigo-400 flex-shrink-0" />
+          <Activity size={18} className="text-primary flex-shrink-0" />
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             <AgentName>{agent.name}</AgentName>
             {agent.description && <AgentDesc>{agent.description}</AgentDesc>}
@@ -285,6 +342,12 @@ function AgentCard({ agent }: { agent: Agent }) {
               <InfoLabel><Zap size={12} /> Last Run</InfoLabel>
               <InfoValue>{agent.last_run_at ? formatRelativeTime(agent.last_run_at) : 'Never'}</InfoValue>
             </InfoItem>
+            {agent.cron_expression && agent.is_active && (
+              <InfoItem>
+                <InfoLabel><RefreshCw size={12} /> Next Run</InfoLabel>
+                <NextRunCountdown cron={agent.cron_expression} />
+              </InfoItem>
+            )}
           </div>
 
           <ControlsGroup>
@@ -306,7 +369,7 @@ function AgentCard({ agent }: { agent: Agent }) {
               loading={triggerMutation.isPending}
               disabled={triggering}
               size="small"
-              style={{ background: '#4f46e5', border: 'none', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}
+              style={{ background: 'hsl(var(--primary))', border: 'none', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}
             >
               Run
             </Button>
@@ -326,7 +389,7 @@ function AgentCard({ agent }: { agent: Agent }) {
       <StyledTerminalDrawer
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Terminal size={20} className="text-indigo-400" />
+            <Terminal size={20} className="text-primary" />
             <span style={{ fontFamily: 'monospace', letterSpacing: '0.05em' }}>Live Terminal: {agent.name}</span>
           </div>
         }
@@ -354,7 +417,7 @@ export function AgentsPage() {
   })
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: '#4f46e5', fontFamily: 'inherit', colorBgContainer: 'hsl(var(--card))', colorText: 'hsl(var(--foreground))' } }}>
+    <ConfigProvider theme={{ token: { colorPrimary: '#0D9488', fontFamily: 'inherit', colorBgContainer: 'hsl(var(--card))', colorText: 'hsl(var(--foreground))' } }}>
       <PageContainer>
         {isError ? (
           <ErrorCard message="Could not load agents" onRetry={() => refetch()} />

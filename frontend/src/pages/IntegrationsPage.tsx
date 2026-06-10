@@ -26,7 +26,7 @@ const PROVIDER_INFO: Record<string, { label: string; desc: string }> = {
 }
 
 function StatusIcon({ status }: { status: Integration['status'] }) {
-  if (status === 'connected') return <CheckCircle className="w-5 h-5 text-emerald-500" aria-hidden="true" />
+  if (status === 'connected') return <CheckCircle className="w-5 h-5 text-primary" aria-hidden="true" />
   if (status === 'expired') return <AlertCircle className="w-5 h-5 text-amber-500" aria-hidden="true" />
   if (status === 'error') return <XCircle className="w-5 h-5 text-destructive" aria-hidden="true" />
   return <XCircle className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
@@ -34,7 +34,7 @@ function StatusIcon({ status }: { status: Integration['status'] }) {
 
 function IntegrationCardSkeleton() {
   return (
-    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-4 space-y-3">
+    <div className="bg-card border border-border shadow-sm rounded-xl p-4 space-y-3">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <Skeleton className="w-5 h-5 rounded-full" />
@@ -72,7 +72,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
   const [dialogOpen, setDialogOpen] = useState(false)
 
   return (
-    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-4">
+    <div className="bg-card border border-border shadow-sm rounded-xl p-4">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           <StatusIcon status={integration.status} />
@@ -84,7 +84,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
         <span className={cn(
           'text-xs font-medium px-2 py-0.5 rounded-full capitalize',
           integration.status === 'connected'
-            ? 'bg-emerald-500/10 text-emerald-500'
+            ? 'bg-primary/10 text-primary border border-primary/20'
             : integration.status === 'expired'
             ? 'bg-amber-500/10 text-amber-500'
             : 'bg-muted text-muted-foreground'
@@ -153,22 +153,32 @@ export function IntegrationsPage() {
   })
 
   return (
-    <div className="p-4 space-y-4">
-      <div>
-        <h1 className="text-lg font-semibold text-foreground">Integrations</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Connect external services to enrich your AI OS context</p>
-      </div>
-
-      {isError ? (
-        <ErrorCard message="Could not load integrations" onRetry={() => refetch()} />
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {isLoading
-            ? Array.from({ length: 3 }).map((_, i) => <IntegrationCardSkeleton key={i} />)
-            : integrations?.map(i => <IntegrationCard key={i.provider} integration={i} />)
-          }
+    <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
+      <div className="mx-auto max-w-[1200px] space-y-4">
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">Integrations</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Connect external services to enrich your AI OS context</p>
         </div>
-      )}
+
+        {isError ? (
+          <ErrorCard message="Could not load integrations" onRetry={() => refetch()} />
+        ) : (
+          <div className="grid grid-cols-12 gap-4">
+            {isLoading
+              ? Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="col-span-12 md:col-span-6 xl:col-span-4">
+                    <IntegrationCardSkeleton />
+                  </div>
+                ))
+              : integrations?.map(i => (
+                  <div key={i.provider} className="col-span-12 md:col-span-6 xl:col-span-4">
+                    <IntegrationCard integration={i} />
+                  </div>
+                ))
+            }
+          </div>
+        )}
+      </div>
     </div>
   )
 }

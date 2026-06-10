@@ -83,7 +83,7 @@ export interface FinanceExpense {
 export interface HealthLog {
   id: string
   logged_at: string
-  entry_type: 'gym' | 'weight' | 'food' | 'water' | 'body_fat' | 'note'
+  entry_type: 'gym' | 'weight' | 'food' | 'meal' | 'water' | 'steps' | 'body_fat' | 'sleep' | 'note'
   value: number | null
   unit: string | null
   notes: string | null
@@ -160,4 +160,58 @@ export interface BudgetLimit {
   category: string
   monthly_limit: number
   updated_at: string
+}
+
+export interface FinancialGoal {
+  id: string; name: string; icon: string; target_amount: number;
+  current_amount: number; deadline: string | null; category: string;
+  color: string; created_at: string;
+}
+export interface FinanceBill {
+  id: string; name: string; amount: number; due_day: number;
+  category: string; is_auto_debit: boolean; is_active: boolean; notes: string | null;
+}
+export interface FinanceIncome {
+  id: string; amount: number; source: string; description: string | null; logged_at: string;
+}
+export interface CashFlowData {
+  income_total: number; expense_total: number; savings_rate: number;
+  by_day: { date: string; income: number; expense: number }[];
+}
+export interface HealthGoal {
+  calorie_target: number; protein_target: number; carb_target: number;
+  fat_target: number; water_target: number; steps_target: number; sleep_target: number;
+  height_cm: number | null;
+}
+export interface NutritionToday {
+  calories: number; protein: number; carbs: number; fat: number;
+  meals: { id: string; logged_at: string; notes: string | null }[];
+}
+
+// ── Investments (portfolio tracker) ────────────────────────────────────────────
+export interface FinanceInvestment {
+  id: string; name: string; type: string; invested_amount: number;
+  current_value: number; units: number | null; purchase_date: string | null;
+  notes: string | null; created_at: string;
+}
+export interface InvestmentSummary {
+  total_invested: number; current_value: number; returns_amount: number;
+  returns_pct: number; allocation: { type: string; value: number }[];
+}
+
+// ── Loans / EMI tracker ────────────────────────────────────────────
+export interface FinanceLoan {
+  id: string; name: string; loan_type: string; lender: string | null;
+  principal_amount: number; outstanding_amount: number; interest_rate: number;
+  emi_amount: number; emi_day: number; tenure_months: number | null;
+  is_active: boolean; notes: string | null;
+}
+export interface LoanSummary {
+  total_outstanding: number; total_emi: number; active_count: number;
+}
+
+// ── Sleep ────────────────────────────────────────────
+export interface SleepRecent {
+  daily: { date: string; hours: number; quality: string | null }[]
+  weekly_avg: number; target: number; last_night: number | null;
 }

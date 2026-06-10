@@ -23,6 +23,13 @@ import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { Tabs } from 'antd'
 import { AreaTabs } from '@/components/ui/AreaTabs'
+import { LogTransactionTab } from '@/components/areas/finance/LogTransactionTab'
+import { BudgetsTab } from '@/components/areas/finance/BudgetsTab'
+import { GoalsTab } from '@/components/areas/finance/GoalsTab'
+import { BillsTab } from '@/components/areas/finance/BillsTab'
+import { CashFlowTab } from '@/components/areas/finance/CashFlowTab'
+import { InvestmentsTab } from '@/components/areas/finance/InvestmentsTab'
+import { LoansTab } from '@/components/areas/finance/LoansTab'
 
 
 
@@ -40,9 +47,10 @@ export function FinancePage() {
     queryFn: financeApi.snapshots,
   })
 
-  const { data: budgets, isLoading: loadingBudgets } = useQuery({
+  const { data: budgets } = useQuery({
     queryKey: ['finance', 'budgets'],
     queryFn: financeApi.budgets,
+    retry: false,
   })
 
   const { data: expensesPages, isLoading: loadingExpenses } = useInfiniteQuery({
@@ -92,7 +100,7 @@ export function FinancePage() {
     if (lower.includes('care') || lower.includes('health')) return <Heart className="w-5 h-5 text-pink-500" />
     if (lower.includes('groceries') || lower.includes('food')) return <ShoppingBag className="w-5 h-5 text-orange-500" />
     if (lower.includes('clothes')) return <Shirt className="w-5 h-5 text-purple-500" />
-    return <DollarSign className="w-5 h-5 text-blue-500" />
+    return <DollarSign className="w-5 h-5 text-primary" />
   }
 
   const recentTransactions = useMemo(() => {
@@ -105,7 +113,7 @@ export function FinancePage() {
     }))
   }, [expenses])
 
-  if (loadingSnapshot || loadingExpenses || loadingBudgets) {
+  if (loadingSnapshot || loadingExpenses) {
     return <div className="p-4 space-y-4">
       <Skeleton className="w-full h-32 rounded-xl" />
       <div className="grid grid-cols-12 gap-4">
@@ -183,7 +191,8 @@ export function FinancePage() {
   );
 
   return (
-    <div className="p-4 min-h-screen pb-24">
+    <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
+      <div className="mx-auto max-w-[1200px]">
       <AreaTabs defaultActiveKey="1">
         <Tabs.TabPane tab="Overview" key="1">
           {OverviewContent}
@@ -195,12 +204,28 @@ export function FinancePage() {
           {ManagementContent}
         </Tabs.TabPane>
         <Tabs.TabPane tab="Log Transaction" key="4">
-          <div></div>
+          <LogTransactionTab />
         </Tabs.TabPane>
         <Tabs.TabPane tab="Budgets" key="5">
-          <div></div>
+          <BudgetsTab />
+        </Tabs.TabPane>
+        <Tabs.TabPane tab="Goals" key="6">
+          <GoalsTab />
+        </Tabs.TabPane>
+        <Tabs.TabPane tab="Bills" key="7">
+          <BillsTab />
+        </Tabs.TabPane>
+        <Tabs.TabPane tab="Cash Flow" key="8">
+          <CashFlowTab />
+        </Tabs.TabPane>
+        <Tabs.TabPane tab="Investments" key="9">
+          <InvestmentsTab />
+        </Tabs.TabPane>
+        <Tabs.TabPane tab="Loans" key="10">
+          <LoansTab />
         </Tabs.TabPane>
       </AreaTabs>
+      </div>
     </div>
   )
 }

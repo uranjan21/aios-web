@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
+import { ConfigProvider } from 'antd'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { BottomNav } from './BottomNav'
@@ -7,13 +9,33 @@ import { CommandPalette } from '@/components/CommandPalette'
 import { GlobalCapture } from '@/components/GlobalCapture'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useNotifications } from '@/hooks/useNotifications'
+import { useUIStore } from '@/stores/uiStore'
 
 export function AppShell() {
   useKeyboardShortcuts()
-  useNotifications() // bridge vault conflicts + agent events → notification store
+  useNotifications()
   const location = useLocation()
+  const { theme, pushRecentPage } = useUIStore()
+
+  useEffect(() => {
+    pushRecentPage(location.pathname)
+  }, [location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
+    <ConfigProvider theme={{
+      token: {
+        colorPrimary: '#0D9488',
+        colorLink: '#0D9488',
+        borderRadius: 8,
+        fontFamily: 'inherit',
+        colorBgContainer: theme === 'dark' ? 'hsl(240 5% 11%)' : '#ffffff',
+        colorBgElevated: theme === 'dark' ? 'hsl(240 6% 9%)' : '#ffffff',
+        colorText: theme === 'dark' ? 'hsl(0 0% 93%)' : 'hsl(0 0% 9%)',
+        colorTextSecondary: theme === 'dark' ? 'hsl(240 4% 57%)' : 'hsl(0 0% 44%)',
+        colorBorder: theme === 'dark' ? 'hsl(240 5% 18%)' : 'hsl(36 9% 84%)',
+        colorBorderSecondary: theme === 'dark' ? 'hsl(240 5% 18%)' : 'hsl(36 9% 84%)',
+      }
+    }}>
     <div className="flex h-[100dvh] overflow-hidden bg-background">
       <a
         href="#main-content"
@@ -34,5 +56,6 @@ export function AppShell() {
       <CommandPalette />
       <GlobalCapture />
     </div>
+    </ConfigProvider>
   )
 }

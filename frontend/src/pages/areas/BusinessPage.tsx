@@ -6,6 +6,8 @@ import { toast } from 'sonner'
 import styled from 'styled-components'
 import { Card, Button, Timeline, Tag, Select, Input, Form, Skeleton, Space, Statistic, Tabs } from 'antd'
 import { AreaTabs } from '@/components/ui/AreaTabs'
+import { EventsTab } from '@/components/areas/business/EventsTab'
+import { SummaryTab } from '@/components/areas/business/SummaryTab'
 import { businessApi } from '@/api/areas'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { ErrorCard } from '@/components/ErrorCard'
@@ -21,15 +23,15 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
 }
 
 const FlatCard = ({ className, ...props }: any) => (
-  <Card 
-    className={`bg-card border border-border/60 shadow-sm rounded-xl overflow-hidden [&>.ant-card-head]:border-border/40 [&>.ant-card-head]:min-h-[40px] [&>.ant-card-head]:px-3 [&>.ant-card-body]:p-3 ${className || ''}`}
+  <Card
+    className={`bg-card border border-border shadow-sm rounded-xl overflow-hidden [&>.ant-card-head]:border-border [&>.ant-card-head]:min-h-[40px] [&>.ant-card-head]:px-4 [&>.ant-card-body]:p-4 ${className || ''}`}
     bordered={false}
-    {...props} 
+    {...props}
   />
 )
 
 const AnimatedTimelineItem = styled(motion.div)`
-  padding: 0.25rem 0.5rem;
+  padding: 0.375rem 0.5rem;
   border-radius: 6px;
   margin-bottom: 0.25rem;
   transition: all 0.2s ease;
@@ -56,14 +58,14 @@ function RunwayCalculator() {
           value={cash} 
           prefix={<DollarSign size={14} />} 
           precision={0} 
-          valueStyle={{ fontSize: '16px', fontWeight: 600 }} 
+          valueStyle={{ fontSize: '20px', fontWeight: 600 }} 
         />
         <Statistic 
           title={<span className="text-[10px] text-gray-500 uppercase tracking-wider">Monthly Burn</span>} 
           value={burnRate} 
           prefix={<Activity size={14} />} 
           precision={0} 
-          valueStyle={{ fontSize: '16px', fontWeight: 600 }} 
+          valueStyle={{ fontSize: '20px', fontWeight: 600 }} 
         />
       </div>
       <div className={`mt-3 p-2 rounded-lg border flex items-center justify-between ${isHealthy ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
@@ -102,7 +104,7 @@ function EventForm({ onClose }: { onClose: () => void }) {
 
   return (
     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-      <Form form={form} layout="vertical" onFinish={mutate} className="p-3 bg-black/5 rounded-xl mb-4 border border-black/5">
+      <Form form={form} layout="vertical" onFinish={mutate} className="p-3 bg-muted/40 rounded-xl mb-4 border border-border">
         <div className="grid grid-cols-12 gap-4">
           <div className="col-span-12 md:col-span-4">
             <Form.Item name="eventType" initialValue="feature_shipped" rules={[{ required: true }]}>
@@ -139,7 +141,8 @@ export function BusinessPage() {
   const { data: summary, isLoading: loadingSummary } = useQuery({ queryKey: ['business', 'summary'], queryFn: businessApi.summary })
 
   return (
-    <motion.div className="w-full p-3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+    <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
+      <div className="mx-auto max-w-[1200px]">
       <AreaTabs
         defaultActiveKey="1"
         items={[
@@ -152,11 +155,11 @@ export function BusinessPage() {
                 <div className="col-span-12 xl:col-span-8 flex flex-col gap-4">
                   <FlatCard>
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 rounded-lg bg-blue-50 border border-blue-100">
-                        <Rocket className="w-4 h-4 text-blue-500" />
+                      <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
+                        <Rocket className="w-4 h-4 text-primary" />
                       </div>
                       <div>
-                        <h2 className="text-xs font-medium text-gray-800 m-0">Ledgr</h2>
+                        <h2 className="text-xs font-medium text-foreground m-0">Ledgr</h2>
                         <p className="text-xs text-gray-500 m-0">SaaS accounting for Indian freelancers</p>
                       </div>
                       <Tag color="blue" className="ml-auto">Building</Tag>
@@ -198,11 +201,11 @@ export function BusinessPage() {
                                 <div className="flex flex-col">
                                   <Space size="small">
                                     <Tag className="m-0 text-[10px] leading-tight px-1 py-0 border-transparent bg-muted/50" color={EVENT_TYPE_COLORS[e.event_type] || 'default'}>{e.event_type.replace('_', ' ')}</Tag>
-                                    <span className="text-xs font-medium text-gray-800">{e.title}</span>
+                                    <span className="text-[11px] font-medium text-foreground">{e.title}</span>
                                   </Space>
-                                  {e.description && <div className="text-[10px] text-gray-400 mt-1 leading-snug">{e.description}</div>}
+                                  {e.description && <div className="text-[11px] text-muted-foreground mt-1 leading-snug">{e.description}</div>}
                                 </div>
-                                <div className="text-[10px] text-gray-400 whitespace-nowrap mt-0.5">{formatDate(e.occurred_at)}</div>
+                                <div className="text-[11px] text-muted-foreground whitespace-nowrap mt-0.5">{formatDate(e.occurred_at)}</div>
                               </div>
                             </AnimatedTimelineItem>
                           )
@@ -222,15 +225,16 @@ export function BusinessPage() {
           {
             key: '2',
             label: 'Events',
-            children: <div></div>,
+            children: <EventsTab />,
           },
           {
             key: '3',
             label: 'Summary',
-            children: <div></div>,
+            children: <SummaryTab />,
           },
         ]}
       />
-    </motion.div>
+      </div>
+    </div>
   )
 }

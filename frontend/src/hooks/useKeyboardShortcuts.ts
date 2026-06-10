@@ -14,6 +14,9 @@ export function useKeyboardShortcuts() {
       // Cmd+K — command palette (handled in CommandPalette itself, but duplicate-guard here)
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') return
 
+      // Cmd+L — quick capture (handled in GlobalCapture itself)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'l') return
+
       // Cmd+Shift+T — toggle theme
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 't') {
         e.preventDefault()

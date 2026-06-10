@@ -31,7 +31,7 @@ const STATUS_LABELS: Record<ContentItem['status'], string> = {
 }
 
 const STATUS_STYLES: Record<ContentItem['status'], string> = {
-  idea:        'border-border/60 bg-card/40',
+  idea:        'border-border bg-card/40',
   in_progress: 'border-blue-500/20 bg-blue-500/5',
   scheduled:   'border-amber-500/20 bg-amber-500/5',
   published:   'border-emerald-500/20 bg-emerald-500/5',
@@ -83,7 +83,7 @@ function ItemCard({ item, isDragging, onEdit, onSchedule, onDelete }: {
         {...listeners}
         {...attributes}
         className={cn(
-          'bg-card border border-border/60 rounded-xl p-4 space-y-3 group relative shadow-sm',
+          'bg-card border border-border rounded-xl p-3 space-y-3 group relative shadow-sm',
           'cursor-grab active:cursor-grabbing touch-none select-none',
           'hover:border-primary/30 hover:shadow-md transition-all duration-200',
           isDragging && 'opacity-50 ring-2 ring-primary shadow-xl scale-105 z-50',
@@ -188,7 +188,7 @@ function ColumnDropZone({
 
 function EngagementWidget({ publishedCount }: { publishedCount: number }) {
   return (
-    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-3 flex flex-col justify-between h-full relative overflow-hidden">
+    <div className="bg-card border border-border shadow-sm rounded-xl p-4 flex flex-col justify-between h-full relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/5 rounded-full blur-2xl" />
       <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl" />
@@ -202,7 +202,7 @@ function EngagementWidget({ publishedCount }: { publishedCount: number }) {
       </div>
       
       <div className="space-y-4 flex-1 relative z-10 flex flex-col justify-center">
-        <div className="bg-background/50 rounded-2xl p-4 border border-border/40 hover:border-border/80 transition-colors">
+        <div className="bg-background/50 rounded-xl p-4 border border-border hover:border-border transition-colors">
           <div className="flex justify-between items-center mb-1">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <Eye className="w-3.5 h-3.5" />
@@ -215,7 +215,7 @@ function EngagementWidget({ publishedCount }: { publishedCount: number }) {
           </div>
         </div>
 
-        <div className="bg-background/50 rounded-2xl p-4 border border-border/40 hover:border-border/80 transition-colors">
+        <div className="bg-background/50 rounded-xl p-4 border border-border hover:border-border transition-colors">
           <div className="flex justify-between items-center mb-1">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <MousePointerClick className="w-3.5 h-3.5" />
@@ -228,7 +228,7 @@ function EngagementWidget({ publishedCount }: { publishedCount: number }) {
           </div>
         </div>
         
-        <div className="bg-background/50 rounded-2xl p-4 border border-border/40 hover:border-border/80 transition-colors">
+        <div className="bg-background/50 rounded-xl p-4 border border-border hover:border-border transition-colors">
           <div className="flex justify-between items-baseline mb-3">
             <span className="text-xs font-medium text-muted-foreground">Top Platform</span>
           </div>
@@ -445,19 +445,22 @@ export function ContentPage() {
 
   if (isError) {
     return (
-      <div className="w-full p-4">
-        <ErrorCard message="Could not load content pipeline" onRetry={() => refetch()} />
+      <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
+        <div className="mx-auto max-w-[1200px]">
+          <ErrorCard message="Could not load content pipeline" onRetry={() => refetch()} />
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="w-full p-4">
+    <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
+      <div className="mx-auto max-w-[1200px]">
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="w-full grid grid-cols-12 gap-4">
           
           {/* Quick Capture Form & Stats */}
-          <div className="col-span-12 bg-card shadow-sm rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border border-border/60">
+          <div className="col-span-12 bg-card shadow-sm rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border border-border">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
               <h2 className="text-sm font-medium text-muted-foreground whitespace-nowrap">Quick Capture</h2>
               <div className="flex gap-3 w-full sm:w-auto">
@@ -494,7 +497,7 @@ export function ContentPage() {
             </div>
 
             {total > 0 && (
-              <div className="flex items-center gap-4 bg-muted/30 px-4 py-2 rounded-xl border border-border/40 whitespace-nowrap">
+              <div className="flex items-center gap-4 bg-muted/30 px-4 py-2 rounded-xl border border-border whitespace-nowrap">
                 <div className="flex flex-col items-center">
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Published</span>
                   <span className="text-base font-bold text-emerald-500">{published}</span>
@@ -559,6 +562,7 @@ export function ContentPage() {
           )}
         </DragOverlay>
       </DndContext>
+      </div>
     </div>
   )
 }

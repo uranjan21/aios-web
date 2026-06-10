@@ -52,9 +52,9 @@ export function TopBar() {
   const isAlert = state === 'conflict' || state === 'error'
 
   return (
-    <header className="h-12 flex items-center px-4 border-b border-border/40 bg-background/95 backdrop-blur-sm shrink-0 gap-3 z-30 relative">
+    <header className="h-12 flex items-center px-4 border-b border-border bg-background/95 backdrop-blur-sm shrink-0 gap-3 z-30 relative">
       {/* Breadcrumbs */}
-      <div className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground mr-auto">
+      <div className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground mr-auto" aria-label="Breadcrumb">
         {breadcrumbs.map((bc, i) => (
           <React.Fragment key={i}>
             {i > 0 && <span className="opacity-40">/</span>}
@@ -68,7 +68,7 @@ export function TopBar() {
         <button
           onClick={() => setCmdPaletteOpen(true)}
           aria-label="Open command palette (⌘K)"
-          className="hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground bg-muted hover:bg-accent px-2.5 py-1 rounded-md border border-border/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground bg-muted/60 hover:bg-muted px-2.5 py-1 rounded-lg border border-border/60 transition-colors focus-ring"
         >
           <Search className="w-3 h-3" aria-hidden="true" />
           <span>Search…</span>
@@ -85,7 +85,7 @@ export function TopBar() {
         <button
           onClick={toggleTheme}
           aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus-ring"
         >
           {theme === 'dark'
             ? <Sun className="w-3.5 h-3.5" aria-hidden="true" />
@@ -102,8 +102,8 @@ export function TopBar() {
         >
           <button
             className={cn(
-              'flex items-center gap-1.5 text-[10px] font-semibold tracking-wide uppercase px-2 py-1 rounded-md',
-              'bg-muted hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary border border-border/50 shadow-sm',
+              'flex items-center gap-1.5 text-[10px] font-medium tracking-wide px-2 py-1 rounded-lg',
+              'bg-muted/60 border border-border/60 transition-colors focus-ring',
               syncChip.color,
             )}
             title={`Vault sync: ${syncChip.label}`}

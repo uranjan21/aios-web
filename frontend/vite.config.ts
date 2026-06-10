@@ -9,6 +9,18 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    include: [
+      'highcharts',
+      'highcharts-react-official',
+      'dayjs',
+      'antd',
+      'styled-components',
+      'framer-motion',
+      '@dnd-kit/core',
+      '@dnd-kit/sortable',
+    ],
+  },
   server: {
     proxy: {
       '/api': {

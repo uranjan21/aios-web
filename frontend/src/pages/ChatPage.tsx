@@ -56,7 +56,7 @@ function ToolCallBlock({ tool, input, result, affected }: {
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
         aria-label={`${open ? 'Collapse' : 'Expand'} tool: ${tool}`}
-        className="flex items-center gap-2 w-full px-3 py-2 bg-muted/40 hover:bg-muted/70 text-muted-foreground text-left transition-colors"
+        className="flex items-center gap-2 w-full px-3 py-2 bg-muted/50 hover:bg-muted/70 text-muted-foreground text-left transition-colors"
       >
         <Icon className={cn('w-3 h-3 shrink-0', color)} aria-hidden="true" />
         <span className="flex-1 truncate font-mono">{summary(input)}</span>
@@ -153,9 +153,9 @@ function Message({ message }: { message: ReturnType<typeof useChat>['messages'][
         {(message.content || message.streaming) && (
           <div
             className={cn(
-              'rounded-xl px-3 py-2 text-[13px]',
+              'rounded-xl px-3 py-2 text-sm',
               isUser
-                ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                ? 'bg-primary/10 text-foreground rounded-tr-sm'
                 : 'bg-card border border-border text-foreground rounded-tl-sm'
             )}
           >
@@ -367,7 +367,7 @@ export function ChatPage() {
                     key={value}
                     onClick={() => handleQuickPrompt(value)}
                     className={cn(
-                      'px-3.5 py-2.5 text-[11px] rounded-xl border border-border/60 bg-card premium-shadow-sm',
+                      'px-3.5 py-2.5 text-[11px] rounded-xl border border-border bg-card premium-shadow-sm',
                       'hover:bg-muted/50 hover:border-border text-muted-foreground hover:text-foreground',
                       'transition-all text-left focus-ring font-medium tracking-wide'
                     )}
@@ -417,8 +417,8 @@ export function ChatPage() {
               aria-label="Chat message input"
               aria-multiline="true"
               className={cn(
-                'flex-1 resize-none px-3.5 py-2.5 rounded-xl text-[13px] min-h-[40px] max-h-32 overflow-y-auto',
-                'bg-background border border-border/80 text-foreground placeholder:text-muted-foreground premium-shadow-sm',
+                'flex-1 resize-none px-3.5 py-2.5 rounded-xl text-sm min-h-[40px] max-h-32 overflow-y-auto',
+                'bg-background border border-border text-foreground placeholder:text-muted-foreground premium-shadow-sm',
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                 'transition-shadow'
               )}

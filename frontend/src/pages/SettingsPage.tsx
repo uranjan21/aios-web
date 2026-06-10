@@ -14,7 +14,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <section className="bg-card border border-border rounded-xl divide-y divide-border">
       <div className="px-5 py-3.5">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h2>
+        <h2 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{title}</h2>
       </div>
       {children}
     </section>
@@ -24,7 +24,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 px-5 py-3.5">
-      <span className="text-sm text-foreground">{label}</span>
+      <span className="text-[13px] font-medium text-foreground">{label}</span>
       <div className="flex items-center gap-2">{children}</div>
     </div>
   )
@@ -108,7 +108,7 @@ function VaultSyncRow() {
 
   const stateColor = {
     synced: 'text-emerald-500',
-    syncing: 'text-blue-400',
+    syncing: 'text-primary',
     conflict: 'text-amber-500',
     error: 'text-destructive',
     disconnected: 'text-muted-foreground',
@@ -139,7 +139,8 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-2xl">
+    <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
+    <div className="mx-auto max-w-[680px] space-y-6">
       <div>
         <p className="text-muted-foreground text-[13px] mt-0.5">Configure your AIOS instance</p>
       </div>
@@ -188,7 +189,7 @@ export function SettingsPage() {
       {/* AI Budget */}
       <section className="bg-card border border-border rounded-xl divide-y divide-border">
         <div className="px-5 py-3.5">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">AI Usage</h2>
+          <h2 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">AI Usage</h2>
         </div>
         <TokenGauge />
         <Row label="Model">
@@ -203,6 +204,7 @@ export function SettingsPage() {
       <Section title="Keyboard Shortcuts">
         {[
           ['⌘K', 'Command palette'],
+          ['⌘L', 'Quick capture'],
           ['?', 'Command palette (alt)'],
           ['⌘⇧T', 'Toggle theme'],
           ['G then D', 'Go to Dashboard'],
@@ -221,14 +223,15 @@ export function SettingsPage() {
 
       {/* Danger zone */}
       <section className="bg-card border border-border rounded-xl p-5">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-4">Account</h2>
+        <h2 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground mb-4">Account</h2>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-destructive/50 text-destructive hover:bg-destructive/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+          className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
         >
           <LogOut className="w-4 h-4" aria-hidden="true" /> Sign out
         </button>
       </section>
+    </div>
     </div>
   )
 }
