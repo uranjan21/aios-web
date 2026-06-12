@@ -101,6 +101,11 @@ export function BillsTab() {
     queryFn: financeApi.bills,
   })
 
+  const { data: accounts } = useQuery({
+    queryKey: ['finance', 'accounts'],
+    queryFn: financeApi.accounts,
+  })
+
   const createMutation = useMutation({
     mutationFn: (values: Record<string, unknown>) =>
       financeApi.createBill({
@@ -110,6 +115,7 @@ export function BillsTab() {
         category: values.category ? String(values.category) : undefined,
         is_auto_debit: Boolean(values.is_auto_debit),
         notes: values.notes ? String(values.notes) : undefined,
+        account_id: values.account_id ? String(values.account_id) : undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'bills'] })
@@ -171,6 +177,13 @@ export function BillsTab() {
                 <Select placeholder="Select" defaultValue="other">
                   {BILL_CATEGORIES.map(c => (
                     <Select.Option key={c} value={c} className="capitalize">{c}</Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+              <Form.Item name="account_id" label={<span className="text-[11px] text-muted-foreground">Pay From Account</span>}>
+                <Select placeholder="Select account (optional)" allowClear>
+                  {(accounts ?? []).map((a: any) => (
+                    <Select.Option key={a.id} value={a.id}>{a.name}</Select.Option>
                   ))}
                 </Select>
               </Form.Item>

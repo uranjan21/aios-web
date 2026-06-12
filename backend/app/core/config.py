@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     github_client_id: str = ""
     github_client_secret: str = ""
 
+    # Web push (VAPID)
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_subject: str = "mailto:utsavranjan.sk@gmail.com"
+
     # Rate limiting
     rate_limit_chat_per_min: int = 20
     rate_limit_global_per_min: int = 120

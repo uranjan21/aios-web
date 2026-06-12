@@ -7,6 +7,7 @@ import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { FinanceLoan } from '@/types'
+import { PayoffPlanner } from './PayoffPlanner'
 
 const LOAN_TYPE_META: Record<string, { label: string; icon: string }> = {
   home: { label: 'Home Loan', icon: '🏠' },
@@ -143,6 +144,11 @@ export function LoansTab() {
     queryFn: financeApi.loansSummary,
   })
 
+  const { data: accounts } = useQuery({
+    queryKey: ['finance', 'accounts'],
+    queryFn: financeApi.accounts,
+  })
+
   const createMutation = useMutation({
     mutationFn: (values: Record<string, string>) =>
       financeApi.createLoan({
@@ -156,6 +162,7 @@ export function LoansTab() {
         emi_day: parseInt(values.emi_day, 10),
         tenure_months: values.tenure_months ? parseInt(values.tenure_months, 10) : undefined,
         notes: values.notes || undefined,
+        account_id: values.account_id || undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'loans'] })
@@ -266,6 +273,13 @@ export function LoansTab() {
               <Form.Item name="interest_rate" label={<span className="text-[11px] text-muted-foreground">Interest Rate (% p.a.)</span>}>
                 <Input type="number" placeholder="0" min="0" step="0.01" />
               </Form.Item>
+              <Form.Item name="account_id" label={<span className="text-[11px] text-muted-foreground">EMI From Account</span>}>
+                <Select placeholder="Select account (optional)" allowClear>
+                  {(accounts ?? []).map((a: any) => (
+                    <Select.Option key={a.id} value={a.id}>{a.name}</Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
               <Form.Item name="tenure_months" label={<span className="text-[11px] text-muted-foreground">Tenure (months, optional)</span>}>
                 <Input type="number" placeholder="0" min="0" />
               </Form.Item>
@@ -300,6 +314,8 @@ export function LoansTab() {
           {loans.map(l => <LoanCard key={l.id} loan={l} onUpdate={openUpdate} />)}
         </div>
       )}
+
+      {loans && loans.some(l => l.is_active) && <PayoffPlanner loans={loans} />}
 
       {/* Update outstanding modal */}
       <Modal

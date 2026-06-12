@@ -63,7 +63,7 @@ function ToolCallBlock({ tool, input, result, affected }: {
         {result === undefined
           ? <Loader2 className="w-3 h-3 ml-auto animate-spin shrink-0" />
           : affected && affected.length > 0
-          ? <span className="ml-auto text-emerald-500 text-[10px] font-semibold shrink-0">✓ saved</span>
+          ? <span className="ml-auto text-kpi-emerald text-[10px] font-semibold shrink-0">✓ saved</span>
           : <span className="ml-auto text-muted-foreground text-[10px] shrink-0">done</span>
         }
         {open ? <ChevronDown className="w-3 h-3 shrink-0" /> : <ChevronRight className="w-3 h-3 shrink-0" />}
@@ -84,7 +84,7 @@ function ToolCallBlock({ tool, input, result, affected }: {
               {affected && affected.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1">
                   {affected.map(path => (
-                    <span key={path} className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">
+                    <span key={path} className="px-1.5 py-0.5 rounded bg-kpi-emerald/10 text-kpi-emerald text-[10px]">
                       {path.split('/').pop() ?? path}
                     </span>
                   ))}
@@ -298,7 +298,7 @@ export function ChatPage() {
                 <button onClick={() => handleRename(s.id, s.title)} className="p-1 hover:bg-background rounded text-muted-foreground hover:text-foreground transition" title="Rename">
                   <Edit2 className="w-3 h-3" />
                 </button>
-                <button onClick={() => handleArchive(s.id)} className="p-1 hover:bg-background rounded text-muted-foreground hover:text-amber-500 transition" title="Archive">
+                <button onClick={() => handleArchive(s.id)} className="p-1 hover:bg-background rounded text-muted-foreground hover:text-kpi-amber transition" title="Archive">
                   <Archive className="w-3 h-3" />
                 </button>
                 <button onClick={() => handleDelete(s.id)} className="p-1 hover:bg-background rounded text-muted-foreground hover:text-destructive transition" title="Delete">
@@ -327,7 +327,7 @@ export function ChatPage() {
                   <div
                     className={cn(
                       'h-full rounded-full transition-all',
-                      (budgetPct ?? 0) > 80 ? 'bg-amber-500' : 'bg-primary'
+                      (budgetPct ?? 0) > 80 ? 'bg-kpi-amber' : 'bg-primary'
                     )}
                     style={{ width: `${budgetPct ?? 0}%` }}
                   />
@@ -338,7 +338,7 @@ export function ChatPage() {
               </div>
             )}
             {connected
-              ? <Wifi className="w-4 h-4 text-emerald-500" aria-label="Connected" />
+              ? <Wifi className="w-4 h-4 text-kpi-emerald" aria-label="Connected" />
               : <WifiOff className="w-4 h-4 text-muted-foreground" aria-label="Disconnected" />
             }
           </div>
@@ -354,7 +354,7 @@ export function ChatPage() {
         >
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 border border-primary/20 premium-shadow">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 border border-primary/20 shadow-premium-sm">
                 <Bot className="w-6 h-6 text-primary" />
               </div>
               <p className="font-semibold text-foreground text-base tracking-tight">AIOS Agent</p>
@@ -367,7 +367,7 @@ export function ChatPage() {
                     key={value}
                     onClick={() => handleQuickPrompt(value)}
                     className={cn(
-                      'px-3.5 py-2.5 text-[11px] rounded-xl border border-border bg-card premium-shadow-sm',
+                      'px-3.5 py-2.5 text-[11px] rounded-xl border border-border bg-card shadow-premium-sm',
                       'hover:bg-muted/50 hover:border-border text-muted-foreground hover:text-foreground',
                       'transition-all text-left focus-ring font-medium tracking-wide'
                     )}
@@ -418,7 +418,7 @@ export function ChatPage() {
               aria-multiline="true"
               className={cn(
                 'flex-1 resize-none px-3.5 py-2.5 rounded-xl text-sm min-h-[40px] max-h-32 overflow-y-auto',
-                'bg-background border border-border text-foreground placeholder:text-muted-foreground premium-shadow-sm',
+                'bg-background border border-border text-foreground placeholder:text-muted-foreground shadow-premium-sm',
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                 'transition-shadow'
               )}
@@ -430,7 +430,7 @@ export function ChatPage() {
               className={cn(
                 'w-[40px] h-[40px] rounded-xl bg-primary text-primary-foreground',
                 'hover:bg-primary/90 disabled:opacity-40 transition flex items-center justify-center shrink-0',
-                'focus-ring premium-shadow-sm'
+                'focus-ring shadow-premium-sm'
               )}
             >
               {isStreaming

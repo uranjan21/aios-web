@@ -67,3 +67,18 @@ async def get_summary(current_user=Depends(get_current_user), db=Depends(get_db)
         "last_feature_at": last_feature.occurred_at.isoformat() if last_feature else None,
         "mrr": float(mrr_event.mrr) if mrr_event and mrr_event.mrr else 0,
     }
+
+
+@router.get("/mrr-history")
+async def mrr_history(current_user=Depends(get_current_user), db=Depends(get_db)):
+    """MRR time series from events that recorded an MRR value."""
+    result = await db.execute(
+        select(BusinessEvent)
+        .where(BusinessEvent.mrr.is_not(None))
+        .order_by(BusinessEvent.occurred_at)
+    )
+    events = result.scalars().all()
+    return [
+        {"date": e.occurred_at.date().isoformat(), "mrr": float(e.mrr), "title": e.title}
+        for e in events
+    ]

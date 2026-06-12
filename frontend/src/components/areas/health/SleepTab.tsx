@@ -52,7 +52,7 @@ export function SleepTab() {
     <div className="space-y-4">
       {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="bg-card border border-border rounded-xl p-4">
+        <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
           <div className="flex items-center gap-2 mb-2">
             <Moon className="w-4 h-4 text-indigo-400" />
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Last Night</p>
@@ -61,7 +61,7 @@ export function SleepTab() {
             <p className="text-2xl font-bold text-foreground">{lastNight != null ? `${lastNight}h` : '—'}</p>
           )}
         </div>
-        <div className="bg-card border border-border rounded-xl p-4">
+        <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
           <div className="flex items-center gap-2 mb-2">
             <Clock className="w-4 h-4 text-primary" />
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">7-Day Average</p>
@@ -70,13 +70,13 @@ export function SleepTab() {
             <p className="text-2xl font-bold text-foreground">{weeklyAvg}h</p>
           )}
         </div>
-        <div className="bg-card border border-border rounded-xl p-4">
+        <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp className="w-4 h-4 text-muted-foreground" />
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">vs Target ({target}h)</p>
           </div>
           {isLoading ? <Skeleton className="h-7 w-24" /> : (
-            <p className={cn('text-2xl font-bold', avgVsTarget >= 0 ? 'text-emerald-500' : 'text-rose-500')}>
+            <p className={cn('text-2xl font-bold', avgVsTarget >= 0 ? 'text-kpi-emerald' : 'text-kpi-red')}>
               {avgVsTarget >= 0 ? '+' : ''}{avgVsTarget.toFixed(1)}h
             </p>
           )}
@@ -84,7 +84,7 @@ export function SleepTab() {
       </div>
 
       {/* Chart */}
-      <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+      <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Sleep — Last 7 Days</p>
         {isLoading ? <Skeleton className="h-[220px]" /> : !chartData.length ? (
           <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground">No sleep logs yet</div>
@@ -107,10 +107,10 @@ export function SleepTab() {
                 formatter={(val: number, _name: string, entry: any) => [`${val}h${entry?.payload?.quality ? ` · ${entry.payload.quality}` : ''}`, 'Sleep']}
                 labelFormatter={d => { try { return format(new Date(d as string), 'EEE, MMM d') } catch { return d as string } }}
               />
-              <ReferenceLine y={target} stroke="#0D9488" strokeDasharray="4 4" label={{ value: `Target ${target}h`, position: 'insideTopRight', fontSize: 10, fill: '#0D9488' }} />
+              <ReferenceLine y={target} stroke="#f97316" strokeDasharray="4 4" label={{ value: `Target ${target}h`, position: 'insideTopRight', fontSize: 10, fill: '#f97316' }} />
               <Bar dataKey="hours" name="Hours" radius={[3, 3, 0, 0]} maxBarSize={32} isAnimationActive={false}>
                 {chartData.map((d, i) => (
-                  <Cell key={i} fill={d.hours >= target ? '#0D9488' : '#f59e0b'} />
+                  <Cell key={i} fill={d.hours >= target ? '#f97316' : '#f59e0b'} />
                 ))}
               </Bar>
             </ComposedChart>
@@ -153,7 +153,7 @@ export function SleepTab() {
       )}
 
       {/* Recent list */}
-      <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-card border border-subtle rounded-xl overflow-hidden shadow-premium-sm">
         {isLoading ? (
           <div className="p-3 space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
         ) : !chartData.length ? (
@@ -166,7 +166,7 @@ export function SleepTab() {
                   <p className="text-sm font-medium text-foreground">{format(new Date(d.date), 'EEE, MMM d')}</p>
                   {d.quality && <p className="text-[11px] text-muted-foreground capitalize">{d.quality} quality</p>}
                 </div>
-                <span className={cn('text-sm font-bold', d.hours >= target ? 'text-emerald-500' : 'text-amber-500')}>{d.hours}h</span>
+                <span className={cn('text-sm font-bold', d.hours >= target ? 'text-kpi-emerald' : 'text-kpi-amber')}>{d.hours}h</span>
               </div>
             ))}
           </div>

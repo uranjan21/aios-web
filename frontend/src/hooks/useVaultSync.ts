@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { api } from '@/api/client'
 import type { VaultSyncStatus } from '@/types'
 
 type SyncState = 'synced' | 'syncing' | 'conflict' | 'error' | 'disconnected'
@@ -60,6 +61,19 @@ export function useVaultSync(): UseSyncResult {
   useEffect(() => {
     isMounted.current = true
     connect()
+    // Seed lastSynced/conflicts from the REST status so the chip doesn't show
+    // "Synced Never" until the first live WS event arrives
+    api.get<VaultSyncStatus>('/sync/status')
+      .then(r => {
+        if (!isMounted.current) return
+        if (r.data.last_synced) {
+          // Backend emits naive UTC timestamps — mark as UTC so JS doesn't parse as local
+          const ts = r.data.last_synced
+          setLastSynced(/Z$|[+-]\d{2}:\d{2}$/.test(ts) ? ts : ts + 'Z')
+        }
+        if (r.data.conflicts?.length) setConflicts(r.data.conflicts)
+      })
+      .catch(() => {})
     return () => {
       isMounted.current = false
       wsRef.current?.close()

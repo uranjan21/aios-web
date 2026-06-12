@@ -52,7 +52,7 @@ export function TopBar() {
   const isAlert = state === 'conflict' || state === 'error'
 
   return (
-    <header className="h-12 flex items-center px-4 border-b border-border bg-background/95 backdrop-blur-sm shrink-0 gap-3 z-30 relative">
+    <header className="h-16 flex items-center px-5 shrink-0 gap-3 z-30 relative bg-transparent">
       {/* Breadcrumbs */}
       <div className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground mr-auto" aria-label="Breadcrumb">
         {breadcrumbs.map((bc, i) => (
@@ -68,7 +68,7 @@ export function TopBar() {
         <button
           onClick={() => setCmdPaletteOpen(true)}
           aria-label="Open command palette (⌘K)"
-          className="hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground bg-muted/60 hover:bg-muted px-2.5 py-1 rounded-lg border border-border/60 transition-colors focus-ring"
+          className="hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground bg-muted/60 hover:bg-muted px-2.5 py-1 rounded-full border border-border/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
         >
           <Search className="w-3 h-3" aria-hidden="true" />
           <span>Search…</span>
@@ -102,8 +102,8 @@ export function TopBar() {
         >
           <button
             className={cn(
-              'flex items-center gap-1.5 text-[10px] font-medium tracking-wide px-2 py-1 rounded-lg',
-              'bg-muted/60 border border-border/60 transition-colors focus-ring',
+              'flex items-center gap-1.5 text-[10px] font-medium tracking-wide px-2 py-1 rounded-full',
+              'bg-muted/60 border border-subtle transition-colors focus-ring',
               syncChip.color,
             )}
             title={`Vault sync: ${syncChip.label}`}

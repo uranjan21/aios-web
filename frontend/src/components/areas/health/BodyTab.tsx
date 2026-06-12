@@ -13,9 +13,9 @@ import {
 } from 'recharts'
 
 function bmiCategory(bmi: number) {
-  if (bmi < 18.5) return { label: 'Underweight', color: 'text-amber-500' }
-  if (bmi < 25) return { label: 'Normal', color: 'text-emerald-500' }
-  if (bmi < 30) return { label: 'Overweight', color: 'text-amber-500' }
+  if (bmi < 18.5) return { label: 'Underweight', color: 'text-kpi-amber' }
+  if (bmi < 25) return { label: 'Normal', color: 'text-kpi-emerald' }
+  if (bmi < 30) return { label: 'Overweight', color: 'text-kpi-amber' }
   return { label: 'Obese', color: 'text-rose-500' }
 }
 
@@ -96,7 +96,7 @@ export function BodyTab() {
     <div className="space-y-4">
       {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="bg-card border border-border rounded-xl p-4">
+        <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
           <div className="flex items-center gap-2 mb-2">
             <Scale className="w-4 h-4 text-primary" />
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Current Weight</p>
@@ -105,16 +105,16 @@ export function BodyTab() {
             <p className="text-2xl font-bold text-foreground">{latestWeight != null ? `${latestWeight} kg` : '—'}</p>
           )}
         </div>
-        <div className="bg-card border border-border rounded-xl p-4">
+        <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
           <div className="flex items-center gap-2 mb-2">
-            <Percent className="w-4 h-4 text-purple-500" />
+            <Percent className="w-4 h-4 text-kpi-purple" />
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Body Fat</p>
           </div>
           {loadingBodyFat ? <Skeleton className="h-7 w-24" /> : (
             <p className="text-2xl font-bold text-foreground">{latestBodyFat != null ? `${latestBodyFat}%` : '—'}</p>
           )}
         </div>
-        <div className="bg-card border border-border rounded-xl p-4">
+        <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
           <div className="flex items-center gap-2 mb-2">
             <Ruler className="w-4 h-4 text-muted-foreground" />
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">BMI</p>
@@ -143,7 +143,7 @@ export function BodyTab() {
       </div>
 
       {/* Chart */}
-      <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+      <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Weight &amp; Body Fat Trend</p>
         {isLoading ? <Skeleton className="h-[220px]" /> : !chartData.length ? (
           <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground">No body composition logs yet</div>
@@ -163,7 +163,7 @@ export function BodyTab() {
                 labelFormatter={d => { try { return format(new Date(d as string), 'MMM d, yyyy') } catch { return d as string } }}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Area yAxisId="weight" type="monotone" dataKey="weight" name="Weight (kg)" stroke="#0D9488" fill="rgba(13,148,136,0.15)" connectNulls strokeWidth={2} isAnimationActive={false} />
+              <Area yAxisId="weight" type="monotone" dataKey="weight" name="Weight (kg)" stroke="#f97316" fill="rgba(249,115,22,0.15)" connectNulls strokeWidth={2} isAnimationActive={false} />
               <Area yAxisId="fat" type="monotone" dataKey="body_fat" name="Body Fat (%)" stroke="#8b5cf6" fill="rgba(139,92,246,0.12)" connectNulls strokeWidth={2} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>

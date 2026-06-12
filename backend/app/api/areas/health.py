@@ -258,3 +258,232 @@ async def sleep_recent(current_user=Depends(get_current_user), db=Depends(get_db
         "target": target,
         "last_night": daily[-1]["hours"] if daily else None,
     }
+
+
+# ── Habits ────────────────────────────────────────────────────────────────────
+import uuid as _uuid
+from datetime import date as _date, timedelta as _timedelta
+
+from fastapi import HTTPException
+from app.models.health import Habit, HabitCheck
+
+
+def _habit_streak(check_dates: set, today: _date) -> int:
+    """Consecutive days ending today (or yesterday if today unchecked yet)."""
+    streak = 0
+    day = today
+    if day.isoformat() not in check_dates:
+        day = day - _timedelta(days=1)
+    while day.isoformat() in check_dates:
+        streak += 1
+        day = day - _timedelta(days=1)
+    return streak
+
+
+@router.get("/habits")
+async def list_habits(current_user=Depends(get_current_user), db=Depends(get_db)):
+    habits = (await db.execute(
+        select(Habit).where(Habit.is_active == True).order_by(Habit.created_at)
+    )).scalars().all()
+    today = datetime.utcnow().date()
+    window_start = (today - _timedelta(days=29)).isoformat()
+
+    out = []
+    for h in habits:
+        checks = (await db.execute(
+            select(HabitCheck).where(HabitCheck.habit_id == h.id, HabitCheck.check_date >= window_start)
+        )).scalars().all()
+        all_checks = (await db.execute(
+            select(HabitCheck.check_date).where(HabitCheck.habit_id == h.id)
+        )).scalars().all()
+        out.append({
+            "id": str(h.id), "name": h.name, "icon": h.icon,
+            "streak": _habit_streak(set(all_checks), today),
+            "checks": sorted(c.check_date for c in checks),
+        })
+    return out
+
+
+class HabitCreate(BaseModel):
+    name: str
+    icon: Optional[str] = None
+
+
+@router.post("/habits")
+async def create_habit(body: HabitCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    habit = Habit(name=body.name.strip(), icon=body.icon)
+    db.add(habit)
+    await db.commit()
+    await db.refresh(habit)
+    return habit
+
+
+@router.delete("/habits/{habit_id}")
+async def delete_habit(habit_id: _uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    habit = (await db.execute(select(Habit).where(Habit.id == habit_id))).scalar_one_or_none()
+    if not habit:
+        raise HTTPException(status_code=404, detail="Habit not found")
+    habit.is_active = False  # soft delete — keeps check history
+    db.add(habit)
+    await db.commit()
+    return {"status": "archived"}
+
+
+class HabitToggle(BaseModel):
+    date: Optional[str] = None  # "YYYY-MM-DD", default today
+
+
+@router.post("/habits/{habit_id}/toggle")
+async def toggle_habit_check(habit_id: _uuid.UUID, body: HabitToggle, current_user=Depends(get_current_user), db=Depends(get_db)):
+    day = body.date or datetime.utcnow().date().isoformat()
+    existing = (await db.execute(
+        select(HabitCheck).where(HabitCheck.habit_id == habit_id, HabitCheck.check_date == day)
+    )).scalar_one_or_none()
+    if existing:
+        await db.delete(existing)
+        await db.commit()
+        return {"checked": False, "date": day}
+    db.add(HabitCheck(habit_id=habit_id, check_date=day))
+    await db.commit()
+    return {"checked": True, "date": day}
+
+
+# ── Workouts (exercise-level) ─────────────────────────────────────────────────
+from app.models.health import WorkoutSession, WorkoutSet
+
+
+@router.get("/workouts")
+async def list_workouts(limit: int = 10, current_user=Depends(get_current_user), db=Depends(get_db)):
+    sessions = (await db.execute(
+        select(WorkoutSession).order_by(desc(WorkoutSession.logged_at)).limit(min(limit, 50))
+    )).scalars().all()
+    out = []
+    for s in sessions:
+        sets = (await db.execute(
+            select(WorkoutSet).where(WorkoutSet.session_id == s.id).order_by(WorkoutSet.created_at)
+        )).scalars().all()
+        out.append({
+            "id": str(s.id), "name": s.name, "logged_at": s.logged_at.isoformat(), "notes": s.notes,
+            "sets": [
+                {"id": str(x.id), "exercise": x.exercise, "set_number": x.set_number,
+                 "reps": x.reps, "weight_kg": float(x.weight_kg) if x.weight_kg is not None else None}
+                for x in sets
+            ],
+        })
+    return out
+
+
+@router.get("/workouts/prs")
+async def workout_prs(current_user=Depends(get_current_user), db=Depends(get_db)):
+    """Personal records — heaviest set per exercise."""
+    sets = (await db.execute(
+        select(WorkoutSet).where(WorkoutSet.weight_kg != None)
+    )).scalars().all()
+    best: dict = {}
+    for s in sets:
+        w = float(s.weight_kg)
+        if s.exercise not in best or w > best[s.exercise]["weight_kg"]:
+            best[s.exercise] = {"exercise": s.exercise, "weight_kg": w, "reps": s.reps}
+    return sorted(best.values(), key=lambda x: -x["weight_kg"])
+
+
+class WorkoutSetIn(BaseModel):
+    exercise: str
+    reps: int
+    weight_kg: Optional[float] = None
+
+
+class WorkoutCreate(BaseModel):
+    name: str = "Workout"
+    logged_at: Optional[datetime] = None
+    notes: Optional[str] = None
+    sets: list[WorkoutSetIn]
+
+
+@router.post("/workouts")
+async def create_workout(body: WorkoutCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    if not body.sets:
+        raise HTTPException(status_code=422, detail="At least one set required")
+    session_row = WorkoutSession(name=body.name.strip() or "Workout", logged_at=body.logged_at or datetime.utcnow(), notes=body.notes)
+    db.add(session_row)
+    await db.flush()
+
+    new_prs = []
+    counters: dict = {}
+    for s in body.sets:
+        ex = s.exercise.strip()
+        if not ex or s.reps <= 0:
+            continue
+        counters[ex] = counters.get(ex, 0) + 1
+        db.add(WorkoutSet(session_id=session_row.id, exercise=ex, set_number=counters[ex], reps=s.reps, weight_kg=s.weight_kg))
+
+    # PR detection vs history (before this session)
+    for ex in counters:
+        max_new = max((s.weight_kg or 0) for s in body.sets if s.exercise.strip() == ex)
+        if max_new <= 0:
+            continue
+        prev = (await db.execute(
+            select(WorkoutSet).where(WorkoutSet.exercise == ex, WorkoutSet.weight_kg != None, WorkoutSet.session_id != session_row.id)
+        )).scalars().all()
+        prev_best = max((float(p.weight_kg) for p in prev), default=0)
+        if max_new > prev_best:
+            new_prs.append({"exercise": ex, "weight_kg": max_new, "previous": prev_best or None})
+
+    # Keep the existing gym-streak logic fed (health_logs entry_type='gym')
+    db.add(HealthLog(entry_type="gym", notes=f"{session_row.name} — {len(body.sets)} sets", source="manual",
+                     logged_at=session_row.logged_at))
+
+    await db.commit()
+    await db.refresh(session_row)
+    return {"id": str(session_row.id), "new_prs": new_prs}
+
+
+@router.delete("/workouts/{workout_id}")
+async def delete_workout(workout_id: _uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    session_row = (await db.execute(select(WorkoutSession).where(WorkoutSession.id == workout_id))).scalar_one_or_none()
+    if not session_row:
+        raise HTTPException(status_code=404, detail="Workout not found")
+    for s in (await db.execute(select(WorkoutSet).where(WorkoutSet.session_id == workout_id))).scalars().all():
+        await db.delete(s)
+    await db.delete(session_row)
+    await db.commit()
+    return {"status": "deleted"}
+
+
+# ── Food database ─────────────────────────────────────────────────────────────
+from app.models.health import FoodItem
+
+
+@router.get("/foods")
+async def search_foods(q: Optional[str] = None, current_user=Depends(get_current_user), db=Depends(get_db)):
+    query = select(FoodItem).order_by(FoodItem.name).limit(20)
+    if q:
+        query = select(FoodItem).where(FoodItem.name.ilike(f"%{q}%")).order_by(FoodItem.name).limit(20)
+    foods = (await db.execute(query)).scalars().all()
+    return foods
+
+
+class FoodCreate(BaseModel):
+    name: str
+    calories: float
+    protein: float = 0
+    carbs: float = 0
+    fat: float = 0
+    serving_desc: Optional[str] = None
+    serving_grams: Optional[float] = None
+
+
+@router.post("/foods")
+async def create_food(body: FoodCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    existing = (await db.execute(select(FoodItem).where(FoodItem.name.ilike(body.name.strip())))).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=409, detail="Food already exists")
+    food = FoodItem(
+        name=body.name.strip(), calories=body.calories, protein=body.protein,
+        carbs=body.carbs, fat=body.fat, serving_desc=body.serving_desc,
+        serving_grams=body.serving_grams, is_custom=True,
+    )
+    db.add(food)
+    await db.commit()
+    await db.refresh(food)
+    return food

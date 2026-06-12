@@ -49,7 +49,30 @@ export function useNotifications() {
     ws.onmessage = (evt) => {
       try {
         const event = JSON.parse(evt.data)
-        if (event.type === 'agent_complete') {
+        if (event.type === 'anomaly' || event.type === 'digest_ready') {
+          add({
+            type: 'info',
+            title: event.title,
+            body: event.body,
+            href: '/',
+          })
+        } else if (event.type === 'budget_alert') {
+          add({
+            type: event.level >= 100 ? 'agent_error' : 'info',
+            title: event.level >= 100 ? `Budget exceeded: ${event.category}` : `Budget warning: ${event.category}`,
+            body: `₹${Number(event.spent).toLocaleString('en-IN')} of ₹${Number(event.limit).toLocaleString('en-IN')} (${event.pct}%)`,
+            href: '/areas/finance',
+          })
+          queryClient.invalidateQueries({ queryKey: ['finance'] })
+        } else if (event.type === 'recurring_posted') {
+          add({
+            type: 'info',
+            title: `${event.kind} auto-posted`,
+            body: `${event.name} — ₹${Number(event.amount).toLocaleString('en-IN')}`,
+            href: '/areas/finance',
+          })
+          queryClient.invalidateQueries({ queryKey: ['finance'] })
+        } else if (event.type === 'agent_complete') {
           if (event.status === 'error') {
             add({
               type: 'agent_error',

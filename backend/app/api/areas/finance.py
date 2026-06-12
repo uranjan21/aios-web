@@ -5,10 +5,266 @@ from pydantic import BaseModel
 from sqlmodel import select, desc
 
 from app.core.deps import get_current_user, get_db
-from app.models.finance import FinanceSnapshot, FinanceExpense, BudgetLimit, Account, Category, AccountType, FinancialGoal, FinanceBill, FinanceIncome, FinanceInvestment, FinanceLoan
+from app.models.finance import FinanceSnapshot, FinanceExpense, BudgetLimit, Account, Category, AccountType, FinancialGoal, FinanceBill, FinanceIncome, FinanceInvestment, FinanceLoan, FinanceTransfer
 import uuid
 
 router = APIRouter(prefix="/api/areas/finance", tags=["finance"])
+
+
+async def _adjust_balance(db, account_id: Optional[uuid.UUID], delta: float) -> None:
+    """Apply a signed delta to an account balance. No-op if account_id is None."""
+    if account_id is None:
+        return
+    result = await db.execute(select(Account).where(Account.id == account_id))
+    account = result.scalar_one_or_none()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    account.balance = float(account.balance) + delta
+    db.add(account)
+
+
+def _month_range(month: Optional[str]) -> tuple[datetime, datetime]:
+    """Parse YYYY-MM into [start, end) datetimes; defaults to current month."""
+    if month:
+        try:
+            start = datetime.strptime(month, "%Y-%m")
+        except ValueError:
+            start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if start.month == 12:
+        end = start.replace(year=start.year + 1, month=1, day=1)
+    else:
+        end = start.replace(month=start.month + 1, day=1)
+    return start, end
+
+
+@router.get("/net-worth")
+async def net_worth(current_user=Depends(get_current_user), db=Depends(get_db)):
+    """Live net worth computed from accounts + investments − active loans.
+
+    Account balances are signed by the double-entry layer (credit card debt is
+    negative), so a plain sum is correct for the accounts component.
+    """
+    accounts = (await db.execute(select(Account))).scalars().all()
+    investments = (await db.execute(select(FinanceInvestment))).scalars().all()
+    loans = (await db.execute(select(FinanceLoan).where(FinanceLoan.is_active == True))).scalars().all()
+
+    accounts_total = sum(float(a.balance) for a in accounts)
+    investments_total = sum(float(i.current_value) for i in investments)
+    loans_outstanding = sum(float(l.outstanding_amount) for l in loans)
+
+    return {
+        "net_worth": accounts_total + investments_total - loans_outstanding,
+        "accounts_total": accounts_total,
+        "investments_total": investments_total,
+        "loans_outstanding": loans_outstanding,
+    }
+
+
+class ImportItem(BaseModel):
+    logged_at: datetime
+    amount: float
+    kind: str  # "expense" | "income"
+    category: Optional[str] = None
+    description: Optional[str] = None
+
+
+class ImportCheckBody(BaseModel):
+    items: list[ImportItem]
+
+
+def _import_key(logged_at: datetime, amount: float, description: Optional[str]) -> tuple:
+    return (logged_at.date(), round(float(amount), 2), (description or "").strip().lower())
+
+
+async def _existing_import_keys(db, items: list[ImportItem]) -> set:
+    """Keys of existing expenses/income within the items' date range."""
+    if not items:
+        return set()
+    lo = min(i.logged_at for i in items).replace(hour=0, minute=0, second=0, microsecond=0)
+    hi = max(i.logged_at for i in items) + timedelta(days=1)
+
+    keys = set()
+    expenses = (await db.execute(
+        select(FinanceExpense).where(FinanceExpense.logged_at >= lo, FinanceExpense.logged_at < hi)
+    )).scalars().all()
+    for e in expenses:
+        keys.add(("expense",) + _import_key(e.logged_at, float(e.amount), e.description))
+    income = (await db.execute(
+        select(FinanceIncome).where(FinanceIncome.logged_at >= lo, FinanceIncome.logged_at < hi)
+    )).scalars().all()
+    for i in income:
+        keys.add(("income",) + _import_key(i.logged_at, float(i.amount), i.description))
+    return keys
+
+
+@router.post("/import/check")
+async def import_check(body: ImportCheckBody, current_user=Depends(get_current_user), db=Depends(get_db)):
+    """Flag which rows already exist (same kind + date + amount + description)."""
+    existing = await _existing_import_keys(db, body.items)
+    return {
+        "duplicates": [
+            idx for idx, item in enumerate(body.items)
+            if (item.kind,) + _import_key(item.logged_at, item.amount, item.description) in existing
+        ]
+    }
+
+
+class ImportCommitBody(BaseModel):
+    account_id: Optional[uuid.UUID] = None
+    items: list[ImportItem]
+
+
+@router.post("/import/commit")
+async def import_commit(body: ImportCommitBody, current_user=Depends(get_current_user), db=Depends(get_db)):
+    """Bulk-insert statement rows. Historical backfill — account balances are NOT adjusted.
+
+    Duplicates (vs existing rows) are skipped server-side as a final guard.
+    """
+    existing = await _existing_import_keys(db, body.items)
+    imported_expenses = 0
+    imported_income = 0
+    skipped = 0
+
+    for item in body.items:
+        if item.amount <= 0 or item.kind not in ("expense", "income"):
+            skipped += 1
+            continue
+        if (item.kind,) + _import_key(item.logged_at, item.amount, item.description) in existing:
+            skipped += 1
+            continue
+        if item.kind == "expense":
+            db.add(FinanceExpense(
+                logged_at=item.logged_at, amount=item.amount,
+                category=item.category or "Uncategorized",
+                description=item.description, account_id=body.account_id,
+                source="import",
+            ))
+            imported_expenses += 1
+        else:
+            db.add(FinanceIncome(
+                logged_at=item.logged_at, amount=item.amount,
+                source=item.category or "other",
+                description=item.description, account_id=body.account_id,
+            ))
+            imported_income += 1
+
+    await db.commit()
+    return {"imported_expenses": imported_expenses, "imported_income": imported_income, "skipped": skipped}
+
+
+@router.get("/health-score")
+async def health_score(current_user=Depends(get_current_user), db=Depends(get_db)):
+    """Composite financial health score (0-100) from four components.
+
+    Components with missing prerequisites (e.g. no income logged this month)
+    are marked unavailable and excluded from the composite.
+    """
+    from sqlalchemy import func
+
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    def clamp(v: float, lo: float = 0.0, hi: float = 100.0) -> float:
+        return max(lo, min(hi, v))
+
+    income_total = float((await db.execute(
+        select(func.coalesce(func.sum(FinanceIncome.amount), 0))
+        .where(FinanceIncome.logged_at >= month_start)
+    )).scalar_one())
+    expense_total = float((await db.execute(
+        select(func.coalesce(func.sum(FinanceExpense.amount), 0))
+        .where(FinanceExpense.logged_at >= month_start)
+    )).scalar_one())
+
+    components = []
+
+    # 1. Savings rate — full marks at >=20% of income saved
+    if income_total > 0:
+        rate = (income_total - expense_total) / income_total * 100
+        components.append({
+            "key": "savings_rate", "label": "Savings Rate", "available": True,
+            "score": round(clamp(rate / 20 * 100)),
+            "display": f"{rate:.0f}% of income saved this month",
+        })
+    else:
+        components.append({
+            "key": "savings_rate", "label": "Savings Rate", "available": False,
+            "score": None, "display": "No income logged this month",
+        })
+
+    # 2. Debt-to-income — full marks at <=30% of income going to EMIs, zero at >=60%
+    loans = (await db.execute(select(FinanceLoan).where(FinanceLoan.is_active == True))).scalars().all()
+    total_emi = sum(float(l.emi_amount) for l in loans)
+    if not loans:
+        components.append({
+            "key": "dti", "label": "Debt-to-Income", "available": True,
+            "score": 100, "display": "No active loans",
+        })
+    elif income_total > 0:
+        dti = total_emi / income_total * 100
+        components.append({
+            "key": "dti", "label": "Debt-to-Income", "available": True,
+            "score": round(clamp((60 - dti) / 30 * 100)),
+            "display": f"{dti:.0f}% of income goes to EMIs",
+        })
+    else:
+        components.append({
+            "key": "dti", "label": "Debt-to-Income", "available": False,
+            "score": None, "display": "No income logged this month",
+        })
+
+    # 3. Emergency fund — liquid balances vs avg monthly spend (last 90 days), full at >=6 months
+    accounts = (await db.execute(select(Account))).scalars().all()
+    liquid = sum(max(float(a.balance), 0) for a in accounts if a.type in (AccountType.CHECKING, AccountType.SAVINGS))
+    spend_90d = float((await db.execute(
+        select(func.coalesce(func.sum(FinanceExpense.amount), 0))
+        .where(FinanceExpense.logged_at >= now - timedelta(days=90))
+    )).scalar_one())
+    avg_monthly = spend_90d / 3
+    if avg_monthly > 0:
+        months = liquid / avg_monthly
+        components.append({
+            "key": "emergency_fund", "label": "Emergency Fund", "available": True,
+            "score": round(clamp(months / 6 * 100)),
+            "display": f"{months:.1f} months of expenses covered",
+        })
+    else:
+        components.append({
+            "key": "emergency_fund", "label": "Emergency Fund", "available": False,
+            "score": None, "display": "No expense history yet",
+        })
+
+    # 4. Budget adherence — share of budgeted categories still within their limit
+    limits = (await db.execute(select(BudgetLimit))).scalars().all()
+    limits = [l for l in limits if float(l.monthly_limit) > 0]
+    if limits:
+        within = 0
+        for limit in limits:
+            spent = float((await db.execute(
+                select(func.coalesce(func.sum(FinanceExpense.amount), 0))
+                .where(FinanceExpense.category == limit.category)
+                .where(FinanceExpense.logged_at >= month_start)
+            )).scalar_one())
+            if spent <= float(limit.monthly_limit):
+                within += 1
+        components.append({
+            "key": "budget_adherence", "label": "Budget Adherence", "available": True,
+            "score": round(within / len(limits) * 100),
+            "display": f"{within} of {len(limits)} budgets on track",
+        })
+    else:
+        components.append({
+            "key": "budget_adherence", "label": "Budget Adherence", "available": False,
+            "score": None, "display": "No budgets set",
+        })
+
+    available = [c["score"] for c in components if c["available"]]
+    score = round(sum(available) / len(available)) if available else 0
+    band = "excellent" if score >= 80 else "good" if score >= 60 else "fair" if score >= 40 else "attention"
+
+    return {"score": score, "band": band, "components": components}
 
 
 @router.get("/snapshots")
@@ -25,11 +281,122 @@ async def latest_snapshot(current_user=Depends(get_current_user), db=Depends(get
     return result.scalar_one_or_none()
 
 
+@router.get("/transactions/search")
+async def search_transactions(
+    q: Optional[str] = None,
+    kind: Optional[str] = None,  # expense | income | transfer | None=all
+    account_id: Optional[uuid.UUID] = None,
+    category: Optional[str] = None,
+    tag: Optional[str] = None,
+    min_amount: Optional[float] = None,
+    max_amount: Optional[float] = None,
+    date_from: Optional[str] = None,  # YYYY-MM-DD
+    date_to: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """Unified search across expenses, income and transfers — all months."""
+    from sqlalchemy import or_
+
+    limit = min(limit, 200)
+    like = f"%{q}%" if q else None
+    tag_like = f"%{tag}%" if tag else None
+
+    def parse_date(s: Optional[str]) -> Optional[datetime]:
+        if not s:
+            return None
+        try:
+            return datetime.strptime(s, "%Y-%m-%d")
+        except ValueError:
+            return None
+
+    d_from = parse_date(date_from)
+    d_to = parse_date(date_to)
+    if d_to:
+        d_to = d_to + timedelta(days=1)  # inclusive end date
+
+    def apply_common(query, model):
+        if min_amount is not None:
+            query = query.where(model.amount >= min_amount)
+        if max_amount is not None:
+            query = query.where(model.amount <= max_amount)
+        if d_from:
+            query = query.where(model.logged_at >= d_from)
+        if d_to:
+            query = query.where(model.logged_at < d_to)
+        return query
+
+    items = []
+
+    # Category filter only applies to expenses; income/transfers have no category,
+    # so setting it narrows results to expenses (like Money Manager).
+    include_expense = kind in (None, "expense")
+    include_income = kind in (None, "income") and not category
+    include_transfer = kind in (None, "transfer") and not category and not tag
+
+    if include_expense:
+        query = apply_common(select(FinanceExpense), FinanceExpense)
+        if like:
+            query = query.where(or_(FinanceExpense.description.ilike(like), FinanceExpense.category.ilike(like), FinanceExpense.tags.ilike(like)))
+        if tag_like:
+            query = query.where(FinanceExpense.tags.ilike(tag_like))
+        if account_id:
+            query = query.where(FinanceExpense.account_id == account_id)
+        if category:
+            query = query.where(FinanceExpense.category == category)
+        for e in (await db.execute(query)).scalars().all():
+            items.append({
+                "id": str(e.id), "kind": "expense", "logged_at": e.logged_at.isoformat(),
+                "amount": float(e.amount), "category": e.category, "description": e.description,
+                "account_id": str(e.account_id) if e.account_id else None,
+                "tags": e.tags, "split_group_id": str(e.split_group_id) if e.split_group_id else None,
+            })
+
+    if include_income:
+        query = apply_common(select(FinanceIncome), FinanceIncome)
+        if like:
+            query = query.where(or_(FinanceIncome.description.ilike(like), FinanceIncome.source.ilike(like), FinanceIncome.tags.ilike(like)))
+        if tag_like:
+            query = query.where(FinanceIncome.tags.ilike(tag_like))
+        if account_id:
+            query = query.where(FinanceIncome.account_id == account_id)
+        for i in (await db.execute(query)).scalars().all():
+            items.append({
+                "id": str(i.id), "kind": "income", "logged_at": i.logged_at.isoformat(),
+                "amount": float(i.amount), "category": i.source, "description": i.description,
+                "account_id": str(i.account_id) if i.account_id else None,
+                "tags": i.tags, "split_group_id": None,
+            })
+
+    if include_transfer:
+        query = apply_common(select(FinanceTransfer), FinanceTransfer)
+        if like:
+            query = query.where(FinanceTransfer.description.ilike(like))
+        if account_id:
+            query = query.where(or_(FinanceTransfer.from_account_id == account_id, FinanceTransfer.to_account_id == account_id))
+        for t in (await db.execute(query)).scalars().all():
+            items.append({
+                "id": str(t.id), "kind": "transfer", "logged_at": t.logged_at.isoformat(),
+                "amount": float(t.amount), "category": "Transfer", "description": t.description,
+                "account_id": str(t.from_account_id),
+                "tags": None, "split_group_id": None,
+            })
+
+    items.sort(key=lambda x: x["logged_at"], reverse=True)
+    total = len(items)
+    page = items[offset:offset + limit]
+    return {"items": page, "total": total, "has_more": offset + limit < total}
+
+
 @router.get("/expenses")
 async def list_expenses(
     month: Optional[str] = None,
     category: Optional[str] = None,
     time_range: Optional[str] = None,
+    q: Optional[str] = None,
+    account_id: Optional[uuid.UUID] = None,
     limit: int = 50,
     offset: int = 0,
     current_user=Depends(get_current_user),
@@ -37,7 +404,15 @@ async def list_expenses(
 ):
     limit = min(limit, 200)
     query = select(FinanceExpense).order_by(desc(FinanceExpense.logged_at))
-    
+
+    if q:
+        from sqlalchemy import or_
+        like = f"%{q}%"
+        query = query.where(or_(FinanceExpense.description.ilike(like), FinanceExpense.category.ilike(like)))
+
+    if account_id:
+        query = query.where(FinanceExpense.account_id == account_id)
+
     if month:
         try:
             m_date = datetime.strptime(month, "%Y-%m")
@@ -71,26 +446,117 @@ async def list_expenses(
     return {"items": page, "total": total, "has_more": offset + limit < total}
 
 
+class SplitPart(BaseModel):
+    category: str
+    amount: float
+
+
 class ExpenseCreate(BaseModel):
     amount: float
     category: str
     description: Optional[str] = None
     logged_at: Optional[datetime] = None
+    account_id: Optional[uuid.UUID] = None
+    tags: Optional[str] = None
+    splits: Optional[list[SplitPart]] = None  # parts must sum to amount
 
 
 @router.post("/expenses")
 async def create_expense(body: ExpenseCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    expense = FinanceExpense(
-        logged_at=body.logged_at or datetime.utcnow(),
-        amount=body.amount,
-        category=body.category,
-        description=body.description,
-        source="manual",
-    )
+    if body.amount <= 0:
+        raise HTTPException(status_code=422, detail="Amount must be positive")
+
+    logged_at = body.logged_at or datetime.utcnow()
+    created = []
+
+    if body.splits:
+        if any(s.amount <= 0 for s in body.splits):
+            raise HTTPException(status_code=422, detail="Split amounts must be positive")
+        if abs(sum(s.amount for s in body.splits) - body.amount) > 0.01:
+            raise HTTPException(status_code=422, detail="Split amounts must sum to the total")
+        group_id = uuid.uuid4()
+        for part in body.splits:
+            created.append(FinanceExpense(
+                logged_at=logged_at, amount=part.amount, category=part.category,
+                description=body.description, account_id=body.account_id,
+                tags=body.tags, split_group_id=group_id, source="manual",
+            ))
+    else:
+        created.append(FinanceExpense(
+            logged_at=logged_at, amount=body.amount, category=body.category,
+            description=body.description, account_id=body.account_id,
+            tags=body.tags, source="manual",
+        ))
+
+    await _adjust_balance(db, body.account_id, -body.amount)
+    for e in created:
+        db.add(e)
+    await db.commit()
+    for e in created:
+        await db.refresh(e)
+
+    import asyncio
+    from app.services.finance.budget_alerts import check_budget_alerts
+    categories = {e.category for e in created if e.category}
+    for cat in categories:
+        asyncio.create_task(check_budget_alerts(cat))
+    return created[0] if len(created) == 1 else {"split_group_id": str(created[0].split_group_id), "items": created}
+
+
+class ExpenseUpdate(BaseModel):
+    amount: Optional[float] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    logged_at: Optional[datetime] = None
+    account_id: Optional[uuid.UUID] = None
+    tags: Optional[str] = None
+
+
+@router.patch("/expenses/{expense_id}")
+async def update_expense(expense_id: uuid.UUID, body: ExpenseUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(FinanceExpense).where(FinanceExpense.id == expense_id))
+    expense = result.scalar_one_or_none()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    if body.amount is not None and body.amount <= 0:
+        raise HTTPException(status_code=422, detail="Amount must be positive")
+
+    # Revert old balance effect, apply new one
+    await _adjust_balance(db, expense.account_id, float(expense.amount))
+    if body.amount is not None:
+        expense.amount = body.amount
+    if body.category is not None:
+        expense.category = body.category
+    if body.description is not None:
+        expense.description = body.description
+    if body.logged_at is not None:
+        expense.logged_at = body.logged_at
+    if "tags" in body.model_fields_set:
+        expense.tags = body.tags
+    if "account_id" in body.model_fields_set:
+        expense.account_id = body.account_id
+    await _adjust_balance(db, expense.account_id, -float(expense.amount))
+
     db.add(expense)
     await db.commit()
     await db.refresh(expense)
+    if expense.category:
+        import asyncio
+        from app.services.finance.budget_alerts import check_budget_alerts
+        asyncio.create_task(check_budget_alerts(expense.category))
     return expense
+
+
+@router.delete("/expenses/{expense_id}")
+async def delete_expense(expense_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(FinanceExpense).where(FinanceExpense.id == expense_id))
+    expense = result.scalar_one_or_none()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    await _adjust_balance(db, expense.account_id, float(expense.amount))
+    await db.delete(expense)
+    await db.commit()
+    return {"status": "deleted"}
 
 
 # ── Financial Goals ────────────────────────────────────────────
@@ -192,6 +658,7 @@ class BillCreate(BaseModel):
     is_auto_debit: bool = False
     is_active: bool = True
     notes: Optional[str] = None
+    account_id: Optional[uuid.UUID] = None
 
 
 @router.post("/bills")
@@ -204,6 +671,7 @@ async def create_bill(body: BillCreate, current_user=Depends(get_current_user), 
         is_auto_debit=body.is_auto_debit,
         is_active=body.is_active,
         notes=body.notes,
+        account_id=body.account_id,
     )
     db.add(bill)
     await db.commit()
@@ -219,6 +687,7 @@ class BillUpdate(BaseModel):
     is_auto_debit: Optional[bool] = None
     is_active: Optional[bool] = None
     notes: Optional[str] = None
+    account_id: Optional[uuid.UUID] = None
 
 
 @router.patch("/bills/{bill_id}")
@@ -249,10 +718,21 @@ async def delete_bill(bill_id: uuid.UUID, current_user=Depends(get_current_user)
 # ── Income ────────────────────────────────────────────
 
 @router.get("/income")
-async def list_income(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(
-        select(FinanceIncome).order_by(desc(FinanceIncome.logged_at)).limit(50)
-    )
+async def list_income(month: Optional[str] = None, current_user=Depends(get_current_user), db=Depends(get_db)):
+    query = select(FinanceIncome).order_by(desc(FinanceIncome.logged_at))
+
+    if month:
+        try:
+            m_date = datetime.strptime(month, "%Y-%m")
+            next_m = m_date.replace(year=m_date.year+1, month=1) if m_date.month == 12 else m_date.replace(month=m_date.month+1)
+            query = query.where(FinanceIncome.logged_at >= m_date)
+            query = query.where(FinanceIncome.logged_at < next_m)
+        except ValueError:
+            pass
+    else:
+        query = query.limit(50)
+
+    result = await db.execute(query)
     return result.scalars().all()
 
 
@@ -261,34 +741,154 @@ class IncomeCreate(BaseModel):
     source: str
     description: Optional[str] = None
     logged_at: Optional[datetime] = None
+    account_id: Optional[uuid.UUID] = None
+    tags: Optional[str] = None
 
 
 @router.post("/income")
 async def create_income(body: IncomeCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    if body.amount <= 0:
+        raise HTTPException(status_code=422, detail="Amount must be positive")
     income = FinanceIncome(
         amount=body.amount,
         source=body.source,
         description=body.description,
+        account_id=body.account_id,
+        tags=body.tags,
         logged_at=body.logged_at or datetime.utcnow(),
     )
+    await _adjust_balance(db, body.account_id, body.amount)
     db.add(income)
     await db.commit()
     await db.refresh(income)
     return income
 
 
+class IncomeUpdate(BaseModel):
+    amount: Optional[float] = None
+    source: Optional[str] = None
+    description: Optional[str] = None
+    logged_at: Optional[datetime] = None
+    account_id: Optional[uuid.UUID] = None
+    tags: Optional[str] = None
+
+
+@router.patch("/income/{income_id}")
+async def update_income(income_id: uuid.UUID, body: IncomeUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(FinanceIncome).where(FinanceIncome.id == income_id))
+    income = result.scalar_one_or_none()
+    if not income:
+        raise HTTPException(status_code=404, detail="Income not found")
+    if body.amount is not None and body.amount <= 0:
+        raise HTTPException(status_code=422, detail="Amount must be positive")
+
+    # Revert old balance effect, apply new one
+    await _adjust_balance(db, income.account_id, -float(income.amount))
+    if body.amount is not None:
+        income.amount = body.amount
+    if body.source is not None:
+        income.source = body.source
+    if body.description is not None:
+        income.description = body.description
+    if body.logged_at is not None:
+        income.logged_at = body.logged_at
+    if "tags" in body.model_fields_set:
+        income.tags = body.tags
+    if "account_id" in body.model_fields_set:
+        income.account_id = body.account_id
+    await _adjust_balance(db, income.account_id, float(income.amount))
+
+    db.add(income)
+    await db.commit()
+    await db.refresh(income)
+    return income
+
+
+@router.delete("/income/{income_id}")
+async def delete_income(income_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(FinanceIncome).where(FinanceIncome.id == income_id))
+    income = result.scalar_one_or_none()
+    if not income:
+        raise HTTPException(status_code=404, detail="Income not found")
+    await _adjust_balance(db, income.account_id, -float(income.amount))
+    await db.delete(income)
+    await db.commit()
+    return {"status": "deleted"}
+
+
+# ── Transfers ────────────────────────────────────────────
+
+@router.get("/transfers")
+async def list_transfers(month: Optional[str] = None, current_user=Depends(get_current_user), db=Depends(get_db)):
+    query = select(FinanceTransfer).order_by(desc(FinanceTransfer.logged_at))
+    if month:
+        start, end = _month_range(month)
+        query = query.where(FinanceTransfer.logged_at >= start).where(FinanceTransfer.logged_at < end)
+    else:
+        query = query.limit(50)
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+class TransferCreate(BaseModel):
+    amount: float
+    from_account_id: uuid.UUID
+    to_account_id: uuid.UUID
+    description: Optional[str] = None
+    logged_at: Optional[datetime] = None
+
+
+@router.post("/transfers")
+async def create_transfer(body: TransferCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    if body.amount <= 0:
+        raise HTTPException(status_code=422, detail="Amount must be positive")
+    if body.from_account_id == body.to_account_id:
+        raise HTTPException(status_code=422, detail="From and to accounts must differ")
+    transfer = FinanceTransfer(
+        amount=body.amount,
+        from_account_id=body.from_account_id,
+        to_account_id=body.to_account_id,
+        description=body.description,
+        logged_at=body.logged_at or datetime.utcnow(),
+    )
+    await _adjust_balance(db, body.from_account_id, -body.amount)
+    await _adjust_balance(db, body.to_account_id, body.amount)
+    db.add(transfer)
+    await db.commit()
+    await db.refresh(transfer)
+    return transfer
+
+
+@router.delete("/transfers/{transfer_id}")
+async def delete_transfer(transfer_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(FinanceTransfer).where(FinanceTransfer.id == transfer_id))
+    transfer = result.scalar_one_or_none()
+    if not transfer:
+        raise HTTPException(status_code=404, detail="Transfer not found")
+    await _adjust_balance(db, transfer.from_account_id, float(transfer.amount))
+    await _adjust_balance(db, transfer.to_account_id, -float(transfer.amount))
+    await db.delete(transfer)
+    await db.commit()
+    return {"status": "deleted"}
+
+
 # ── Cashflow ────────────────────────────────────────────
 
 @router.get("/cashflow")
-async def cashflow(current_user=Depends(get_current_user), db=Depends(get_db)):
+async def cashflow(month: Optional[str] = None, current_user=Depends(get_current_user), db=Depends(get_db)):
     from sqlalchemy import func
     from datetime import date as date_type
-    now = datetime.utcnow()
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    if now.month == 12:
-        month_end = now.replace(year=now.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    if month:
+        try:
+            month_start = datetime.strptime(month, "%Y-%m")
+        except ValueError:
+            month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     else:
-        month_end = now.replace(month=now.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if month_start.month == 12:
+        month_end = month_start.replace(year=month_start.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        month_end = month_start.replace(month=month_start.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
     # totals
     income_result = await db.execute(
@@ -336,6 +936,7 @@ async def cashflow(current_user=Depends(get_current_user), db=Depends(get_db)):
     ]
 
     return {
+        "month": month_start.strftime("%Y-%m"),
         "income_total": income_total,
         "expense_total": expense_total,
         "savings_rate": savings_rate,
@@ -349,6 +950,38 @@ async def cashflow(current_user=Depends(get_current_user), db=Depends(get_db)):
 async def list_budgets(current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(select(BudgetLimit))
     return result.scalars().all()
+
+
+@router.get("/budgets/status")
+async def budget_status(month: Optional[str] = None, current_user=Depends(get_current_user), db=Depends(get_db)):
+    """Per-category budget limit vs actual spend for a month — Money Manager budget graph data."""
+    from sqlalchemy import func
+    start, end = _month_range(month)
+
+    budgets_result = await db.execute(select(BudgetLimit))
+    budgets = budgets_result.scalars().all()
+
+    spent_result = await db.execute(
+        select(FinanceExpense.category, func.coalesce(func.sum(FinanceExpense.amount), 0))
+        .where(FinanceExpense.logged_at >= start)
+        .where(FinanceExpense.logged_at < end)
+        .group_by(FinanceExpense.category)
+    )
+    spent_by_category = {cat: float(total) for cat, total in spent_result.all() if cat}
+
+    items = []
+    for b in budgets:
+        spent = spent_by_category.get(b.category, 0.0)
+        limit = float(b.monthly_limit)
+        items.append({
+            "category": b.category,
+            "monthly_limit": limit,
+            "spent": spent,
+            "remaining": limit - spent,
+            "pct": round(spent / limit * 100, 1) if limit > 0 else 0.0,
+        })
+    items.sort(key=lambda x: x["pct"], reverse=True)
+    return {"month": start.strftime("%Y-%m"), "items": items}
 
 
 class BudgetUpsert(BaseModel):
@@ -393,7 +1026,7 @@ class AccountCreate(BaseModel):
     name: str
     type: AccountType
     balance: float = 0
-    currency: str = "USD"
+    currency: str = "INR"
 
 @router.post("/accounts")
 async def create_account(body: AccountCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
@@ -402,6 +1035,43 @@ async def create_account(body: AccountCreate, current_user=Depends(get_current_u
     await db.commit()
     await db.refresh(account)
     return account
+
+@router.get("/accounts/{account_id}/ledger")
+async def account_ledger(account_id: uuid.UUID, limit: int = 50, current_user=Depends(get_current_user), db=Depends(get_db)):
+    """Unified recent transaction history for one account: expenses, income, transfers."""
+    limit = min(limit, 200)
+
+    result = await db.execute(select(Account).where(Account.id == account_id))
+    account = result.scalar_one_or_none()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    expenses = (await db.execute(
+        select(FinanceExpense).where(FinanceExpense.account_id == account_id)
+        .order_by(desc(FinanceExpense.logged_at)).limit(limit)
+    )).scalars().all()
+    income = (await db.execute(
+        select(FinanceIncome).where(FinanceIncome.account_id == account_id)
+        .order_by(desc(FinanceIncome.logged_at)).limit(limit)
+    )).scalars().all()
+    transfers = (await db.execute(
+        select(FinanceTransfer)
+        .where((FinanceTransfer.from_account_id == account_id) | (FinanceTransfer.to_account_id == account_id))
+        .order_by(desc(FinanceTransfer.logged_at)).limit(limit)
+    )).scalars().all()
+
+    entries = []
+    for e in expenses:
+        entries.append({"id": str(e.id), "kind": "expense", "amount": -float(e.amount), "label": e.description or e.category or "Expense", "logged_at": e.logged_at.isoformat()})
+    for i in income:
+        entries.append({"id": str(i.id), "kind": "income", "amount": float(i.amount), "label": i.description or i.source, "logged_at": i.logged_at.isoformat()})
+    for t in transfers:
+        outgoing = t.from_account_id == account_id
+        entries.append({"id": str(t.id), "kind": "transfer", "amount": -float(t.amount) if outgoing else float(t.amount), "label": t.description or ("Transfer out" if outgoing else "Transfer in"), "logged_at": t.logged_at.isoformat()})
+
+    entries.sort(key=lambda x: x["logged_at"], reverse=True)
+    return {"account": account, "entries": entries[:limit]}
+
 
 @router.delete("/accounts/{account_id}")
 async def delete_account(account_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
@@ -580,6 +1250,7 @@ class LoanCreate(BaseModel):
     emi_day: int
     tenure_months: Optional[int] = None
     notes: Optional[str] = None
+    account_id: Optional[uuid.UUID] = None
 
 
 @router.post("/loans")
@@ -595,6 +1266,7 @@ async def create_loan(body: LoanCreate, current_user=Depends(get_current_user), 
         emi_day=body.emi_day,
         tenure_months=body.tenure_months,
         notes=body.notes,
+        account_id=body.account_id,
     )
     db.add(loan)
     await db.commit()
@@ -614,6 +1286,7 @@ class LoanUpdate(BaseModel):
     tenure_months: Optional[int] = None
     is_active: Optional[bool] = None
     notes: Optional[str] = None
+    account_id: Optional[uuid.UUID] = None
 
 
 @router.patch("/loans/{loan_id}")

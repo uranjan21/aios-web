@@ -78,6 +78,9 @@ export interface FinanceExpense {
   category: string
   description: string | null
   source: string
+  account_id: string | null
+  tags: string | null
+  split_group_id: string | null
 }
 
 export interface HealthLog {
@@ -170,12 +173,27 @@ export interface FinancialGoal {
 export interface FinanceBill {
   id: string; name: string; amount: number; due_day: number;
   category: string; is_auto_debit: boolean; is_active: boolean; notes: string | null;
+  account_id: string | null; last_posted_period: string | null;
 }
 export interface FinanceIncome {
   id: string; amount: number; source: string; description: string | null; logged_at: string;
+  account_id: string | null; tags: string | null;
+}
+export interface FinanceTransfer {
+  id: string; amount: number; from_account_id: string; to_account_id: string;
+  description: string | null; logged_at: string;
+}
+export interface BudgetStatusItem {
+  category: string; monthly_limit: number; spent: number; remaining: number; pct: number;
+}
+export interface BudgetStatus {
+  month: string; items: BudgetStatusItem[];
+}
+export interface LedgerEntry {
+  id: string; kind: 'expense' | 'income' | 'transfer'; amount: number; label: string; logged_at: string;
 }
 export interface CashFlowData {
-  income_total: number; expense_total: number; savings_rate: number;
+  month: string; income_total: number; expense_total: number; savings_rate: number;
   by_day: { date: string; income: number; expense: number }[];
 }
 export interface HealthGoal {
@@ -205,9 +223,49 @@ export interface FinanceLoan {
   principal_amount: number; outstanding_amount: number; interest_rate: number;
   emi_amount: number; emi_day: number; tenure_months: number | null;
   is_active: boolean; notes: string | null;
+  account_id: string | null; last_posted_period: string | null;
 }
 export interface LoanSummary {
   total_outstanding: number; total_emi: number; active_count: number;
+}
+export interface NetWorth {
+  net_worth: number; accounts_total: number; investments_total: number; loans_outstanding: number;
+}
+export interface HealthScoreComponent {
+  key: string; label: string; available: boolean; score: number | null; display: string;
+}
+export interface FinanceHealthScore {
+  score: number; band: 'excellent' | 'good' | 'fair' | 'attention'; components: HealthScoreComponent[];
+}
+export interface TxnSearchItem {
+  id: string; kind: 'expense' | 'income' | 'transfer'; logged_at: string;
+  amount: number; category: string | null; description: string | null; account_id: string | null;
+  tags: string | null; split_group_id: string | null;
+}
+export interface TxnSearchResult {
+  items: TxnSearchItem[]; total: number; has_more: boolean;
+}
+
+// ── Food DB ──────────────────────────────────────────
+export interface FoodDbItem {
+  id: string; name: string; calories: number; protein: number; carbs: number; fat: number;
+  serving_desc: string | null; serving_grams: number | null; is_custom: boolean;
+}
+
+// ── Workouts ─────────────────────────────────────────
+export interface WorkoutSetItem {
+  id: string; exercise: string; set_number: number; reps: number; weight_kg: number | null;
+}
+export interface WorkoutSessionItem {
+  id: string; name: string; logged_at: string; notes: string | null; sets: WorkoutSetItem[];
+}
+export interface WorkoutPR {
+  exercise: string; weight_kg: number; reps: number;
+}
+
+// ── Habits ───────────────────────────────────────────
+export interface HabitItem {
+  id: string; name: string; icon: string | null; streak: number; checks: string[];
 }
 
 // ── Sleep ────────────────────────────────────────────

@@ -24,16 +24,16 @@ export function AppShell() {
   return (
     <ConfigProvider theme={{
       token: {
-        colorPrimary: '#0D9488',
-        colorLink: '#0D9488',
-        borderRadius: 8,
+        colorPrimary: theme === 'dark' ? '#fb8b24' : '#dd5912',
+        colorLink: theme === 'dark' ? '#fb8b24' : '#dd5912',
+        borderRadius: 11,
         fontFamily: 'inherit',
-        colorBgContainer: theme === 'dark' ? 'hsl(240 5% 11%)' : '#ffffff',
-        colorBgElevated: theme === 'dark' ? 'hsl(240 6% 9%)' : '#ffffff',
-        colorText: theme === 'dark' ? 'hsl(0 0% 93%)' : 'hsl(0 0% 9%)',
-        colorTextSecondary: theme === 'dark' ? 'hsl(240 4% 57%)' : 'hsl(0 0% 44%)',
-        colorBorder: theme === 'dark' ? 'hsl(240 5% 18%)' : 'hsl(36 9% 84%)',
-        colorBorderSecondary: theme === 'dark' ? 'hsl(240 5% 18%)' : 'hsl(36 9% 84%)',
+        colorBgContainer: theme === 'dark' ? 'hsl(26 16% 10%)' : 'hsl(42 45% 99%)',
+        colorBgElevated: theme === 'dark' ? 'hsl(26 16% 12%)' : 'hsl(42 45% 99%)',
+        colorText: theme === 'dark' ? 'hsl(38 32% 90%)' : 'hsl(26 32% 12%)',
+        colorTextSecondary: theme === 'dark' ? 'hsl(33 14% 62%)' : 'hsl(28 14% 38%)',
+        colorBorder: theme === 'dark' ? 'hsl(27 14% 17%)' : 'hsl(36 20% 85%)',
+        colorBorderSecondary: theme === 'dark' ? 'hsl(27 14% 17%)' : 'hsl(36 20% 85%)',
       }
     }}>
     <div className="flex h-[100dvh] overflow-hidden bg-background">

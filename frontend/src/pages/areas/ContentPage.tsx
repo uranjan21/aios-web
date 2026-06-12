@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, forwardRef } from 'react'
 import { Modal, Input } from 'antd'
 import { toast } from 'sonner'
-import { Plus, LayoutGrid, Edit2, Calendar, Trash2, TrendingUp, Eye, MousePointerClick } from 'lucide-react'
+import { Plus, LayoutGrid, Edit2, Calendar, Trash2, TrendingUp, Eye, MousePointerClick, WandSparkles } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   DndContext,
@@ -18,6 +18,9 @@ import { contentApi } from '@/api/areas'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorCard } from '@/components/ErrorCard'
+import { TwitterQueueCard } from '@/components/areas/content/TwitterQueueCard'
+import { DraftModal } from '@/components/areas/content/DraftModal'
+import { StatusPill, type StatusPillTone } from '@/components/lumina'
 import type { ContentItem } from '@/types'
 
 const PIPELINE_COLS: ContentItem['status'][] = ['idea', 'in_progress', 'scheduled']
@@ -32,18 +35,18 @@ const STATUS_LABELS: Record<ContentItem['status'], string> = {
 
 const STATUS_STYLES: Record<ContentItem['status'], string> = {
   idea:        'border-border bg-card/40',
-  in_progress: 'border-blue-500/20 bg-blue-500/5',
-  scheduled:   'border-amber-500/20 bg-amber-500/5',
-  published:   'border-emerald-500/20 bg-emerald-500/5',
+  in_progress: 'border-kpi-blue/20 bg-kpi-blue/5',
+  scheduled:   'border-kpi-amber/20 bg-kpi-amber/5',
+  published:   'border-kpi-emerald/20 bg-kpi-emerald/5',
   archived:    'border-border bg-muted/20',
 }
 
-const STATUS_ACCENT: Record<ContentItem['status'], string> = {
-  idea:        'bg-zinc-500/10 text-zinc-500',
-  in_progress: 'bg-blue-500/10 text-blue-600',
-  scheduled:   'bg-amber-500/10 text-amber-600',
-  published:   'bg-emerald-500/10 text-emerald-600',
-  archived:    'bg-muted text-muted-foreground',
+const STATUS_TONE: Record<ContentItem['status'], StatusPillTone> = {
+  idea:        'neutral',
+  in_progress: 'blue',
+  scheduled:   'amber',
+  published:   'emerald',
+  archived:    'neutral',
 }
 
 const PLATFORM_BADGE: Record<string, string> = {
@@ -56,13 +59,13 @@ const PLATFORM_BADGE: Record<string, string> = {
 
 // ─── Card ──────────────────────────────────────────────────────────────────────
 
-function ItemCard({ item, isDragging, onEdit, onSchedule, onDelete }: { 
-  item: ContentItem; 
+const ItemCard = forwardRef<HTMLDivElement, {
+  item: ContentItem;
   isDragging?: boolean;
   onEdit: (id: string, current: string) => void;
   onSchedule: (id: string, current: string | null) => void;
   onDelete: (id: string) => void;
-}) {
+}>(function ItemCard({ item, isDragging, onEdit, onSchedule, onDelete }, ref) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: item.id })
 
   const style = transform
@@ -71,6 +74,7 @@ function ItemCard({ item, isDragging, onEdit, onSchedule, onDelete }: {
 
   return (
     <motion.div
+      ref={ref}
       layout
       initial={{ opacity: 0, scale: 0.96, y: 8 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -83,9 +87,9 @@ function ItemCard({ item, isDragging, onEdit, onSchedule, onDelete }: {
         {...listeners}
         {...attributes}
         className={cn(
-          'bg-card border border-border rounded-xl p-3 space-y-3 group relative shadow-sm',
+          'bg-card border border-subtle rounded-xl p-3 space-y-3 group relative shadow-premium-sm',
           'cursor-grab active:cursor-grabbing touch-none select-none',
-          'hover:border-primary/30 hover:shadow-md transition-all duration-200',
+          'hover:border-primary/30 hover:shadow-premium-hover transition-all duration-200',
           isDragging && 'opacity-50 ring-2 ring-primary shadow-xl scale-105 z-50',
         )}
         aria-roledescription="Draggable content card"
@@ -112,7 +116,7 @@ function ItemCard({ item, isDragging, onEdit, onSchedule, onDelete }: {
       </div>
     </motion.div>
   )
-}
+})
 
 // ─── Column ────────────────────────────────────────────────────────────────────
 
@@ -145,12 +149,11 @@ function ColumnDropZone({
           <h3 className="text-xs font-medium text-muted-foreground">
             {STATUS_LABELS[status]}
           </h3>
-          <span className={cn(
-            'text-xs font-medium px-2 py-0.5 rounded-full min-w-[1.5rem] text-center',
-            STATUS_ACCENT[status]
-          )}>
-            {isLoading ? '·' : items.length}
-          </span>
+          <StatusPill
+            label={isLoading ? '·' : String(items.length)}
+            tone={STATUS_TONE[status]}
+            className="min-w-[1.5rem] text-center"
+          />
         </div>
       </div>
 
@@ -191,7 +194,7 @@ function EngagementWidget({ publishedCount }: { publishedCount: number }) {
     <div className="bg-card border border-border shadow-sm rounded-xl p-4 flex flex-col justify-between h-full relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/5 rounded-full blur-2xl" />
-      <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl" />
+      <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-kpi-blue/5 rounded-full blur-2xl" />
 
       <div className="flex items-center justify-between mb-4 relative z-10">
         <div className="flex items-center gap-2">
@@ -208,7 +211,7 @@ function EngagementWidget({ publishedCount }: { publishedCount: number }) {
               <Eye className="w-3.5 h-3.5" />
               <span className="text-xs font-medium">Total Views</span>
             </div>
-            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded">+12%</span>
+            <span className="text-[10px] font-bold text-kpi-emerald bg-kpi-emerald/10 px-1.5 py-0.5 rounded">+12%</span>
           </div>
           <div className="text-xs font-medium text-foreground">
             {(publishedCount * 1240 + 8400).toLocaleString()}
@@ -221,7 +224,7 @@ function EngagementWidget({ publishedCount }: { publishedCount: number }) {
               <MousePointerClick className="w-3.5 h-3.5" />
               <span className="text-xs font-medium">Avg. CTR</span>
             </div>
-            <span className="text-[10px] font-bold text-blue-600 bg-blue-500/10 px-1.5 py-0.5 rounded">Top 10%</span>
+            <span className="text-[10px] font-bold text-kpi-blue bg-kpi-blue/10 px-1.5 py-0.5 rounded">Top 10%</span>
           </div>
           <div className="text-xs font-medium text-foreground">
             4.8%
@@ -260,16 +263,16 @@ function PublishedDropZone({
     <div
       ref={setNodeRef}
       className={cn(
-        "bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 transition-all duration-300 min-h-[150px]",
-        isOver && "ring-2 ring-emerald-500/50 bg-emerald-500/10 shadow-lg"
+        "bg-kpi-emerald/5 border border-kpi-emerald/20 rounded-xl p-4 transition-all duration-300 min-h-[150px]",
+        isOver && "ring-2 ring-kpi-emerald/50 bg-kpi-emerald/10 shadow-lg"
       )}
     >
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <h3 className="text-sm font-medium text-emerald-600">Published Content</h3>
+          <div className="w-2 h-2 rounded-full bg-kpi-emerald animate-pulse" />
+          <h3 className="text-sm font-medium text-kpi-emerald">Published Content</h3>
         </div>
-        <span className="text-xs font-bold text-emerald-600 bg-emerald-500/10 px-3 py-1 rounded-full">
+        <span className="text-xs font-bold text-kpi-emerald bg-kpi-emerald/10 px-3 py-1 rounded-full tabular-nums">
           {isLoading ? '·' : items.length} live
         </span>
       </div>
@@ -283,9 +286,9 @@ function PublishedDropZone({
             <Skeleton className="h-28 rounded-xl" />
           </>
         ) : items.length === 0 ? (
-          <div className="col-span-full flex flex-col items-center justify-center py-6 text-center border-2 border-dashed border-emerald-500/20 rounded-xl">
-            <LayoutGrid className="w-6 h-6 text-emerald-600/40 mb-2" />
-            <p className="text-sm text-emerald-700/60 font-medium">Drag items here to publish them</p>
+          <div className="col-span-full flex flex-col items-center justify-center py-6 text-center border-2 border-dashed border-kpi-emerald/20 rounded-xl">
+            <LayoutGrid className="w-6 h-6 text-kpi-emerald/40 mb-2" />
+            <p className="text-sm text-kpi-emerald/60 font-medium">Drag items here to publish them</p>
           </div>
         ) : (
           <AnimatePresence initial={false} mode="popLayout">
@@ -317,6 +320,7 @@ export function ContentPage() {
 
   const [form, setForm] = useState({ title: '', platform: 'linkedin' })
   const [titleError, setTitleError] = useState('')
+  const [draftOpen, setDraftOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
 
   const sensors = useSensors(
@@ -460,7 +464,7 @@ export function ContentPage() {
         <div className="w-full grid grid-cols-12 gap-4">
           
           {/* Quick Capture Form & Stats */}
-          <div className="col-span-12 bg-card shadow-sm rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border border-border">
+          <div className="col-span-12 bg-card border border-subtle rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-premium-sm">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
               <h2 className="text-sm font-medium text-muted-foreground whitespace-nowrap">Quick Capture</h2>
               <div className="flex gap-3 w-full sm:w-auto">
@@ -493,6 +497,13 @@ export function ContentPage() {
                 >
                   <Plus className="w-4 h-4" aria-hidden="true" /> Add
                 </button>
+                <button
+                  onClick={() => form.title.trim() ? setDraftOpen(true) : setTitleError('Type an idea first')}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-xl border border-violet-500/40 text-violet-400 hover:bg-violet-500/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+                  title="Generate an AI draft for this idea"
+                >
+                  <WandSparkles className="w-4 h-4" aria-hidden="true" /> Draft
+                </button>
               </div>
             </div>
 
@@ -500,17 +511,17 @@ export function ContentPage() {
               <div className="flex items-center gap-4 bg-muted/30 px-4 py-2 rounded-xl border border-border whitespace-nowrap">
                 <div className="flex flex-col items-center">
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Published</span>
-                  <span className="text-base font-bold text-emerald-500">{published}</span>
+                  <span className="text-base font-bold text-kpi-emerald tabular-nums">{published}</span>
                 </div>
                 <div className="w-px h-8 bg-border/60" />
                 <div className="flex flex-col items-center">
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Pipeline</span>
-                  <span className="text-base font-bold text-foreground">{total - published}</span>
+                  <span className="text-base font-bold text-foreground tabular-nums">{total - published}</span>
                 </div>
                 <div className="w-px h-8 bg-border/60" />
                 <div className="flex flex-col items-center">
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Total</span>
-                  <span className="text-base font-bold text-foreground">{total}</span>
+                  <span className="text-base font-bold text-foreground tabular-nums">{total}</span>
                 </div>
               </div>
             )}
@@ -532,9 +543,10 @@ export function ContentPage() {
             ))}
           </div>
 
-          {/* Engagement Widget */}
-          <div className="col-span-12 lg:col-span-3">
+          {/* Engagement Widget + Twitter Queue */}
+          <div className="col-span-12 lg:col-span-3 space-y-4">
              <EngagementWidget publishedCount={published} />
+             <TwitterQueueCard />
           </div>
 
           {/* Published Grid */}
@@ -562,6 +574,7 @@ export function ContentPage() {
           )}
         </DragOverlay>
       </DndContext>
+      <DraftModal open={draftOpen} onClose={() => setDraftOpen(false)} title={form.title} platform={form.platform} />
       </div>
     </div>
   )

@@ -31,7 +31,7 @@ export function BottomNav() {
                 isActive ? 'text-primary' : 'text-muted-foreground'
               )}
             >
-              <div className={cn('p-1.5 rounded-xl transition-colors', isActive && 'bg-primary/10')}>
+              <div className={cn('p-1.5 rounded-xl transition-colors', isActive && 'bg-primary/10 shadow-glow')}>
                 <Icon className="w-5 h-5" />
               </div>
               {label}

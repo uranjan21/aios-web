@@ -4,7 +4,7 @@ import { BookOpen, History, Plus, Briefcase, ExternalLink } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import styled from 'styled-components'
-import { Button, Tag, Timeline, Select, Input, Form, Skeleton, Card, Space, Tabs } from 'antd'
+import { Button, Tag, Timeline, Select, Input, Form, Skeleton, Space } from 'antd'
 import { AreaTabs } from '@/components/ui/AreaTabs'
 import { RoadmapTab } from '@/components/areas/career/RoadmapTab'
 import { OpportunitiesTab } from '@/components/areas/career/OpportunitiesTab'
@@ -12,6 +12,7 @@ import { careerApi } from '@/api/areas'
 import { ErrorCard } from '@/components/ErrorCard'
 import { EmptyState } from '@/components/EmptyState'
 import { CareerRadar } from '@/components/CareerRadar'
+import { GlassCard } from '@/components/lumina'
 import type { SkillInventory, JobOpportunity, OpportunityStatus, CareerEvent } from '@/types'
 
 const LEVEL_COLORS: Record<SkillInventory['level'], string> = {
@@ -54,14 +55,6 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   achievement: 'Achievement',
   feedback: 'Feedback',
 }
-
-const FlatCard = ({ className, ...props }: any) => (
-  <Card
-    className={`bg-card border border-border shadow-sm rounded-xl h-full overflow-hidden [&>.ant-card-head]:border-border [&>.ant-card-head]:min-h-[40px] [&>.ant-card-head]:px-4 [&>.ant-card-body]:p-4 ${className || ''}`}
-    bordered={false}
-    {...props}
-  />
-)
 
 const AnimatedTimelineItem = styled(motion.div)`
   padding: 0.625rem 0.75rem;
@@ -184,6 +177,97 @@ function OpportunityForm({ onClose }: { onClose: () => void }) {
   )
 }
 
+function SkillForm({ onClose }: { onClose: () => void }) {
+  const queryClient = useQueryClient()
+  const [form] = Form.useForm()
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: (values: any) => careerApi.upsertSkill({
+      skill_name: values.skill_name.trim(),
+      category: values.category.trim(),
+      level: values.level,
+      notes: values.notes?.trim() || undefined,
+    }),
+    onSuccess: () => {
+      toast.success('Skill saved')
+      queryClient.invalidateQueries({ queryKey: ['career', 'skills'] })
+      queryClient.invalidateQueries({ queryKey: ['career', 'summary'] })
+      onClose()
+      form.resetFields()
+    },
+    onError: () => toast.error('Failed to save skill'),
+  })
+
+  return (
+    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+      <Form form={form} layout="vertical" onFinish={mutate} className="p-3 bg-muted/40 rounded-xl mb-4 border border-border">
+        <div className="grid grid-cols-12 gap-4">
+          <div className="col-span-12 md:col-span-6">
+            <Form.Item name="skill_name" rules={[{ required: true, message: 'Skill name is required' }]}>
+              <Input placeholder="Skill name" />
+            </Form.Item>
+          </div>
+          <div className="col-span-12 md:col-span-6">
+            <Form.Item name="category" rules={[{ required: true, message: 'Category is required' }]}>
+              <Input placeholder="Category (e.g. technical, soft skill)" />
+            </Form.Item>
+          </div>
+        </div>
+        <div className="grid grid-cols-12 gap-4">
+          <div className="col-span-12 md:col-span-4">
+            <Form.Item name="level" initialValue="beginner" rules={[{ required: true }]}>
+              <Select>
+                {(Object.keys(LEVEL_LABELS) as SkillInventory['level'][]).map(l => (
+                  <Select.Option key={l} value={l}>{LEVEL_LABELS[l]}</Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </div>
+          <div className="col-span-12 md:col-span-8">
+            <Form.Item name="notes">
+              <Input placeholder="Notes (optional)" />
+            </Form.Item>
+          </div>
+        </div>
+        <Space className="w-full justify-end">
+          <Button type="text" onClick={onClose}>Cancel</Button>
+          <Button type="primary" htmlType="submit" loading={isPending}>
+            Save Skill
+          </Button>
+        </Space>
+      </Form>
+    </motion.div>
+  )
+}
+
+function SkillRow({ skill }: { skill: SkillInventory }) {
+  const queryClient = useQueryClient()
+  const { mutate: patch } = useMutation({
+    mutationFn: (level: SkillInventory['level']) => careerApi.updateSkill(skill.id, { level }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['career', 'skills'] })
+      queryClient.invalidateQueries({ queryKey: ['career', 'summary'] })
+    },
+    onError: () => toast.error('Failed to update skill'),
+  })
+
+  return (
+    <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border">
+      <div>
+        <div className="text-[12px] font-semibold text-foreground">{skill.skill_name}</div>
+        <div className="text-[11px] text-muted-foreground">{skill.category}</div>
+      </div>
+      <Select value={skill.level} onChange={(level) => patch(level)} bordered={false} size="small" className="min-w-[110px]">
+        {(Object.keys(LEVEL_LABELS) as SkillInventory['level'][]).map(l => (
+          <Select.Option key={l} value={l}>
+            <Tag color={LEVEL_COLORS[l]}>{LEVEL_LABELS[l]}</Tag>
+          </Select.Option>
+        ))}
+      </Select>
+    </div>
+  )
+}
+
 function OpportunityRow({ opp }: { opp: JobOpportunity }) {
   const queryClient = useQueryClient()
   const { mutate: patch } = useMutation({
@@ -200,7 +284,7 @@ function OpportunityRow({ opp }: { opp: JobOpportunity }) {
         <div className="text-[11px] text-muted-foreground">{opp.role}</div>
       </div>
       <Space>
-        {opp.url && <a href={opp.url} target="_blank" rel="noreferrer"><ExternalLink size={14} className="text-gray-500 hover:text-gray-800" /></a>}
+        {opp.url && <a href={opp.url} target="_blank" rel="noreferrer"><ExternalLink size={14} className="text-muted-foreground hover:text-foreground" /></a>}
         <Select value={opp.status} onChange={(val: OpportunityStatus) => patch(val)} bordered={false} className="min-w-[120px]">
           {Object.keys(OPP_STATUS_COLORS).map(s => (
             <Select.Option key={s} value={s}>
@@ -216,6 +300,7 @@ function OpportunityRow({ opp }: { opp: JobOpportunity }) {
 export function CareerPage() {
   const [showMilestoneForm, setShowMilestoneForm] = useState(false)
   const [showOpportunityForm, setShowOpportunityForm] = useState(false)
+  const [showSkillForm, setShowSkillForm] = useState(false)
 
   const { data: skills, isLoading: loadingSkills } = useQuery({ queryKey: ['career', 'skills'], queryFn: careerApi.skills })
   const { data: events, isLoading: loadingEvents } = useQuery({ queryKey: ['career', 'events'], queryFn: careerApi.events })
@@ -236,27 +321,34 @@ export function CareerPage() {
               <div className="grid grid-cols-12 gap-4 w-full">
                 {/* Left Column: Opportunities & Timeline */}
                 <div className="col-span-12 xl:col-span-8 flex flex-col gap-4">
-                  <FlatCard 
-                    title={<Space className="text-xs font-medium text-muted-foreground"><Briefcase size={16} /><span>Opportunities Pipeline</span></Space>}
-                    extra={
+                  <GlassCard
+                    title="Opportunities Pipeline"
+                    icon={<Briefcase size={16} className="text-muted-foreground" />}
+                    action={
                       <Space>
                         <Button type="primary" icon={<Plus size={14} />} onClick={() => setShowOpportunityForm(!showOpportunityForm)}>Add</Button>
                         <button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Details</button>
                       </Space>
                     }
+                    hoverable
+                    fadeIn="up"
                   >
                     <AnimatePresence>{showOpportunityForm && <OpportunityForm onClose={() => setShowOpportunityForm(false)} />}</AnimatePresence>
                     {loadingOpps ? <Skeleton active /> : activeOpps.length ? activeOpps.map(opp => <OpportunityRow key={opp.id} opp={opp} />) : <EmptyState icon={Briefcase} title="No opportunities" description="Start tracking your next big move." />}
-                  </FlatCard>
+                  </GlassCard>
 
-                  <FlatCard 
-                    title={<Space className="text-xs font-medium text-muted-foreground"><History size={16} /><span>Career Timeline</span></Space>}
-                    extra={
+                  <GlassCard
+                    title="Career Timeline"
+                    icon={<History size={16} className="text-muted-foreground" />}
+                    action={
                       <Space>
                         <Button type="primary" icon={<Plus size={14} />} onClick={() => setShowMilestoneForm(!showMilestoneForm)}>Log</Button>
                         <button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Details</button>
                       </Space>
                     }
+                    hoverable
+                    fadeIn="up"
+                    delay={100}
                   >
                     <AnimatePresence>{showMilestoneForm && <MilestoneForm onClose={() => setShowMilestoneForm(false)} />}</AnimatePresence>
                     {loadingEvents ? <Skeleton active /> : events?.length ? (
@@ -280,17 +372,29 @@ export function CareerPage() {
                         }))}
                       />
                     ) : <EmptyState icon={History} title="No history" description="Log your first milestone." />}
-                  </FlatCard>
+                  </GlassCard>
                 </div>
 
                 {/* Right Column: Skills Radar */}
                 <div className="col-span-12 xl:col-span-4">
-                  <FlatCard 
-                    title={<Space className="text-sm font-medium text-muted-foreground"><BookOpen size={16} /><span>Skills Radar</span></Space>}
-                    extra={<button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Details</button>}
+                  <GlassCard
+                    title="Skills Radar"
+                    icon={<BookOpen size={16} className="text-muted-foreground" />}
+                    action={<Button type="primary" icon={<Plus size={14} />} onClick={() => setShowSkillForm(!showSkillForm)}>Add</Button>}
+                    hoverable
+                    fadeIn="up"
+                    delay={200}
                   >
-                    {loadingSkills ? <Skeleton active /> : skills?.length ? <CareerRadar skills={skills} /> : <EmptyState icon={BookOpen} title="No skills" description="Add skills to see your radar." />}
-                  </FlatCard>
+                    <AnimatePresence>{showSkillForm && <SkillForm onClose={() => setShowSkillForm(false)} />}</AnimatePresence>
+                    {loadingSkills ? <Skeleton active /> : skills?.length ? (
+                      <>
+                        <CareerRadar skills={skills} />
+                        <div className="mt-4 space-y-2">
+                          {skills.map(skill => <SkillRow key={skill.id} skill={skill} />)}
+                        </div>
+                      </>
+                    ) : <EmptyState icon={BookOpen} title="No skills" description="Add a skill to see your radar." />}
+                  </GlassCard>
                 </div>
               </div>
             ),

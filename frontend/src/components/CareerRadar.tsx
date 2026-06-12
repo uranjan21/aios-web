@@ -1,5 +1,6 @@
 import React from 'react'
 import Highcharts from 'highcharts'
+Highcharts.setOptions({ accessibility: { enabled: false } })
 import HighchartsReact from 'highcharts-react-official'
 import highchartsMore from 'highcharts/highcharts-more'
 import { SkillInventory } from '@/types'
@@ -27,7 +28,7 @@ const RadarContainer = styled.div`
   border-radius: 20px;
   background: linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.05) 100%);
   padding: 1rem;
-  box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
+  box-shadow: inset 0 0 24px hsl(var(--border-subtle) / 0.06);
 `
 
 export function CareerRadar({ skills }: { skills: SkillInventory[] }) {
@@ -61,7 +62,7 @@ export function CareerRadar({ skills }: { skills: SkillInventory[] }) {
       lineWidth: 0,
       labels: {
         style: {
-          color: '#a1a1aa',
+          color: 'hsl(var(--muted-foreground))',
           fontSize: '12px',
           fontWeight: 'bold',
         },
@@ -73,7 +74,7 @@ export function CareerRadar({ skills }: { skills: SkillInventory[] }) {
       min: 0,
       max: 5,
       tickInterval: 1,
-      gridLineColor: 'rgba(255,255,255,0.1)',
+      gridLineColor: 'hsl(var(--border-divider) / 0.1)',
       labels: {
         enabled: false,
       },
@@ -81,11 +82,11 @@ export function CareerRadar({ skills }: { skills: SkillInventory[] }) {
     tooltip: {
       shared: true,
       pointFormat: '<span style="color:{series.color}"><b>{point.y:,.0f}</b>/5<br/>',
-      backgroundColor: 'rgba(24, 24, 27, 0.9)',
+      backgroundColor: 'hsl(var(--popover))',
       style: {
-        color: '#f4f4f5',
+        color: 'hsl(var(--popover-foreground))',
       },
-      borderColor: '#3f3f46',
+      borderColor: 'hsl(var(--border))',
       borderRadius: 8,
     },
     legend: {

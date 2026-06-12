@@ -15,16 +15,16 @@ const Container = styled.div`
   
   .ant-tree {
     background: transparent;
-    color: #fff;
+    color: hsl(var(--foreground));
   }
   .ant-tree-node-content-wrapper {
-    color: #fff;
+    color: hsl(var(--foreground));
   }
   .ant-tree-node-content-wrapper:hover {
-    background-color: #2a2a2a;
+    background-color: hsl(var(--muted) / 0.5);
   }
   .ant-tree-node-selected {
-    background-color: #333 !important;
+    background-color: hsl(var(--muted)) !important;
   }
 `;
 

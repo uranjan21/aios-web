@@ -14,8 +14,12 @@ const CATEGORIES = [
   'Groceries', 'Personal Care', 'Investments', 'Others',
 ]
 
-function BudgetRow({ budget, onEdit }: { budget: BudgetLimit; onEdit: (b: BudgetLimit) => void }) {
+function BudgetRow({ budget, spent, onEdit }: { budget: BudgetLimit; spent: number; onEdit: (b: BudgetLimit) => void }) {
   const queryClient = useQueryClient()
+  const limit = Number(budget.monthly_limit)
+  const pct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0
+  const over = spent > limit
+  const barColor = over ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
 
   const deleteMutation = useMutation({
     mutationFn: () => financeApi.deleteBudget(budget.category),
@@ -27,36 +31,44 @@ function BudgetRow({ budget, onEdit }: { budget: BudgetLimit; onEdit: (b: Budget
   })
 
   return (
-    <div className="flex items-center justify-between px-3 py-2.5 hover:bg-muted/30 rounded-lg transition-colors group">
-      <div className="flex items-center gap-2.5">
-        <div className="w-2 h-2 rounded-full bg-primary/60 shrink-0" />
-        <span className="text-[12px] font-medium text-foreground">{budget.category}</span>
-      </div>
-      <div className="flex items-center gap-3">
-        <span className="text-[12px] font-semibold text-foreground">{formatCurrency(budget.monthly_limit)}<span className="text-muted-foreground font-normal text-[10px]">/mo</span></span>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={() => onEdit(budget)}
-            className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition"
-            aria-label={`Edit ${budget.category} budget`}
-          >
-            <PencilLine className="w-3 h-3" />
-          </button>
-          <Popconfirm
-            title="Delete this budget?"
-            onConfirm={() => deleteMutation.mutate()}
-            okText="Delete"
-            cancelText="Cancel"
-            okButtonProps={{ danger: true }}
-          >
-            <button
-              className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition"
-              aria-label={`Delete ${budget.category} budget`}
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
-          </Popconfirm>
+    <div className="px-3 py-2.5 hover:bg-muted/30 rounded-lg transition-colors group">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-2 h-2 rounded-full bg-primary/60 shrink-0" />
+          <span className="text-[12px] font-medium text-foreground">{budget.category}</span>
         </div>
+        <div className="flex items-center gap-3">
+          <span className="text-[12px] text-foreground">
+            <span className={over ? 'text-red-500 font-semibold' : 'font-semibold'}>{formatCurrency(spent)}</span>
+            <span className="text-muted-foreground font-normal text-[10px]"> / {formatCurrency(budget.monthly_limit)}</span>
+          </span>
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => onEdit(budget)}
+              className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition"
+              aria-label={`Edit ${budget.category} budget`}
+            >
+              <PencilLine className="w-3 h-3" />
+            </button>
+            <Popconfirm
+              title="Delete this budget?"
+              onConfirm={() => deleteMutation.mutate()}
+              okText="Delete"
+              cancelText="Cancel"
+              okButtonProps={{ danger: true }}
+            >
+              <button
+                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition"
+                aria-label={`Delete ${budget.category} budget`}
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </Popconfirm>
+          </div>
+        </div>
+      </div>
+      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   )
@@ -72,6 +84,12 @@ export function BudgetsTab() {
     queryKey: ['finance', 'budgets'],
     queryFn: financeApi.budgets,
   })
+
+  const { data: status } = useQuery({
+    queryKey: ['finance', 'budgets', 'status'],
+    queryFn: () => financeApi.budgetStatus(),
+  })
+  const spentByCategory = new Map((status?.items ?? []).map(i => [i.category, i.spent]))
 
   const upsertMutation = useMutation({
     mutationFn: (values: { category: string; monthly_limit: string }) =>
@@ -155,7 +173,7 @@ export function BudgetsTab() {
         ) : (
           <div className="p-1.5">
             {budgets.map(b => (
-              <BudgetRow key={b.category} budget={b} onEdit={handleEdit} />
+              <BudgetRow key={b.category} budget={b} spent={spentByCategory.get(b.category) ?? 0} onEdit={handleEdit} />
             ))}
           </div>
         )}

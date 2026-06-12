@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button, Form, Input, Select } from 'antd'
-import { Plus, Utensils, Clock } from 'lucide-react'
+import { Button, Form, Input, Select, AutoComplete, InputNumber } from 'antd'
+import { Plus, Utensils, Clock, Search } from 'lucide-react'
 import { healthApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
+import type { FoodDbItem } from '@/types'
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack']
 
@@ -60,7 +61,7 @@ function CalorieRing({ calories, target }: CalorieRingProps) {
           <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth={stroke} />
           <circle
             cx={size / 2} cy={size / 2} r={r} fill="none"
-            stroke="#0D9488" strokeWidth={stroke}
+            stroke="#f97316" strokeWidth={stroke}
             strokeDasharray={circ} strokeDashoffset={offset}
             strokeLinecap="round"
             style={{ transition: 'stroke-dashoffset 0.5s ease' }}
@@ -97,6 +98,41 @@ export function NutritionTab() {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
+  const [foodQuery, setFoodQuery] = useState('')
+  const [selectedFood, setSelectedFood] = useState<FoodDbItem | null>(null)
+  const [grams, setGrams] = useState<number | null>(null)
+
+  const { data: foods } = useQuery({
+    queryKey: ['health', 'foods', foodQuery],
+    queryFn: () => healthApi.foods(foodQuery || undefined),
+    enabled: showForm,
+  })
+
+  // Scale per-100g macros to the chosen quantity and fill the form
+  const applyFood = (food: FoodDbItem, qty: number) => {
+    const f = qty / 100
+    form.setFieldsValue({
+      food_name: food.name,
+      calories: String(Math.round(food.calories * f)),
+      protein: String(Math.round(food.protein * f * 10) / 10),
+      carbs: String(Math.round(food.carbs * f * 10) / 10),
+      fat: String(Math.round(food.fat * f * 10) / 10),
+    })
+  }
+
+  const handleFoodSelect = (name: string) => {
+    const food = foods?.find(x => x.name === name)
+    if (!food) return
+    const qty = food.serving_grams ?? 100
+    setSelectedFood(food)
+    setGrams(qty)
+    applyFood(food, qty)
+  }
+
+  const handleGramsChange = (v: number | null) => {
+    setGrams(v)
+    if (selectedFood && v) applyFood(selectedFood, v)
+  }
 
   const { data: goals, isLoading: loadingGoals } = useQuery({
     queryKey: ['health', 'goals'],
@@ -146,7 +182,7 @@ export function NutritionTab() {
   return (
     <div className="space-y-4 max-w-2xl">
       {/* Calorie ring + macros */}
-      <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+      <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Today's Nutrition</p>
         {loadingNutrition || loadingGoals ? (
           <Skeleton className="h-40 w-full" />
@@ -193,6 +229,40 @@ export function NutritionTab() {
 
       {showForm && (
         <div className="bg-muted/40 border border-border/60 rounded-xl p-4">
+          <div className="flex gap-2 mb-3">
+            <AutoComplete
+              className="flex-1"
+              placeholder="Search food database — Roti, Dal, Paneer…"
+              onSearch={setFoodQuery}
+              onSelect={handleFoodSelect}
+              options={(foods ?? []).map(f => ({
+                value: f.name,
+                label: (
+                  <div className="flex justify-between gap-2">
+                    <span>{f.name}</span>
+                    <span className="text-muted-foreground text-[11px]">{f.calories} kcal/100g{f.serving_desc ? ` · ${f.serving_desc}` : ''}</span>
+                  </div>
+                ),
+              }))}
+              suffixIcon={<Search size={12} />}
+              allowClear
+              onClear={() => { setSelectedFood(null); setGrams(null) }}
+            />
+            <InputNumber
+              placeholder="g"
+              min={1}
+              className="w-24"
+              value={grams}
+              onChange={handleGramsChange}
+              disabled={!selectedFood}
+              addonAfter="g"
+            />
+          </div>
+          {selectedFood && grams && (
+            <div className="text-[11px] text-muted-foreground mb-2">
+              {selectedFood.name} × {grams}g — macros auto-filled below, adjust if needed
+            </div>
+          )}
           <Form form={form} layout="vertical" onFinish={logMealMutation.mutate} requiredMark={false}>
             <div className="grid grid-cols-2 gap-3">
               <Form.Item name="food_name" label={<span className="text-[11px] text-muted-foreground">Food Name</span>} rules={[{ required: true }]} className="col-span-2">
@@ -225,7 +295,7 @@ export function NutritionTab() {
       )}
 
       {/* Today's meals */}
-      <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-card border border-subtle rounded-xl overflow-hidden shadow-premium-sm">
         <div className="px-4 py-2.5 border-b border-border/40">
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Today's Meals</p>
         </div>

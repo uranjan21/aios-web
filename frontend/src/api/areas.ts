@@ -3,19 +3,32 @@ import type {
   FinanceSnapshot, FinanceExpense, HealthLog, HealthStreak,
   SkillInventory, CareerEvent, BusinessEvent, ContentItem, JobOpportunity, BudgetLimit,
   FinancialGoal, FinanceBill, FinanceIncome, CashFlowData, HealthGoal, NutritionToday,
-  FinanceInvestment, InvestmentSummary, FinanceLoan, LoanSummary, SleepRecent,
+  FinanceInvestment, InvestmentSummary, FinanceLoan, LoanSummary, SleepRecent, HabitItem,
+  WorkoutSessionItem, WorkoutPR, FoodDbItem,
+  FinanceTransfer, BudgetStatus, LedgerEntry, NetWorth, TxnSearchResult, FinanceHealthScore,
 } from '@/types'
 
 // Finance
 export const financeApi = {
+  netWorth: () => api.get<NetWorth>('/areas/finance/net-worth').then(r => r.data),
+  healthScore: () => api.get<FinanceHealthScore>('/areas/finance/health-score').then(r => r.data),
+  importCheck: (items: { logged_at: string; amount: number; kind: string; description?: string }[]) =>
+    api.post<{ duplicates: number[] }>('/areas/finance/import/check', { items }).then(r => r.data),
+  importCommit: (items: { logged_at: string; amount: number; kind: string; category?: string; description?: string }[], account_id?: string) =>
+    api.post<{ imported_expenses: number; imported_income: number; skipped: number }>('/areas/finance/import/commit', { items, account_id }).then(r => r.data),
+  searchTransactions: (p: { q?: string; kind?: string; account_id?: string; category?: string; tag?: string; min_amount?: number; max_amount?: number; date_from?: string; date_to?: string; limit?: number; offset?: number }) =>
+    api.get<TxnSearchResult>('/areas/finance/transactions/search', { params: p }).then(r => r.data),
   snapshots: () => api.get<FinanceSnapshot[]>('/areas/finance/snapshots').then(r => r.data),
   latestSnapshot: () => api.get<FinanceSnapshot | null>('/areas/finance/snapshots/latest').then(r => r.data),
-  expenses: (month?: string, category?: string, limit = 50, offset = 0, time_range?: string) =>
+  expenses: (month?: string, category?: string, limit = 50, offset = 0, time_range?: string, q?: string, account_id?: string) =>
     api.get<{ items: FinanceExpense[]; total: number; has_more: boolean }>(
-      '/areas/finance/expenses', { params: { month, category, limit, offset, time_range } }
+      '/areas/finance/expenses', { params: { month, category, limit, offset, time_range, q, account_id } }
     ).then(r => r.data),
-  createExpense: (data: { amount: number; category: string; description?: string }) =>
+  createExpense: (data: { amount: number; category: string; description?: string; logged_at?: string; account_id?: string; tags?: string; splits?: { category: string; amount: number }[] }) =>
     api.post<FinanceExpense>('/areas/finance/expenses', data).then(r => r.data),
+  patchExpense: (id: string, d: Partial<{ amount: number; category: string; description: string; logged_at: string; account_id: string | null; tags: string | null }>) =>
+    api.patch<FinanceExpense>(`/areas/finance/expenses/${id}`, d).then(r => r.data),
+  deleteExpense: (id: string) => api.delete(`/areas/finance/expenses/${id}`).then(r => r.data),
   // Goals (Savings Pots)
   goals: () => api.get<FinancialGoal[]>('/areas/finance/goals').then(r => r.data),
   createGoal: (d: {name:string; icon?:string; target_amount:number; current_amount?:number; deadline?:string|null; category?:string; color?:string}) => api.post<FinancialGoal>('/areas/finance/goals', d).then(r=>r.data),
@@ -23,16 +36,25 @@ export const financeApi = {
   deleteGoal: (id:string) => api.delete(`/areas/finance/goals/${id}`).then(r=>r.data),
   // Bills
   bills: () => api.get<FinanceBill[]>('/areas/finance/bills').then(r => r.data),
-  createBill: (d: {name:string; amount:number; due_day:number; category?:string; is_auto_debit?:boolean; notes?:string}) => api.post<FinanceBill>('/areas/finance/bills', d).then(r=>r.data),
+  createBill: (d: {name:string; amount:number; due_day:number; category?:string; is_auto_debit?:boolean; notes?:string; account_id?:string}) => api.post<FinanceBill>('/areas/finance/bills', d).then(r=>r.data),
   patchBill: (id:string, d: Partial<FinanceBill>) => api.patch<FinanceBill>(`/areas/finance/bills/${id}`, d).then(r=>r.data),
   deleteBill: (id:string) => api.delete(`/areas/finance/bills/${id}`).then(r=>r.data),
   // Income
-  income: () => api.get<FinanceIncome[]>('/areas/finance/income').then(r => r.data),
-  createIncome: (d: {amount:number; source:string; description?:string; logged_at?:string}) => api.post<FinanceIncome>('/areas/finance/income', d).then(r=>r.data),
+  income: (month?: string) => api.get<FinanceIncome[]>('/areas/finance/income', { params: { month } }).then(r => r.data),
+  createIncome: (d: {amount:number; source:string; description?:string; logged_at?:string; account_id?:string; tags?:string}) => api.post<FinanceIncome>('/areas/finance/income', d).then(r=>r.data),
+  patchIncome: (id: string, d: Partial<{ amount: number; source: string; description: string; logged_at: string; account_id: string | null; tags: string | null }>) =>
+    api.patch<FinanceIncome>(`/areas/finance/income/${id}`, d).then(r => r.data),
+  deleteIncome: (id: string) => api.delete(`/areas/finance/income/${id}`).then(r => r.data),
+  // Transfers
+  transfers: (month?: string) => api.get<FinanceTransfer[]>('/areas/finance/transfers', { params: { month } }).then(r => r.data),
+  createTransfer: (d: { amount: number; from_account_id: string; to_account_id: string; description?: string; logged_at?: string }) =>
+    api.post<FinanceTransfer>('/areas/finance/transfers', d).then(r => r.data),
+  deleteTransfer: (id: string) => api.delete(`/areas/finance/transfers/${id}`).then(r => r.data),
   // Cashflow
-  cashflow: () => api.get<CashFlowData>('/areas/finance/cashflow').then(r => r.data),
+  cashflow: (month?: string) => api.get<CashFlowData>('/areas/finance/cashflow', { params: { month } }).then(r => r.data),
   // Budget limits
   budgets: () => api.get<BudgetLimit[]>('/areas/finance/budgets').then(r => r.data),
+  budgetStatus: (month?: string) => api.get<BudgetStatus>('/areas/finance/budgets/status', { params: { month } }).then(r => r.data),
   upsertBudget: (data: { category: string; monthly_limit: number }) =>
     api.put<BudgetLimit>('/areas/finance/budgets', data).then(r => r.data),
   deleteBudget: (category: string) =>
@@ -42,6 +64,8 @@ export const financeApi = {
   createAccount: (data: { name: string; type: string; balance?: number; currency?: string }) =>
     api.post<any>('/areas/finance/accounts', data).then(r => r.data),
   deleteAccount: (id: string) => api.delete(`/areas/finance/accounts/${id}`).then(r => r.data),
+  accountLedger: (id: string, limit = 50) =>
+    api.get<{ account: any; entries: LedgerEntry[] }>(`/areas/finance/accounts/${id}/ledger`, { params: { limit } }).then(r => r.data),
   // Categories
   categories: () => api.get<any[]>('/areas/finance/categories').then(r => r.data),
   createCategory: (data: { name: string; parent_id?: string | null; icon?: string | null }) =>
@@ -58,7 +82,7 @@ export const financeApi = {
   // Loans / EMI
   loans: () => api.get<FinanceLoan[]>('/areas/finance/loans').then(r => r.data),
   loansSummary: () => api.get<LoanSummary>('/areas/finance/loans/summary').then(r => r.data),
-  createLoan: (d: { name: string; loan_type: string; lender?: string; principal_amount: number; outstanding_amount: number; interest_rate: number; emi_amount: number; emi_day: number; tenure_months?: number; notes?: string }) =>
+  createLoan: (d: { name: string; loan_type: string; lender?: string; principal_amount: number; outstanding_amount: number; interest_rate: number; emi_amount: number; emi_day: number; tenure_months?: number; notes?: string; account_id?: string }) =>
     api.post<FinanceLoan>('/areas/finance/loans', d).then(r => r.data),
   patchLoan: (id: string, d: Partial<{ outstanding_amount: number; is_active: boolean; notes: string }>) =>
     api.patch<FinanceLoan>(`/areas/finance/loans/${id}`, d).then(r => r.data),
@@ -89,6 +113,18 @@ export const healthApi = {
   logSteps: (steps:number) => api.post<HealthLog>('/areas/health/logs', {entry_type:'steps', value:steps, unit:'steps'}).then(r=>r.data),
   // Sleep
   sleepRecent: () => api.get<SleepRecent>('/areas/health/sleep/recent').then(r => r.data),
+  foods: (q?: string) => api.get<FoodDbItem[]>('/areas/health/foods', { params: { q } }).then(r => r.data),
+  createFood: (d: { name: string; calories: number; protein?: number; carbs?: number; fat?: number; serving_desc?: string; serving_grams?: number }) =>
+    api.post<FoodDbItem>('/areas/health/foods', d).then(r => r.data),
+  workouts: (limit = 10) => api.get<WorkoutSessionItem[]>('/areas/health/workouts', { params: { limit } }).then(r => r.data),
+  workoutPrs: () => api.get<WorkoutPR[]>('/areas/health/workouts/prs').then(r => r.data),
+  createWorkout: (d: { name: string; notes?: string; sets: { exercise: string; reps: number; weight_kg?: number }[] }) =>
+    api.post<{ id: string; new_prs: { exercise: string; weight_kg: number; previous: number | null }[] }>('/areas/health/workouts', d).then(r => r.data),
+  deleteWorkout: (id: string) => api.delete(`/areas/health/workouts/${id}`).then(r => r.data),
+  habits: () => api.get<HabitItem[]>('/areas/health/habits').then(r => r.data),
+  createHabit: (d: { name: string; icon?: string }) => api.post('/areas/health/habits', d).then(r => r.data),
+  deleteHabit: (id: string) => api.delete(`/areas/health/habits/${id}`).then(r => r.data),
+  toggleHabit: (id: string, date?: string) => api.post<{ checked: boolean; date: string }>(`/areas/health/habits/${id}/toggle`, { date }).then(r => r.data),
 }
 
 // Career
@@ -97,6 +133,8 @@ export const careerApi = {
   skills: () => api.get<SkillInventory[]>('/areas/career/skills').then(r => r.data),
   updateSkill: (id: string, data: { level: string; notes?: string }) =>
     api.put<SkillInventory>(`/areas/career/skills/${id}`, data).then(r => r.data),
+  upsertSkill: (data: { skill_name: string; category: string; level: string; notes?: string }) =>
+    api.post<SkillInventory>('/areas/career/skills', data).then(r => r.data),
   events: () => api.get<CareerEvent[]>('/areas/career/events').then(r => r.data),
   createEvent: (data: { event_type: string; title: string; description?: string }) =>
     api.post<CareerEvent>('/areas/career/events', data).then(r => r.data),
@@ -117,12 +155,26 @@ export const businessApi = {
   createEvent: (data: { event_type: string; title: string; description?: string; mrr?: number }) =>
     api.post<BusinessEvent>('/areas/business/events', data).then(r => r.data),
   summary: () => api.get('/areas/business/summary').then(r => r.data),
+  mrrHistory: () => api.get<{ date: string; mrr: number; title: string }[]>('/areas/business/mrr-history').then(r => r.data),
 }
 
 // Captures (quick log inbox)
+export interface ParsedCapture {
+  domain: 'finance_expense' | 'finance_income' | 'health_meal' | 'health_water' | 'health_weight' | 'health_gym' | 'capture'
+  fields: Record<string, any>
+  summary: string
+}
+
+export const aiApi = {
+  explain: (area: 'finance' | 'health') => api.post<{ text: string }>('/ai/explain', { area }).then(r => r.data),
+  skillGap: (target_role: string) => api.post<{ text: string }>('/ai/skill-gap', { target_role }).then(r => r.data),
+  draft: (title: string, platform: string, notes?: string) => api.post<{ text: string }>('/ai/draft', { title, platform, notes }).then(r => r.data),
+}
+
 export const capturesApi = {
   create: (raw_text: string) => api.post('/captures', { raw_text }).then(r => r.data),
   list: () => api.get('/captures').then(r => r.data),
+  parse: (text: string) => api.post<ParsedCapture>('/captures/parse', { text }).then(r => r.data),
 }
 
 // Content

@@ -2,7 +2,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { IndianRupee, Heart, Briefcase, Rocket, PenLine, Zap, Loader2, CheckCircle2 } from 'lucide-react'
+import { IndianRupee, Heart, Briefcase, Rocket, PenLine, Zap, Loader2, CheckCircle2, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { financeApi, careerApi, businessApi, capturesApi, contentApi } from '@/api/areas'
 import { healthApi } from '@/api/areas'
@@ -10,8 +10,8 @@ import { agentsApi } from '@/api/agents'
 import { formatCurrency, formatRelativeTime } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cardEntrance } from '@/components/PageTransition'
-import { cn } from '@/lib/utils'
 import { useCountUp } from '@/hooks/useCountUp'
+import { GlassCard, IconBadge, StatusPill, type IconBadgeColor } from '@/components/lumina'
 
 function getGreeting(): string {
   const h = new Date().getHours()
@@ -24,15 +24,7 @@ function getGreeting(): string {
 
 function TrendChip({ value, suffix = '%' }: { value: number; suffix?: string }) {
   const up = value >= 0
-  return (
-    <span className={cn(
-      'inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md',
-      up ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-         : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
-    )}>
-      {up ? '↑' : '↓'} {Math.abs(value)}{suffix}
-    </span>
-  )
+  return <StatusPill label={`${up ? '↑' : '↓'} ${Math.abs(value)}${suffix}`} tone={up ? 'emerald' : 'red'} />
 }
 
 function SummaryCard({
@@ -43,8 +35,8 @@ function SummaryCard({
   loading,
   onClick,
 }: {
-  icon: React.FC<{ className?: string }>
-  color: string
+  icon: LucideIcon
+  color: IconBadgeColor
   title: string
   stats: Array<{ label: string; value: string }>
   loading?: boolean
@@ -52,7 +44,7 @@ function SummaryCard({
 }) {
   if (loading) {
     return (
-      <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+      <div className="bg-card border border-subtle rounded-xl shadow-premium-sm p-4 space-y-3">
         <Skeleton className="h-3 w-24" />
         <Skeleton className="h-2 w-full" />
         <Skeleton className="h-2 w-3/4" />
@@ -68,22 +60,25 @@ function SummaryCard({
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick() } : undefined}
-      className={cn(
-        'bg-card border border-border rounded-xl p-4 hover:border-primary/30 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-sm'
-      )}
+      className="bg-card border border-subtle rounded-xl shadow-premium-sm p-4 transition-all duration-200 hover:shadow-premium-hover hover:border-primary/20 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       <div className="flex items-center gap-2 mb-3">
-        <div className={cn('p-1.5 rounded-lg', color)}>
-          <Icon className="w-[14px] h-[14px]" aria-hidden="true" />
-        </div>
+        <IconBadge icon={Icon} color={color} size="sm" />
         <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">{title}</span>
       </div>
       <div className="space-y-2">
-        {stats.map(({ label, value }) => (
-          <div key={label} className="flex justify-between items-center">
-            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
-            <span className="text-[13px] font-semibold text-foreground font-mono">{value}</span>
-          </div>
+        {stats.map(({ label, value }, idx) => (
+          idx === 0 ? (
+            <div key={label}>
+              <div className="stat-hero text-[30px] leading-[34px] text-foreground">{value}</div>
+              <span className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-widest">{label}</span>
+            </div>
+          ) : (
+            <div key={label} className="flex justify-between items-center">
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
+              <span className="text-[13px] font-semibold text-foreground font-mono tabular-nums">{value}</span>
+            </div>
+          )
         ))}
       </div>
     </motion.div>
@@ -98,8 +93,8 @@ function AreaTile({
   loading,
   onClick,
 }: {
-  icon: React.FC<{ className?: string }>
-  color: string
+  icon: LucideIcon
+  color: IconBadgeColor
   title: string
   stats: Array<{ label: string; value: string }>
   loading?: boolean
@@ -107,7 +102,7 @@ function AreaTile({
 }) {
   if (loading) {
     return (
-      <div className="bg-card border border-border rounded-xl p-3 space-y-2">
+      <div className="bg-card border border-subtle rounded-xl shadow-premium-sm p-3 space-y-2">
         <Skeleton className="h-3 w-20" />
         <Skeleton className="h-2 w-full" />
         <Skeleton className="h-2 w-3/4" />
@@ -122,17 +117,17 @@ function AreaTile({
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick() } : undefined}
-      className="bg-card border border-border rounded-xl p-3 hover:border-primary/30 cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="bg-card border border-subtle rounded-xl shadow-premium-sm p-3 transition-all duration-200 hover:shadow-premium-hover hover:border-primary/20 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       <div className="flex items-center gap-1.5 mb-2">
-        <Icon className={cn('w-4 h-4', color)} aria-hidden="true" />
+        <IconBadge icon={Icon} color={color} size="sm" />
         <span className="text-[12px] font-semibold text-foreground">{title}</span>
       </div>
       <div className="space-y-1.5">
         {stats.map(({ label, value }) => (
           <div key={label} className="flex justify-between items-center">
             <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
-            <span className="text-[11px] font-semibold text-foreground font-mono">{value}</span>
+            <span className="text-[11px] font-semibold text-foreground font-mono tabular-nums">{value}</span>
           </div>
         ))}
       </div>
@@ -145,6 +140,10 @@ export function DashboardPage() {
   const { data: latestSnapshot, isLoading: loadingFinance } = useQuery({
     queryKey: ['finance', 'latestSnapshot'],
     queryFn: financeApi.latestSnapshot,
+  })
+  const { data: netWorth } = useQuery({
+    queryKey: ['finance', 'net-worth'],
+    queryFn: financeApi.netWorth,
   })
   const { data: streak, isLoading: loadingStreak } = useQuery({
     queryKey: ['health', 'streak'],
@@ -182,7 +181,7 @@ export function DashboardPage() {
   }, null as string | null)
 
   // Count up animation values
-  const animatedNetWorth = useCountUp(latestSnapshot?.net_worth ? Number(latestSnapshot.net_worth) : null)
+  const animatedNetWorth = useCountUp(netWorth ? netWorth.net_worth : null)
   const animatedCCDebt = useCountUp(latestSnapshot?.cc_debt ? Number(latestSnapshot.cc_debt) : null)
   const animatedTakeHome = useCountUp(latestSnapshot?.take_home ? Number(latestSnapshot.take_home) : null)
   const animatedWeight = useCountUp(healthSummary?.weight ? Number(healthSummary.weight) : null)
@@ -216,8 +215,8 @@ export function DashboardPage() {
         {/* Row 0: Greeting */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-[15px] font-semibold text-foreground">{getGreeting()}, Utsav</h1>
-            <p className="text-[12px] text-muted-foreground">{dateString}</p>
+            <h1 className="font-display text-[34px] leading-[40px] font-medium text-foreground">{getGreeting()}, <span className="text-gradient italic">Utsav</span></h1>
+            <p className="text-[12.5px] text-muted-foreground mt-1 tracking-wide">{dateString}</p>
           </div>
         </div>
 
@@ -226,7 +225,7 @@ export function DashboardPage() {
           <div className="col-span-12 md:col-span-4">
             <SummaryCard
               icon={IndianRupee}
-              color="bg-emerald-500/10 text-emerald-500"
+              color="emerald"
               title="Finance"
               loading={loadingFinance}
               onClick={() => navigate('/areas/finance')}
@@ -240,7 +239,7 @@ export function DashboardPage() {
           <div className="col-span-12 md:col-span-4">
             <SummaryCard
               icon={Heart}
-              color="bg-rose-500/10 text-rose-500"
+              color="red"
               title="Health"
               loading={loadingHealth || loadingStreak}
               onClick={() => navigate('/areas/health')}
@@ -254,7 +253,7 @@ export function DashboardPage() {
           <div className="col-span-12 md:col-span-4">
             <SummaryCard
               icon={Zap}
-              color="bg-sky-500/10 text-sky-500"
+              color="blue"
               title="Agents"
               loading={loadingAgents}
               onClick={() => navigate('/agents')}
@@ -273,30 +272,8 @@ export function DashboardPage() {
           <div className="col-span-12 xl:col-span-8">
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <AreaTile
-                icon={IndianRupee}
-                color="text-emerald-500"
-                title="Finance"
-                loading={loadingFinance}
-                onClick={() => navigate('/areas/finance')}
-                stats={[
-                  { label: 'Net worth', value: animatedNetWorth != null ? formatCurrency(animatedNetWorth) : '—' },
-                  { label: 'Take-home', value: animatedTakeHome != null ? formatCurrency(animatedTakeHome) : '—' },
-                ]}
-              />
-              <AreaTile
-                icon={Heart}
-                color="text-rose-500"
-                title="Health"
-                loading={loadingHealth || loadingStreak}
-                onClick={() => navigate('/areas/health')}
-                stats={[
-                  { label: 'Weight', value: animatedWeight != null ? `${animatedWeight.toFixed(1)} kg` : '—' },
-                  { label: 'Streak', value: animatedStreak != null ? `${Math.round(animatedStreak)}d` : '—' },
-                ]}
-              />
-              <AreaTile
                 icon={Briefcase}
-                color="text-primary"
+                color="primary"
                 title="Career"
                 loading={loadingCareer}
                 onClick={() => navigate('/areas/career')}
@@ -307,7 +284,7 @@ export function DashboardPage() {
               />
               <AreaTile
                 icon={Rocket}
-                color="text-violet-500"
+                color="purple"
                 title="Business"
                 loading={loadingBusiness}
                 onClick={() => navigate('/areas/business')}
@@ -318,7 +295,7 @@ export function DashboardPage() {
               />
               <AreaTile
                 icon={PenLine}
-                color="text-amber-500"
+                color="amber"
                 title="Content"
                 loading={loadingContent}
                 onClick={() => navigate('/areas/content')}
@@ -332,14 +309,9 @@ export function DashboardPage() {
 
           {/* Right: Quick Log */}
           <div className="col-span-12 xl:col-span-4">
-            <div className="bg-card border border-border rounded-xl p-4 h-full flex flex-col">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-3">
-                Quick Capture
-              </p>
-              <div className="flex-1">
-                <QuickLogInput />
-              </div>
-            </div>
+            <GlassCard title="Quick Capture" hoverable fadeIn="up" delay={100}>
+              <QuickLogInput />
+            </GlassCard>
           </div>
         </div>
 
@@ -391,7 +363,7 @@ function QuickLogInput() {
         {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" /> : 'Capture'}
       </button>
       {confirmed && (
-        <p className="text-[10px] text-emerald-500 flex items-center gap-1 font-medium">
+        <p className="text-[10px] text-kpi-emerald flex items-center gap-1 font-medium">
           <CheckCircle2 className="w-3 h-3" /> Captured: {confirmed.length > 60 ? confirmed.slice(0, 60) + '…' : confirmed}
         </p>
       )}

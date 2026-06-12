@@ -91,7 +91,7 @@ export function NotificationBell({
           <div
             role="dialog"
             aria-label="Notifications"
-            className="absolute right-0 top-full mt-1.5 w-72 z-50 bg-card border border-border rounded-xl shadow-lg overflow-hidden"
+            className="absolute right-0 top-full mt-1.5 w-72 z-50 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <span className="text-sm font-semibold">Alerts</span>
@@ -133,9 +133,9 @@ export function NotificationBell({
 
 function AlertIcon({ type }: { type: Alert['type'] }) {
   const map = {
-    conflict: { Icon: AlertTriangle, cls: 'text-amber-500' },
+    conflict: { Icon: AlertTriangle, cls: 'text-kpi-amber' },
     agent_error: { Icon: Zap, cls: 'text-destructive' },
-    token_budget: { Icon: ShieldAlert, cls: 'text-blue-400' },
+    token_budget: { Icon: ShieldAlert, cls: 'text-kpi-blue' },
   }
   const { Icon, cls } = map[type]
   return <Icon className={cn('w-4 h-4 shrink-0 mt-0.5', cls)} aria-hidden="true" />

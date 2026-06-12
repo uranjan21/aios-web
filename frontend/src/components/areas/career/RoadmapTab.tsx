@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/EmptyState'
 import { format } from 'date-fns'
 import type { CareerEvent } from '@/types'
+import { SkillGapCard } from './SkillGapCard'
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
   learning: 'cyan',
@@ -78,12 +79,14 @@ export function RoadmapTab() {
 
   return (
     <div className="max-w-2xl space-y-3">
+      <SkillGapCard />
+
       <div className="flex items-center gap-2">
         <MapPin className="w-4 h-4 text-muted-foreground" />
         <span className="text-[11px] text-muted-foreground font-medium">{events.length} events on your career timeline</span>
       </div>
 
-      <div className="bg-card border border-border/60 shadow-sm rounded-xl p-4">
+      <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
         <Timeline items={timelineItems} className="mt-2" />
       </div>
     </div>

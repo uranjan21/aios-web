@@ -4,8 +4,9 @@
     {
       "name": "aios-frontend",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev", "--port", "5173"],
-      "port": 5173
+      "runtimeArgs": ["dev"],
+      "port": 5174,
+      "autoPort": true
     }
   ]
 }

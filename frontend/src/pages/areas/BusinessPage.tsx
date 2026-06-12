@@ -4,7 +4,7 @@ import { Rocket, History, Plus, DollarSign, Activity, TrendingUp } from 'lucide-
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import styled from 'styled-components'
-import { Card, Button, Timeline, Tag, Select, Input, Form, Skeleton, Space, Statistic, Tabs } from 'antd'
+import { Button, Timeline, Tag, Select, Input, Form, Skeleton, Space, Statistic } from 'antd'
 import { AreaTabs } from '@/components/ui/AreaTabs'
 import { EventsTab } from '@/components/areas/business/EventsTab'
 import { SummaryTab } from '@/components/areas/business/SummaryTab'
@@ -12,6 +12,7 @@ import { businessApi } from '@/api/areas'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { ErrorCard } from '@/components/ErrorCard'
 import { EmptyState } from '@/components/EmptyState'
+import { GlassCard, IconBadge } from '@/components/lumina'
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
   feature_shipped: 'green',
@@ -21,14 +22,6 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
   milestone: 'purple',
   note: 'default',
 }
-
-const FlatCard = ({ className, ...props }: any) => (
-  <Card
-    className={`bg-card border border-border shadow-sm rounded-xl overflow-hidden [&>.ant-card-head]:border-border [&>.ant-card-head]:min-h-[40px] [&>.ant-card-head]:px-4 [&>.ant-card-body]:p-4 ${className || ''}`}
-    bordered={false}
-    {...props}
-  />
-)
 
 const AnimatedTimelineItem = styled(motion.div)`
   padding: 0.375rem 0.5rem;
@@ -48,38 +41,41 @@ function RunwayCalculator() {
   const isHealthy = burnRate === 0 || cash / burnRate > 6
 
   return (
-    <FlatCard 
-      title={<Space className="text-xs font-medium text-muted-foreground"><TrendingUp size={14} /><span>Runway Calculator</span></Space>}
-      extra={<button className="text-xs font-medium px-2 py-0.5 bg-muted/50 hover:bg-muted text-muted-foreground rounded transition-colors">Details</button>}
+    <GlassCard
+      title="Runway Calculator"
+      icon={<TrendingUp size={16} className="text-muted-foreground" />}
+      action={<button className="text-xs font-medium px-2 py-0.5 bg-muted/50 hover:bg-muted text-muted-foreground rounded transition-colors">Details</button>}
+      hoverable
+      fadeIn="up"
     >
       <div className="flex flex-row items-center justify-between gap-4">
-        <Statistic 
-          title={<span className="text-[10px] text-gray-500 uppercase tracking-wider">Current Cash</span>} 
-          value={cash} 
-          prefix={<DollarSign size={14} />} 
-          precision={0} 
-          valueStyle={{ fontSize: '20px', fontWeight: 600 }} 
+        <Statistic
+          title={<span className="text-[10px] text-muted-foreground uppercase tracking-wider">Current Cash</span>}
+          value={cash}
+          prefix={<DollarSign size={14} />}
+          precision={0}
+          valueStyle={{ fontSize: '20px', fontWeight: 600 }}
         />
-        <Statistic 
-          title={<span className="text-[10px] text-gray-500 uppercase tracking-wider">Monthly Burn</span>} 
-          value={burnRate} 
-          prefix={<Activity size={14} />} 
-          precision={0} 
-          valueStyle={{ fontSize: '20px', fontWeight: 600 }} 
+        <Statistic
+          title={<span className="text-[10px] text-muted-foreground uppercase tracking-wider">Monthly Burn</span>}
+          value={burnRate}
+          prefix={<Activity size={14} />}
+          precision={0}
+          valueStyle={{ fontSize: '20px', fontWeight: 600 }}
         />
       </div>
-      <div className={`mt-3 p-2 rounded-lg border flex items-center justify-between ${isHealthy ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+      <div className={`mt-3 p-2 rounded-lg border flex items-center justify-between ${isHealthy ? 'bg-kpi-emerald/10 border-kpi-emerald/20' : 'bg-kpi-red/10 border-kpi-red/20'}`}>
         <div>
-          <div className="text-[10px] text-gray-400 mb-0.5">Estimated Runway</div>
-          <div className={`text-xs font-semibold ${isHealthy ? 'text-green-500' : 'text-red-500'}`}>{runwayMonths} <span className="text-[10px] font-normal opacity-70">months</span></div>
+          <div className="text-[10px] text-muted-foreground mb-0.5">Estimated Runway</div>
+          <div className={`text-xs font-semibold ${isHealthy ? 'text-kpi-emerald' : 'text-kpi-red'}`}>{runwayMonths} <span className="text-[10px] font-normal opacity-70">months</span></div>
         </div>
         <div className="text-right max-w-[120px]">
-          <span className="text-[10px] text-gray-400 leading-tight block">
+          <span className="text-[10px] text-muted-foreground leading-tight block">
             {isHealthy ? 'Looking solid!' : 'Warning: Low runway.'}
           </span>
         </div>
       </div>
-    </FlatCard>
+    </GlassCard>
   )
 }
 
@@ -153,14 +149,12 @@ export function BusinessPage() {
               <div className="grid grid-cols-12 gap-4 w-full items-start">
                 {/* Left Column: Metrics & Timeline */}
                 <div className="col-span-12 xl:col-span-8 flex flex-col gap-4">
-                  <FlatCard>
+                  <GlassCard hoverable fadeIn="up">
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
-                        <Rocket className="w-4 h-4 text-primary" />
-                      </div>
+                      <IconBadge icon={Rocket} color="primary" size="md" />
                       <div>
                         <h2 className="text-xs font-medium text-foreground m-0">Ledgr</h2>
-                        <p className="text-xs text-gray-500 m-0">SaaS accounting for Indian freelancers</p>
+                        <p className="text-xs text-muted-foreground m-0">SaaS accounting for Indian freelancers</p>
                       </div>
                       <Tag color="blue" className="ml-auto">Building</Tag>
                     </div>
@@ -171,28 +165,32 @@ export function BusinessPage() {
                       </div>
                       <div className="col-span-12 md:col-span-4">
                         <div className="ant-statistic-title mb-1">Last Feature</div>
-                        {loadingSummary ? <Skeleton.Input size="small" active /> : <div className="text-gray-800 font-medium truncate">{summary?.last_feature ?? '—'}</div>}
+                        {loadingSummary ? <Skeleton.Input size="small" active /> : <div className="text-foreground font-medium truncate">{summary?.last_feature ?? '—'}</div>}
                       </div>
                       <div className="col-span-12 md:col-span-4">
                         <div className="ant-statistic-title mb-1">Shipped At</div>
-                        {loadingSummary ? <Skeleton.Input size="small" active /> : <div className="text-gray-800 font-medium">{formatDate(summary?.last_feature_at)}</div>}
+                        {loadingSummary ? <Skeleton.Input size="small" active /> : <div className="text-foreground font-medium">{formatDate(summary?.last_feature_at)}</div>}
                       </div>
                     </div>
-                  </FlatCard>
+                  </GlassCard>
 
-                  <FlatCard 
-                    title={<Space className="text-sm font-medium text-muted-foreground"><History size={16} /><span>Event Timeline</span></Space>}
-                    extra={
+                  <GlassCard
+                    title="Event Timeline"
+                    icon={<History size={16} className="text-muted-foreground" />}
+                    action={
                       <Space>
                         <Button type="primary" icon={<Plus size={14} />} onClick={() => setShowEventForm(!showEventForm)}>Log</Button>
                         <button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Details</button>
                       </Space>
                     }
+                    hoverable
+                    fadeIn="up"
+                    delay={100}
                   >
                     <AnimatePresence>{showEventForm && <EventForm onClose={() => setShowEventForm(false)} />}</AnimatePresence>
-                    
+
                     {loadingEvents ? <Skeleton active /> : events?.length ? (
-                      <Timeline className="mt-2 text-gray-300"
+                      <Timeline className="mt-2"
                         items={events.map((e: any, i: number) => ({
                           color: EVENT_TYPE_COLORS[e.event_type] || 'blue',
                           children: (
@@ -212,7 +210,7 @@ export function BusinessPage() {
                         }))}
                       />
                     ) : <EmptyState icon={History} title="No events" description="Log your business milestones." />}
-                  </FlatCard>
+                  </GlassCard>
                 </div>
 
                 {/* Right Column: Runway */}

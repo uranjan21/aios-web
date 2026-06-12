@@ -25,6 +25,8 @@ from app.api.areas.career import router as career_router
 from app.api.areas.business import router as business_router
 from app.api.areas.content import router as content_router
 from app.api.captures import router as captures_router
+from app.api.push import router as push_router
+from app.api.ai import router as ai_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -63,6 +65,20 @@ async def lifespan(app: FastAPI):
         loop = asyncio.get_running_loop()
         _watcher.start(loop)
         logger.info("Vault watcher started")
+
+        async def _initial_scan():
+            count = 0
+            for md_file in vault_path.rglob("*.md"):
+                rel = str(md_file.relative_to(vault_path))
+                await handle_file_change(rel, "modified")
+                count += 1
+            logger.info("Initial vault scan complete: %d files", count)
+
+        scan_task = asyncio.create_task(_initial_scan())
+        scan_task.add_done_callback(
+            lambda t: logger.error("Initial vault scan failed: %s", t.exception())
+            if not t.cancelled() and t.exception() else None
+        )
     else:
         logger.warning("VAULT_PATH does not exist: %s — watcher not started", settings.vault_path)
 
@@ -97,6 +113,7 @@ def create_app() -> FastAPI:
     )
 
     @app.get("/health")
+    @app.get("/api/health")
     async def health():
         from sqlalchemy import text
         from app.db.session import engine
@@ -154,6 +171,8 @@ def create_app() -> FastAPI:
     app.include_router(business_router)
     app.include_router(content_router)
     app.include_router(captures_router)
+    app.include_router(push_router)
+    app.include_router(ai_router)
 
     return app
 

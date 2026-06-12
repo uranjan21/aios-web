@@ -87,7 +87,7 @@ export function CommandPalette() {
       <div className="absolute inset-0 bg-black/60" aria-hidden="true" />
 
       <div
-        className="relative w-full max-w-lg mx-4 rounded-xl bg-card border border-border shadow-2xl overflow-hidden"
+        className="relative w-full max-w-lg mx-4 rounded-2xl bg-card border border-border shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

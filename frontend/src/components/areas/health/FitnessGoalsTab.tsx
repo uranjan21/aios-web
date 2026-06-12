@@ -71,7 +71,7 @@ function GoalCard({ goal, current, target, onTargetChange }: {
     : (current != null && current >= target)
 
   return (
-    <div className="bg-card border border-border/60 shadow-sm rounded-xl p-3">
+    <div className="bg-card border border-subtle shadow-premium-sm rounded-xl p-3">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className={cn('p-1.5 rounded-lg bg-muted/50', goal.color)}>
@@ -79,7 +79,7 @@ function GoalCard({ goal, current, target, onTargetChange }: {
           </div>
           <span className="text-[12px] font-medium text-foreground">{goal.label}</span>
         </div>
-        {done && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+        {done && <CheckCircle2 className="w-4 h-4 text-kpi-emerald" />}
       </div>
 
       <div className="flex items-baseline gap-2 mb-3">
@@ -91,7 +91,7 @@ function GoalCard({ goal, current, target, onTargetChange }: {
 
       <div className="h-1.5 bg-muted/60 rounded-full overflow-hidden mb-3">
         <div
-          className={cn('h-full rounded-full transition-all duration-500', done ? 'bg-emerald-500' : 'bg-primary')}
+          className={cn('h-full rounded-full transition-all duration-500', done ? 'bg-kpi-emerald' : 'bg-primary')}
           style={{ width: `${pct}%` }}
         />
       </div>

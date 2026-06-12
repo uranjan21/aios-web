@@ -80,7 +80,7 @@ export function HealthLogsTab() {
       </div>
 
       {/* Table */}
-      <div className="bg-card border border-border/60 shadow-sm rounded-xl overflow-hidden">
+      <div className="bg-card border border-subtle shadow-premium-sm rounded-xl overflow-hidden">
         <table className="w-full text-[11px]" aria-label="Health logs">
           <thead>
             <tr className="border-b border-border/40 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">

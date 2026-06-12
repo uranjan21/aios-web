@@ -1,4 +1,5 @@
 """APScheduler-based cron runner for AIOS agents."""
+import asyncio
 import logging
 import uuid
 
@@ -55,8 +56,48 @@ async def start_scheduler() -> None:
             except Exception as e:
                 logger.warning("Could not schedule agent %s (%s): %s", agent.task_id, agent.cron_expression, e)
 
+        from app.services.finance.recurring import post_due_recurring, notify_due_tomorrow
+        scheduler.add_job(
+            post_due_recurring,
+            trigger=CronTrigger(hour=1, minute=0, timezone="UTC"),
+            id="finance_recurring_post",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+        # 03:30 UTC = 9:00 IST — morning reminder for tomorrow's bills/EMIs
+        scheduler.add_job(
+            notify_due_tomorrow,
+            trigger=CronTrigger(hour=3, minute=30, timezone="UTC"),
+            id="finance_due_tomorrow",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+
+        from app.services.insights.anomalies import detect_anomalies
+        # 04:00 UTC = 9:30 IST — daily anomaly sweep (spending spikes, broken streaks)
+        scheduler.add_job(
+            detect_anomalies,
+            trigger=CronTrigger(hour=4, minute=0, timezone="UTC"),
+            id="insights_anomalies",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+
+        from app.services.insights.digest import generate_weekly_digest
+        # Sunday 13:30 UTC = 19:00 IST — weekly digest
+        scheduler.add_job(
+            generate_weekly_digest,
+            trigger=CronTrigger(day_of_week="sun", hour=13, minute=30, timezone="UTC"),
+            id="insights_weekly_digest",
+            replace_existing=True,
+            misfire_grace_time=7200,
+        )
+
         scheduler.start()
         logger.info("APScheduler started — %d/%d agents registered", registered, len(agents))
+
+        # Catch-up pass at boot for due days missed while the server was down
+        asyncio.get_running_loop().create_task(post_due_recurring())
     except Exception as e:
         logger.error("APScheduler startup failed (non-fatal): %s", e)
 

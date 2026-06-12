@@ -8,11 +8,11 @@ import { useNotifications } from '@/hooks/useNotifications'
 import { formatRelativeTime } from '@/lib/utils'
 
 const TYPE_CONFIG: Record<Notification['type'], { icon: React.FC<{ className?: string }>; color: string }> = {
-  conflict:       { icon: AlertTriangle, color: 'text-amber-500' },
+  conflict:       { icon: AlertTriangle, color: 'text-kpi-amber' },
   agent_error:    { icon: AlertCircle,   color: 'text-destructive' },
-  agent_success:  { icon: CheckCircle,   color: 'text-emerald-500' },
-  budget_warning: { icon: Zap,           color: 'text-violet-400' },
-  info:           { icon: Info,          color: 'text-blue-400' },
+  agent_success:  { icon: CheckCircle,   color: 'text-kpi-emerald' },
+  budget_warning: { icon: Zap,           color: 'text-kpi-purple' },
+  info:           { icon: Info,          color: 'text-kpi-blue' },
 }
 
 function NotifItem({ n, onClose }: { n: Notification; onClose: () => void }) {
@@ -137,7 +137,7 @@ export function NotificationBell() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-80 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden"
+            className="absolute right-0 top-full mt-2 w-80 bg-card border border-border rounded-2xl shadow-2xl z-50 overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">

@@ -7,8 +7,9 @@ import { cn, formatRelativeTime, exportToCsv } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorCard } from '@/components/ErrorCard'
 import { useCountUp } from '@/hooks/useCountUp'
+import { KpiCard, StatusPill } from '@/components/lumina'
 import styled, { keyframes } from 'styled-components'
-import { Card, Typography, Button, Input, Select, Tag, Avatar, Space, Tabs } from 'antd'
+import { Card, Typography, Button, Input, Select, Tag, Avatar, Space } from 'antd'
 import { AreaTabs } from '@/components/ui/AreaTabs'
 import { HealthLogsTab } from '@/components/areas/health/HealthLogsTab'
 import { FitnessGoalsTab } from '@/components/areas/health/FitnessGoalsTab'
@@ -16,11 +17,15 @@ import { NutritionTab } from '@/components/areas/health/NutritionTab'
 import { WaterTrackerWidget } from '@/components/areas/health/WaterTrackerWidget'
 import { SleepTab } from '@/components/areas/health/SleepTab'
 import { BodyTab } from '@/components/areas/health/BodyTab'
+import { HabitsTab } from '@/components/areas/health/HabitsTab'
+import { WorkoutsTab } from '@/components/areas/health/WorkoutsTab'
+import { AiInsightCard } from '@/components/AiInsightCard'
 
 import Highcharts from 'highcharts'
+Highcharts.setOptions({ accessibility: { enabled: false } })
 import HighchartsReact from 'highcharts-react-official'
 
-const { Title, Text } = Typography
+const { Title } = Typography
 
 const floatAnimation = keyframes`
   0% { transform: translateY(0px); }
@@ -31,8 +36,8 @@ const floatAnimation = keyframes`
 const PremiumCard = styled(Card)`
   border-radius: 12px;
   background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  border: 1px solid hsl(var(--border-subtle) / 0.06);
+  box-shadow: var(--shadow-premium-sm);
   transition: all 0.2s ease;
   overflow: hidden;
   &:hover {
@@ -55,8 +60,8 @@ const PRWidget = styled.div`
   background: hsl(var(--card));
   border-radius: 12px;
   padding: 16px;
-  border: 1px solid hsl(var(--border));
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  border: 1px solid hsl(var(--border-subtle) / 0.06);
+  box-shadow: var(--shadow-premium-sm);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -158,12 +163,12 @@ export function HealthPage() {
     series: [{
       name: 'Weight',
       data: weightDataProcessed,
-      color: '#0D9488',
+      color: '#f97316',
       fillColor: {
         linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
         stops: [
-          [0, 'rgba(13, 148, 136, 0.35)'],
-          [1, 'rgba(13, 148, 136, 0)']
+          [0, 'rgba(249, 115, 22, 0.35)'],
+          [1, 'rgba(249, 115, 22, 0)']
         ]
       }
     }]
@@ -178,76 +183,60 @@ export function HealthPage() {
   return (
     <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
       <div className="mx-auto max-w-[1200px]">
-      <AreaTabs defaultActiveKey="1">
-        <Tabs.TabPane tab="Dashboard" key="1">
+      <AreaTabs defaultActiveKey="1" items={[
+        { key: '1', label: 'Dashboard', children: (
           <div className="grid grid-cols-12 gap-4">
             <div className="col-span-12">
           <PRWidget>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <Trophy className="w-4 h-4 text-emerald-500" />
+                <Trophy className="w-4 h-4 text-kpi-emerald" />
                 <span className="text-sm font-medium text-muted-foreground">New Personal Record</span>
               </div>
               <h3>100kg Bench Press</h3>
               <p>You shattered your previous record of 95kg. Keep pushing!</p>
             </div>
             <div className="hidden sm:block">
-              <Zap className="w-5 h-5 text-emerald-500" />
+              <Zap className="w-5 h-5 text-kpi-emerald" />
             </div>
           </PRWidget>
         </div>
 
         <div className="col-span-12 sm:col-span-6 xl:col-span-3">
-          <PremiumCard>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
-                <Scale className="w-4 h-4" />
-              </div>
-              <Text type="secondary" className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Current Weight</Text>
-            </div>
-            <div className="text-2xl font-bold text-foreground tracking-tight">
-              {loadingSummary ? <Skeleton className="h-6 w-24" /> : `${summary?.weight ?? '—'} kg`}
-            </div>
-          </PremiumCard>
+          <KpiCard
+            label="Current Weight"
+            icon={Scale}
+            color="primary"
+            loading={loadingSummary}
+            value={`${summary?.weight ?? '—'} kg`}
+          />
         </div>
         <div className="col-span-12 sm:col-span-6 xl:col-span-3">
-          <PremiumCard>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 bg-orange-500/10 rounded-lg text-orange-500">
-                <Flame className="w-4 h-4" />
-              </div>
-              <Text type="secondary" className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Gym Streak</Text>
-            </div>
-            <div className="text-2xl font-bold text-foreground tracking-tight">
-              {loadingStreak ? <Skeleton className="h-6 w-24" /> : `${Math.round(animatedStreak ?? 0)} days`}
-            </div>
-          </PremiumCard>
+          <KpiCard
+            label="Gym Streak"
+            icon={Flame}
+            color="amber"
+            loading={loadingStreak}
+            value={`${Math.round(animatedStreak ?? 0)} days`}
+          />
         </div>
         <div className="col-span-12 sm:col-span-6 xl:col-span-3">
-          <PremiumCard>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 bg-purple-500/10 rounded-lg text-purple-500">
-                <Activity className="w-4 h-4" />
-              </div>
-              <Text type="secondary" className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Last Workout</Text>
-            </div>
-            <div className="text-2xl font-bold text-foreground tracking-tight mt-0.5">
-              {loadingStreak ? <Skeleton className="h-5 w-32" /> : formatRelativeTime(streak?.last_workout_at ?? null)}
-            </div>
-          </PremiumCard>
+          <KpiCard
+            label="Last Workout"
+            icon={Activity}
+            color="purple"
+            loading={loadingStreak}
+            value={formatRelativeTime(streak?.last_workout_at ?? null)}
+          />
         </div>
         <div className="col-span-12 sm:col-span-6 xl:col-span-3">
-          <PremiumCard>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-500">
-                <Target className="w-4 h-4" />
-              </div>
-              <Text type="secondary" className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Total Sessions</Text>
-            </div>
-            <div className="text-2xl font-bold text-foreground tracking-tight">
-              {loadingGym ? <Skeleton className="h-6 w-24" /> : Math.round(animatedSessions ?? 0)}
-            </div>
-          </PremiumCard>
+          <KpiCard
+            label="Total Sessions"
+            icon={Target}
+            color="emerald"
+            loading={loadingGym}
+            value={Math.round(animatedSessions ?? 0)}
+          />
         </div>
 
         <div className="col-span-12 lg:col-span-6">
@@ -260,10 +249,14 @@ export function HealthPage() {
           <WaterTrackerWidget />
         </div>
 
+        <div className="col-span-12">
+          <AiInsightCard area="health" />
+        </div>
+
         <div className="col-span-12 flex justify-start">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20">
-            <span className="text-sm font-medium text-orange-600/80">Fasting Tracker:</span>
-            <span className="text-sm font-bold text-orange-600">14 hours Fasted</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20">
+            <span className="text-sm font-medium text-foreground/80">Fasting Tracker:</span>
+            <StatusPill label="14 hours Fasted" tone="primary" />
           </div>
         </div>
 
@@ -321,23 +314,15 @@ export function HealthPage() {
           </PremiumCard>
         </div>
           </div>
-        </Tabs.TabPane>
-        <Tabs.TabPane tab="Health Logs" key="2">
-          <HealthLogsTab />
-        </Tabs.TabPane>
-        <Tabs.TabPane tab="Fitness Goals" key="3">
-          <FitnessGoalsTab />
-        </Tabs.TabPane>
-        <Tabs.TabPane tab="Nutrition" key="4">
-          <NutritionTab />
-        </Tabs.TabPane>
-        <Tabs.TabPane tab="Sleep" key="5">
-          <SleepTab />
-        </Tabs.TabPane>
-        <Tabs.TabPane tab="Body" key="6">
-          <BodyTab />
-        </Tabs.TabPane>
-      </AreaTabs>
+        ) },
+        { key: '2', label: 'Health Logs', children: <HealthLogsTab /> },
+        { key: '3', label: 'Fitness Goals', children: <FitnessGoalsTab /> },
+        { key: '4', label: 'Nutrition', children: <NutritionTab /> },
+        { key: '5', label: 'Sleep', children: <SleepTab /> },
+        { key: '6', label: 'Body', children: <BodyTab /> },
+        { key: '7', label: 'Habits', children: <HabitsTab /> },
+        { key: '8', label: 'Workouts', children: <WorkoutsTab /> },
+      ]} />
       </div>
     </div>
   )

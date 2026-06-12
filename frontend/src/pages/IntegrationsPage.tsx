@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { CheckCircle, XCircle, AlertCircle, ExternalLink, Trash2 } from 'lucide-react'
 import { integrationsApi } from '@/api/integrations'
-import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorCard } from '@/components/ErrorCard'
 import {
@@ -17,6 +16,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog'
+import { GlassCard, IconBadge, StatusPill } from '@/components/lumina'
 import type { Integration } from '@/types'
 
 const PROVIDER_INFO: Record<string, { label: string; desc: string }> = {
@@ -26,18 +26,18 @@ const PROVIDER_INFO: Record<string, { label: string; desc: string }> = {
 }
 
 function StatusIcon({ status }: { status: Integration['status'] }) {
-  if (status === 'connected') return <CheckCircle className="w-5 h-5 text-primary" aria-hidden="true" />
-  if (status === 'expired') return <AlertCircle className="w-5 h-5 text-amber-500" aria-hidden="true" />
-  if (status === 'error') return <XCircle className="w-5 h-5 text-destructive" aria-hidden="true" />
-  return <XCircle className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
+  if (status === 'connected') return <IconBadge icon={CheckCircle} color="primary" size="md" />
+  if (status === 'expired') return <IconBadge icon={AlertCircle} color="amber" size="md" />
+  if (status === 'error') return <IconBadge icon={XCircle} color="red" size="md" />
+  return <IconBadge icon={XCircle} color="muted" size="md" />
 }
 
 function IntegrationCardSkeleton() {
   return (
-    <div className="bg-card border border-border shadow-sm rounded-xl p-4 space-y-3">
+    <div className="bg-card border border-subtle shadow-premium-sm rounded-xl p-4 space-y-3">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <Skeleton className="w-5 h-5 rounded-full" />
+          <Skeleton className="w-8 h-8 rounded-xl" />
           <div className="space-y-1.5">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-3 w-48" />
@@ -72,7 +72,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
   const [dialogOpen, setDialogOpen] = useState(false)
 
   return (
-    <div className="bg-card border border-border shadow-sm rounded-xl p-4">
+    <GlassCard hoverable fadeIn="up">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           <StatusIcon status={integration.status} />
@@ -81,16 +81,11 @@ function IntegrationCard({ integration }: { integration: Integration }) {
             <p className="text-xs text-muted-foreground mt-0.5">{info.desc}</p>
           </div>
         </div>
-        <span className={cn(
-          'text-xs font-medium px-2 py-0.5 rounded-full capitalize',
-          integration.status === 'connected'
-            ? 'bg-primary/10 text-primary border border-primary/20'
-            : integration.status === 'expired'
-            ? 'bg-amber-500/10 text-amber-500'
-            : 'bg-muted text-muted-foreground'
-        )}>
-          {integration.status}
-        </span>
+        <StatusPill
+          label={integration.status}
+          tone={integration.status === 'connected' ? 'primary' : integration.status === 'expired' ? 'amber' : 'neutral'}
+          className="capitalize"
+        />
       </div>
 
       <div className="flex gap-2 mt-4">
@@ -142,7 +137,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
           </AlertDialog>
         )}
       </div>
-    </div>
+    </GlassCard>
   )
 }
 

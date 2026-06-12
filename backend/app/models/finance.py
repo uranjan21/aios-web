@@ -37,7 +37,7 @@ class Account(SQLModel, table=True):
     name: str = Field(nullable=False)
     type: AccountType = Field(nullable=False)
     balance: Decimal = Field(default=0, sa_column=Column(Numeric(12, 2)))
-    currency: str = Field(default="USD", nullable=False)
+    currency: str = Field(default="INR", nullable=False)
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
 
 class Category(SQLModel, table=True):
@@ -59,6 +59,8 @@ class FinanceExpense(SQLModel, table=True):
     category_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_categories.id")
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     source: str = Field(default="agent", nullable=False)
+    split_group_id: Optional[uuid.UUID] = Field(default=None)  # siblings of one split payment
+    tags: Optional[str] = Field(default=None)  # comma-separated freeform labels
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
 
 
@@ -68,6 +70,8 @@ class BudgetLimit(SQLModel, table=True):
 
     category: str = Field(primary_key=True, nullable=False)
     monthly_limit: Decimal = Field(sa_column=Column(Numeric(10, 2), nullable=False))
+    alert_80_period: Optional[str] = Field(default=None)  # "YYYY-MM" the 80% alert last fired
+    alert_100_period: Optional[str] = Field(default=None)  # "YYYY-MM" the 100% alert last fired
     updated_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
 
 
@@ -99,6 +103,8 @@ class FinanceBill(SQLModel, table=True):
     is_auto_debit: bool = Field(default=False)
     is_active: bool = Field(default=True)
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
+    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
+    last_posted_period: Optional[str] = Field(default=None)  # "YYYY-MM" of last auto-posted expense
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
 
@@ -109,6 +115,21 @@ class FinanceIncome(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     source: str = Field(nullable=False)  # salary/freelance/dividend/other
+    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
+    tags: Optional[str] = Field(default=None)  # comma-separated freeform labels
+    description: Optional[str] = Field(default=None, sa_column=Column(Text))
+    logged_at: datetime = Field(nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+
+
+class FinanceTransfer(SQLModel, table=True):
+    """Account-to-account transfer — Money Manager style third transaction type."""
+    __tablename__ = "finance_transfers"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    from_account_id: uuid.UUID = Field(foreign_key="finance_accounts.id", nullable=False)
+    to_account_id: uuid.UUID = Field(foreign_key="finance_accounts.id", nullable=False)
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     logged_at: datetime = Field(nullable=False)
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
@@ -146,5 +167,7 @@ class FinanceLoan(SQLModel, table=True):
     tenure_months: Optional[int] = Field(default=None)
     is_active: bool = Field(default=True)
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
+    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
+    last_posted_period: Optional[str] = Field(default=None)  # "YYYY-MM" of last auto-posted EMI
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
     updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())

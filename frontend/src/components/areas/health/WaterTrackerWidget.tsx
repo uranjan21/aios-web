@@ -10,7 +10,7 @@ function GlassIcon({ filled }: { filled: boolean }) {
       <path
         d="M4 4 L2 28 L22 28 L20 4 Z"
         fill={filled ? 'hsl(var(--primary))' : 'hsl(var(--muted))'}
-        stroke={filled ? '#0D9488' : 'hsl(var(--border))'}
+        stroke={filled ? '#f97316' : 'hsl(var(--border))'}
         strokeWidth="1.5"
         strokeLinejoin="round"
         opacity={filled ? 1 : 0.5}
@@ -47,7 +47,7 @@ export function WaterTrackerWidget() {
   const remaining = Math.max(0, target - glasses)
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+    <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
       <div className="flex items-center justify-between mb-3">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Water Intake</p>
         <span className="text-sm font-bold text-primary">{glasses} / {target} glasses</span>

@@ -44,9 +44,9 @@ const fadeIn = keyframes`
 `;
 
 const pulseGlow = keyframes`
-  0% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.4); }
-  70% { box-shadow: 0 0 15px 10px rgba(13, 148, 136, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4); }
+  70% { box-shadow: 0 0 15px 10px rgba(249, 115, 22, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
 `;
 
 const PageContainer = styled.div`
@@ -68,15 +68,15 @@ const AgentsGrid = styled.div`
 
 const CardContainer = styled.div<{ $status?: string }>`
   background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
+  border: 1px solid hsl(var(--border-subtle) / 0.06);
   border-radius: 12px;
   padding: 0.625rem 1rem;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-premium-sm);
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   position: relative;
   overflow: hidden;
   animation: ${fadeIn} 0.5s ease-out forwards;
-  
+
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -92,17 +92,17 @@ const CardContainer = styled.div<{ $status?: string }>`
     left: 0;
     width: 4px;
     height: 100%;
-    background: ${({ $status }) => 
-      $status === 'running' ? 'linear-gradient(180deg, #0D9488, #14B8A6)' :
+    background: ${({ $status }) =>
+      $status === 'running' ? 'linear-gradient(180deg, #f97316, #fb923c)' :
       $status === 'error' ? 'hsl(var(--destructive))' :
-      $status === 'success' ? '#10b981' : 'transparent'};
+      $status === 'success' ? 'hsl(var(--kpi-emerald))' : 'transparent'};
     transition: background 0.3s ease;
   }
 
   &:hover {
     transform: translateY(-2px);
-    border-color: hsl(var(--border));
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    border-color: hsl(var(--primary) / 0.2);
+    box-shadow: var(--shadow-premium-hover);
   }
 
   @media (max-width: 800px) {
@@ -140,14 +140,14 @@ const StatusIndicator = styled.div<{ $status: string }>`
   font-weight: 600;
   padding: 0.25rem 0.6rem;
   border-radius: 9999px;
-  background: ${({ $status }) => 
-    $status === 'running' ? 'rgba(59, 130, 246, 0.1)' :
-    $status === 'error' ? 'rgba(239, 68, 68, 0.1)' :
-    $status === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(148, 163, 184, 0.1)'};
-  color: ${({ $status }) => 
-    $status === 'running' ? '#0D9488' :
-    $status === 'error' ? '#ef4444' :
-    $status === 'success' ? '#10b981' : 'hsl(var(--muted-foreground))'};
+  background: ${({ $status }) =>
+    $status === 'running' ? 'hsl(var(--kpi-blue) / 0.1)' :
+    $status === 'error' ? 'hsl(var(--kpi-red) / 0.1)' :
+    $status === 'success' ? 'hsl(var(--kpi-emerald) / 0.1)' : 'hsl(var(--muted-foreground) / 0.1)'};
+  color: ${({ $status }) =>
+    $status === 'running' ? 'hsl(var(--primary))' :
+    $status === 'error' ? 'hsl(var(--kpi-red))' :
+    $status === 'success' ? 'hsl(var(--kpi-emerald))' : 'hsl(var(--muted-foreground))'};
   text-transform: uppercase;
   letter-spacing: 0.05em;
   
@@ -357,7 +357,7 @@ function AgentCard({ agent }: { agent: Agent }) {
                 onChange={(checked) => toggleMutation.mutate(checked)}
                 loading={toggleMutation.isPending}
                 size="small"
-                style={{ background: agent.is_active ? '#10b981' : 'rgba(255,255,255,0.1)' }}
+                style={{ background: agent.is_active ? 'hsl(var(--kpi-emerald))' : 'hsl(var(--muted))' }}
               />
             </Tooltip>
             
@@ -417,7 +417,7 @@ export function AgentsPage() {
   })
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: '#0D9488', fontFamily: 'inherit', colorBgContainer: 'hsl(var(--card))', colorText: 'hsl(var(--foreground))' } }}>
+    <ConfigProvider theme={{ token: { colorPrimary: '#f97316', borderRadius: 8, fontFamily: 'inherit', colorBgContainer: 'hsl(var(--card))', colorText: 'hsl(var(--foreground))', colorTextSecondary: 'hsl(var(--muted-foreground))', colorBorder: 'hsl(var(--border))' } }}>
       <PageContainer>
         {isError ? (
           <ErrorCard message="Could not load agents" onRetry={() => refetch()} />
