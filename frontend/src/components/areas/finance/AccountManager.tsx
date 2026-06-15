@@ -6,48 +6,7 @@ import styled from 'styled-components';
 import dayjs from 'dayjs';
 import { financeApi } from '@/api/areas';
 import { formatCurrency } from '@/lib/utils';
-
-const Container = styled.div`
-  background: hsl(var(--card));
-  border-radius: 16px;
-  padding: 16px;
-  border: 1px solid hsl(var(--border) / 0.6);
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-
-  /* Theme-aware Antd table overrides for this container */
-  .ant-table {
-    background: transparent;
-    color: hsl(var(--foreground));
-  }
-  .ant-table-thead > tr > th {
-    background: hsl(var(--muted));
-    color: hsl(var(--muted-foreground));
-    border-bottom: 1px solid hsl(var(--border));
-  }
-  .ant-table-tbody > tr > td {
-    border-bottom: 1px solid hsl(var(--border));
-  }
-  .ant-table-tbody > tr {
-    cursor: pointer;
-  }
-  .ant-table-tbody > tr:hover > td {
-    background: hsl(var(--muted) / 0.5);
-  }
-  .ant-empty-description {
-    color: hsl(var(--muted-foreground));
-  }
-`;
-
-const Header = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  h3 { margin: 0; color: hsl(var(--muted-foreground)); font-size: 14px; font-weight: 500; }
-`;
+import { TableContainer, TableHeader } from './TableStyles';
 
 const KIND_COLOR: Record<string, string> = { expense: 'red', income: 'green', transfer: 'blue' };
 
@@ -80,7 +39,7 @@ function AccountLedgerDrawer({ account, onClose }: { account: any | null; onClos
                   <span className="text-[10px] text-muted-foreground">{dayjs(e.logged_at).format('MMM D, YYYY h:mm A')}</span>
                 </div>
               </div>
-              <span className={`text-xs font-semibold shrink-0 ml-2 ${e.amount >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+              <span className={`text-xs font-medium shrink-0 ml-2 ${e.amount >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                 {e.amount >= 0 ? '+' : '-'}{formatCurrency(Math.abs(e.amount))}
               </span>
             </div>
@@ -124,10 +83,10 @@ export const AccountManager: React.FC = () => {
   ];
 
   return (
-    <Container>
-      <Header>
+    <TableContainer>
+      <TableHeader>
         <h3>Accounts</h3>
-      </Header>
+      </TableHeader>
 
       <Table
         dataSource={accounts}
@@ -140,6 +99,6 @@ export const AccountManager: React.FC = () => {
       />
 
       <AccountLedgerDrawer account={ledgerAccount} onClose={() => setLedgerAccount(null)} />
-    </Container>
+    </TableContainer>
   );
 };

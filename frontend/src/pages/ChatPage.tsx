@@ -153,10 +153,10 @@ function Message({ message }: { message: ReturnType<typeof useChat>['messages'][
         {(message.content || message.streaming) && (
           <div
             className={cn(
-              'rounded-xl px-3 py-2 text-sm',
+              'rounded-2xl px-4 py-2.5 text-sm shadow-premium-sm',
               isUser
                 ? 'bg-primary/10 text-foreground rounded-tr-sm'
-                : 'bg-card border border-border text-foreground rounded-tl-sm'
+                : 'bg-card border-0 text-foreground rounded-tl-sm'
             )}
           >
             {isUser ? (
@@ -272,8 +272,8 @@ export function ChatPage() {
   return (
     <div className="flex h-full">
       {/* Session list — desktop only */}
-      <div className="hidden lg:flex w-60 flex-col border-r border-border bg-card/50 shrink-0">
-        <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+      <div className="hidden lg:flex w-60 flex-col border-0 shadow-premium-md bg-card shrink-0">
+        <div className="px-4 py-3 flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Sessions</span>
           <button
             onClick={newSession}
@@ -313,7 +313,7 @@ export function ChatPage() {
       {/* Main chat */}
       <div className="flex flex-col flex-1 min-w-0">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-card/30">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-card/50 shadow-premium-sm">
           <button
             onClick={newSession}
             className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition focus-ring rounded-md px-2 py-1 hover:bg-muted/50"
@@ -354,7 +354,7 @@ export function ChatPage() {
         >
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 border border-primary/20 shadow-premium-sm">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 border-0 shadow-premium-sm">
                 <Bot className="w-6 h-6 text-primary" />
               </div>
               <p className="font-semibold text-foreground text-base tracking-tight">AIOS Agent</p>
@@ -367,9 +367,9 @@ export function ChatPage() {
                     key={value}
                     onClick={() => handleQuickPrompt(value)}
                     className={cn(
-                      'px-3.5 py-2.5 text-[11px] rounded-xl border border-border bg-card shadow-premium-sm',
-                      'hover:bg-muted/50 hover:border-border text-muted-foreground hover:text-foreground',
-                      'transition-all text-left focus-ring font-medium tracking-wide'
+                      'px-3.5 py-2.5 text-[11px] rounded-2xl border-0 bg-card shadow-premium-sm',
+                      'hover:bg-muted/50 text-muted-foreground hover:text-foreground',
+                      'transition-all text-left focus-ring font-medium tracking-wide hover:shadow-premium-hover'
                     )}
                   >
                     {label}
@@ -395,7 +395,7 @@ export function ChatPage() {
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t border-border bg-card/30">
+        <div className="p-4 bg-card/50 shadow-premium-md">
           <div className="flex gap-2 items-end max-w-4xl mx-auto w-full">
             <textarea
               ref={textareaRef}
@@ -417,8 +417,8 @@ export function ChatPage() {
               aria-label="Chat message input"
               aria-multiline="true"
               className={cn(
-                'flex-1 resize-none px-3.5 py-2.5 rounded-xl text-sm min-h-[40px] max-h-32 overflow-y-auto',
-                'bg-background border border-border text-foreground placeholder:text-muted-foreground shadow-premium-sm',
+                'flex-1 resize-none px-3.5 py-2.5 rounded-2xl text-sm min-h-[40px] max-h-32 overflow-y-auto',
+                'bg-background border-0 text-foreground placeholder:text-muted-foreground shadow-clay-inset',
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                 'transition-shadow'
               )}
@@ -428,7 +428,7 @@ export function ChatPage() {
               disabled={!input.trim() || isStreaming || !connected}
               aria-label="Send message"
               className={cn(
-                'w-[40px] h-[40px] rounded-xl bg-primary text-primary-foreground',
+                'w-[40px] h-[40px] rounded-2xl bg-primary text-primary-foreground',
                 'hover:bg-primary/90 disabled:opacity-40 transition flex items-center justify-center shrink-0',
                 'focus-ring shadow-premium-sm'
               )}

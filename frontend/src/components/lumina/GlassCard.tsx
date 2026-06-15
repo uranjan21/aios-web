@@ -37,10 +37,9 @@ export function GlassCard({
   return (
     <div
       className={cn(
-        'bg-card border border-subtle rounded-xl shadow-premium-sm h-full flex flex-col transition-all duration-200',
+        'bg-card border-0 rounded-2xl shadow-premium-sm h-full flex flex-col transition-all duration-200',
         !noPadding && 'p-4',
-        hoverable && 'hover:shadow-premium-hover hover:border-primary/20',
-        glass && 'glass-panel',
+        hoverable && 'hover:shadow-premium-hover',
         fadeIn === 'up' && 'fade-in-up',
         fadeIn === 'up' && DELAY_CLASSES[delay],
         className

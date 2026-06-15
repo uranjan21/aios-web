@@ -1,11 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Form, Input, Select, Button } from 'antd'
+import { Form, Input, Select, Button, Modal, Segmented } from 'antd'
 import { financeApi } from '@/api/areas'
-import { GlassCard } from '@/components/lumina'
-import { RailHeading } from '@/components/layout/WorkspaceLayout'
-import { TextTabs } from '@/components/ui/TextTabs'
 import { cn } from '@/lib/utils'
 
 const INVESTMENT_TYPE_META: Record<string, { label: string; icon: string }> = {
@@ -48,7 +45,7 @@ function TypePicker({ meta, value, onChange }: { meta: Record<string, { label: s
   )
 }
 
-function AddAccountForm() {
+function AddAccountForm({ onSuccess }: { onSuccess?: () => void }) {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const { mutate, isPending } = useMutation({
@@ -57,12 +54,13 @@ function AddAccountForm() {
       queryClient.invalidateQueries({ queryKey: ['finance', 'accounts'] })
       toast.success('Account created')
       form.resetFields()
+      onSuccess?.()
     },
     onError: () => toast.error('Failed to create account'),
   })
 
   return (
-    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false}>
+    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false} className="mt-3">
       <Form.Item name="name" label="Account Name" rules={[{ required: true }]}>
         <Input placeholder="e.g. HDFC Savings" />
       </Form.Item>
@@ -88,7 +86,7 @@ function AddAccountForm() {
   )
 }
 
-function AddCategoryForm() {
+function AddCategoryForm({ onSuccess }: { onSuccess?: () => void }) {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const { data: categories } = useQuery({ queryKey: ['finance_categories'], queryFn: financeApi.categories })
@@ -99,12 +97,13 @@ function AddCategoryForm() {
       queryClient.invalidateQueries({ queryKey: ['finance_categories'] })
       toast.success('Category created')
       form.resetFields()
+      onSuccess?.()
     },
     onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to create category'),
   })
 
   return (
-    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false}>
+    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false} className="mt-3">
       <Form.Item name="name" label="Category Name" rules={[{ required: true }]}>
         <Input placeholder="e.g. Groceries" />
       </Form.Item>
@@ -121,7 +120,7 @@ function AddCategoryForm() {
   )
 }
 
-function AddInvestmentForm() {
+function AddInvestmentForm({ onSuccess }: { onSuccess?: () => void }) {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const [type, setType] = useState('mutual_fund')
@@ -141,12 +140,13 @@ function AddInvestmentForm() {
       toast.success('Holding added')
       form.resetFields()
       setType('mutual_fund')
+      onSuccess?.()
     },
     onError: () => toast.error('Failed to add holding'),
   })
 
   return (
-    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false}>
+    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false} className="mt-3">
       <div className="text-[11px] text-muted-foreground mb-1">Type</div>
       <TypePicker meta={INVESTMENT_TYPE_META} value={type} onChange={setType} />
       <Form.Item name="name" label="Name" rules={[{ required: true }]}>
@@ -174,7 +174,7 @@ function AddInvestmentForm() {
   )
 }
 
-function AddLoanForm() {
+function AddLoanForm({ onSuccess }: { onSuccess?: () => void }) {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const [type, setType] = useState('personal')
@@ -199,12 +199,13 @@ function AddLoanForm() {
       toast.success('Loan added')
       form.resetFields()
       setType('personal')
+      onSuccess?.()
     },
     onError: () => toast.error('Failed to add loan'),
   })
 
   return (
-    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false}>
+    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false} className="mt-3">
       <div className="text-[11px] text-muted-foreground mb-1">Type</div>
       <TypePicker meta={LOAN_TYPE_META} value={type} onChange={setType} />
       <div className="grid grid-cols-2 gap-2">
@@ -246,26 +247,41 @@ function AddLoanForm() {
   )
 }
 
-const OPTIONS = [
-  { label: 'Acct', value: 'Account' },
-  { label: 'Cat', value: 'Category' },
-  { label: 'Invest', value: 'Investment' },
-  { label: 'Loan', value: 'Loan' },
-]
+export function AccountsTabModal({ open, onClose, defaultTab = 'Account' }: { open: boolean; onClose: () => void; defaultTab?: 'Account' | 'Category' | 'Investment' | 'Loan' }) {
+  const [activeTab, setActiveTab] = useState<'Account' | 'Category' | 'Investment' | 'Loan'>(defaultTab)
 
-export function QuickAddAccounts() {
-  const [tab, setTab] = useState('Account')
+  const handleOpenChange = (visible: boolean) => {
+    if (visible) {
+      setActiveTab(defaultTab)
+    }
+  }
 
   return (
-    <>
-      <RailHeading>Add New</RailHeading>
-      <GlassCard hoverable fadeIn="up">
-        <TextTabs block options={OPTIONS} value={tab} onChange={setTab} className="mb-3" />
-        {tab === 'Account' && <AddAccountForm />}
-        {tab === 'Category' && <AddCategoryForm />}
-        {tab === 'Investment' && <AddInvestmentForm />}
-        {tab === 'Loan' && <AddLoanForm />}
-      </GlassCard>
-    </>
+    <Modal
+      title="Add Financial Asset / Liability"
+      open={open}
+      onCancel={onClose}
+      footer={null}
+      width={420}
+      destroyOnClose
+      afterOpenChange={handleOpenChange}
+    >
+      <Segmented
+        block
+        options={[
+          { label: 'Account', value: 'Account' },
+          { label: 'Category', value: 'Category' },
+          { label: 'Investment', value: 'Investment' },
+          { label: 'Loan', value: 'Loan' }
+        ]}
+        value={activeTab}
+        onChange={v => setActiveTab(v as any)}
+        className="mb-3"
+      />
+      {activeTab === 'Account' && <AddAccountForm onSuccess={onClose} />}
+      {activeTab === 'Category' && <AddCategoryForm onSuccess={onClose} />}
+      {activeTab === 'Investment' && <AddInvestmentForm onSuccess={onClose} />}
+      {activeTab === 'Loan' && <AddLoanForm onSuccess={onClose} />}
+    </Modal>
   )
 }

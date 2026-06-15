@@ -1,79 +1,19 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Form, Input, Select, Button, Space, Popconfirm } from 'antd'
+import { Form, Input, Select, Button, Space, Popconfirm, Table } from 'antd'
 import { Trash2, PencilLine } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { formatCurrency } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
-import { GlassCard } from '@/components/lumina'
 import type { BudgetLimit } from '@/types'
+import { TableContainer, TableHeader } from './TableStyles'
 
 const CATEGORIES = [
   'Food', 'Transport', 'Rent', 'Health', 'Subscriptions',
   'Clothes', 'Entertainment', 'Utilities', 'Education',
   'Groceries', 'Personal Care', 'Investments', 'Others',
 ]
-
-function BudgetRow({ budget, spent, onEdit }: { budget: BudgetLimit; spent: number; onEdit: (b: BudgetLimit) => void }) {
-  const queryClient = useQueryClient()
-  const limit = Number(budget.monthly_limit)
-  const pct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0
-  const over = spent > limit
-  const barColor = over ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
-
-  const deleteMutation = useMutation({
-    mutationFn: () => financeApi.deleteBudget(budget.category),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['finance', 'budgets'] })
-      toast.success(`${budget.category} budget removed`)
-    },
-    onError: () => toast.error('Failed to delete budget'),
-  })
-
-  return (
-    <div className="px-3 py-2.5 hover:bg-muted/30 rounded-lg transition-colors group">
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-2 h-2 rounded-full bg-primary/60 shrink-0" />
-          <span className="text-[12px] font-medium text-foreground">{budget.category}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-[12px] text-foreground">
-            <span className={over ? 'text-red-500 font-semibold' : 'font-semibold'}>{formatCurrency(spent)}</span>
-            <span className="text-muted-foreground font-normal text-[10px]"> / {formatCurrency(budget.monthly_limit)}</span>
-          </span>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={() => onEdit(budget)}
-              className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition"
-              aria-label={`Edit ${budget.category} budget`}
-            >
-              <PencilLine className="w-3 h-3" />
-            </button>
-            <Popconfirm
-              title="Delete this budget?"
-              onConfirm={() => deleteMutation.mutate()}
-              okText="Delete"
-              cancelText="Cancel"
-              okButtonProps={{ danger: true }}
-            >
-              <button
-                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition"
-                aria-label={`Delete ${budget.category} budget`}
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
-            </Popconfirm>
-          </div>
-        </div>
-      </div>
-      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  )
-}
 
 export function BudgetsTab() {
   const [form] = Form.useForm()
@@ -105,6 +45,15 @@ export function BudgetsTab() {
     onError: () => toast.error('Failed to save budget'),
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: (category: string) => financeApi.deleteBudget(category),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['finance', 'budgets'] })
+      toast.success('Budget removed')
+    },
+    onError: () => toast.error('Failed to delete budget'),
+  })
+
   const handleEdit = (budget: BudgetLimit) => {
     setEditing(budget)
     form.setFieldsValue({ category: budget.category, monthly_limit: String(budget.monthly_limit) })
@@ -113,21 +62,77 @@ export function BudgetsTab() {
 
   const totalBudget = budgets?.reduce((s, b) => s + Number(b.monthly_limit), 0) ?? 0
 
-  return (
-    <GlassCard
-      title="Limits by Category"
-      action={
-        <span className="text-xs font-semibold text-foreground">
-          {formatCurrency(totalBudget)}<span className="text-muted-foreground font-normal text-[10px]"> / mo</span>
-        </span>
+  const columns = [
+    {
+      title: 'Category',
+      dataIndex: 'category',
+      key: 'category',
+      render: (category: string) => (
+        <div className="flex items-center gap-2.5">
+          <div className="w-2 h-2 rounded-full bg-primary/60 shrink-0" />
+          <span className="font-medium text-foreground">{category}</span>
+        </div>
+      )
+    },
+    {
+      title: 'Limit',
+      dataIndex: 'monthly_limit',
+      key: 'limit',
+      render: (limit: string | number) => <span className="font-medium">{formatCurrency(Number(limit))}</span>
+    },
+    {
+      title: 'Spent',
+      key: 'spent',
+      render: (_: any, record: BudgetLimit) => {
+        const limit = Number(record.monthly_limit)
+        const spent = spentByCategory.get(record.category) ?? 0
+        const over = spent > limit
+        return <span className={over ? 'text-red-500 font-medium' : 'text-foreground'}>{formatCurrency(spent)}</span>
       }
-      hoverable
-      fadeIn="up"
-      contentClassName="space-y-2"
-    >
+    },
+    {
+      title: 'Utilization',
+      key: 'utilization',
+      render: (_: any, record: BudgetLimit) => {
+        const limit = Number(record.monthly_limit)
+        const spent = spentByCategory.get(record.category) ?? 0
+        const pct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0
+        const over = spent > limit
+        const barColor = over ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
+        return (
+          <div className="w-[120px] lg:w-[150px]">
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-1">
+              <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        )
+      }
+    },
+    {
+      title: 'Action',
+      key: 'action',
+      render: (_: any, record: BudgetLimit) => (
+        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button type="text" size="small" icon={<PencilLine size={14} />} onClick={() => handleEdit(record)} />
+          <Popconfirm title="Delete this budget?" onConfirm={() => deleteMutation.mutate(record.category)} okText="Delete" cancelText="Cancel" okButtonProps={{ danger: true }}>
+            <Button type="text" danger size="small" icon={<Trash2 size={14} />} />
+          </Popconfirm>
+        </div>
+      )
+    }
+  ]
+
+  if (isLoading) return <div className="space-y-4"><Skeleton className="h-10" /><Skeleton className="h-[200px]" /></div>;
+
+  return (
+    <TableContainer>
+      <TableHeader>
+        <h3>Limits by Category</h3>
+      </TableHeader>
+
       {/* Add/Edit form */}
       {showForm && (
-        <div className="bg-muted/40 border border-border/60 rounded-xl p-3">
+        <div className="bg-muted/40 border-0 rounded-2xl p-3 mb-4">
           <Form form={form} layout="inline" onFinish={upsertMutation.mutate} requiredMark={false} className="gap-2 flex flex-wrap">
             <Form.Item name="category" rules={[{ required: true }]} className="flex-1 min-w-[130px] mb-2">
               <Select placeholder="Category" showSearch disabled={!!editing}>
@@ -150,22 +155,22 @@ export function BudgetsTab() {
         </div>
       )}
 
-      {/* Budget list */}
-      {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-8 w-full" />)}
-        </div>
-      ) : !budgets?.length ? (
-        <div className="px-3 py-8 text-center text-[11px] text-muted-foreground">
-          No budgets set. Use the Add panel to define limits.
-        </div>
-      ) : (
-        <div>
-          {budgets.map(b => (
-            <BudgetRow key={b.category} budget={b} spent={spentByCategory.get(b.category) ?? 0} onEdit={handleEdit} />
-          ))}
-        </div>
-      )}
-    </GlassCard>
+      <Table
+        dataSource={budgets}
+        columns={columns}
+        rowKey="category"
+        pagination={false}
+        size="middle"
+        rowClassName={() => 'group'}
+        summary={() => {
+          return (
+            <Table.Summary.Row>
+              <Table.Summary.Cell index={0}>Total Monthly Limit</Table.Summary.Cell>
+              <Table.Summary.Cell index={1} colSpan={4}>{formatCurrency(totalBudget)}</Table.Summary.Cell>
+            </Table.Summary.Row>
+          );
+        }}
+      />
+    </TableContainer>
   )
 }

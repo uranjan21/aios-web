@@ -36,16 +36,16 @@ export function Sidebar() {
 
   return (
     <Tooltip.Provider delayDuration={300} skipDelayDuration={0}>
-      <div className="hidden md:flex h-[100dvh] shrink-0 relative z-40">
+      <div className="hidden md:flex h-[100dvh] shrink-0 relative z-30">
       <aside
         className={cn(
-          'flex flex-col h-full border-r border-border/70 bg-card/80 backdrop-blur-xl overflow-hidden transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]',
+          'flex flex-col h-full shadow-premium-md bg-card overflow-hidden transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]',
           sidebarOpen ? 'w-[228px]' : 'w-[60px]'
         )}
       >
         {/* Brand */}
         <div className={cn(
-          'flex items-center h-14 shrink-0',
+          'flex items-center h-16 shrink-0',
           sidebarOpen ? 'px-4 gap-3' : 'justify-center px-0'
         )}>
           {sidebarOpen ? (
@@ -103,11 +103,11 @@ export function Sidebar() {
 
               const linkContent = (
                 <div className={cn(
-                  'flex items-center gap-2.5 py-2 rounded-xl text-[13px] font-medium transition-all duration-200',
+                  'flex items-center gap-2.5 py-2 rounded-2xl text-[13px] font-medium transition-all duration-200',
                   isActive
                     ? 'bg-gradient-to-r from-primary/15 to-primary/5 text-primary shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.25)]'
                     : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground hover:translate-x-0.5',
-                  sidebarOpen ? 'px-3' : 'justify-center px-0 w-9 h-9 mx-auto rounded-xl',
+                  sidebarOpen ? 'px-3' : 'justify-center px-0 w-9 h-9 mx-auto rounded-2xl',
                 )}>
                   <Icon className="shrink-0 w-[15px] h-[15px]" />
                   {sidebarOpen && <span className="truncate">{item.label}</span>}

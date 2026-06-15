@@ -8,6 +8,7 @@ import {
   ChevronLeft, ChevronRight, ShoppingBag, Clapperboard, Home, Heart,
   CreditCard, Shirt, GraduationCap, Zap, Wallet, TrendingUp, ArrowUpRight, ArrowDownRight,
   ArrowLeftRight, ArrowDownCircle, ArrowUpCircle, PencilLine, Trash2, Search, Upload as UploadIcon,
+  Plus,
 } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { cn, formatCurrency } from '@/lib/utils'
@@ -60,17 +61,17 @@ function SummaryBar({ income, expense }: { income: number; expense: number }) {
   const net = income - expense
   return (
     <div className="grid grid-cols-3 gap-2 mb-3">
-      <div className="rounded-lg bg-emerald-500/10 px-3 py-2">
-        <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium uppercase tracking-wide">Income</div>
-        <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(income)}</div>
+      <div className="rounded-lg bg-emerald-500/10 px-2.5 py-1.5 border border-emerald-500/20">
+        <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-medium uppercase tracking-wider">Income</div>
+        <div className="text-[12px] font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">{formatCurrency(income)}</div>
       </div>
-      <div className="rounded-lg bg-red-500/10 px-3 py-2">
-        <div className="text-[10px] text-red-500 font-medium uppercase tracking-wide">Expenses</div>
-        <div className="text-sm font-semibold text-red-500">{formatCurrency(expense)}</div>
+      <div className="rounded-lg bg-red-500/10 px-2.5 py-1.5 border border-red-500/20">
+        <div className="text-[9px] text-red-500 font-medium uppercase tracking-wider">Expenses</div>
+        <div className="text-[12px] font-medium text-red-500 tabular-nums">{formatCurrency(expense)}</div>
       </div>
-      <div className="rounded-lg bg-muted px-3 py-2">
-        <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Total</div>
-        <div className={`text-sm font-semibold ${net >= 0 ? 'text-foreground' : 'text-red-500'}`}>{formatCurrency(net)}</div>
+      <div className="rounded-lg bg-muted/60 px-2.5 py-1.5 border border-border/40">
+        <div className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">Total</div>
+        <div className={`text-[12px] font-medium tabular-nums ${net >= 0 ? 'text-foreground' : 'text-red-500'}`}>{formatCurrency(net)}</div>
       </div>
     </div>
   )
@@ -131,7 +132,7 @@ function TransactionRow({ txn, onEdit }: { txn: Txn; onEdit: (t: Txn) => void })
             </button>
           </Popconfirm>
         </div>
-        <div className={`text-xs font-semibold ${isIncome ? 'text-emerald-500' : isTransfer ? 'text-blue-500' : 'text-red-500'}`}>
+        <div className={`text-[12px] font-medium tabular-nums ${isIncome ? 'text-emerald-500' : isTransfer ? 'text-blue-500' : 'text-red-500'}`}>
           {isIncome ? '+' : isTransfer ? '⇄ ' : '-'}{formatCurrency(txn.amount)}
         </div>
       </div>
@@ -370,6 +371,7 @@ export function TransactionsTab() {
   const [quickKind, setQuickKind] = useState<Kind>('Expense')
   const [search, setSearch] = useState('')
   const [importOpen, setImportOpen] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
   const [filterKind, setFilterKind] = useState<string>('all')
   const [filterAccount, setFilterAccount] = useState<string | undefined>()
   const [filterCategory, setFilterCategory] = useState<string | undefined>()
@@ -473,97 +475,155 @@ export function TransactionsTab() {
 
   const openQuickAdd = (kind: Kind) => { setEditing(null); setQuickKind(kind); setModalOpen(true) }
 
-  const header = (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <TextTabs
-        options={['Daily', 'Calendar', 'Weekly', 'Monthly', 'Total']}
-        value={view}
-        onChange={v => setView(v as typeof view)}
-      />
-      <Input
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder="Search all transactions"
-        prefix={<Search size={13} className="text-muted-foreground" />}
-        allowClear
-        className="w-56"
-        size="small"
-      />
+  // Years we want to support in the dropdown
+  const yearOptions = [
+    { label: '2026', value: 2026 },
+    { label: '2025', value: 2025 },
+    { label: '2024', value: 2024 }
+  ]
+
+  // Months
+  const monthOptions = [
+    { label: 'Jan', value: 0 },
+    { label: 'Feb', value: 1 },
+    { label: 'Mar', value: 2 },
+    { label: 'Apr', value: 3 },
+    { label: 'May', value: 4 },
+    { label: 'Jun', value: 5 },
+    { label: 'Jul', value: 6 },
+    { label: 'Aug', value: 7 },
+    { label: 'Sep', value: 8 },
+    { label: 'Oct', value: 9 },
+    { label: 'Nov', value: 10 },
+    { label: 'Dec', value: 11 }
+  ]
+
+  const toolbar = (
+    <div className="sticky top-0 z-20 bg-card/75 backdrop-blur-md px-4 py-3 mb-4 rounded-2xl flex items-center justify-between gap-3 flex-wrap shadow-premium-sm border-0">
+      {/* Left: Search Bar */}
+      <div className="flex items-center gap-1.5 flex-1 min-w-[200px] max-w-[260px]">
+        <Input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search transactions..."
+          prefix={<Search size={13} className="text-muted-foreground" />}
+          allowClear
+          className="w-full"
+          size="small"
+        />
+      </div>
+
+      {/* Center: Period Selection */}
+      <div className="flex items-center gap-1.5 flex-wrap justify-center">
+        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mr-1">Period</span>
+        
+        {/* 1. View Type */}
+        <Select
+          size="small"
+          value={view}
+          onChange={v => setView(v as any)}
+          className="min-w-[110px]"
+          options={[
+            { label: 'Daily View', value: 'Daily' },
+            { label: 'Weekly View', value: 'Weekly' },
+            { label: 'Monthly View', value: 'Monthly' },
+            { label: 'Calendar View', value: 'Calendar' },
+            { label: 'Comparison', value: 'Total' },
+          ]}
+        />
+
+        {/* 2. Year Selection */}
+        <Select
+          size="small"
+          value={month.year()}
+          onChange={yr => setMonth(m => {
+            const updated = m.year(yr)
+            setSelectedDate(dayjs(selectedDate).year(yr).format('YYYY-MM-DD'))
+            return updated
+          })}
+          className="min-w-[75px]"
+          options={yearOptions}
+        />
+
+        {/* 3. Month Selection */}
+        <Select
+          size="small"
+          value={month.month()}
+          onChange={mth => setMonth(m => {
+            const updated = m.month(mth)
+            setSelectedDate(dayjs(selectedDate).month(mth).format('YYYY-MM-DD'))
+            return updated
+          })}
+          className="min-w-[80px]"
+          options={monthOptions}
+        />
+
+        {/* 4. Day Selection (only visible in Daily View) */}
+        {view === 'Daily' && (
+          <Select
+            size="small"
+            value={dayjs(selectedDate).date()}
+            onChange={d => {
+              const newDate = month.date(d).format('YYYY-MM-DD')
+              setSelectedDate(newDate)
+            }}
+            className="min-w-[65px]"
+            options={Array.from({ length: month.daysInMonth() }, (_, i) => ({
+              label: `${i + 1}`,
+              value: i + 1,
+            }))}
+          />
+        )}
+      </div>
+
+      {/* Right: Filters & Actions */}
+      <div className="flex items-center gap-2 flex-wrap shrink-0 ml-auto">
+        <Button 
+          size="small" 
+          onClick={() => setFilterOpen(true)} 
+          className={cn(
+            "text-[12px] font-medium border-border/60 flex items-center gap-1.5 transition-colors shrink-0",
+            filtersActive ? "text-primary border-primary/40 bg-primary/5 hover:border-primary/60" : "hover:text-foreground hover:border-border"
+          )}
+        >
+          <Search size={12} className={filtersActive ? "text-primary" : "text-muted-foreground"} />
+          <span>Filters</span>
+          {filtersActive && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+        </Button>
+        {searchActive && (
+          <Button size="small" type="text" onClick={clearFilters} className="text-[10px] text-muted-foreground hover:text-foreground shrink-0">
+            Clear
+          </Button>
+        )}
+        
+        <div className="w-px h-4 bg-border/60 mx-0.5 shrink-0" />
+        
+        <Button 
+          size="small" 
+          onClick={() => setImportOpen(true)} 
+          className="text-[12px] font-medium border-border/60 hover:text-foreground flex items-center gap-1"
+        >
+          <UploadIcon size={12} className="text-muted-foreground" />
+          <span>Import</span>
+        </Button>
+        <Button 
+          size="small" 
+          type="primary"
+          onClick={() => openQuickAdd('Expense')} 
+          className="text-[12px] font-medium flex items-center gap-1"
+        >
+          <Plus size={12} />
+          <span>Add Transaction</span>
+        </Button>
+      </div>
     </div>
   )
 
-  const rail = (
-    <>
-      <RailHeading>Quick Log</RailHeading>
-      <GlassCard title="Quick Actions" hoverable fadeIn="up">
-        <div className="flex flex-col gap-2">
-          {[
-            { label: 'Add Expense', icon: ArrowDownCircle, tone: 'text-kpi-red', onClick: () => openQuickAdd('Expense') },
-            { label: 'Add Income', icon: ArrowUpCircle, tone: 'text-kpi-emerald', onClick: () => openQuickAdd('Income') },
-            { label: 'Transfer', icon: ArrowLeftRight, tone: 'text-primary', onClick: () => openQuickAdd('Transfer') },
-            { label: 'Import CSV', icon: UploadIcon, tone: 'text-muted-foreground', onClick: () => setImportOpen(true) },
-          ].map(a => (
-            <button
-              key={a.label}
-              onClick={a.onClick}
-              className="flex items-center gap-3 w-full px-3.5 py-3 rounded-xl bg-muted/40 border border-border/60 hover:border-primary/40 hover:bg-muted/70 transition-all text-left group"
-            >
-              <a.icon size={18} className={cn(a.tone, 'shrink-0')} />
-              <span className="text-[13px] font-medium text-foreground flex-1">{a.label}</span>
-              <ChevronRight size={14} className="text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          ))}
-        </div>
-      </GlassCard>
-
-      <RailHeading>Filters</RailHeading>
-      <GlassCard hoverable fadeIn="up" contentClassName="space-y-2">
-        <TextTabs
-          block
-          options={[{ label: 'All', value: 'all' }, { label: 'Exp', value: 'expense' }, { label: 'Inc', value: 'income' }, { label: 'Trf', value: 'transfer' }]}
-          value={filterKind}
-          onChange={setFilterKind}
-        />
-        <Select
-          size="small"
-          placeholder="Account"
-          allowClear
-          className="w-full"
-          value={filterAccount}
-          onChange={setFilterAccount}
-          options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))}
-        />
-        <Select
-          size="small"
-          placeholder="Category"
-          allowClear
-          className="w-full"
-          value={filterCategory}
-          onChange={setFilterCategory}
-          options={(categories ?? []).map((c: any) => ({ label: c.name, value: c.name }))}
-        />
-        <Input size="small" placeholder="Tag" value={filterTag} onChange={e => setFilterTag(e.target.value)} allowClear />
-        <div className="flex gap-2">
-          <InputNumber size="small" placeholder="Min ₹" min={0} className="w-full" value={filterMin} onChange={setFilterMin} />
-          <InputNumber size="small" placeholder="Max ₹" min={0} className="w-full" value={filterMax} onChange={setFilterMax} />
-        </div>
-        <DatePicker.RangePicker
-          size="small"
-          className="w-full"
-          value={filterRange}
-          onChange={v => setFilterRange(v as [Dayjs, Dayjs] | null)}
-        />
-        {filtersActive && (
-          <Button size="small" type="text" block onClick={clearFilters}>Clear filters</Button>
-        )}
-      </GlassCard>
-    </>
-  )
+  const rail = undefined
 
   if (isLoading) {
     return (
-      <WorkspaceLayout rail={rail}>
-        {header}
+      <WorkspaceLayout rail={undefined}>
         <Skeleton className="h-10 w-full mb-3" />
         <Skeleton className="h-64 w-full" />
       </WorkspaceLayout>
@@ -652,7 +712,7 @@ export function TransactionsTab() {
               const start = dayjs(weekStart)
               const end = start.add(6, 'day')
               return (
-                <div key={weekStart} className="rounded-lg border border-border/50 p-3">
+                <div key={weekStart} className="py-3.5 border-b border-border/30 last:border-b-0">
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-xs font-semibold text-foreground">{start.format('MMM D')} – {end.format('MMM D')}</div>
                     <div className="flex items-center gap-3 text-[11px]">
@@ -717,7 +777,7 @@ export function TransactionsTab() {
           </button>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="rounded-lg border border-border/50 p-3">
+          <div className="rounded-2xl border-0 bg-muted/30 p-3">
             <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-2">This Month</div>
             <div className="flex items-center justify-between text-xs mb-1">
               <span className="text-muted-foreground">Income</span>
@@ -732,7 +792,7 @@ export function TransactionsTab() {
               <span className="font-semibold text-foreground">{formatCurrency(thisMonth.income - thisMonth.expense)}</span>
             </div>
           </div>
-          <div className="rounded-lg border border-border/50 p-3">
+          <div className="rounded-2xl border-0 bg-muted/30 p-3">
             <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-2">Last Month</div>
             <div className="flex items-center justify-between text-xs mb-1">
               <span className="text-muted-foreground">Income</span>
@@ -771,12 +831,139 @@ export function TransactionsTab() {
 
   return (
     <>
-      <WorkspaceLayout rail={rail}>
-        {header}
+      <WorkspaceLayout rail={undefined}>
+        {toolbar}
         {body}
       </WorkspaceLayout>
       <TransactionModal open={modalOpen} onClose={closeModal} editing={editing} initialKind={quickKind} />
       <ImportCsvModal open={importOpen} onClose={() => setImportOpen(false)} />
+      <FilterModal
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        accounts={accounts ?? []}
+        categories={categories ?? []}
+        filterKind={filterKind}
+        setFilterKind={setFilterKind}
+        filterAccount={filterAccount}
+        setFilterAccount={setFilterAccount}
+        filterCategory={filterCategory}
+        setFilterCategory={setFilterCategory}
+        filterTag={filterTag}
+        setFilterTag={setFilterTag}
+        filterMin={filterMin}
+        setFilterMin={setFilterMin}
+        filterMax={filterMax}
+        setFilterMax={setFilterMax}
+        filterRange={filterRange}
+        setFilterRange={setFilterRange}
+        filtersActive={filtersActive}
+        clearFilters={clearFilters}
+      />
     </>
+  )
+}
+
+function FilterModal({
+  open,
+  onClose,
+  accounts,
+  categories,
+  filterKind,
+  setFilterKind,
+  filterAccount,
+  setFilterAccount,
+  filterCategory,
+  setFilterCategory,
+  filterTag,
+  setFilterTag,
+  filterMin,
+  setFilterMin,
+  filterMax,
+  setFilterMax,
+  filterRange,
+  setFilterRange,
+  filtersActive,
+  clearFilters,
+}: {
+  open: boolean
+  onClose: () => void
+  accounts: any[]
+  categories: any[]
+  filterKind: string
+  setFilterKind: (k: string) => void
+  filterAccount: string | undefined
+  setFilterAccount: (a: string | undefined) => void
+  filterCategory: string | undefined
+  setFilterCategory: (c: string | undefined) => void
+  filterTag: string
+  setFilterTag: (t: string) => void
+  filterMin: number | null
+  setFilterMin: (n: number | null) => void
+  filterMax: number | null
+  setFilterMax: (n: number | null) => void
+  filterRange: any
+  setFilterRange: (r: any) => void
+  filtersActive: boolean
+  clearFilters: () => void
+}) {
+  return (
+    <Modal
+      title="Filter Transactions"
+      open={open}
+      onCancel={onClose}
+      footer={null}
+      width={380}
+      destroyOnClose
+    >
+      <div className="space-y-3 mt-3">
+        <div className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Type</div>
+        <TextTabs
+          block
+          options={[{ label: 'All', value: 'all' }, { label: 'Exp', value: 'expense' }, { label: 'Inc', value: 'income' }, { label: 'Trf', value: 'transfer' }]}
+          value={filterKind}
+          onChange={setFilterKind}
+        />
+        <div className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Account</div>
+        <Select
+          size="small"
+          placeholder="Select Account"
+          allowClear
+          className="w-full"
+          value={filterAccount}
+          onChange={setFilterAccount}
+          options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))}
+        />
+        <div className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Category</div>
+        <Select
+          size="small"
+          placeholder="Select Category"
+          allowClear
+          className="w-full"
+          value={filterCategory}
+          onChange={setFilterCategory}
+          options={(categories ?? []).map((c: any) => ({ label: c.name, value: c.name }))}
+        />
+        <div className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Tag</div>
+        <Input size="small" placeholder="Enter tag name" value={filterTag} onChange={e => setFilterTag(e.target.value)} allowClear />
+        <div className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Amount Range</div>
+        <div className="flex gap-2">
+          <InputNumber size="small" placeholder="Min ₹" min={0} className="w-full" value={filterMin} onChange={setFilterMin} />
+          <InputNumber size="small" placeholder="Max ₹" min={0} className="w-full" value={filterMax} onChange={setFilterMax} />
+        </div>
+        <div className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Date Range</div>
+        <DatePicker.RangePicker
+          size="small"
+          className="w-full"
+          value={filterRange}
+          onChange={v => setFilterRange(v as [Dayjs, Dayjs] | null)}
+        />
+        <div className="pt-2 flex gap-2">
+          <Button type="primary" size="small" block onClick={onClose}>Apply Filters</Button>
+          {filtersActive && (
+            <Button size="small" type="text" danger onClick={() => { clearFilters(); onClose(); }} className="text-[11px]" block>Clear all</Button>
+          )}
+        </div>
+      </div>
+    </Modal>
   )
 }

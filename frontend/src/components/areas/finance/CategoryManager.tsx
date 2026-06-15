@@ -7,23 +7,23 @@ import { financeApi } from '@/api/areas';
 
 const Container = styled.div`
   background: hsl(var(--card));
-  border-radius: 16px;
+  border-radius: 24px;
   padding: 16px;
-  border: 1px solid hsl(var(--border) / 0.6);
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  border: none;
+  box-shadow: var(--shadow-premium-sm);
+  width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-
+  
   .ant-tree {
     background: transparent;
     color: hsl(var(--foreground));
   }
   .ant-tree-node-content-wrapper {
     color: hsl(var(--foreground));
+    font-size: 11px;
   }
   .ant-tree-node-content-wrapper:hover {
-    background-color: hsl(var(--muted) / 0.5);
+    background-color: hsl(var(--muted) / 0.3);
   }
   .ant-tree-node-selected {
     background-color: hsl(var(--muted)) !important;
@@ -34,8 +34,16 @@ const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  h3 { margin: 0; color: hsl(var(--muted-foreground)); font-size: 14px; font-weight: 500; }
+  margin-bottom: 6px;
+  padding: 0 4px;
+  h3 { 
+    margin: 0; 
+    color: hsl(var(--muted-foreground)); 
+    font-size: 11px; 
+    font-weight: 500; 
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
 `;
 
 export const CategoryManager: React.FC = () => {

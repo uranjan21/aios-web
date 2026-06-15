@@ -12,7 +12,6 @@ import { formatCurrency } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AIInsightsEngine } from './AdvancedWidgets'
 import { AiInsightCard } from '@/components/AiInsightCard'
-import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
 
 const PIE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#8B5CF6', '#EF4444', '#14B8A6', '#F97316']
 
@@ -20,15 +19,14 @@ type Period = 'This Week' | 'This Month' | 'This Year'
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-card border border-border/60 rounded-xl p-4 h-full relative">
-      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{title}</h3>
+    <div className="bg-card rounded-2xl p-4 h-full relative shadow-premium-sm border-0">
+      <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2.5">{title}</h3>
       {children}
     </div>
   )
 }
 
-export function StatsTab() {
-  const [period, setPeriod] = useState<Period>('This Month')
+export function FinanceStats({ period }: { period: Period }) {
   const [drillCategory, setDrillCategory] = useState<string | null>(null)
   const month = dayjs().format('YYYY-MM')
 
@@ -145,15 +143,7 @@ export function StatsTab() {
   }, [period, cashflow, yearQueries, last12Months])
 
   return (
-    <WorkspaceLayout rail={
-      <>
-        <RailHeading>View</RailHeading>
-        <TextTabs block options={['This Week', 'This Month', 'This Year']} value={period} onChange={v => setPeriod(v as Period)} />
-        <AiInsightCard area="finance" />
-        <AIInsightsEngine />
-      </>
-    }>
-      <div className="grid grid-cols-12 gap-4">
+      <div className="grid grid-cols-12 gap-4 mt-6">
         <div className="col-span-12 lg:col-span-5">
           <ChartCard title="Income vs Expense">
             {isLoading ? <Skeleton className="h-[200px] w-full" /> : donutTotal === 0 ? (
@@ -173,18 +163,18 @@ export function StatsTab() {
                     series: [{ data: donutData.map(d => ({ name: d.name, y: d.value })) }],
                   }} />
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">Net</span>
-                    <span className="text-sm font-bold text-foreground">{formatCurrency(donutData[0].value - donutData[1].value)}</span>
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">Net</span>
+                    <span className="text-[12px] font-medium text-foreground">{formatCurrency(donutData[0].value - donutData[1].value)}</span>
                   </div>
                 </div>
-                <div className="space-y-2.5 flex-1">
+                <div className="space-y-1.5 flex-1">
                   {donutData.map((d, i) => (
                     <div key={d.name} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: ['#10B981', '#EF4444'][i] }} />
-                        <span className="text-xs text-muted-foreground">{d.name}</span>
+                        <span className="text-[11px] text-muted-foreground">{d.name}</span>
                       </div>
-                      <span className="text-xs font-semibold text-foreground">{formatCurrency(d.value)}</span>
+                      <span className="text-[11px] font-medium text-foreground">{formatCurrency(d.value)}</span>
                     </div>
                   ))}
                 </div>
@@ -223,9 +213,9 @@ export function StatsTab() {
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
-                          <span className="text-xs text-muted-foreground truncate">{d.name}</span>
+                          <span className="text-[11px] text-muted-foreground truncate">{d.name}</span>
                         </div>
-                        <span className="text-xs font-semibold text-foreground shrink-0 ml-2">{total > 0 ? `${((d.value / total) * 100).toFixed(0)}%` : '0%'}</span>
+                        <span className="text-[11px] font-medium text-foreground shrink-0 ml-2">{total > 0 ? `${((d.value / total) * 100).toFixed(0)}%` : '0%'}</span>
                       </button>
                     )
                   })}
@@ -251,12 +241,12 @@ export function StatsTab() {
                 return (
                   <div className="max-h-64 overflow-y-auto pr-1">
                     {items.map(e => (
-                      <div key={e.id} className="flex items-center justify-between py-2 px-1 border-b border-border/40 last:border-b-0">
+                      <div key={e.id} className="flex items-center justify-between py-1.5 px-1 border-b border-border/40 last:border-b-0">
                         <div className="min-w-0">
-                          <div className="text-xs font-medium text-foreground truncate">{e.description || e.category}</div>
+                          <div className="text-[11px] font-medium text-foreground truncate">{e.description || e.category}</div>
                           <div className="text-[10px] text-muted-foreground">{dayjs(e.logged_at).format('MMM D, h:mm A')}</div>
                         </div>
-                        <span className="text-xs font-semibold text-red-500 shrink-0 ml-2">-{formatCurrency(Number(e.amount))}</span>
+                        <span className="text-[11px] font-medium text-red-500 shrink-0 ml-2">-{formatCurrency(Number(e.amount))}</span>
                       </div>
                     ))}
                   </div>
@@ -303,6 +293,5 @@ export function StatsTab() {
           </ChartCard>
         </div>
       </div>
-    </WorkspaceLayout>
   )
 }

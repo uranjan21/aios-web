@@ -26,7 +26,7 @@ export function AppShell() {
       token: {
         colorPrimary: theme === 'dark' ? '#fb8b24' : '#dd5912',
         colorLink: theme === 'dark' ? '#fb8b24' : '#dd5912',
-        borderRadius: 11,
+        borderRadius: 16,
         fontFamily: 'inherit',
         colorBgContainer: theme === 'dark' ? 'hsl(26 16% 10%)' : 'hsl(42 45% 99%)',
         colorBgElevated: theme === 'dark' ? 'hsl(26 16% 12%)' : 'hsl(42 45% 99%)',

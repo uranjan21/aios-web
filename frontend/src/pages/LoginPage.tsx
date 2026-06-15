@@ -40,7 +40,7 @@ export function LoginPage() {
         {/* Card */}
         <form
           onSubmit={handleSubmit}
-          className="bg-card border border-border rounded-2xl shadow-premium-md p-6 space-y-4 fade-in-up delay-100"
+          className="bg-card border-0 rounded-2xl shadow-premium-md p-6 space-y-4 fade-in-up delay-100"
         >
           <label className="block">
             <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Passphrase</span>

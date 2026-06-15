@@ -20,7 +20,7 @@ export function TwitterQueueCard() {
     .filter(Boolean)
 
   return (
-    <div className="bg-card border border-border rounded-xl shadow-sm p-4">
+    <div className="bg-card border-0 rounded-2xl shadow-premium-sm p-4">
       <div className="flex items-center gap-2 mb-3">
         <Twitter size={14} className="text-sky-500" />
         <h2 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Twitter Queue</h2>
@@ -36,11 +36,11 @@ export function TwitterQueueCard() {
       ) : entries.length === 0 ? (
         <Empty description="Queue empty — add items to twitter-queue.md in the vault" image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
-        <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+        <div className="max-h-[300px] overflow-y-auto pr-1">
           {entries.map((e, i) => (
-            <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-muted/40 border border-border/50">
-              <span className="text-[10px] font-mono text-muted-foreground shrink-0 mt-0.5">{i + 1}</span>
-              <span className="text-[12px] text-foreground leading-snug">{e}</span>
+            <div key={i} className="flex items-start gap-3 py-2.5 border-b border-border/30 last:border-0 hover:bg-muted/20 hover:rounded-xl px-2 transition-all">
+              <span className="text-[11px] font-mono text-muted-foreground shrink-0 mt-0.5">{i + 1}.</span>
+              <span className="text-[12px] text-foreground leading-snug flex-1">{e}</span>
             </div>
           ))}
         </div>

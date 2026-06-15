@@ -32,14 +32,14 @@ const floatAnimation = keyframes`
 `
 
 const PremiumCard = styled(Card)`
-  border-radius: 12px;
+  border-radius: 22px;
   background: hsl(var(--card));
-  border: 1px solid hsl(var(--border-subtle) / 0.06);
+  border: none;
   box-shadow: var(--shadow-premium-sm);
   transition: all 0.2s ease;
   overflow: hidden;
   &:hover {
-    border-color: hsl(var(--primary));
+    box-shadow: var(--shadow-premium-hover);
   }
   .ant-card-head {
     border-bottom: none;
@@ -56,9 +56,9 @@ const PremiumCard = styled(Card)`
 
 const PRWidget = styled.div`
   background: hsl(var(--card));
-  border-radius: 12px;
+  border-radius: 24px;
   padding: 16px;
-  border: 1px solid hsl(var(--border-subtle) / 0.06);
+  border: none;
   box-shadow: var(--shadow-premium-sm);
   display: flex;
   align-items: center;
@@ -227,80 +227,82 @@ export function HealthPage() {
               </PremiumCard>
             </>
           }>
-          <div className="grid grid-cols-12 gap-4">
-            <div className="col-span-12">
-          <PRWidget>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Trophy className="w-4 h-4 text-kpi-emerald" />
-                <span className="text-sm font-medium text-muted-foreground">New Personal Record</span>
+          <div className="grid grid-cols-12 gap-6">
+            {/* Row 1: KPIs */}
+            <div className="col-span-12 sm:col-span-6 xl:col-span-3">
+              <KpiCard
+                label="Current Weight"
+                icon={Scale}
+                color="primary"
+                loading={loadingSummary}
+                value={`${summary?.weight ?? '—'} kg`}
+              />
+            </div>
+            <div className="col-span-12 sm:col-span-6 xl:col-span-3">
+              <KpiCard
+                label="Gym Streak"
+                icon={Flame}
+                color="amber"
+                loading={loadingStreak}
+                value={`${Math.round(animatedStreak ?? 0)} days`}
+              />
+            </div>
+            <div className="col-span-12 sm:col-span-6 xl:col-span-3">
+              <KpiCard
+                label="Last Workout"
+                icon={Activity}
+                color="purple"
+                loading={loadingStreak}
+                value={formatRelativeTime(streak?.last_workout_at ?? null)}
+              />
+            </div>
+            <div className="col-span-12 sm:col-span-6 xl:col-span-3">
+              <KpiCard
+                label="Total Sessions"
+                icon={Target}
+                color="emerald"
+                loading={loadingGym}
+                value={Math.round(animatedSessions ?? 0)}
+              />
+            </div>
+
+            {/* Row 2: PRs & Insights */}
+            <div className="col-span-12 lg:col-span-7">
+              <PRWidget className="h-full">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Trophy className="w-4 h-4 text-kpi-emerald" />
+                    <span className="text-sm font-medium text-muted-foreground">New Personal Record</span>
+                  </div>
+                  <h3>100kg Bench Press</h3>
+                  <p>You shattered your previous record of 95kg. Keep pushing!</p>
+                </div>
+                <div className="hidden sm:block">
+                  <Zap className="w-8 h-8 text-kpi-emerald opacity-80" />
+                </div>
+              </PRWidget>
+            </div>
+            <div className="col-span-12 lg:col-span-5">
+              <AiInsightCard area="health" className="h-full" />
+            </div>
+
+            {/* Row 3: Charts & Trackers */}
+            <div className="col-span-12 lg:col-span-8">
+              <PremiumCard className="h-full" title={<span className="text-foreground">Weight Progression</span>} extra={<Tag color="blue">Past 30 Days</Tag>}>
+                {loadingWeight ? <Skeleton className="h-[120px]" /> : <HighchartsReact highcharts={Highcharts} options={weightOptions} />}
+              </PremiumCard>
+            </div>
+            <div className="col-span-12 lg:col-span-4">
+              <WaterTrackerWidget />
+            </div>
+
+            {/* Row 4: Status Pills */}
+            <div className="col-span-12 flex justify-start">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/5 border border-primary/10 shadow-sm">
+                <span className="text-sm font-medium text-foreground/80">Fasting Tracker:</span>
+                <StatusPill label="14 hours Fasted" tone="primary" />
               </div>
-              <h3>100kg Bench Press</h3>
-              <p>You shattered your previous record of 95kg. Keep pushing!</p>
             </div>
-            <div className="hidden sm:block">
-              <Zap className="w-5 h-5 text-kpi-emerald" />
-            </div>
-          </PRWidget>
-        </div>
-
-        <div className="col-span-12 sm:col-span-6 xl:col-span-3">
-          <KpiCard
-            label="Current Weight"
-            icon={Scale}
-            color="primary"
-            loading={loadingSummary}
-            value={`${summary?.weight ?? '—'} kg`}
-          />
-        </div>
-        <div className="col-span-12 sm:col-span-6 xl:col-span-3">
-          <KpiCard
-            label="Gym Streak"
-            icon={Flame}
-            color="amber"
-            loading={loadingStreak}
-            value={`${Math.round(animatedStreak ?? 0)} days`}
-          />
-        </div>
-        <div className="col-span-12 sm:col-span-6 xl:col-span-3">
-          <KpiCard
-            label="Last Workout"
-            icon={Activity}
-            color="purple"
-            loading={loadingStreak}
-            value={formatRelativeTime(streak?.last_workout_at ?? null)}
-          />
-        </div>
-        <div className="col-span-12 sm:col-span-6 xl:col-span-3">
-          <KpiCard
-            label="Total Sessions"
-            icon={Target}
-            color="emerald"
-            loading={loadingGym}
-            value={Math.round(animatedSessions ?? 0)}
-          />
-        </div>
-
-        <div className="col-span-12 md:col-span-6">
-          <PremiumCard title={<span className="text-foreground">Weight Progression</span>} extra={<Tag color="blue">Past 30 Days</Tag>}>
-            {loadingWeight ? <Skeleton className="h-[120px]" /> : <HighchartsReact highcharts={Highcharts} options={weightOptions} />}
-          </PremiumCard>
-        </div>
-
-        <div className="col-span-12 md:col-span-6">
-          <WaterTrackerWidget />
-        </div>
-
-        <div className="col-span-12">
-          <AiInsightCard area="health" />
-        </div>
-
-        <div className="col-span-12 flex justify-start">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20">
-            <span className="text-sm font-medium text-foreground/80">Fasting Tracker:</span>
-            <StatusPill label="14 hours Fasted" tone="primary" />
-          </div>
-        </div>
           </div>
           </WorkspaceLayout>
         ) },

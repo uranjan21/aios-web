@@ -86,7 +86,7 @@ export function RoadmapTab() {
         <span className="text-[11px] text-muted-foreground font-medium">{events.length} events on your career timeline</span>
       </div>
 
-      <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
+      <div className="bg-card border-0 rounded-2xl p-4 shadow-premium-sm">
         <Timeline items={timelineItems} className="mt-2" />
       </div>
     </div>

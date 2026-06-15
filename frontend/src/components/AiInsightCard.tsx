@@ -4,16 +4,17 @@ import { toast } from 'sonner'
 import { Sparkles, RefreshCw } from 'lucide-react'
 import { aiApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 
 /** "Explain this month/week" — one-click LLM insight card for an area page. */
-export function AiInsightCard({ area, title }: { area: 'finance' | 'health'; title?: string }) {
+export function AiInsightCard({ area, title, className }: { area: 'finance' | 'health'; title?: string; className?: string }) {
   const { mutate, data, isPending, isError } = useMutation({
     mutationFn: () => aiApi.explain(area),
     onError: () => toast.error('AI temporarily unavailable'),
   })
 
   return (
-    <div className="bg-card border border-border rounded-xl shadow-sm p-4">
+    <div className={cn("bg-card border-0 rounded-2xl shadow-premium-sm p-4", className)}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <Sparkles size={14} className="text-violet-400" />

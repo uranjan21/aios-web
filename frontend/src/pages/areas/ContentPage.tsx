@@ -34,11 +34,11 @@ const STATUS_LABELS: Record<ContentItem['status'], string> = {
 }
 
 const STATUS_STYLES: Record<ContentItem['status'], string> = {
-  idea:        'border-border bg-card/40',
-  in_progress: 'border-kpi-blue/20 bg-kpi-blue/5',
-  scheduled:   'border-kpi-amber/20 bg-kpi-amber/5',
-  published:   'border-kpi-emerald/20 bg-kpi-emerald/5',
-  archived:    'border-border bg-muted/20',
+  idea:        'border-0 bg-card/50',
+  in_progress: 'border-0 bg-kpi-blue/5',
+  scheduled:   'border-0 bg-kpi-amber/5',
+  published:   'border-0 bg-kpi-emerald/5',
+  archived:    'border-0 bg-muted/20',
 }
 
 const STATUS_TONE: Record<ContentItem['status'], StatusPillTone> = {
@@ -87,16 +87,16 @@ const ItemCard = forwardRef<HTMLDivElement, {
         {...listeners}
         {...attributes}
         className={cn(
-          'bg-card border border-subtle rounded-xl p-3 space-y-3 group relative shadow-premium-sm',
+          'bg-card border-0 rounded-2xl p-3 space-y-3 group relative shadow-premium-sm',
           'cursor-grab active:cursor-grabbing touch-none select-none',
-          'hover:border-primary/30 hover:shadow-premium-hover transition-all duration-200',
+          'hover:shadow-premium-hover transition-all duration-200',
           isDragging && 'opacity-50 ring-2 ring-primary shadow-xl scale-105 z-50',
         )}
         aria-roledescription="Draggable content card"
       >
         <p className="text-sm font-medium text-foreground leading-snug pr-14">{item.title}</p>
         
-        <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-0.5 bg-background/95 backdrop-blur-md rounded-md border border-border/50 shadow-sm p-0.5 z-10">
+        <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-1 bg-card rounded-xl border-0 shadow-premium-sm p-1 z-10">
            <button onClick={(e) => { e.stopPropagation(); onEdit(item.id, item.title) }} className="p-1.5 hover:bg-muted rounded hover:text-foreground text-muted-foreground transition" title="Edit title"><Edit2 className="w-3.5 h-3.5" /></button>
            <button onClick={(e) => { e.stopPropagation(); onSchedule(item.id, item.publish_date ?? null) }} className="p-1.5 hover:bg-amber-500/10 rounded hover:text-amber-600 text-muted-foreground transition" title="Schedule"><Calendar className="w-3.5 h-3.5" /></button>
            <button onClick={(e) => { e.stopPropagation(); onDelete(item.id) }} className="p-1.5 hover:bg-destructive/10 rounded hover:text-destructive text-muted-foreground transition" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -137,7 +137,7 @@ function ColumnDropZone({
     <div
       ref={setNodeRef}
       className={cn(
-        'rounded-xl border p-3 min-h-[200px] transition-all duration-200',
+        'rounded-2xl border-0 p-3 min-h-[200px] transition-all duration-200',
         STATUS_STYLES[status],
         isOver && 'ring-2 ring-primary/50 bg-primary/5',
       )}
@@ -164,7 +164,7 @@ function ColumnDropZone({
             <Skeleton className="h-24 rounded-xl" />
           </>
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-6 text-center border-2 border-dashed border-border/50 rounded-xl">
+          <div className="flex flex-col items-center justify-center py-6 text-center border-2 border-dashed border-border/50 rounded-2xl">
             <LayoutGrid className="w-5 h-5 text-muted-foreground/30 mb-2" aria-hidden="true" />
             <p className="text-xs text-muted-foreground/50 font-medium">Drop cards here</p>
           </div>
@@ -191,7 +191,7 @@ function ColumnDropZone({
 
 function EngagementWidget({ publishedCount }: { publishedCount: number }) {
   return (
-    <div className="bg-card border border-border shadow-sm rounded-xl p-4 flex flex-col justify-between h-full relative overflow-hidden">
+    <div className="bg-card border-0 shadow-premium-sm rounded-3xl p-4 flex flex-col justify-between h-full relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/5 rounded-full blur-2xl" />
       <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-kpi-blue/5 rounded-full blur-2xl" />
@@ -201,42 +201,42 @@ function EngagementWidget({ publishedCount }: { publishedCount: number }) {
           <TrendingUp className="w-4 h-4 text-primary" />
           <h2 className="text-xs font-medium text-muted-foreground">Engagement Over Time</h2>
         </div>
-        <button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Details</button>
+        <button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-lg transition-colors">Details</button>
       </div>
       
-      <div className="space-y-4 flex-1 relative z-10 flex flex-col justify-center">
-        <div className="bg-background/50 rounded-xl p-4 border border-border hover:border-border transition-colors">
+      <div className="space-y-3 flex-1 relative z-10 flex flex-col justify-center">
+        <div className="bg-background/30 rounded-xl p-3 border-0 transition-colors hover:bg-background/40">
           <div className="flex justify-between items-center mb-1">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <Eye className="w-3.5 h-3.5" />
               <span className="text-xs font-medium">Total Views</span>
             </div>
-            <span className="text-[10px] font-bold text-kpi-emerald bg-kpi-emerald/10 px-1.5 py-0.5 rounded">+12%</span>
+            <span className="text-[10px] font-bold text-kpi-emerald bg-kpi-emerald/10 px-1.5 py-0.5 rounded-full">+12%</span>
           </div>
           <div className="text-xs font-medium text-foreground">
             {(publishedCount * 1240 + 8400).toLocaleString()}
           </div>
         </div>
 
-        <div className="bg-background/50 rounded-xl p-4 border border-border hover:border-border transition-colors">
+        <div className="bg-background/30 rounded-xl p-3 border-0 transition-colors hover:bg-background/40">
           <div className="flex justify-between items-center mb-1">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <MousePointerClick className="w-3.5 h-3.5" />
               <span className="text-xs font-medium">Avg. CTR</span>
             </div>
-            <span className="text-[10px] font-bold text-kpi-blue bg-kpi-blue/10 px-1.5 py-0.5 rounded">Top 10%</span>
+            <span className="text-[10px] font-bold text-kpi-blue bg-kpi-blue/10 px-1.5 py-0.5 rounded-full">Top 10%</span>
           </div>
           <div className="text-xs font-medium text-foreground">
             4.8%
           </div>
         </div>
         
-        <div className="bg-background/50 rounded-xl p-4 border border-border hover:border-border transition-colors">
+        <div className="bg-background/30 rounded-xl p-3 border-0 transition-colors hover:bg-background/40">
           <div className="flex justify-between items-baseline mb-3">
             <span className="text-xs font-medium text-muted-foreground">Top Platform</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="bg-[#0A66C2]/10 text-[#0A66C2] text-xs font-bold px-2 py-1 rounded-md uppercase tracking-wide">LinkedIn</span>
+            <span className="bg-[#0A66C2]/10 text-[#0A66C2] text-xs font-bold px-2 py-1 rounded-lg uppercase tracking-wide">LinkedIn</span>
             <span className="text-xs font-semibold text-foreground">68% traffic</span>
           </div>
         </div>
@@ -263,7 +263,7 @@ function PublishedDropZone({
     <div
       ref={setNodeRef}
       className={cn(
-        "bg-kpi-emerald/5 border border-kpi-emerald/20 rounded-xl p-4 transition-all duration-300 min-h-[150px]",
+        "bg-kpi-emerald/5 border-0 rounded-3xl p-4 transition-all duration-300 min-h-[150px]",
         isOver && "ring-2 ring-kpi-emerald/50 bg-kpi-emerald/10 shadow-lg"
       )}
     >
@@ -286,7 +286,7 @@ function PublishedDropZone({
             <Skeleton className="h-28 rounded-xl" />
           </>
         ) : items.length === 0 ? (
-          <div className="col-span-full flex flex-col items-center justify-center py-6 text-center border-2 border-dashed border-kpi-emerald/20 rounded-xl">
+          <div className="col-span-full flex flex-col items-center justify-center py-6 text-center border-2 border-dashed border-kpi-emerald/20 rounded-2xl">
             <LayoutGrid className="w-6 h-6 text-kpi-emerald/40 mb-2" />
             <p className="text-sm text-kpi-emerald/60 font-medium">Drag items here to publish them</p>
           </div>
@@ -464,7 +464,7 @@ export function ContentPage() {
         <div className="w-full grid grid-cols-12 gap-4">
           
           {/* Quick Capture Form & Stats */}
-          <div className="col-span-12 bg-card border border-subtle rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-premium-sm">
+          <div className="col-span-12 bg-card border-0 rounded-2xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-premium-sm">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
               <h2 className="text-sm font-medium text-muted-foreground whitespace-nowrap">Quick Capture</h2>
               <div className="flex gap-3 w-full sm:w-auto">
@@ -476,7 +476,7 @@ export function ContentPage() {
                     aria-label="Content idea title"
                     aria-invalid={!!titleError}
                     onKeyDown={e => { if (e.key === 'Enter') handleAdd() }}
-                    className="px-4 py-2 text-sm font-medium rounded-xl bg-muted/50 border border-border/50 text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 aria-invalid:border-destructive transition-all"
+                    className="px-4 py-2 text-sm font-medium rounded-xl bg-muted/50 border-0 shadow-clay-inset text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 aria-invalid:border-destructive transition-all"
                   />
                   {titleError && <span className="text-[10px] font-bold text-destructive absolute -bottom-4">{titleError}</span>}
                 </div>
@@ -484,7 +484,7 @@ export function ContentPage() {
                   value={form.platform}
                   onChange={e => setForm(f => ({ ...f, platform: e.target.value }))}
                   aria-label="Platform"
-                  className="px-4 py-2 text-sm font-medium rounded-xl bg-muted/50 border border-border/50 text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-all cursor-pointer"
+                  className="px-4 py-2 text-sm font-medium rounded-xl bg-muted/50 border-0 shadow-premium-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-all cursor-pointer"
                 >
                   {['linkedin', 'twitter', 'instagram', 'youtube', 'blog'].map(p => (
                     <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
@@ -493,13 +493,13 @@ export function ContentPage() {
                 <button
                   onClick={handleAdd}
                   disabled={addItem.isPending}
-                  className="flex items-center gap-1.5 px-5 py-2 text-sm font-bold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-sm hover:shadow-md"
+                  className="flex items-center gap-1.5 px-5 py-2 text-sm font-bold rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-premium-sm hover:shadow-premium-hover"
                 >
                   <Plus className="w-4 h-4" aria-hidden="true" /> Add
                 </button>
                 <button
                   onClick={() => form.title.trim() ? setDraftOpen(true) : setTitleError('Type an idea first')}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-xl border border-violet-500/40 text-violet-400 hover:bg-violet-500/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-2xl border-0 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 shadow-premium-sm hover:shadow-premium-hover"
                   title="Generate an AI draft for this idea"
                 >
                   <WandSparkles className="w-4 h-4" aria-hidden="true" /> Draft
@@ -508,7 +508,7 @@ export function ContentPage() {
             </div>
 
             {total > 0 && (
-              <div className="flex items-center gap-4 bg-muted/30 px-4 py-2 rounded-xl border border-border whitespace-nowrap">
+              <div className="flex items-center gap-4 bg-muted/40 px-4 py-2 rounded-2xl border-0 shadow-premium-sm whitespace-nowrap">
                 <div className="flex flex-col items-center">
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Published</span>
                   <span className="text-base font-bold text-kpi-emerald tabular-nums">{published}</span>
@@ -565,7 +565,7 @@ export function ContentPage() {
 
         <DragOverlay>
           {activeItem && (
-            <div className="bg-card border-2 border-primary rounded-xl p-4 shadow-2xl rotate-2 opacity-95 scale-105 z-[100] w-[280px]">
+            <div className="bg-card border-0 rounded-2xl p-4 shadow-premium-hover rotate-2 opacity-95 scale-105 z-[100] w-[280px]">
               <p className="text-sm font-medium text-foreground leading-snug">{activeItem.title}</p>
               <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider mt-3 inline-block', PLATFORM_BADGE[activeItem.platform] ?? 'bg-muted text-muted-foreground')}>
                 {activeItem.platform}

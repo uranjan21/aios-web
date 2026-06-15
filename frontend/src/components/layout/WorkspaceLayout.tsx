@@ -8,13 +8,15 @@ import type { ReactNode } from 'react'
  *     ...analytics cards...
  *   </WorkspaceLayout>
  */
-export function WorkspaceLayout({ children, rail }: { children: ReactNode; rail: ReactNode }) {
+export function WorkspaceLayout({ children, rail }: { children: ReactNode; rail?: ReactNode }) {
   return (
     <div className="flex flex-col xl:flex-row gap-4 xl:gap-5 items-start">
       <div className="flex-1 min-w-0 w-full space-y-4">{children}</div>
-      <aside className="w-full xl:w-[300px] shrink-0 xl:sticky xl:top-1 space-y-4 rounded-2xl border border-border/60 bg-surface-container/50 p-3">
-        {rail}
-      </aside>
+      {rail && (
+        <aside className="w-full xl:w-[300px] shrink-0 xl:sticky xl:top-1 space-y-4 rounded-3xl border-0 bg-card shadow-premium-sm p-3">
+          {rail}
+        </aside>
+      )}
     </div>
   )
 }

@@ -16,7 +16,7 @@ export function SkillGapCard() {
   })
 
   return (
-    <div className="bg-card border border-border rounded-xl shadow-sm p-4">
+    <div className="bg-card border-0 rounded-2xl shadow-sm p-4">
       <div className="flex items-center gap-2 mb-3">
         <Target size={14} className="text-violet-400" />
         <h2 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">AI Skill-Gap Analysis</h2>

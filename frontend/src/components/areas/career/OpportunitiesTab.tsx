@@ -119,7 +119,7 @@ function AddForm({ onClose }: { onClose: () => void }) {
   })
 
   return (
-    <div className="bg-muted/40 border border-border/60 rounded-xl p-3 mb-3">
+    <div className="bg-muted/40 border-0 rounded-2xl p-3 mb-3">
       <Form form={form} layout="vertical" onFinish={mutate} requiredMark={false}>
         <div className="grid grid-cols-2 gap-3">
           <Form.Item name="company" label={<span className="text-[11px] text-muted-foreground">Company</span>} rules={[{ required: true }]}>
@@ -161,7 +161,7 @@ function PipelineCard({ opp }: { opp: JobOpportunity }) {
       {...attributes}
       {...listeners}
       style={transform ? { transform: `translate(${transform.x}px, ${transform.y}px)` } : undefined}
-      className={`bg-card border border-border rounded-lg p-2.5 cursor-grab active:cursor-grabbing shadow-sm ${isDragging ? 'opacity-40' : ''}`}
+      className={`bg-card border-0 rounded-xl p-2.5 cursor-grab active:cursor-grabbing shadow-sm ${isDragging ? 'opacity-40' : ''}`}
     >
       <div className="text-[12px] font-semibold text-foreground leading-snug">{opp.role}</div>
       <div className="text-[11px] text-muted-foreground">{opp.company}</div>
@@ -284,7 +284,7 @@ export function OpportunitiesTab() {
           <PipelineBoard opps={active} />
         )
       ) : (
-      <div className="bg-card border border-subtle rounded-xl overflow-hidden shadow-premium-sm">
+      <div className="bg-card border-0 rounded-2xl overflow-hidden shadow-premium-sm">
         <div className="px-3 py-2.5 border-b border-border/40">
           <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Active</span>
         </div>
@@ -304,7 +304,7 @@ export function OpportunitiesTab() {
       )}
 
       {closed.length > 0 && (
-        <div className="bg-card border border-subtle rounded-xl overflow-hidden shadow-premium-sm">
+        <div className="bg-card border-0 rounded-2xl overflow-hidden shadow-premium-sm">
           <div className="px-3 py-2.5 border-b border-border/40">
             <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Closed / Rejected</span>
           </div>

@@ -91,7 +91,7 @@ function MilestoneForm({ onClose }: { onClose: () => void }) {
 
   return (
     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-      <Form form={form} layout="vertical" onFinish={mutate} className="p-3 bg-muted/40 rounded-xl mb-4 border border-border">
+      <Form form={form} layout="vertical" onFinish={mutate} className="p-4 bg-muted/50 rounded-2xl mb-4 border-0 shadow-premium-sm">
         <div className="grid grid-cols-12 gap-4">
           <div className="col-span-12 md:col-span-4">
             <Form.Item name="eventType" initialValue="milestone" rules={[{ required: true }]}>
@@ -140,7 +140,7 @@ function OpportunityForm({ onClose }: { onClose: () => void }) {
 
   return (
     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-      <Form form={form} layout="vertical" onFinish={mutate} className="p-3 bg-muted/40 rounded-xl mb-4 border border-border">
+      <Form form={form} layout="vertical" onFinish={mutate} className="p-4 bg-muted/50 rounded-2xl mb-4 border-0 shadow-premium-sm">
         <div className="grid grid-cols-12 gap-4">
           <div className="col-span-12 md:col-span-6">
             <Form.Item name="company" rules={[{ required: true }]}>
@@ -201,7 +201,7 @@ function SkillForm({ onClose }: { onClose: () => void }) {
 
   return (
     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-      <Form form={form} layout="vertical" onFinish={mutate} className="p-3 bg-muted/40 rounded-xl mb-4 border border-border">
+      <Form form={form} layout="vertical" onFinish={mutate} className="p-4 bg-muted/50 rounded-2xl mb-4 border-0 shadow-premium-sm">
         <div className="grid grid-cols-12 gap-4">
           <div className="col-span-12 md:col-span-6">
             <Form.Item name="skill_name" rules={[{ required: true, message: 'Skill name is required' }]}>
@@ -253,7 +253,7 @@ function SkillRow({ skill }: { skill: SkillInventory }) {
   })
 
   return (
-    <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border">
+    <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/30 border-0">
       <div>
         <div className="text-[12px] font-semibold text-foreground">{skill.skill_name}</div>
         <div className="text-[11px] text-muted-foreground">{skill.category}</div>
@@ -279,7 +279,7 @@ function OpportunityRow({ opp }: { opp: JobOpportunity }) {
 
   return (
     <motion.div layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} 
-      className="flex items-center justify-between p-3 mb-2 rounded-lg bg-muted/40 border border-border hover:bg-muted/70 transition-all">
+      className="flex items-center justify-between p-3 mb-2 rounded-xl bg-muted/30 border-0 hover:bg-muted/50 transition-all">
       <div>
         <div className="text-[13px] font-semibold text-foreground">{opp.company}</div>
         <div className="text-[11px] text-muted-foreground">{opp.role}</div>
@@ -300,7 +300,7 @@ function OpportunityRow({ opp }: { opp: JobOpportunity }) {
 
 function CareerStat({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
   return (
-    <div className="bg-card border border-subtle rounded-xl shadow-premium-sm p-4 flex flex-col gap-1">
+    <div className="bg-card border-0 rounded-2xl shadow-premium-sm p-4 flex flex-col gap-1">
       <span className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-widest">{label}</span>
       <span className={`stat-hero text-[26px] leading-[30px] ${accent ?? 'text-foreground'}`}>{value}</span>
       {sub && <span className="text-[11px] text-muted-foreground">{sub}</span>}

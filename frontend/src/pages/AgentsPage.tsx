@@ -68,8 +68,8 @@ const AgentsGrid = styled.div`
 
 const CardContainer = styled.div<{ $status?: string }>`
   background: hsl(var(--card));
-  border: 1px solid hsl(var(--border-subtle) / 0.06);
-  border-radius: 12px;
+  border: none;
+  border-radius: 22px;
   padding: 0.625rem 1rem;
   box-shadow: var(--shadow-premium-sm);
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -101,7 +101,6 @@ const CardContainer = styled.div<{ $status?: string }>`
 
   &:hover {
     transform: translateY(-2px);
-    border-color: hsl(var(--primary) / 0.2);
     box-shadow: var(--shadow-premium-hover);
   }
 

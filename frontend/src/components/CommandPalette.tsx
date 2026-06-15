@@ -87,20 +87,20 @@ export function CommandPalette() {
       <div className="absolute inset-0 bg-black/60" aria-hidden="true" />
 
       <div
-        className="relative w-full max-w-lg mx-4 rounded-2xl bg-card border border-border shadow-2xl overflow-hidden"
+        className="relative w-full max-w-lg mx-4 rounded-3xl bg-card border-0 shadow-premium-md overflow-hidden"
         onClick={e => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
       >
         <Command>
-          <div className="flex items-center border-b border-border px-3">
+          <div className="flex items-center px-3">
             <Command.Input
               autoFocus
               placeholder="Search commands…"
               className="flex-1 py-3.5 bg-transparent text-foreground placeholder:text-muted-foreground text-sm outline-none"
             />
-            <kbd className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5 font-mono">ESC</kbd>
+            <kbd className="text-[10px] text-muted-foreground bg-muted shadow-premium-sm rounded-lg px-1.5 py-0.5 font-mono">ESC</kbd>
           </div>
 
           <Command.List className="max-h-96 overflow-y-auto py-1">

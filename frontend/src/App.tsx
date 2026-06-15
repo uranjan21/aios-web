@@ -22,7 +22,7 @@ export function App() {
         position="bottom-right"
         toastOptions={{
           classNames: {
-            toast: 'bg-card border border-border text-foreground text-sm',
+            toast: 'bg-card border-0 rounded-2xl shadow-premium-md text-foreground text-sm',
             description: 'text-muted-foreground',
             actionButton: 'bg-primary text-primary-foreground',
           },

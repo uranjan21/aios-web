@@ -187,7 +187,7 @@ export function BodySleepTab() {
       <div className="space-y-4">
         {/* KPI row */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <div className="bg-card border border-subtle rounded-xl p-3 shadow-premium-sm">
+          <div className="bg-card border-0 rounded-2xl p-3 shadow-premium-sm h-full flex flex-col">
             <div className="flex items-center gap-2 mb-1.5">
               <Scale className="w-3.5 h-3.5 text-primary" />
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Weight</p>
@@ -196,7 +196,7 @@ export function BodySleepTab() {
               <p className="text-lg font-bold text-foreground">{latestWeight != null ? `${latestWeight} kg` : '—'}</p>
             )}
           </div>
-          <div className="bg-card border border-subtle rounded-xl p-3 shadow-premium-sm">
+          <div className="bg-card border-0 rounded-2xl p-3 shadow-premium-sm h-full flex flex-col">
             <div className="flex items-center gap-2 mb-1.5">
               <Percent className="w-3.5 h-3.5 text-kpi-purple" />
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Body Fat</p>
@@ -205,7 +205,7 @@ export function BodySleepTab() {
               <p className="text-lg font-bold text-foreground">{latestBodyFat != null ? `${latestBodyFat}%` : '—'}</p>
             )}
           </div>
-          <div className="bg-card border border-subtle rounded-xl p-3 shadow-premium-sm">
+          <div className="bg-card border-0 rounded-2xl p-3 shadow-premium-sm h-full flex flex-col">
             <div className="flex items-center gap-2 mb-1.5">
               <Ruler className="w-3.5 h-3.5 text-muted-foreground" />
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">BMI</p>
@@ -216,7 +216,7 @@ export function BodySleepTab() {
               <p className="text-[11px] text-muted-foreground">Set height &amp; weight</p>
             )}
           </div>
-          <div className="bg-card border border-subtle rounded-xl p-3 shadow-premium-sm">
+          <div className="bg-card border-0 rounded-2xl p-3 shadow-premium-sm h-full flex flex-col">
             <div className="flex items-center gap-2 mb-1.5">
               <Moon className="w-3.5 h-3.5 text-indigo-400" />
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Last Night</p>
@@ -225,7 +225,7 @@ export function BodySleepTab() {
               <p className="text-lg font-bold text-foreground">{lastNight != null ? `${lastNight}h` : '—'}</p>
             )}
           </div>
-          <div className="bg-card border border-subtle rounded-xl p-3 shadow-premium-sm">
+          <div className="bg-card border-0 rounded-2xl p-3 shadow-premium-sm h-full flex flex-col">
             <div className="flex items-center gap-2 mb-1.5">
               <Clock className="w-3.5 h-3.5 text-primary" />
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">7-Day Avg</p>
@@ -238,7 +238,7 @@ export function BodySleepTab() {
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
+          <div className="bg-card border-0 rounded-2xl p-4 shadow-premium-sm h-full flex flex-col">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Weight &amp; Body Fat Trend</p>
             {isLoadingBody ? <Skeleton className="h-[200px]" /> : !bodyChartData.length ? (
               <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">No body composition logs yet</div>
@@ -265,7 +265,7 @@ export function BodySleepTab() {
             )}
           </div>
 
-          <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
+          <div className="bg-card border-0 rounded-2xl p-4 shadow-premium-sm h-full flex flex-col">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Sleep — Last 7 Days</p>
             {loadingSleep ? <Skeleton className="h-[200px]" /> : !sleepChartData.length ? (
               <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">No sleep logs yet</div>
@@ -301,7 +301,7 @@ export function BodySleepTab() {
         </div>
 
         {/* Recent sleep list */}
-        <div className="bg-card border border-subtle rounded-xl overflow-hidden shadow-premium-sm">
+        <div className="bg-card border-0 rounded-2xl overflow-hidden shadow-premium-sm">
           <div className="px-4 py-2.5 border-b border-border/40">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Recent Sleep</p>
           </div>

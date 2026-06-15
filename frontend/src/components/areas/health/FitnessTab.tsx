@@ -105,7 +105,7 @@ function GoalCard({ goal, current, target, onTargetChange }: {
     : (current != null && current >= target)
 
   return (
-    <div className="bg-card border border-subtle shadow-premium-sm rounded-xl p-3">
+    <div className="bg-card border-0 shadow-premium-sm rounded-2xl p-3">
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className={cn('p-1.5 rounded-lg bg-muted/50', goal.color)}>
@@ -163,7 +163,7 @@ function SessionCard({ session }: { session: WorkoutSessionItem }) {
   }, {})
 
   return (
-    <div className="bg-card border border-border rounded-xl shadow-sm p-3 group">
+    <div className="bg-card border-0 rounded-2xl shadow-sm p-3 group">
       <div className="flex items-center justify-between mb-2">
         <div>
           <span className="text-[13px] font-semibold text-foreground">{session.name}</span>
@@ -420,7 +420,7 @@ export function FitnessTab() {
 
         {/* PRs */}
         {prs && prs.length > 0 && (
-          <div className="bg-card border border-subtle rounded-xl shadow-premium-sm p-3">
+          <div className="bg-card border-0 rounded-2xl shadow-premium-sm p-3">
             <div className="flex items-center gap-2 mb-2">
               <Trophy size={14} className="text-amber-500" />
               <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Personal Records</h2>
@@ -441,13 +441,13 @@ export function FitnessTab() {
               { label: 'Done Today', value: `${doneToday}/${habits?.length ?? 0}` },
               { label: 'Best Streak', value: bestStreak > 0 ? `${bestStreak}d` : '—' },
             ].map(c => (
-              <div key={c.label} className="bg-card border border-subtle shadow-premium-sm rounded-xl p-2.5 text-center">
+              <div key={c.label} className="bg-card border-0 shadow-premium-sm rounded-2xl p-2.5 text-center">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{c.label}</p>
                 <p className="text-lg font-semibold text-foreground font-mono tracking-tight mt-0.5">{c.value}</p>
               </div>
             ))}
           </div>
-          <div className="bg-card border border-subtle rounded-xl shadow-premium-sm overflow-hidden">
+          <div className="bg-card border-0 rounded-2xl shadow-premium-sm overflow-hidden">
             {loadingHabits ? (
               <div className="p-3 space-y-2">
                 {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full" />)}

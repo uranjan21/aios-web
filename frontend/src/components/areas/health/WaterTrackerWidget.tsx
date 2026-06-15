@@ -47,7 +47,7 @@ export function WaterTrackerWidget() {
   const remaining = Math.max(0, target - glasses)
 
   return (
-    <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm h-full flex flex-col">
+    <div className="bg-card border-0 rounded-2xl p-4 shadow-premium-sm h-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Water Intake</p>
         <span className="text-sm font-bold text-primary">{glasses} / {target} glasses</span>

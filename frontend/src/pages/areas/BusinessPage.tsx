@@ -100,7 +100,7 @@ function EventForm({ onClose }: { onClose: () => void }) {
 
   return (
     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-      <Form form={form} layout="vertical" onFinish={mutate} className="p-3 bg-muted/40 rounded-xl mb-4 border border-border">
+      <Form form={form} layout="vertical" onFinish={mutate} className="p-4 bg-muted/50 rounded-2xl mb-4 border-0 shadow-premium-sm">
         <div className="grid grid-cols-12 gap-4">
           <div className="col-span-12 md:col-span-4">
             <Form.Item name="eventType" initialValue="feature_shipped" rules={[{ required: true }]}>

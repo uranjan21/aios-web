@@ -119,7 +119,7 @@ export function EventsTab() {
         {showForm && <NewEventForm onClose={() => setShowForm(false)} />}
       </AnimatePresence>
 
-      <div className="bg-card border border-subtle rounded-xl overflow-hidden shadow-premium-sm">
+      <div className="bg-card border-0 rounded-2xl overflow-hidden shadow-premium-sm">
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-border/40">
           <div className="flex items-center gap-2">
             <History className="w-3.5 h-3.5 text-muted-foreground" />

@@ -70,8 +70,9 @@ export default {
       },
       borderRadius: {
         lg: 'var(--radius)',
-        xl: 'calc(var(--radius) + 4px)',
-        '2xl': 'calc(var(--radius) + 8px)',
+        xl: 'calc(var(--radius) + 6px)',
+        '2xl': 'calc(var(--radius) + 10px)',
+        '3xl': 'calc(var(--radius) + 16px)',
       },
     },
   },

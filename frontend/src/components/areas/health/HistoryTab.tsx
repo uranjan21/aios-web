@@ -88,7 +88,7 @@ export function HistoryTab() {
 
   return (
     <WorkspaceLayout rail={rail}>
-      <div className="bg-card border border-subtle shadow-premium-sm rounded-xl overflow-hidden">
+      <div className="bg-card border-0 shadow-premium-sm rounded-2xl overflow-hidden">
         <table className="w-full text-[11px]" aria-label="Health logs">
           <thead>
             <tr className="border-b border-border/40 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">

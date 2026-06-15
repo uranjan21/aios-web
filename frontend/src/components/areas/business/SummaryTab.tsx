@@ -17,7 +17,7 @@ function MrrTrendCard() {
   if (!history || history.length < 2) return null
 
   return (
-    <div className="bg-card border border-border rounded-xl shadow-sm p-4">
+    <div className="bg-card border-0 rounded-2xl shadow-sm p-4">
       <div className="flex items-center gap-2 mb-2">
         <LineChart size={14} className="text-muted-foreground" />
         <h2 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">MRR Trend</h2>
@@ -71,7 +71,7 @@ function MetricTile({
   accent?: string
 }) {
   return (
-    <div className="bg-card border border-subtle rounded-xl p-3 shadow-premium-sm">
+    <div className="bg-card border-0 rounded-2xl p-3 shadow-premium-sm">
       <div className="flex items-center gap-2 mb-2">
         <div className={cn('p-1.5 rounded-lg bg-muted/50', accent ?? 'text-muted-foreground')}>
           <Icon className="w-3.5 h-3.5" />

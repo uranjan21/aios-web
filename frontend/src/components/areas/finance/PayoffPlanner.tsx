@@ -88,7 +88,7 @@ export function PayoffPlanner({ loans }: { loans: FinanceLoan[] }) {
   const monthsSaved = baseline.months - result.months
 
   return (
-    <div className="bg-card border border-border rounded-xl shadow-sm p-4 mt-4">
+    <div className="bg-card border-0 rounded-2xl shadow-sm p-4 mt-4">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Landmark size={14} className="text-muted-foreground" />
@@ -113,30 +113,30 @@ export function PayoffPlanner({ loans }: { loans: FinanceLoan[] }) {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
         <div>
-          <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Debt-free</div>
-          <div className="text-xl font-semibold text-foreground font-mono tracking-tight">
+          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Debt-free</div>
+          <div className="text-[12px] font-medium text-foreground tracking-tight">
             {result.capped ? '50y+' : debtFreeDate.format('MMM YYYY')}
           </div>
-          <div className="text-[11px] text-muted-foreground">{result.capped ? 'EMIs too low to close' : `${Math.floor(result.months / 12)}y ${result.months % 12}m away`}</div>
+          <div className="text-[10px] text-muted-foreground">{result.capped ? 'EMIs too low to close' : `${Math.floor(result.months / 12)}y ${result.months % 12}m away`}</div>
         </div>
         <div>
-          <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Total Interest</div>
-          <div className="text-xl font-semibold text-foreground font-mono tracking-tight">{formatCurrency(Math.round(result.totalInterest))}</div>
-          <div className="text-[11px] text-muted-foreground">over the payoff period</div>
+          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Total Interest</div>
+          <div className="text-[12px] font-medium text-foreground tracking-tight">{formatCurrency(Math.round(result.totalInterest))}</div>
+          <div className="text-[10px] text-muted-foreground">over the payoff period</div>
         </div>
         <div>
-          <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Interest Saved</div>
-          <div className={`text-xl font-semibold font-mono tracking-tight ${interestSaved > 0 ? 'text-emerald-500' : 'text-foreground'}`}>
+          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Interest Saved</div>
+          <div className={`text-[12px] font-medium tracking-tight ${interestSaved > 0 ? 'text-emerald-500' : 'text-foreground'}`}>
             {formatCurrency(Math.round(Math.max(interestSaved, 0)))}
           </div>
-          <div className="text-[11px] text-muted-foreground">vs no extra payment</div>
+          <div className="text-[10px] text-muted-foreground">vs no extra payment</div>
         </div>
         <div>
-          <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Time Saved</div>
-          <div className={`text-xl font-semibold font-mono tracking-tight ${monthsSaved > 0 ? 'text-emerald-500' : 'text-foreground'}`}>
+          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Time Saved</div>
+          <div className={`text-[12px] font-medium tracking-tight ${monthsSaved > 0 ? 'text-emerald-500' : 'text-foreground'}`}>
             {monthsSaved > 0 ? `${Math.floor(monthsSaved / 12)}y ${monthsSaved % 12}m` : '—'}
           </div>
-          <div className="text-[11px] text-muted-foreground">earlier debt-free</div>
+          <div className="text-[10px] text-muted-foreground">earlier debt-free</div>
         </div>
       </div>
 

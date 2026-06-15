@@ -34,7 +34,7 @@ function StatusIcon({ status }: { status: Integration['status'] }) {
 
 function IntegrationCardSkeleton() {
   return (
-    <div className="bg-card border border-subtle shadow-premium-sm rounded-xl p-4 space-y-3">
+    <div className="bg-card border-0 shadow-premium-sm rounded-2xl p-4 space-y-3">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <Skeleton className="w-8 h-8 rounded-xl" />

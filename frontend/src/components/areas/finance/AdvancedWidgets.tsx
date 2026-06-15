@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Card, List, Button, Tag, Avatar, Typography, Empty, Popconfirm } from 'antd';
+import { Card, Button, Tag, Avatar, Typography, Empty, Popconfirm, Table } from 'antd';
 import { Sparkles, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
 import Highcharts from 'highcharts';
 Highcharts.setOptions({ accessibility: { enabled: false } });
@@ -17,8 +17,8 @@ const { Text } = Typography;
 
 const PremiumCard = styled(Card)`
   background: hsl(var(--card));
-  border: 1px solid hsl(var(--border-subtle) / 0.06);
-  border-radius: 12px;
+  border: none;
+  border-radius: 22px;
   overflow: hidden;
   box-shadow: var(--shadow-premium-sm);
 
@@ -38,16 +38,20 @@ const PremiumCard = styled(Card)`
 const AIInsightWrapper = styled.div`
   display: flex;
   gap: 16px;
-  margin-bottom: 16px;
-  padding: 16px;
-  background: rgba(139, 92, 246, 0.1);
-  border-radius: 12px;
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  transition: transform 0.2s;
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  background: transparent;
+  border-radius: 16px;
+  border-bottom: 1px dashed hsl(var(--border) / 0.4);
+  transition: background-color 0.2s;
+
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
 
   &:hover {
-    transform: translateY(-2px);
-    background: rgba(139, 92, 246, 0.15);
+    background: hsl(var(--muted) / 0.3);
   }
 `;
 
@@ -231,14 +235,7 @@ export const CashflowForecasting = () => {
   );
 };
 
-const SubItem = styled(List.Item)`
-  border-bottom: 1px solid hsl(var(--border) / 0.6) !important;
-  padding: 16px 0 !important;
-
-  &:last-child {
-    border-bottom: none !important;
-  }
-`;
+import { TableContainer, TableHeader } from './TableStyles';
 
 export const SubscriptionManagement = () => {
   const queryClient = useQueryClient();
@@ -258,55 +255,81 @@ export const SubscriptionManagement = () => {
   });
 
   const subs = (bills ?? []).filter(b => b.category === 'subscriptions');
+  const activeCount = subs.filter(s => s.is_active).length;
+  const activeTotal = subs.filter(s => s.is_active).reduce((s, b) => s + Number(b.amount), 0);
+
+  const columns = [
+    {
+      title: 'Subscription',
+      key: 'name',
+      render: (_: any, record: any) => (
+        <div className="flex items-center gap-3">
+          <Avatar shape="square" size={32} style={{ background: 'hsl(var(--muted))', color: 'hsl(var(--foreground))' }}>
+            {record.name.charAt(0).toUpperCase()}
+          </Avatar>
+          <div>
+            <div className="font-medium text-foreground">{record.name}</div>
+            <div className="text-[10px] text-muted-foreground">{record.is_auto_debit ? 'Auto-debit' : 'Manual'}</div>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: 'Amount',
+      dataIndex: 'amount',
+      key: 'amount',
+      render: (amount: string | number) => <span className="font-medium">{formatCurrency(Number(amount))} / mo</span>
+    },
+    {
+      title: 'Status',
+      key: 'status',
+      render: (_: any, record: any) => (
+        <Tag color={record.is_active ? 'green' : 'orange'} bordered={false}>
+          {record.is_active ? 'Active' : 'Paused'}
+        </Tag>
+      )
+    },
+    {
+      title: 'Action',
+      key: 'action',
+      render: (_: any, record: any) => (
+        <Popconfirm
+          title={record.is_active ? 'Pause this subscription?' : 'Resume this subscription?'}
+          onConfirm={() => togglePauseMutation.mutate({ id: record.id, is_active: !record.is_active })}
+          okText="Yes"
+          cancelText="No"
+        >
+          <Button type="text" danger={record.is_active} size="small" style={{ fontSize: '12px' }}>
+            {record.is_active ? 'Pause' : 'Resume'}
+          </Button>
+        </Popconfirm>
+      )
+    }
+  ];
+
+  if (isLoading) return <div className="space-y-4"><Skeleton className="h-10" /><Skeleton className="h-[200px]" /></div>;
 
   return (
-    <GlassCard
-      title="Subscriptions"
-      action={<button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Manage</button>}
-      hoverable
-      fadeIn="up"
-    >
-      {isLoading ? (
-        <div className="space-y-3">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-        </div>
-      ) : subs.length === 0 ? (
-        <Empty description="No subscriptions tracked — add a bill with category 'Subscriptions' in the Bills tab" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-      ) : (
-        <List
-          itemLayout="horizontal"
-          dataSource={subs}
-          renderItem={item => (
-            <SubItem
-              actions={[
-                <Popconfirm
-                  key="toggle"
-                  title={item.is_active ? 'Pause this subscription?' : 'Resume this subscription?'}
-                  onConfirm={() => togglePauseMutation.mutate({ id: item.id, is_active: !item.is_active })}
-                  okText="Yes"
-                  cancelText="No"
-                >
-                  <Button type="text" danger={item.is_active} size="small" style={{ fontSize: '12px' }}>
-                    {item.is_active ? 'Pause' : 'Resume'}
-                  </Button>
-                </Popconfirm>
-              ]}
-            >
-              <List.Item.Meta
-                avatar={<Avatar shape="square" size={40} style={{ background: 'hsl(var(--muted))', color: 'hsl(var(--foreground))' }}>{item.name.charAt(0).toUpperCase()}</Avatar>}
-                title={<span className="text-foreground text-sm font-medium">{item.name}</span>}
-                description={<span className="text-muted-foreground text-xs">{formatCurrency(item.amount)} / month{item.is_auto_debit ? ' · auto-debit' : ''}</span>}
-              />
-              <div>
-                <Tag color={item.is_active ? 'green' : 'orange'} bordered={false}>
-                  {item.is_active ? 'Active' : 'Paused'}
-                </Tag>
-              </div>
-            </SubItem>
-          )}
-        />
-      )}
-    </GlassCard>
+    <TableContainer>
+      <TableHeader>
+        <h3>Subscriptions</h3>
+      </TableHeader>
+
+      <Table
+        dataSource={subs}
+        columns={columns}
+        rowKey="id"
+        pagination={false}
+        size="middle"
+        summary={() => {
+          return (
+            <Table.Summary.Row>
+              <Table.Summary.Cell index={0}>Active Total ({activeCount})</Table.Summary.Cell>
+              <Table.Summary.Cell index={1} colSpan={3}>{formatCurrency(activeTotal)} / mo</Table.Summary.Cell>
+            </Table.Summary.Row>
+          );
+        }}
+      />
+    </TableContainer>
   );
 };

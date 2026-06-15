@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
-import { Empty, Tag } from 'antd'
-import { ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, Wallet, Landmark, CreditCard, PiggyBank, ChevronRight, type LucideIcon } from 'lucide-react'
+import { Empty, Tag, Select } from 'antd'
+import { ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, Wallet, Landmark, CreditCard, PiggyBank, ChevronRight, Plus, type LucideIcon } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { formatCurrency, cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -11,6 +11,10 @@ import { GlassCard, IconBadge, ProgressBar } from '@/components/lumina'
 import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
 import { BalanceWidget } from './WalletWidgets'
 import { TransactionModal, type Kind } from './TransactionsTab'
+import { FinanceStats } from './FinanceStats'
+import { TextTabs } from '@/components/ui/TextTabs'
+import { AiInsightCard } from '@/components/AiInsightCard'
+import { AIInsightsEngine } from './AdvancedWidgets'
 
 function getDaysUntilDue(dueDay: number): number {
   const today = new Date()
@@ -52,34 +56,34 @@ function scoreBand(score: number): string {
   return score >= 80 ? 'excellent' : score >= 60 ? 'good' : score >= 40 ? 'fair' : 'attention'
 }
 
-function HealthScoreCard({ data }: { data: import('@/types').FinanceHealthScore | undefined }) {
+function HealthScoreCard({ data, delay = 0 }: { data: import('@/types').FinanceHealthScore | undefined; delay?: 0 | 100 | 200 | 300 }) {
   if (!data) {
     return (
-      <GlassCard title="Financial Health" hoverable fadeIn="up">
+      <GlassCard title="Financial Health" hoverable fadeIn="up" delay={delay}>
         <Skeleton className="h-40 w-full" />
       </GlassCard>
     )
   }
   const band = BAND_STYLES[data.band] ?? BAND_STYLES.fair
   return (
-    <GlassCard title="Financial Health" action={<Tag color={band.tag}>{band.label}</Tag>} hoverable fadeIn="up">
-      <div className="flex items-baseline gap-1 mb-3">
-        <span className="text-xl font-semibold text-foreground font-mono tabular-nums tracking-tight">{data.score}</span>
-        <span className="text-[11px] text-muted-foreground">/ 100</span>
+    <GlassCard title="Financial Health" action={<Tag color={band.tag} className="text-[10px] leading-tight py-0" bordered={false}>{band.label}</Tag>} hoverable fadeIn="up" delay={delay}>
+      <div className="flex items-baseline gap-1 mb-2">
+        <span className="text-[12px] font-semibold text-foreground tabular-nums tracking-tight">{data.score}</span>
+        <span className="text-[10px] text-muted-foreground">/ 100</span>
       </div>
-      <div className="space-y-2.5">
+      <div className="space-y-2">
         {data.components.map(c => (
           <div key={c.key}>
             <div className="flex items-center justify-between mb-0.5">
-              <span className="text-[12px] font-medium text-foreground">{c.label}</span>
-              <span className="text-[11px] font-mono tabular-nums text-muted-foreground">{c.available ? c.score : '—'}</span>
+              <span className="text-[11px] font-medium text-foreground">{c.label}</span>
+              <span className="text-[10px] tabular-nums text-muted-foreground">{c.available ? c.score : '—'}</span>
             </div>
             <ProgressBar
               size="sm"
               value={c.available ? (c.score ?? 0) : 0}
               colorClassName={c.available ? BAND_STYLES[scoreBand(c.score ?? 0)].bar : 'bg-muted'}
             />
-            <div className="text-[11px] text-muted-foreground mt-0.5">{c.display}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">{c.display}</div>
           </div>
         ))}
       </div>
@@ -89,18 +93,18 @@ function HealthScoreCard({ data }: { data: import('@/types').FinanceHealthScore 
 
 function NavButton({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} className="flex items-center gap-0.5 text-[11px] font-medium text-primary hover:underline">
-      See all <ChevronRight size={12} />
+    <button onClick={onClick} className="text-[10px] px-1.5 py-0.5 bg-muted/50 hover:bg-muted text-muted-foreground rounded transition-colors font-medium">
+      See all
     </button>
   )
 }
 
 function StatTile({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
   return (
-    <div className="bg-card border border-subtle rounded-xl shadow-premium-sm p-4 flex flex-col gap-1">
-      <span className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-widest">{label}</span>
-      <span className={cn('stat-hero text-[26px] leading-[30px]', accent ?? 'text-foreground')}>{value}</span>
-      {sub && <span className="text-[11px] text-muted-foreground">{sub}</span>}
+    <div className="bg-card rounded-2xl shadow-premium-sm p-3.5 flex flex-col gap-0.5 h-full border-0">
+      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
+      <span className={cn('text-[12px] font-medium tracking-tight', accent ?? 'text-foreground')}>{value}</span>
+      {sub && <span className="text-[10px] text-muted-foreground">{sub}</span>}
     </div>
   )
 }
@@ -108,6 +112,7 @@ function StatTile({ label, value, sub, accent }: { label: string; value: string;
 export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => void }) {
   const [balanceTab, setBalanceTab] = useState('General')
   const [modal, setModal] = useState<Kind | null>(null)
+  const [period, setPeriod] = useState<'This Week' | 'This Month' | 'This Year'>('This Month')
 
   const month = format(new Date(), 'yyyy-MM')
 
@@ -219,33 +224,33 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
     return <ErrorCard message="Could not load financial data" />
   }
 
-  const QUICK_ACTIONS = [
-    { kind: 'Expense' as Kind, label: 'Add Expense', icon: ArrowDownCircle, tone: 'text-kpi-red' },
-    { kind: 'Income' as Kind, label: 'Add Income', icon: ArrowUpCircle, tone: 'text-kpi-emerald' },
-    { kind: 'Transfer' as Kind, label: 'Transfer', icon: ArrowLeftRight, tone: 'text-primary' },
-  ]
-
-  const quickActionsCard = (
-    <GlassCard title="Quick Actions" hoverable fadeIn="up">
-      <div className="flex flex-col gap-2.5">
-        {QUICK_ACTIONS.map(a => (
-          <button
-            key={a.kind}
-            onClick={() => setModal(a.kind)}
-            className="flex items-center gap-3 w-full px-3.5 py-3 rounded-xl bg-muted/40 border border-border/60 hover:border-primary/40 hover:bg-muted/70 transition-all text-left group"
-          >
-            <a.icon size={18} className={cn(a.tone, 'shrink-0')} />
-            <span className="text-[13px] font-medium text-foreground flex-1">{a.label}</span>
-            <ChevronRight size={14} className="text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-          </button>
-        ))}
-      </div>
-    </GlassCard>
-  )
-
   return (
     <>
-    <WorkspaceLayout rail={<><RailHeading>Quick Log</RailHeading>{quickActionsCard}</>}>
+    <WorkspaceLayout>
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Overview</div>
+        <Select
+          size="small"
+          value={period}
+          onChange={v => setPeriod(v as 'This Week' | 'This Month' | 'This Year')}
+          className="min-w-[130px]"
+          options={[
+            {
+              label: 'Short Term',
+              options: [
+                { label: 'This Week', value: 'This Week' },
+              ]
+            },
+            {
+              label: 'Long Term',
+              options: [
+                { label: 'This Month', value: 'This Month' },
+                { label: 'This Year', value: 'This Year' },
+              ]
+            }
+          ]}
+        />
+      </div>
       {/* KPI lead row */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <StatTile
@@ -276,9 +281,30 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
 
       {/* Analytics: 2×2 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Financial Health Score */}
+        {/* Recent Activity */}
         <div>
-          <HealthScoreCard data={healthScore} />
+          <GlassCard title="Recent Activity" action={<NavButton onClick={() => onNavigateTab('2')} />} hoverable fadeIn="up" delay={0}>
+            {recentActivity.length === 0 ? (
+              <Empty description="No transactions this month" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            ) : (
+              <div className="space-y-1">
+                {recentActivity.map(item => (
+                  <div key={`${item.kind}-${item.id}`} className="flex items-center justify-between py-1.5 border-b border-border/20 last:border-b-0">
+                    <div>
+                      <div className="text-[12px] font-medium text-foreground">{item.label}</div>
+                      <div className="text-[10px] text-muted-foreground">{item.sub} · {format(new Date(item.date), 'MMM d')}</div>
+                    </div>
+                    <span className={cn(
+                      "text-[12px] font-medium tabular-nums",
+                      item.amount < 0 ? "text-kpi-red" : item.kind === 'Transfer' ? "text-primary" : "text-kpi-emerald"
+                    )}>
+                      {item.amount < 0 ? '-' : '+'}{formatCurrency(Math.abs(item.amount))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </GlassCard>
         </div>
 
         {/* Upcoming Payments */}
@@ -289,14 +315,14 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
             ) : (
               <div className="space-y-1">
                 {upcoming.map(item => (
-                  <div key={item.id} className="flex items-center justify-between py-1.5">
+                  <div key={item.id} className="flex items-center justify-between py-1.5 border-b border-border/20 last:border-b-0">
                     <div>
-                      <div className="text-[13px] font-medium text-foreground">{item.name}</div>
-                      <div className="text-[11px] text-muted-foreground">{item.type} · due {ordinal(item.dueDay)}</div>
+                      <div className="text-[12px] font-medium text-foreground">{item.name}</div>
+                      <div className="text-[10px] text-muted-foreground">{item.type} · due {ordinal(item.dueDay)}</div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-semibold font-mono tabular-nums text-foreground">{formatCurrency(item.amount)}</span>
-                      <Tag color={urgencyColor(item.days)}>{item.days === 0 ? 'Today' : `${item.days}d`}</Tag>
+                      <span className="text-[12px] font-medium tabular-nums text-foreground">{formatCurrency(item.amount)}</span>
+                      <Tag color={urgencyColor(item.days)} className="text-[10px] leading-tight py-0 m-0" bordered={false}>{item.days === 0 ? 'Today' : `${item.days}d`}</Tag>
                     </div>
                   </div>
                 ))}
@@ -320,15 +346,15 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
                 {accounts.map(a => {
                   const Icon = ACCOUNT_ICONS[a.type] ?? Wallet
                   return (
-                    <div key={a.id} className="flex items-center justify-between py-1.5">
+                    <div key={a.id} className="flex items-center justify-between py-1.5 border-b border-border/20 last:border-b-0">
                       <div className="flex items-center gap-2.5">
                         <IconBadge icon={Icon} color="muted" size="md" />
                         <div>
-                          <div className="text-[13px] font-medium text-foreground">{a.name}</div>
-                          <div className="text-[11px] text-muted-foreground">{String(a.type).replace('_', ' ').toUpperCase()}</div>
+                          <div className="text-[12px] font-medium text-foreground">{a.name}</div>
+                          <div className="text-[10px] text-muted-foreground">{String(a.type).replace('_', ' ').toUpperCase()}</div>
                         </div>
                       </div>
-                      <div className="text-[13px] font-semibold font-mono tabular-nums text-foreground">{formatCurrency(Number(a.balance))}</div>
+                      <div className="text-[12px] font-medium tabular-nums text-foreground">{formatCurrency(Number(a.balance))}</div>
                     </div>
                   )
                 })}
@@ -337,35 +363,25 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
           </GlassCard>
         </div>
 
-        {/* Recent Activity */}
+        {/* Financial Health Score */}
         <div>
-          <GlassCard title="Recent Activity" action={<NavButton onClick={() => onNavigateTab('2')} />} hoverable fadeIn="up" delay={300}>
-            {recentActivity.length === 0 ? (
-              <Empty description="No transactions this month" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            ) : (
-              <div className="space-y-1">
-                {recentActivity.map(item => (
-                  <div key={`${item.kind}-${item.id}`} className="flex items-center justify-between py-1.5">
-                    <div>
-                      <div className="text-[13px] font-medium text-foreground">{item.label}</div>
-                      <div className="text-[11px] text-muted-foreground">{item.sub} · {format(new Date(item.date), 'MMM d')}</div>
-                    </div>
-                    <span className={cn(
-                      "text-[13px] font-semibold font-mono tabular-nums",
-                      item.amount < 0 ? "text-kpi-red" : item.kind === 'Transfer' ? "text-primary" : "text-kpi-emerald"
-                    )}>
-                      {item.amount < 0 ? '-' : '+'}{formatCurrency(Math.abs(item.amount))}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </GlassCard>
+          <HealthScoreCard data={healthScore} delay={300} />
         </div>
+      </div>
+        
+      {/* Unified Stats Widgets */}
+      <div className="mt-4">
+        <FinanceStats period={period} />
+      </div>
+
+      {/* AI Insights & Analytics */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+        <AiInsightCard area="finance" className="h-full" />
+        <AIInsightsEngine />
       </div>
     </WorkspaceLayout>
 
-    <TransactionModal open={modal !== null} onClose={() => setModal(null)} editing={null} initialKind={modal ?? 'Expense'} />
+    <TransactionModal open={!!modal} onClose={() => setModal(null)} initialKind={modal ?? 'Expense'} editing={null} />
     </>
   )
 }

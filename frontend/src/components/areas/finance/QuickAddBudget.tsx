@@ -1,11 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Form, Input, Select, Switch, Button } from 'antd'
+import { Form, Input, Select, Switch, Button, Modal, Segmented } from 'antd'
 import { financeApi } from '@/api/areas'
-import { GlassCard } from '@/components/lumina'
-import { RailHeading } from '@/components/layout/WorkspaceLayout'
-import { TextTabs } from '@/components/ui/TextTabs'
 import { cn } from '@/lib/utils'
 
 const CATEGORIES = [
@@ -27,7 +24,7 @@ const COLORS = [
   { label: 'Rose', value: '#f43f5e' },
 ]
 
-function AddBudgetForm() {
+function AddBudgetForm({ onSuccess }: { onSuccess?: () => void }) {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const { data: budgets } = useQuery({ queryKey: ['finance', 'budgets'], queryFn: financeApi.budgets })
@@ -39,6 +36,7 @@ function AddBudgetForm() {
       queryClient.invalidateQueries({ queryKey: ['finance', 'budgets'] })
       toast.success('Budget added')
       form.resetFields()
+      onSuccess?.()
     },
     onError: () => toast.error('Failed to save budget'),
   })
@@ -46,7 +44,7 @@ function AddBudgetForm() {
   const available = CATEGORIES.filter(c => !budgets?.some(b => b.category === c))
 
   return (
-    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false}>
+    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false} className="mt-3">
       <Form.Item name="category" label="Category" rules={[{ required: true }]}>
         <Select placeholder="Category" showSearch>
           {available.map(c => <Select.Option key={c} value={c}>{c}</Select.Option>)}
@@ -60,7 +58,7 @@ function AddBudgetForm() {
   )
 }
 
-function AddGoalForm() {
+function AddGoalForm({ onSuccess }: { onSuccess?: () => void }) {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const [icon, setIcon] = useState('🎯')
@@ -83,12 +81,13 @@ function AddGoalForm() {
       form.resetFields()
       setIcon('🎯')
       setColor('#0D9488')
+      onSuccess?.()
     },
     onError: () => toast.error('Failed to create goal'),
   })
 
   return (
-    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false}>
+    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false} className="mt-3">
       <div className="text-[11px] text-muted-foreground mb-1">Icon</div>
       <div className="flex gap-1.5 flex-wrap mb-2">
         {ICONS.map(ic => (
@@ -142,7 +141,7 @@ function AddGoalForm() {
   )
 }
 
-function AddBillForm() {
+function AddBillForm({ onSuccess }: { onSuccess?: () => void }) {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const { data: accounts } = useQuery({ queryKey: ['finance', 'accounts'], queryFn: financeApi.accounts })
@@ -162,12 +161,13 @@ function AddBillForm() {
       queryClient.invalidateQueries({ queryKey: ['finance', 'bills'] })
       toast.success('Bill added')
       form.resetFields()
+      onSuccess?.()
     },
     onError: () => toast.error('Failed to add bill'),
   })
 
   return (
-    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false}>
+    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false} className="mt-3">
       <Form.Item name="name" label="Bill Name" rules={[{ required: true }]}>
         <Input placeholder="Netflix, Electricity…" />
       </Form.Item>
@@ -200,20 +200,39 @@ function AddBillForm() {
   )
 }
 
-const OPTIONS = ['Budget', 'Goal', 'Bill']
+export function BudgetTabModal({ open, onClose, defaultTab = 'Budget' }: { open: boolean; onClose: () => void; defaultTab?: 'Budget' | 'Goal' | 'Bill' }) {
+  const [activeTab, setActiveTab] = useState<'Budget' | 'Goal' | 'Bill'>(defaultTab)
 
-export function QuickAddBudget() {
-  const [tab, setTab] = useState('Budget')
+  const handleOpenChange = (visible: boolean) => {
+    if (visible) {
+      setActiveTab(defaultTab)
+    }
+  }
 
   return (
-    <>
-      <RailHeading>Add New</RailHeading>
-      <GlassCard hoverable fadeIn="up">
-        <TextTabs block options={OPTIONS} value={tab} onChange={setTab} className="mb-3" />
-        {tab === 'Budget' && <AddBudgetForm />}
-        {tab === 'Goal' && <AddGoalForm />}
-        {tab === 'Bill' && <AddBillForm />}
-      </GlassCard>
-    </>
+    <Modal
+      title="Add Budget / Saving Item"
+      open={open}
+      onCancel={onClose}
+      footer={null}
+      width={420}
+      destroyOnClose
+      afterOpenChange={handleOpenChange}
+    >
+      <Segmented
+        block
+        options={[
+          { label: 'Budget Limit', value: 'Budget' },
+          { label: 'Savings Goal', value: 'Goal' },
+          { label: 'Recurring Bill', value: 'Bill' }
+        ]}
+        value={activeTab}
+        onChange={v => setActiveTab(v as any)}
+        className="mb-3"
+      />
+      {activeTab === 'Budget' && <AddBudgetForm onSuccess={onClose} />}
+      {activeTab === 'Goal' && <AddGoalForm onSuccess={onClose} />}
+      {activeTab === 'Bill' && <AddBillForm onSuccess={onClose} />}
+    </Modal>
   )
 }

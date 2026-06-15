@@ -44,7 +44,7 @@ function SummaryCard({
 }) {
   if (loading) {
     return (
-      <div className="bg-card border border-subtle rounded-xl shadow-premium-sm p-4 space-y-3">
+      <div className="bg-card border-0 rounded-2xl shadow-premium-sm p-4 space-y-3">
         <Skeleton className="h-3 w-24" />
         <Skeleton className="h-2 w-full" />
         <Skeleton className="h-2 w-3/4" />
@@ -60,7 +60,7 @@ function SummaryCard({
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick() } : undefined}
-      className="bg-card border border-subtle rounded-xl shadow-premium-sm p-4 transition-all duration-200 hover:shadow-premium-hover hover:border-primary/20 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="bg-card border-0 rounded-2xl shadow-premium-sm p-4 transition-all duration-200 hover:shadow-premium-hover cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       <div className="flex items-center gap-2 mb-3">
         <IconBadge icon={Icon} color={color} size="sm" />
@@ -102,7 +102,7 @@ function AreaTile({
 }) {
   if (loading) {
     return (
-      <div className="bg-card border border-subtle rounded-xl shadow-premium-sm p-3 space-y-2">
+      <div className="bg-card border-0 rounded-2xl shadow-premium-sm p-3 space-y-2">
         <Skeleton className="h-3 w-20" />
         <Skeleton className="h-2 w-full" />
         <Skeleton className="h-2 w-3/4" />
@@ -117,7 +117,7 @@ function AreaTile({
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick() } : undefined}
-      className="bg-card border border-subtle rounded-xl shadow-premium-sm p-3 transition-all duration-200 hover:shadow-premium-hover hover:border-primary/20 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="bg-card border-0 rounded-2xl shadow-premium-sm p-3 transition-all duration-200 hover:shadow-premium-hover cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       <div className="flex items-center gap-1.5 mb-2">
         <IconBadge icon={Icon} color={color} size="sm" />
