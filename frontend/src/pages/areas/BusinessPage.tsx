@@ -54,14 +54,14 @@ function RunwayCalculator() {
           value={cash}
           prefix={<DollarSign size={14} />}
           precision={0}
-          valueStyle={{ fontSize: '20px', fontWeight: 600 }}
+          styles={{ content: { fontSize: '20px', fontWeight: 600 } }}
         />
         <Statistic
           title={<span className="text-[10px] text-muted-foreground uppercase tracking-wider">Monthly Burn</span>}
           value={burnRate}
           prefix={<Activity size={14} />}
           precision={0}
-          valueStyle={{ fontSize: '20px', fontWeight: 600 }}
+          styles={{ content: { fontSize: '20px', fontWeight: 600 } }}
         />
       </div>
       <div className={`mt-3 p-2 rounded-lg border flex items-center justify-between ${isHealthy ? 'bg-kpi-emerald/10 border-kpi-emerald/20' : 'bg-kpi-red/10 border-kpi-red/20'}`}>

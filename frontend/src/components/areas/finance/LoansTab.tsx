@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button, Form, Input, Select, Switch, Popconfirm, Modal, Tag } from 'antd'
-import { Plus, Trash2, Landmark, Percent } from 'lucide-react'
+import { Button, Form, Input, Switch, Popconfirm, Modal, Tag } from 'antd'
+import { Trash2, Landmark, Percent } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -17,7 +17,6 @@ const LOAN_TYPE_META: Record<string, { label: string; icon: string }> = {
   credit_card: { label: 'Credit Card', icon: '💳' },
   other: { label: 'Other', icon: '📄' },
 }
-const LOAN_TYPE_KEYS = Object.keys(LOAN_TYPE_META)
 
 function getDaysUntilDue(dueDay: number): number {
   const today = new Date()
@@ -127,11 +126,8 @@ function LoanCard({ loan, onUpdate }: { loan: FinanceLoan; onUpdate: (l: Finance
 }
 
 export function LoansTab() {
-  const [form] = Form.useForm()
   const [updateForm] = Form.useForm()
   const queryClient = useQueryClient()
-  const [showForm, setShowForm] = useState(false)
-  const [selectedType, setSelectedType] = useState('personal')
   const [updatingLoan, setUpdatingLoan] = useState<FinanceLoan | null>(null)
 
   const { data: loans, isLoading } = useQuery({
@@ -142,36 +138,6 @@ export function LoansTab() {
   const { data: summary, isLoading: loadingSummary } = useQuery({
     queryKey: ['finance', 'loans', 'summary'],
     queryFn: financeApi.loansSummary,
-  })
-
-  const { data: accounts } = useQuery({
-    queryKey: ['finance', 'accounts'],
-    queryFn: financeApi.accounts,
-  })
-
-  const createMutation = useMutation({
-    mutationFn: (values: Record<string, string>) =>
-      financeApi.createLoan({
-        name: values.name,
-        loan_type: selectedType,
-        lender: values.lender || undefined,
-        principal_amount: parseFloat(values.principal_amount),
-        outstanding_amount: parseFloat(values.outstanding_amount || values.principal_amount),
-        interest_rate: parseFloat(values.interest_rate || '0'),
-        emi_amount: parseFloat(values.emi_amount),
-        emi_day: parseInt(values.emi_day, 10),
-        tenure_months: values.tenure_months ? parseInt(values.tenure_months, 10) : undefined,
-        notes: values.notes || undefined,
-        account_id: values.account_id || undefined,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['finance', 'loans'] })
-      toast.success('Loan added')
-      form.resetFields()
-      setShowForm(false)
-      setSelectedType('personal')
-    },
-    onError: () => toast.error('Failed to add loan'),
   })
 
   const updateMutation = useMutation({
@@ -225,75 +191,7 @@ export function LoansTab() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Loans &amp; EMIs</span>
-        <Button type="primary" size="small" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowForm(!showForm)}>
-          Add Loan
-        </Button>
       </div>
-
-      {/* Add form */}
-      {showForm && (
-        <div className="bg-muted/40 border border-border/60 rounded-xl p-4 space-y-3">
-          <div>
-            <p className="text-[11px] text-muted-foreground mb-1.5">Type</p>
-            <div className="flex gap-2 flex-wrap">
-              {LOAN_TYPE_KEYS.map(t => (
-                <button
-                  key={t}
-                  onClick={() => setSelectedType(t)}
-                  className={cn(
-                    'px-2.5 py-1.5 rounded-lg text-xs font-medium border-2 transition flex items-center gap-1.5',
-                    selectedType === t ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:border-primary/50'
-                  )}
-                >
-                  <span>{LOAN_TYPE_META[t].icon}</span>{LOAN_TYPE_META[t].label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <Form form={form} layout="vertical" onFinish={createMutation.mutate} requiredMark={false}>
-            <div className="grid grid-cols-2 gap-3">
-              <Form.Item name="name" label={<span className="text-[11px] text-muted-foreground">Loan Name</span>} rules={[{ required: true }]}>
-                <Input placeholder="e.g. Home Loan - HDFC" />
-              </Form.Item>
-              <Form.Item name="lender" label={<span className="text-[11px] text-muted-foreground">Lender (optional)</span>}>
-                <Input placeholder="e.g. HDFC Bank" />
-              </Form.Item>
-              <Form.Item name="principal_amount" label={<span className="text-[11px] text-muted-foreground">Principal (₹)</span>} rules={[{ required: true }]}>
-                <Input type="number" prefix="₹" placeholder="0" min="0" />
-              </Form.Item>
-              <Form.Item name="outstanding_amount" label={<span className="text-[11px] text-muted-foreground">Outstanding (₹)</span>}>
-                <Input type="number" prefix="₹" placeholder="Same as principal" min="0" />
-              </Form.Item>
-              <Form.Item name="emi_amount" label={<span className="text-[11px] text-muted-foreground">EMI Amount (₹)</span>} rules={[{ required: true }]}>
-                <Input type="number" prefix="₹" placeholder="0" min="0" />
-              </Form.Item>
-              <Form.Item name="emi_day" label={<span className="text-[11px] text-muted-foreground">EMI Due Day (1-31)</span>} rules={[{ required: true }]}>
-                <Input type="number" placeholder="5" min="1" max="31" />
-              </Form.Item>
-              <Form.Item name="interest_rate" label={<span className="text-[11px] text-muted-foreground">Interest Rate (% p.a.)</span>}>
-                <Input type="number" placeholder="0" min="0" step="0.01" />
-              </Form.Item>
-              <Form.Item name="account_id" label={<span className="text-[11px] text-muted-foreground">EMI From Account</span>}>
-                <Select placeholder="Select account (optional)" allowClear>
-                  {(accounts ?? []).map((a: any) => (
-                    <Select.Option key={a.id} value={a.id}>{a.name}</Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-              <Form.Item name="tenure_months" label={<span className="text-[11px] text-muted-foreground">Tenure (months, optional)</span>}>
-                <Input type="number" placeholder="0" min="0" />
-              </Form.Item>
-              <Form.Item name="notes" label={<span className="text-[11px] text-muted-foreground">Notes</span>} className="col-span-2">
-                <Input placeholder="Optional note" />
-              </Form.Item>
-            </div>
-            <div className="flex gap-2">
-              <Button type="primary" htmlType="submit" loading={createMutation.isPending} size="small">Add</Button>
-              <Button type="text" size="small" onClick={() => { setShowForm(false); form.resetFields() }}>Cancel</Button>
-            </div>
-          </Form>
-        </div>
-      )}
 
       {/* Loan cards */}
       {isLoading ? (
@@ -304,10 +202,7 @@ export function LoansTab() {
         <div className="bg-card border border-border rounded-xl p-8 text-center">
           <span className="text-3xl mb-2 block">🏦</span>
           <p className="text-sm font-medium text-foreground mb-1">No loans tracked</p>
-          <p className="text-[11px] text-muted-foreground mb-3">Track EMIs, interest rates, and payoff progress.</p>
-          <Button type="primary" size="small" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowForm(true)}>
-            Add your first loan
-          </Button>
+          <p className="text-[11px] text-muted-foreground mb-3">Use the Add panel to track EMIs, interest rates, and payoff progress.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

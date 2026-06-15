@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import dayjs from 'dayjs'
-import { Segmented, Empty } from 'antd'
+import { Empty } from 'antd'
+import { TextTabs } from '@/components/ui/TextTabs'
 import { X } from 'lucide-react'
 import Highcharts from 'highcharts'
 Highcharts.setOptions({ accessibility: { enabled: false } })
@@ -11,6 +12,7 @@ import { formatCurrency } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AIInsightsEngine } from './AdvancedWidgets'
 import { AiInsightCard } from '@/components/AiInsightCard'
+import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
 
 const PIE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#8B5CF6', '#EF4444', '#14B8A6', '#F97316']
 
@@ -143,14 +145,14 @@ export function StatsTab() {
   }, [period, cashflow, yearQueries, last12Months])
 
   return (
-    <div className="space-y-4">
-      <AiInsightCard area="finance" />
-      <AIInsightsEngine />
-
-      <div className="flex justify-end">
-        <Segmented options={['This Week', 'This Month', 'This Year']} value={period} onChange={v => setPeriod(v as Period)} />
-      </div>
-
+    <WorkspaceLayout rail={
+      <>
+        <RailHeading>View</RailHeading>
+        <TextTabs block options={['This Week', 'This Month', 'This Year']} value={period} onChange={v => setPeriod(v as Period)} />
+        <AiInsightCard area="finance" />
+        <AIInsightsEngine />
+      </>
+    }>
       <div className="grid grid-cols-12 gap-4">
         <div className="col-span-12 lg:col-span-5">
           <ChartCard title="Income vs Expense">
@@ -301,6 +303,6 @@ export function StatsTab() {
           </ChartCard>
         </div>
       </div>
-    </div>
+    </WorkspaceLayout>
   )
 }

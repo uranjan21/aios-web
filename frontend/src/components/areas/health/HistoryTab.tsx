@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Select, Tag } from 'antd'
+import { Select, Tag, Button } from 'antd'
 import { Download, Activity } from 'lucide-react'
 import { healthApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import { exportToCsv, formatRelativeTime } from '@/lib/utils'
 import { EmptyState } from '@/components/EmptyState'
 import { format } from 'date-fns'
+import { GlassCard } from '@/components/lumina'
+import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
 
 const TYPE_COLORS: Record<string, string> = {
   gym: 'green',
@@ -28,7 +30,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 const LOG_TYPES = ['all', 'gym', 'weight', 'water', 'meal', 'steps', 'body_fat', 'sleep', 'food', 'note']
 
-export function HealthLogsTab() {
+export function HistoryTab() {
   const [filterType, setFilterType] = useState('all')
 
   const { data: logs, isLoading } = useQuery({
@@ -52,15 +54,15 @@ export function HealthLogsTab() {
     )
   }
 
-  return (
-    <div className="space-y-3">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+  const rail = (
+    <>
+      <RailHeading>Filters</RailHeading>
+      <GlassCard hoverable fadeIn="up" contentClassName="space-y-2">
         <Select
           value={filterType}
           onChange={setFilterType}
           size="small"
-          style={{ width: 130 }}
+          className="w-full"
         >
           {LOG_TYPES.map(t => (
             <Select.Option key={t} value={t}>
@@ -68,18 +70,24 @@ export function HealthLogsTab() {
             </Select.Option>
           ))}
         </Select>
-
-        <button
+        <Button
+          size="small"
+          block
+          icon={<Download size={13} />}
           onClick={handleExport}
           disabled={!filtered?.length}
-          className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground font-medium transition disabled:opacity-40"
         >
-          <Download className="w-3.5 h-3.5" />
           Export CSV
-        </button>
-      </div>
+        </Button>
+        {filtered && filtered.length > 0 && (
+          <p className="text-[10px] text-muted-foreground text-center">{filtered.length} entries</p>
+        )}
+      </GlassCard>
+    </>
+  )
 
-      {/* Table */}
+  return (
+    <WorkspaceLayout rail={rail}>
       <div className="bg-card border border-subtle shadow-premium-sm rounded-xl overflow-hidden">
         <table className="w-full text-[11px]" aria-label="Health logs">
           <thead>
@@ -127,10 +135,6 @@ export function HealthLogsTab() {
           </tbody>
         </table>
       </div>
-
-      {filtered && filtered.length > 0 && (
-        <p className="text-[10px] text-muted-foreground">{filtered.length} entries</p>
-      )}
-    </div>
+    </WorkspaceLayout>
   )
 }

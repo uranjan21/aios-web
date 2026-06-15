@@ -52,7 +52,7 @@ export function TopBar() {
   const isAlert = state === 'conflict' || state === 'error'
 
   return (
-    <header className="h-16 flex items-center px-5 shrink-0 gap-3 z-30 relative bg-transparent">
+    <header className="h-16 flex items-center px-5 shrink-0 gap-3 z-30 relative border-b border-border/60 bg-card/40 backdrop-blur-md">
       {/* Breadcrumbs */}
       <div className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground mr-auto" aria-label="Breadcrumb">
         {breadcrumbs.map((bc, i) => (
@@ -64,37 +64,41 @@ export function TopBar() {
       </div>
 
       {/* Right side group */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
+        {/* Search — primary action, its own pill */}
         <button
           onClick={() => setCmdPaletteOpen(true)}
           aria-label="Open command palette (⌘K)"
-          className="hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground bg-muted/60 hover:bg-muted px-2.5 py-1 rounded-full border border-border/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+          className="hidden sm:flex items-center gap-2 text-[12px] text-muted-foreground bg-card/70 hover:bg-card hover:text-foreground px-3 py-1.5 rounded-full border border-border/60 shadow-premium-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
         >
-          <Search className="w-3 h-3" aria-hidden="true" />
-          <span>Search…</span>
-          <kbd className="ml-4 font-mono bg-background border border-border/50 rounded px-1 text-[9px] py-0.5 shadow-sm">⌘K</kbd>
+          <Search className="w-3.5 h-3.5" aria-hidden="true" />
+          <span>Search anything</span>
+          <kbd className="ml-6 font-mono bg-muted/80 border border-border/50 rounded px-1.5 text-[9px] py-0.5">⌘K</kbd>
         </button>
         <button
           onClick={() => setCmdPaletteOpen(true)}
           aria-label="Open command palette"
-          className="sm:hidden p-1.5 rounded-md hover:bg-accent text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="sm:hidden p-2 rounded-full bg-card/70 border border-border/60 text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <Search className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
 
-        <button
-          onClick={toggleTheme}
-          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus-ring"
-        >
-          {theme === 'dark'
-            ? <Sun className="w-3.5 h-3.5" aria-hidden="true" />
-            : <Moon className="w-3.5 h-3.5" aria-hidden="true" />
-          }
-        </button>
+        {/* Control cluster — theme + notifications grouped on one surface */}
+        <div className="flex items-center gap-0.5 bg-card/70 border border-border/60 rounded-full p-0.5 shadow-premium-sm">
+          <button
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus-ring"
+          >
+            {theme === 'dark'
+              ? <Sun className="w-3.5 h-3.5" aria-hidden="true" />
+              : <Moon className="w-3.5 h-3.5" aria-hidden="true" />
+            }
+          </button>
+          <NotificationBell />
+        </div>
 
-        <NotificationBell />
-
+        {/* Sync status */}
         <div
           aria-live={isAlert ? 'assertive' : 'polite'}
           aria-atomic="true"
@@ -102,8 +106,8 @@ export function TopBar() {
         >
           <button
             className={cn(
-              'flex items-center gap-1.5 text-[10px] font-medium tracking-wide px-2 py-1 rounded-full',
-              'bg-muted/60 border border-subtle transition-colors focus-ring',
+              'flex items-center gap-1.5 text-[10px] font-medium tracking-wide px-2.5 py-1.5 rounded-full',
+              'bg-card/70 border border-border/60 shadow-premium-sm transition-colors focus-ring',
               syncChip.color,
             )}
             title={`Vault sync: ${syncChip.label}`}
@@ -114,7 +118,7 @@ export function TopBar() {
               fill={state === 'synced' ? 'currentColor' : 'none'}
               aria-hidden="true"
             />
-            <span className="hidden sm:inline">{syncChip.label}</span>
+            <span className="hidden lg:inline">{syncChip.label}</span>
           </button>
         </div>
       </div>

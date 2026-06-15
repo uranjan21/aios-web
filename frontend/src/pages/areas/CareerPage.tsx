@@ -13,6 +13,7 @@ import { ErrorCard } from '@/components/ErrorCard'
 import { EmptyState } from '@/components/EmptyState'
 import { CareerRadar } from '@/components/CareerRadar'
 import { GlassCard } from '@/components/lumina'
+import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
 import type { SkillInventory, JobOpportunity, OpportunityStatus, CareerEvent } from '@/types'
 
 const LEVEL_COLORS: Record<SkillInventory['level'], string> = {
@@ -297,6 +298,16 @@ function OpportunityRow({ opp }: { opp: JobOpportunity }) {
   )
 }
 
+function CareerStat({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
+  return (
+    <div className="bg-card border border-subtle rounded-xl shadow-premium-sm p-4 flex flex-col gap-1">
+      <span className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-widest">{label}</span>
+      <span className={`stat-hero text-[26px] leading-[30px] ${accent ?? 'text-foreground'}`}>{value}</span>
+      {sub && <span className="text-[11px] text-muted-foreground">{sub}</span>}
+    </div>
+  )
+}
+
 export function CareerPage() {
   const [showMilestoneForm, setShowMilestoneForm] = useState(false)
   const [showOpportunityForm, setShowOpportunityForm] = useState(false)
@@ -307,7 +318,8 @@ export function CareerPage() {
   const { data: opportunities, isLoading: loadingOpps } = useQuery({ queryKey: ['career', 'opportunities'], queryFn: careerApi.opportunities })
 
   const activeOpps = opportunities?.filter(o => !['rejected', 'closed'].includes(o.status)) ?? []
-  
+  const inPlay = opportunities?.filter(o => ['interview', 'offer'].includes(o.status)).length ?? 0
+
   return (
     <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
       <div className="mx-auto max-w-[1200px]">
@@ -318,44 +330,54 @@ export function CareerPage() {
             key: '1',
             label: 'Dashboard',
             children: (
-              <div className="grid grid-cols-12 gap-4 w-full">
-                {/* Left Column: Opportunities & Timeline */}
-                <div className="col-span-12 xl:col-span-8 flex flex-col gap-4">
-                  <GlassCard
-                    title="Opportunities Pipeline"
-                    icon={<Briefcase size={16} className="text-muted-foreground" />}
-                    action={
-                      <Space>
-                        <Button type="primary" icon={<Plus size={14} />} onClick={() => setShowOpportunityForm(!showOpportunityForm)}>Add</Button>
-                        <button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Details</button>
-                      </Space>
-                    }
-                    hoverable
-                    fadeIn="up"
-                  >
-                    <AnimatePresence>{showOpportunityForm && <OpportunityForm onClose={() => setShowOpportunityForm(false)} />}</AnimatePresence>
-                    {loadingOpps ? <Skeleton active /> : activeOpps.length ? activeOpps.map(opp => <OpportunityRow key={opp.id} opp={opp} />) : <EmptyState icon={Briefcase} title="No opportunities" description="Start tracking your next big move." />}
+              <WorkspaceLayout rail={
+                <>
+                  <RailHeading>Quick Add</RailHeading>
+                  <GlassCard title="Add to Career">
+                    <div className="flex flex-col gap-2">
+                      {([
+                        { label: 'Add Opportunity', icon: Briefcase, active: showOpportunityForm, on: () => { setShowOpportunityForm(v => !v); setShowMilestoneForm(false); setShowSkillForm(false) } },
+                        { label: 'Log Milestone', icon: History, active: showMilestoneForm, on: () => { setShowMilestoneForm(v => !v); setShowOpportunityForm(false); setShowSkillForm(false) } },
+                        { label: 'Add Skill', icon: BookOpen, active: showSkillForm, on: () => { setShowSkillForm(v => !v); setShowOpportunityForm(false); setShowMilestoneForm(false) } },
+                      ] as const).map(a => (
+                        <button
+                          key={a.label}
+                          onClick={a.on}
+                          className={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl border text-left text-[13px] font-medium transition-all ${a.active ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/60 bg-muted/40 text-foreground hover:bg-muted/70 hover:border-primary/40'}`}
+                        >
+                          <a.icon size={16} className="shrink-0" />
+                          <span className="flex-1">{a.label}</span>
+                          <Plus size={14} className="text-muted-foreground" />
+                        </button>
+                      ))}
+                    </div>
                   </GlassCard>
+                  <AnimatePresence>
+                    {showOpportunityForm && <OpportunityForm onClose={() => setShowOpportunityForm(false)} />}
+                    {showMilestoneForm && <MilestoneForm onClose={() => setShowMilestoneForm(false)} />}
+                    {showSkillForm && <SkillForm onClose={() => setShowSkillForm(false)} />}
+                  </AnimatePresence>
+                </>
+              }>
+                {/* KPI lead row */}
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                  <CareerStat label="Skills Tracked" value={String(skills?.length ?? 0)} sub="across categories" />
+                  <CareerStat label="Active Pipeline" value={String(activeOpps.length)} sub="open opportunities" accent="text-primary" />
+                  <CareerStat label="In Play" value={String(inPlay)} sub="interview or offer" accent={inPlay > 0 ? 'text-kpi-emerald' : 'text-foreground'} />
+                  <CareerStat label="Milestones" value={String(events?.length ?? 0)} sub="logged on timeline" />
+                </div>
 
-                  <GlassCard
-                    title="Career Timeline"
-                    icon={<History size={16} className="text-muted-foreground" />}
-                    action={
-                      <Space>
-                        <Button type="primary" icon={<Plus size={14} />} onClick={() => setShowMilestoneForm(!showMilestoneForm)}>Log</Button>
-                        <button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Details</button>
-                      </Space>
-                    }
-                    hoverable
-                    fadeIn="up"
-                    delay={100}
-                  >
-                    <AnimatePresence>{showMilestoneForm && <MilestoneForm onClose={() => setShowMilestoneForm(false)} />}</AnimatePresence>
+                <GlassCard title="Opportunities Pipeline" icon={<Briefcase size={16} className="text-muted-foreground" />} hoverable fadeIn="up">
+                  {loadingOpps ? <Skeleton active /> : activeOpps.length ? activeOpps.map(opp => <OpportunityRow key={opp.id} opp={opp} />) : <EmptyState icon={Briefcase} title="No opportunities" description="Add one from the rail →" />}
+                </GlassCard>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <GlassCard title="Career Timeline" icon={<History size={16} className="text-muted-foreground" />} hoverable fadeIn="up" delay={100}>
                     {loadingEvents ? <Skeleton active /> : events?.length ? (
                       <Timeline className="mt-4"
                         items={events.slice(0, 20).map((e: CareerEvent, i: number) => ({
                           color: EVENT_TYPE_COLORS[e.event_type] || 'blue',
-                          children: (
+                          content: (
                             <AnimatedTimelineItem initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
                               <div className="flex justify-between items-start">
                                 <div>
@@ -373,19 +395,8 @@ export function CareerPage() {
                       />
                     ) : <EmptyState icon={History} title="No history" description="Log your first milestone." />}
                   </GlassCard>
-                </div>
 
-                {/* Right Column: Skills Radar */}
-                <div className="col-span-12 xl:col-span-4">
-                  <GlassCard
-                    title="Skills Radar"
-                    icon={<BookOpen size={16} className="text-muted-foreground" />}
-                    action={<Button type="primary" icon={<Plus size={14} />} onClick={() => setShowSkillForm(!showSkillForm)}>Add</Button>}
-                    hoverable
-                    fadeIn="up"
-                    delay={200}
-                  >
-                    <AnimatePresence>{showSkillForm && <SkillForm onClose={() => setShowSkillForm(false)} />}</AnimatePresence>
+                  <GlassCard title="Skills Radar" icon={<BookOpen size={16} className="text-muted-foreground" />} hoverable fadeIn="up" delay={200}>
                     {loadingSkills ? <Skeleton active /> : skills?.length ? (
                       <>
                         <CareerRadar skills={skills} />
@@ -396,7 +407,7 @@ export function CareerPage() {
                     ) : <EmptyState icon={BookOpen} title="No skills" description="Add a skill to see your radar." />}
                   </GlassCard>
                 </div>
-              </div>
+              </WorkspaceLayout>
             ),
           },
           {

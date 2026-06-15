@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Tree, Button, Modal, Form, Input, Select, Popconfirm, message } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Tree, Popconfirm, message } from 'antd';
+import { DeleteOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import { financeApi } from '@/api/areas';
 
@@ -10,9 +10,11 @@ const Container = styled.div`
   border-radius: 16px;
   padding: 16px;
   border: 1px solid hsl(var(--border) / 0.6);
-  margin-bottom: 24px;
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
   .ant-tree {
     background: transparent;
     color: hsl(var(--foreground));
@@ -38,25 +40,10 @@ const Header = styled.div`
 
 export const CategoryManager: React.FC = () => {
   const queryClient = useQueryClient();
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [form] = Form.useForm();
 
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ['finance_categories'],
     queryFn: financeApi.categories
-  });
-
-  const createMutation = useMutation({
-    mutationFn: financeApi.createCategory,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['finance_categories'] });
-      message.success('Category created');
-      setIsModalVisible(false);
-      form.resetFields();
-    },
-    onError: (err: any) => {
-      message.error(err?.response?.data?.detail || 'Failed to create category');
-    }
   });
 
   const deleteMutation = useMutation({
@@ -91,9 +78,6 @@ export const CategoryManager: React.FC = () => {
     <Container>
       <Header>
         <h3>Categories</h3>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
-          Add Category
-        </Button>
       </Header>
 
       {isLoading ? <p>Loading...</p> : (
@@ -104,30 +88,6 @@ export const CategoryManager: React.FC = () => {
           blockNode
         />
       )}
-
-      <Modal
-        title="Add New Category"
-        open={isModalVisible}
-        onOk={() => form.submit()}
-        onCancel={() => setIsModalVisible(false)}
-        confirmLoading={createMutation.isPending}
-      >
-        <Form form={form} layout="vertical" onFinish={v => createMutation.mutate(v)}>
-          <Form.Item name="name" label="Category Name" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="parent_id" label="Parent Category">
-            <Select allowClear placeholder="None (Top Level)">
-              {categories.map((c: any) => (
-                <Select.Option key={c.id} value={c.id}>{c.name}</Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item name="icon" label="Emoji Icon">
-            <Input placeholder="🛒" />
-          </Form.Item>
-        </Form>
-      </Modal>
     </Container>
   );
 };

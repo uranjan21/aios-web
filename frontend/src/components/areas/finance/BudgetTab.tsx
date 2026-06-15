@@ -1,9 +1,11 @@
 import { Collapse, type CollapseProps } from 'antd'
 import { Wallet, Target, Receipt } from 'lucide-react'
+import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
 import { BudgetsTab } from './BudgetsTab'
 import { GoalsTab } from './GoalsTab'
 import { BillsTab } from './BillsTab'
 import { SubscriptionManagement } from './AdvancedWidgets'
+import { QuickAddBudget } from './QuickAddBudget'
 
 function PanelHeader({ icon: Icon, title }: { icon: React.ComponentType<{ size?: number | string }>; title: string }) {
   return (
@@ -39,12 +41,14 @@ export function BudgetTab() {
   ]
 
   return (
-    <Collapse
-      items={items}
-      defaultActiveKey={['1', '2', '3']}
-      ghost
-      expandIconPosition="end"
-      className="space-y-4 [&>.ant-collapse-item]:bg-card [&>.ant-collapse-item]:border [&>.ant-collapse-item]:border-border [&>.ant-collapse-item]:rounded-xl [&>.ant-collapse-item]:overflow-hidden [&>.ant-collapse-item]:shadow-sm"
-    />
+    <WorkspaceLayout rail={<QuickAddBudget />}>
+      <Collapse
+        items={items}
+        defaultActiveKey={['1', '2', '3']}
+        ghost
+        expandIconPosition="end"
+        className="space-y-4 [&>.ant-collapse-item]:bg-card [&>.ant-collapse-item]:border [&>.ant-collapse-item]:border-border [&>.ant-collapse-item]:rounded-xl [&>.ant-collapse-item]:overflow-hidden [&>.ant-collapse-item]:shadow-sm"
+      />
+    </WorkspaceLayout>
   )
 }

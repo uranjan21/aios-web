@@ -8,17 +8,15 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorCard } from '@/components/ErrorCard'
 import { useCountUp } from '@/hooks/useCountUp'
 import { KpiCard, StatusPill } from '@/components/lumina'
+import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
 import styled, { keyframes } from 'styled-components'
 import { Card, Typography, Button, Input, Select, Tag, Avatar, Space } from 'antd'
 import { AreaTabs } from '@/components/ui/AreaTabs'
-import { HealthLogsTab } from '@/components/areas/health/HealthLogsTab'
-import { FitnessGoalsTab } from '@/components/areas/health/FitnessGoalsTab'
+import { HistoryTab } from '@/components/areas/health/HistoryTab'
 import { NutritionTab } from '@/components/areas/health/NutritionTab'
 import { WaterTrackerWidget } from '@/components/areas/health/WaterTrackerWidget'
-import { SleepTab } from '@/components/areas/health/SleepTab'
-import { BodyTab } from '@/components/areas/health/BodyTab'
-import { HabitsTab } from '@/components/areas/health/HabitsTab'
-import { WorkoutsTab } from '@/components/areas/health/WorkoutsTab'
+import { BodySleepTab } from '@/components/areas/health/BodySleepTab'
+import { FitnessTab } from '@/components/areas/health/FitnessTab'
 import { AiInsightCard } from '@/components/AiInsightCard'
 
 import Highcharts from 'highcharts'
@@ -185,6 +183,50 @@ export function HealthPage() {
       <div className="mx-auto max-w-[1200px]">
       <AreaTabs defaultActiveKey="1" items={[
         { key: '1', label: 'Dashboard', children: (
+          <WorkspaceLayout rail={
+            <>
+              <RailHeading>Quick Log</RailHeading>
+              <PremiumCard title={<span className="text-foreground">Log Activity</span>}>
+                <div className="flex flex-col gap-3">
+                  <Select
+                    value={logType}
+                    onChange={(value) => { setLogType(value); setValueError('') }}
+                    size="large"
+                    className="w-full"
+                    options={[
+                      { value: 'gym', label: 'Gym session' },
+                      { value: 'weight', label: 'Weight' },
+                      { value: 'water', label: 'Water intake' },
+                    ]}
+                  />
+                  {logType !== 'gym' && (
+                    <div className="flex flex-col gap-1">
+                      <Input
+                        type="number"
+                        placeholder={logType === 'weight' ? 'kg' : 'litres'}
+                        value={logValue}
+                        onChange={e => { setLogValue(e.target.value); setValueError('') }}
+                        size="large"
+                        status={valueError ? 'error' : ''}
+                        className="w-full bg-muted text-foreground border-border"
+                      />
+                      {valueError && <span className="text-xs text-destructive">{valueError}</span>}
+                    </div>
+                  )}
+                  <Input
+                    placeholder="Note (optional)"
+                    value={logNote}
+                    onChange={e => setLogNote(e.target.value)}
+                    size="large"
+                    className="w-full bg-muted text-foreground border-border"
+                  />
+                  <Button type="primary" onClick={handleLog} loading={addLog.isPending} size="large" icon={<Plus className="w-4 h-4" />} block>
+                    Log
+                  </Button>
+                </div>
+              </PremiumCard>
+            </>
+          }>
           <div className="grid grid-cols-12 gap-4">
             <div className="col-span-12">
           <PRWidget>
@@ -239,13 +281,13 @@ export function HealthPage() {
           />
         </div>
 
-        <div className="col-span-12 lg:col-span-6">
-          <PremiumCard title={<span className="text-foreground">Weight Progression</span>} extra={<div className="flex items-center gap-2"><Tag color="blue">Past 30 Days</Tag><button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Report</button></div>}>
+        <div className="col-span-12 md:col-span-6">
+          <PremiumCard title={<span className="text-foreground">Weight Progression</span>} extra={<Tag color="blue">Past 30 Days</Tag>}>
             {loadingWeight ? <Skeleton className="h-[120px]" /> : <HighchartsReact highcharts={Highcharts} options={weightOptions} />}
           </PremiumCard>
         </div>
 
-        <div className="col-span-12 lg:col-span-6">
+        <div className="col-span-12 md:col-span-6">
           <WaterTrackerWidget />
         </div>
 
@@ -259,69 +301,13 @@ export function HealthPage() {
             <StatusPill label="14 hours Fasted" tone="primary" />
           </div>
         </div>
-
-        {/* Quick Log Form */}
-        <div className="col-span-12">
-          <PremiumCard title={<span className="text-foreground">Quick Log</span>}>
-            <div className="flex gap-4 flex-wrap items-start">
-              <Select
-                value={logType}
-                onChange={(value) => { setLogType(value); setValueError('') }}
-                style={{ width: 140 }}
-                size="large"
-                className="bg-muted text-foreground"
-                dropdownStyle={{ backgroundColor: 'var(--card)' }}
-                options={[
-                  { value: 'gym', label: 'Gym session' },
-                  { value: 'weight', label: 'Weight' },
-                  { value: 'water', label: 'Water intake' },
-                ]}
-              />
-              {logType !== 'gym' && (
-                <div className="flex flex-col gap-1">
-                  <Input
-                    type="number"
-                    placeholder={logType === 'weight' ? 'kg' : 'litres'}
-                    value={logValue}
-                    onChange={e => { setLogValue(e.target.value); setValueError('') }}
-                    size="large"
-                    style={{ width: 120 }}
-                    status={valueError ? 'error' : ''}
-                    className="bg-muted text-foreground border-border"
-                  />
-                  {valueError && <span className="text-xs text-destructive">{valueError}</span>}
-                </div>
-              )}
-              <Input
-                placeholder="Note (optional)"
-                value={logNote}
-                onChange={e => setLogNote(e.target.value)}
-                size="large"
-                style={{ flex: 1, minWidth: 200 }}
-                className="bg-muted text-foreground border-border"
-              />
-              <Button
-                type="primary"
-                onClick={handleLog}
-                loading={addLog.isPending}
-                size="large"
-                icon={<Plus className="w-4 h-4" />}
-                className="bg-primary hover:bg-primary/90"
-              >
-                Log
-              </Button>
-            </div>
-          </PremiumCard>
-        </div>
           </div>
+          </WorkspaceLayout>
         ) },
-        { key: '2', label: 'Health Logs', children: <HealthLogsTab /> },
-        { key: '3', label: 'Fitness Goals', children: <FitnessGoalsTab /> },
-        { key: '4', label: 'Nutrition', children: <NutritionTab /> },
-        { key: '5', label: 'Sleep', children: <SleepTab /> },
-        { key: '6', label: 'Body', children: <BodyTab /> },
-        { key: '7', label: 'Habits', children: <HabitsTab /> },
-        { key: '8', label: 'Workouts', children: <WorkoutsTab /> },
+        { key: '2', label: 'Body & Sleep', children: <BodySleepTab /> },
+        { key: '3', label: 'Nutrition', children: <NutritionTab /> },
+        { key: '4', label: 'Fitness', children: <FitnessTab /> },
+        { key: '5', label: 'History', children: <HistoryTab /> },
       ]} />
       </div>
     </div>

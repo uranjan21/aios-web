@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Form, Input, Select, Button, Space, Popconfirm } from 'antd'
-import { Plus, Trash2, PencilLine, Wallet } from 'lucide-react'
+import { Trash2, PencilLine } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { formatCurrency } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
+import { GlassCard } from '@/components/lumina'
 import type { BudgetLimit } from '@/types'
 
 const CATEGORIES = [
@@ -113,16 +114,17 @@ export function BudgetsTab() {
   const totalBudget = budgets?.reduce((s, b) => s + Number(b.monthly_limit), 0) ?? 0
 
   return (
-    <div className="max-w-lg space-y-3">
-      {/* Total chip */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Wallet className="w-4 h-4 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground font-medium">Monthly Budget Total</span>
-        </div>
-        <span className="text-xs font-semibold text-foreground">{formatCurrency(totalBudget)}</span>
-      </div>
-
+    <GlassCard
+      title="Limits by Category"
+      action={
+        <span className="text-xs font-semibold text-foreground">
+          {formatCurrency(totalBudget)}<span className="text-muted-foreground font-normal text-[10px]"> / mo</span>
+        </span>
+      }
+      hoverable
+      fadeIn="up"
+      contentClassName="space-y-2"
+    >
       {/* Add/Edit form */}
       {showForm && (
         <div className="bg-muted/40 border border-border/60 rounded-xl p-3">
@@ -149,35 +151,21 @@ export function BudgetsTab() {
       )}
 
       {/* Budget list */}
-      <div className="bg-card border border-border/60 shadow-sm rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between px-3 py-2.5 border-b border-border/40">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Limits by Category</span>
-          {!showForm && (
-            <button
-              onClick={() => setShowForm(true)}
-              className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium transition"
-            >
-              <Plus className="w-3 h-3" /> Add
-            </button>
-          )}
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-8 w-full" />)}
         </div>
-
-        {isLoading ? (
-          <div className="p-3 space-y-2">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-8 w-full" />)}
-          </div>
-        ) : !budgets?.length ? (
-          <div className="px-3 py-8 text-center text-[11px] text-muted-foreground">
-            No budgets set. Click Add to define limits.
-          </div>
-        ) : (
-          <div className="p-1.5">
-            {budgets.map(b => (
-              <BudgetRow key={b.category} budget={b} spent={spentByCategory.get(b.category) ?? 0} onEdit={handleEdit} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+      ) : !budgets?.length ? (
+        <div className="px-3 py-8 text-center text-[11px] text-muted-foreground">
+          No budgets set. Use the Add panel to define limits.
+        </div>
+      ) : (
+        <div>
+          {budgets.map(b => (
+            <BudgetRow key={b.category} budget={b} spent={spentByCategory.get(b.category) ?? 0} onEdit={handleEdit} />
+          ))}
+        </div>
+      )}
+    </GlassCard>
   )
 }

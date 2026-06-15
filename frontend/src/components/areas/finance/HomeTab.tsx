@@ -8,6 +8,7 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorCard } from '@/components/ErrorCard'
 import { GlassCard, IconBadge, ProgressBar } from '@/components/lumina'
+import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
 import { BalanceWidget } from './WalletWidgets'
 import { TransactionModal, type Kind } from './TransactionsTab'
 
@@ -94,6 +95,16 @@ function NavButton({ onClick }: { onClick: () => void }) {
   )
 }
 
+function StatTile({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
+  return (
+    <div className="bg-card border border-subtle rounded-xl shadow-premium-sm p-4 flex flex-col gap-1">
+      <span className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-widest">{label}</span>
+      <span className={cn('stat-hero text-[26px] leading-[30px]', accent ?? 'text-foreground')}>{value}</span>
+      {sub && <span className="text-[11px] text-muted-foreground">{sub}</span>}
+    </div>
+  )
+}
+
 export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => void }) {
   const [balanceTab, setBalanceTab] = useState('General')
   const [modal, setModal] = useState<Kind | null>(null)
@@ -157,6 +168,7 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
 
   const totalExpenses = useMemo(() => expenseItems.reduce((acc, e) => acc + Number(e.amount), 0), [expenseItems])
   const totalIncome = useMemo(() => (income ?? []).reduce((acc, i) => acc + Number(i.amount), 0), [income])
+  const savingsRate = totalIncome > 0 ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100) : null
 
   const balanceValue = balanceTab === 'General'
     ? Number(netWorth?.net_worth ?? 0)
@@ -207,40 +219,95 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
     return <ErrorCard message="Could not load financial data" />
   }
 
+  const QUICK_ACTIONS = [
+    { kind: 'Expense' as Kind, label: 'Add Expense', icon: ArrowDownCircle, tone: 'text-kpi-red' },
+    { kind: 'Income' as Kind, label: 'Add Income', icon: ArrowUpCircle, tone: 'text-kpi-emerald' },
+    { kind: 'Transfer' as Kind, label: 'Transfer', icon: ArrowLeftRight, tone: 'text-primary' },
+  ]
+
+  const quickActionsCard = (
+    <GlassCard title="Quick Actions" hoverable fadeIn="up">
+      <div className="flex flex-col gap-2.5">
+        {QUICK_ACTIONS.map(a => (
+          <button
+            key={a.kind}
+            onClick={() => setModal(a.kind)}
+            className="flex items-center gap-3 w-full px-3.5 py-3 rounded-xl bg-muted/40 border border-border/60 hover:border-primary/40 hover:bg-muted/70 transition-all text-left group"
+          >
+            <a.icon size={18} className={cn(a.tone, 'shrink-0')} />
+            <span className="text-[13px] font-medium text-foreground flex-1">{a.label}</span>
+            <ChevronRight size={14} className="text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+          </button>
+        ))}
+      </div>
+    </GlassCard>
+  )
+
   return (
-    <div className="space-y-4">
-      {/* Quick Add Bar */}
-      <div className="grid grid-cols-3 gap-3">
-        <button onClick={() => setModal('Expense')} className="bg-card border border-subtle rounded-xl shadow-premium-sm p-3 flex items-center justify-center gap-2 text-[13px] font-medium text-foreground hover:bg-muted/50 transition-colors">
-          <ArrowDownCircle size={16} className="text-kpi-red" /> Add Expense
-        </button>
-        <button onClick={() => setModal('Income')} className="bg-card border border-subtle rounded-xl shadow-premium-sm p-3 flex items-center justify-center gap-2 text-[13px] font-medium text-foreground hover:bg-muted/50 transition-colors">
-          <ArrowUpCircle size={16} className="text-kpi-emerald" /> Add Income
-        </button>
-        <button onClick={() => setModal('Transfer')} className="bg-card border border-subtle rounded-xl shadow-premium-sm p-3 flex items-center justify-center gap-2 text-[13px] font-medium text-foreground hover:bg-muted/50 transition-colors">
-          <ArrowLeftRight size={16} className="text-primary" /> Add Transfer
-        </button>
+    <>
+    <WorkspaceLayout rail={<><RailHeading>Quick Log</RailHeading>{quickActionsCard}</>}>
+      {/* KPI lead row */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatTile
+          label="Net Worth"
+          value={formatCurrency(Number(netWorth?.net_worth ?? 0))}
+          sub="assets − liabilities"
+          accent={Number(netWorth?.net_worth ?? 0) < 0 ? 'text-kpi-red' : 'text-foreground'}
+        />
+        <StatTile label="Spent · This month" value={formatCurrency(totalExpenses)} sub={`${expenseItems.length} transactions`} accent="text-kpi-red" />
+        <StatTile label="Income · This month" value={formatCurrency(totalIncome)} sub={`${(income ?? []).length} entries`} accent="text-kpi-emerald" />
+        <StatTile
+          label="Savings Rate"
+          value={savingsRate === null ? '—' : `${savingsRate}%`}
+          sub={savingsRate === null ? 'log income to see' : savingsRate >= 20 ? 'healthy' : 'aim for 20%+'}
+          accent={savingsRate !== null && savingsRate >= 20 ? 'text-kpi-emerald' : 'text-foreground'}
+        />
       </div>
 
-      <div className="grid grid-cols-12 gap-4">
-        {/* Net Worth */}
-        <div className="col-span-12 lg:col-span-7 h-[300px]">
-          <BalanceWidget
-            balance={balanceValue}
-            chartData={chartData}
-            activeTab={balanceTab}
-            onTabChange={setBalanceTab}
-          />
-        </div>
+      {/* Net Worth trend — full width */}
+      <div className="h-[300px]">
+        <BalanceWidget
+          balance={balanceValue}
+          chartData={chartData}
+          activeTab={balanceTab}
+          onTabChange={setBalanceTab}
+        />
+      </div>
 
+      {/* Analytics: 2×2 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Financial Health Score */}
-        <div className="col-span-12 lg:col-span-5">
+        <div>
           <HealthScoreCard data={healthScore} />
         </div>
 
+        {/* Upcoming Payments */}
+        <div>
+          <GlassCard title="Upcoming Payments" action={<NavButton onClick={() => onNavigateTab('5')} />} hoverable fadeIn="up" delay={100}>
+            {upcoming.length === 0 ? (
+              <Empty description="No bills or EMIs due" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            ) : (
+              <div className="space-y-1">
+                {upcoming.map(item => (
+                  <div key={item.id} className="flex items-center justify-between py-1.5">
+                    <div>
+                      <div className="text-[13px] font-medium text-foreground">{item.name}</div>
+                      <div className="text-[11px] text-muted-foreground">{item.type} · due {ordinal(item.dueDay)}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] font-semibold font-mono tabular-nums text-foreground">{formatCurrency(item.amount)}</span>
+                      <Tag color={urgencyColor(item.days)}>{item.days === 0 ? 'Today' : `${item.days}d`}</Tag>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </GlassCard>
+        </div>
+
         {/* Accounts Overview */}
-        <div className="col-span-12 lg:col-span-5">
-          <GlassCard title="Accounts" action={<NavButton onClick={() => onNavigateTab('4')} />} hoverable fadeIn="up" delay={100}>
+        <div>
+          <GlassCard title="Accounts" action={<NavButton onClick={() => onNavigateTab('4')} />} hoverable fadeIn="up" delay={200}>
             {loadingAccounts ? (
               <div className="space-y-2">
                 <Skeleton className="h-10 w-full" />
@@ -270,33 +337,9 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
           </GlassCard>
         </div>
 
-        {/* Upcoming Payments */}
-        <div className="col-span-12 lg:col-span-7">
-          <GlassCard title="Upcoming Payments" action={<NavButton onClick={() => onNavigateTab('5')} />} hoverable fadeIn="up" delay={100}>
-            {upcoming.length === 0 ? (
-              <Empty description="No bills or EMIs due" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            ) : (
-              <div className="space-y-1">
-                {upcoming.map(item => (
-                  <div key={item.id} className="flex items-center justify-between py-1.5">
-                    <div>
-                      <div className="text-[13px] font-medium text-foreground">{item.name}</div>
-                      <div className="text-[11px] text-muted-foreground">{item.type} · due {ordinal(item.dueDay)}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-semibold font-mono tabular-nums text-foreground">{formatCurrency(item.amount)}</span>
-                      <Tag color={urgencyColor(item.days)}>{item.days === 0 ? 'Today' : `${item.days}d`}</Tag>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </GlassCard>
-        </div>
-
         {/* Recent Activity */}
-        <div className="col-span-12">
-          <GlassCard title="Recent Activity" action={<NavButton onClick={() => onNavigateTab('2')} />} hoverable fadeIn="up" delay={200}>
+        <div>
+          <GlassCard title="Recent Activity" action={<NavButton onClick={() => onNavigateTab('2')} />} hoverable fadeIn="up" delay={300}>
             {recentActivity.length === 0 ? (
               <Empty description="No transactions this month" image={Empty.PRESENTED_IMAGE_SIMPLE} />
             ) : (
@@ -320,8 +363,9 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
           </GlassCard>
         </div>
       </div>
+    </WorkspaceLayout>
 
-      <TransactionModal open={modal !== null} onClose={() => setModal(null)} editing={null} initialKind={modal ?? 'Expense'} />
-    </div>
+    <TransactionModal open={modal !== null} onClose={() => setModal(null)} editing={null} initialKind={modal ?? 'Expense'} />
+    </>
   )
 }

@@ -101,7 +101,7 @@
     --ring: 27 96% 58%;
     --radius: 0.875rem;
 
-    --surface-dim: 24 22% 5%;
+    --surface-dim: 26 24% 3%;
     --surface-container-lowest: 24 22% 4%;
     --surface-container-low: 25 17% 8%;
     --surface-container: 26 16% 10%;
@@ -142,7 +142,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans selection:bg-primary/20 selection:text-primary;
+    @apply bg-[hsl(var(--surface-dim))] text-foreground font-sans selection:bg-primary/20 selection:text-primary;
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -372,33 +372,6 @@ button:active:not(:disabled) { transform: scale(0.97); }
 }
 .ant-btn { border-radius: 11px !important; }
 
-/* Tabs → premium floating pills (kills the underline-website look) */
-.ant-tabs-top > .ant-tabs-nav::before { border-bottom: none !important; }
-.ant-tabs-ink-bar { display: none !important; }
-.ant-tabs-nav-list {
-  background: hsl(var(--surface-container-high) / 0.8);
-  border: 1px solid hsl(var(--border) / 0.7);
-  border-radius: 14px;
-  padding: 4px;
-  gap: 2px;
-}
-.ant-tabs-tab {
-  border-radius: 10px !important;
-  padding: 7px 16px !important;
-  margin: 0 !important;
-  font-weight: 500;
-  transition: all 0.25s cubic-bezier(0.16,1,0.3,1) !important;
-}
-.ant-tabs-tab:hover { color: hsl(var(--foreground)) !important; }
-.ant-tabs-tab.ant-tabs-tab-active {
-  background: hsl(var(--card));
-  box-shadow: var(--shadow-premium-sm), 0 0 0 1px hsl(var(--primary) / 0.25);
-}
-.ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
-  color: hsl(var(--primary)) !important;
-  font-weight: 600;
-}
-
 /* Segmented: matching pill family */
 .ant-segmented {
   background: hsl(var(--surface-container-high) / 0.8) !important;
@@ -469,4 +442,9 @@ button:active:not(:disabled) { transform: scale(0.97); }
   font-optical-sizing: auto;
   letter-spacing: -0.02em;
   font-variant-numeric: lining-nums;
+}
+
+/* Floating canvas: page roots fill the framed panel, not 100vh (kills phantom scroll, lets rounded corners breathe) */
+@media (min-width: 768px) {
+  #main-content > * { min-height: 100% !important; }
 }

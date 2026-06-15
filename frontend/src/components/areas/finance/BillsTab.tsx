@@ -1,14 +1,11 @@
-import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button, Form, Input, Select, Switch, Popconfirm, Tag } from 'antd'
-import { Plus, Trash2, Receipt, Zap } from 'lucide-react'
+import { Switch, Popconfirm, Tag } from 'antd'
+import { Trash2, Receipt, Zap } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { FinanceBill } from '@/types'
-
-const BILL_CATEGORIES = ['utilities', 'rent', 'subscriptions', 'insurance', 'emi', 'other']
 
 function getDaysUntilDue(dueDay: number): number {
   const today = new Date()
@@ -92,38 +89,9 @@ function BillRow({ bill }: { bill: FinanceBill }) {
 }
 
 export function BillsTab() {
-  const [form] = Form.useForm()
-  const queryClient = useQueryClient()
-  const [showForm, setShowForm] = useState(false)
-
   const { data: bills, isLoading } = useQuery({
     queryKey: ['finance', 'bills'],
     queryFn: financeApi.bills,
-  })
-
-  const { data: accounts } = useQuery({
-    queryKey: ['finance', 'accounts'],
-    queryFn: financeApi.accounts,
-  })
-
-  const createMutation = useMutation({
-    mutationFn: (values: Record<string, unknown>) =>
-      financeApi.createBill({
-        name: String(values.name),
-        amount: parseFloat(String(values.amount)),
-        due_day: parseInt(String(values.due_day), 10),
-        category: values.category ? String(values.category) : undefined,
-        is_auto_debit: Boolean(values.is_auto_debit),
-        notes: values.notes ? String(values.notes) : undefined,
-        account_id: values.account_id ? String(values.account_id) : undefined,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['finance', 'bills'] })
-      toast.success('Bill added')
-      form.resetFields()
-      setShowForm(false)
-    },
-    onError: () => toast.error('Failed to add bill'),
   })
 
   const activeBills = bills?.filter(b => b.is_active) ?? []
@@ -154,53 +122,7 @@ export function BillsTab() {
           <Receipt className="w-4 h-4 text-muted-foreground" />
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Recurring Bills</span>
         </div>
-        <Button type="primary" size="small" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowForm(!showForm)}>
-          Add Bill
-        </Button>
       </div>
-
-      {/* Add form */}
-      {showForm && (
-        <div className="bg-muted/40 border border-border/60 rounded-xl p-4">
-          <Form form={form} layout="vertical" onFinish={createMutation.mutate} requiredMark={false}>
-            <div className="grid grid-cols-2 gap-3">
-              <Form.Item name="name" label={<span className="text-[11px] text-muted-foreground">Bill Name</span>} rules={[{ required: true }]}>
-                <Input placeholder="Netflix, Electricity…" />
-              </Form.Item>
-              <Form.Item name="amount" label={<span className="text-[11px] text-muted-foreground">Amount (₹)</span>} rules={[{ required: true }]}>
-                <Input type="number" prefix="₹" placeholder="0" min="0" />
-              </Form.Item>
-              <Form.Item name="due_day" label={<span className="text-[11px] text-muted-foreground">Due Day (1-31)</span>} rules={[{ required: true }]}>
-                <Input type="number" placeholder="5" min="1" max="31" />
-              </Form.Item>
-              <Form.Item name="category" label={<span className="text-[11px] text-muted-foreground">Category</span>}>
-                <Select placeholder="Select" defaultValue="other">
-                  {BILL_CATEGORIES.map(c => (
-                    <Select.Option key={c} value={c} className="capitalize">{c}</Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-              <Form.Item name="account_id" label={<span className="text-[11px] text-muted-foreground">Pay From Account</span>}>
-                <Select placeholder="Select account (optional)" allowClear>
-                  {(accounts ?? []).map((a: any) => (
-                    <Select.Option key={a.id} value={a.id}>{a.name}</Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-              <Form.Item name="is_auto_debit" label={<span className="text-[11px] text-muted-foreground">Auto-debit</span>} valuePropName="checked">
-                <Switch size="small" />
-              </Form.Item>
-              <Form.Item name="notes" label={<span className="text-[11px] text-muted-foreground">Notes</span>}>
-                <Input placeholder="Optional note" />
-              </Form.Item>
-            </div>
-            <div className="flex gap-2">
-              <Button type="primary" htmlType="submit" loading={createMutation.isPending} size="small">Add</Button>
-              <Button type="text" size="small" onClick={() => { setShowForm(false); form.resetFields() }}>Cancel</Button>
-            </div>
-          </Form>
-        </div>
-      )}
 
       {/* Bills list */}
       <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
@@ -208,7 +130,7 @@ export function BillsTab() {
           <div className="p-3 space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>
         ) : !sorted.length ? (
           <div className="p-8 text-center">
-            <p className="text-sm text-muted-foreground">No bills tracked. Click Add Bill to start.</p>
+            <p className="text-sm text-muted-foreground">No bills tracked. Use the Add panel to start.</p>
           </div>
         ) : (
           <div className="p-1.5 space-y-0.5">

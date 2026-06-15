@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button, Form, Input, Select, Popconfirm, Modal } from 'antd'
-import { Plus, Trash2, TrendingUp, TrendingDown, Wallet, PieChart as PieChartIcon } from 'lucide-react'
+import { Button, Form, Input, Popconfirm, Modal } from 'antd'
+import { Trash2, TrendingUp, TrendingDown, Wallet, PieChart as PieChartIcon } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -19,7 +19,6 @@ const TYPE_META: Record<string, { label: string; icon: string; color: string }> 
   gold: { label: 'Gold', icon: '🪙', color: '#eab308' },
   other: { label: 'Other', icon: '📦', color: '#6b7280' },
 }
-const TYPE_KEYS = Object.keys(TYPE_META)
 
 function HoldingRow({ holding, onUpdate }: { holding: FinanceInvestment; onUpdate: (h: FinanceInvestment) => void }) {
   const queryClient = useQueryClient()
@@ -78,11 +77,8 @@ function HoldingRow({ holding, onUpdate }: { holding: FinanceInvestment; onUpdat
 }
 
 export function InvestmentsTab() {
-  const [form] = Form.useForm()
   const [updateForm] = Form.useForm()
   const queryClient = useQueryClient()
-  const [showForm, setShowForm] = useState(false)
-  const [selectedType, setSelectedType] = useState('mutual_fund')
   const [updatingHolding, setUpdatingHolding] = useState<FinanceInvestment | null>(null)
 
   const { data: holdings, isLoading } = useQuery({
@@ -93,27 +89,6 @@ export function InvestmentsTab() {
   const { data: summary, isLoading: loadingSummary } = useQuery({
     queryKey: ['finance', 'investments', 'summary'],
     queryFn: financeApi.investmentsSummary,
-  })
-
-  const createMutation = useMutation({
-    mutationFn: (values: Record<string, string>) =>
-      financeApi.createInvestment({
-        name: values.name,
-        type: selectedType,
-        invested_amount: parseFloat(values.invested_amount),
-        current_value: parseFloat(values.current_value || values.invested_amount),
-        units: values.units ? parseFloat(values.units) : undefined,
-        purchase_date: values.purchase_date || null,
-        notes: values.notes || undefined,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['finance', 'investments'] })
-      toast.success('Holding added')
-      form.resetFields()
-      setShowForm(false)
-      setSelectedType('mutual_fund')
-    },
-    onError: () => toast.error('Failed to add holding'),
   })
 
   const updateMutation = useMutation({
@@ -172,12 +147,12 @@ export function InvestmentsTab() {
       </div>
 
       {/* Allocation + Holdings */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
         {/* Allocation donut */}
-        <div className="bg-card border border-border rounded-xl p-4 shadow-sm lg:col-span-1">
+        <div className="bg-card border border-border rounded-xl p-4 shadow-sm lg:col-span-1 flex flex-col">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Asset Allocation</p>
           {loadingSummary ? <Skeleton className="h-[180px]" /> : !summary?.allocation.length ? (
-            <div className="h-[180px] flex items-center justify-center text-sm text-muted-foreground">No holdings yet</div>
+            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">No holdings yet</div>
           ) : (
             <>
               <ResponsiveContainer width="100%" height={160}>
@@ -219,75 +194,19 @@ export function InvestmentsTab() {
         </div>
 
         {/* Holdings list */}
-        <div className="lg:col-span-2 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Holdings</span>
-            <Button type="primary" size="small" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowForm(!showForm)}>
-              Add Holding
-            </Button>
-          </div>
-
-          {showForm && (
-            <div className="bg-muted/40 border border-border/60 rounded-xl p-4 space-y-3">
-              <div>
-                <p className="text-[11px] text-muted-foreground mb-1.5">Type</p>
-                <div className="flex gap-2 flex-wrap">
-                  {TYPE_KEYS.map(t => (
-                    <button
-                      key={t}
-                      onClick={() => setSelectedType(t)}
-                      className={cn(
-                        'px-2.5 py-1.5 rounded-lg text-xs font-medium border-2 transition flex items-center gap-1.5',
-                        selectedType === t ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:border-primary/50'
-                      )}
-                    >
-                      <span>{TYPE_META[t].icon}</span>{TYPE_META[t].label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <Form form={form} layout="vertical" onFinish={createMutation.mutate} requiredMark={false}>
-                <div className="grid grid-cols-2 gap-3">
-                  <Form.Item name="name" label={<span className="text-[11px] text-muted-foreground">Name</span>} rules={[{ required: true }]} className="col-span-2">
-                    <Input placeholder="e.g. Nifty 50 Index Fund, HDFC Bank" />
-                  </Form.Item>
-                  <Form.Item name="invested_amount" label={<span className="text-[11px] text-muted-foreground">Invested (₹)</span>} rules={[{ required: true }]}>
-                    <Input type="number" prefix="₹" placeholder="0" min="0" />
-                  </Form.Item>
-                  <Form.Item name="current_value" label={<span className="text-[11px] text-muted-foreground">Current Value (₹)</span>}>
-                    <Input type="number" prefix="₹" placeholder="Same as invested" min="0" />
-                  </Form.Item>
-                  <Form.Item name="units" label={<span className="text-[11px] text-muted-foreground">Units (optional)</span>}>
-                    <Input type="number" placeholder="0" min="0" step="any" />
-                  </Form.Item>
-                  <Form.Item name="purchase_date" label={<span className="text-[11px] text-muted-foreground">Purchase Date</span>}>
-                    <Input type="date" />
-                  </Form.Item>
-                  <Form.Item name="notes" label={<span className="text-[11px] text-muted-foreground">Notes</span>} className="col-span-2">
-                    <Input placeholder="Optional note" />
-                  </Form.Item>
-                </div>
-                <div className="flex gap-2">
-                  <Button type="primary" htmlType="submit" loading={createMutation.isPending} size="small">Add</Button>
-                  <Button type="text" size="small" onClick={() => { setShowForm(false); form.resetFields() }}>Cancel</Button>
-                </div>
-              </Form>
+        <div className="bg-card border border-border rounded-xl p-4 shadow-sm lg:col-span-2 flex flex-col">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Holdings</p>
+          {isLoading ? (
+            <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>
+          ) : !holdings?.length ? (
+            <div className="flex-1 flex items-center justify-center text-center">
+              <p className="text-sm text-muted-foreground">No investments tracked. Use the Add panel to add a holding.</p>
+            </div>
+          ) : (
+            <div className="-m-1.5 space-y-0.5">
+              {holdings.map(h => <HoldingRow key={h.id} holding={h} onUpdate={openUpdate} />)}
             </div>
           )}
-
-          <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
-            {isLoading ? (
-              <div className="p-3 space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>
-            ) : !holdings?.length ? (
-              <div className="p-8 text-center">
-                <p className="text-sm text-muted-foreground">No investments tracked. Click Add Holding to start.</p>
-              </div>
-            ) : (
-              <div className="p-1.5 space-y-0.5">
-                {holdings.map(h => <HoldingRow key={h.id} holding={h} onUpdate={openUpdate} />)}
-              </div>
-            )}
-          </div>
         </div>
       </div>
 

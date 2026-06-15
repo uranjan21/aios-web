@@ -47,7 +47,7 @@ export function WaterTrackerWidget() {
   const remaining = Math.max(0, target - glasses)
 
   return (
-    <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
+    <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm h-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Water Intake</p>
         <span className="text-sm font-bold text-primary">{glasses} / {target} glasses</span>
@@ -56,7 +56,7 @@ export function WaterTrackerWidget() {
       {isLoading ? (
         <Skeleton className="h-12 w-full" />
       ) : (
-        <>
+        <div className="flex-1 flex flex-col justify-center">
           <div className="flex items-end gap-1.5 flex-wrap mb-3">
             {Array.from({ length: target }).map((_, i) => (
               <button
@@ -79,7 +79,7 @@ export function WaterTrackerWidget() {
               ? 'You hit your water goal today!'
               : `Drink ${remaining} more glass${remaining === 1 ? '' : 'es'} to hit your goal`}
           </p>
-        </>
+        </div>
       )}
     </div>
   )

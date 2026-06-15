@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Input, Select, Popconfirm, message, Drawer, Empty, Tag } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Table, Button, Popconfirm, message, Drawer, Empty, Tag } from 'antd';
+import { DeleteOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import dayjs from 'dayjs';
 import { financeApi } from '@/api/areas';
@@ -12,8 +12,10 @@ const Container = styled.div`
   border-radius: 16px;
   padding: 16px;
   border: 1px solid hsl(var(--border) / 0.6);
-  margin-bottom: 24px;
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 
   /* Theme-aware Antd table overrides for this container */
   .ant-table {
@@ -91,23 +93,11 @@ function AccountLedgerDrawer({ account, onClose }: { account: any | null; onClos
 
 export const AccountManager: React.FC = () => {
   const queryClient = useQueryClient();
-  const [isModalVisible, setIsModalVisible] = useState(false);
   const [ledgerAccount, setLedgerAccount] = useState<any | null>(null);
-  const [form] = Form.useForm();
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['finance', 'accounts'],
     queryFn: financeApi.accounts
-  });
-
-  const createMutation = useMutation({
-    mutationFn: financeApi.createAccount,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['finance', 'accounts'] });
-      message.success('Account created');
-      setIsModalVisible(false);
-      form.resetFields();
-    }
   });
 
   const deleteMutation = useMutation({
@@ -137,9 +127,6 @@ export const AccountManager: React.FC = () => {
     <Container>
       <Header>
         <h3>Accounts</h3>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
-          Add Account
-        </Button>
       </Header>
 
       <Table
@@ -153,35 +140,6 @@ export const AccountManager: React.FC = () => {
       />
 
       <AccountLedgerDrawer account={ledgerAccount} onClose={() => setLedgerAccount(null)} />
-
-      <Modal
-        title="Add New Account"
-        open={isModalVisible}
-        onOk={() => form.submit()}
-        onCancel={() => setIsModalVisible(false)}
-        confirmLoading={createMutation.isPending}
-      >
-        <Form form={form} layout="vertical" onFinish={v => createMutation.mutate({ ...v, balance: Number(v.balance) })}>
-          <Form.Item name="name" label="Account Name" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="type" label="Account Type" rules={[{ required: true }]}>
-            <Select>
-              <Select.Option value="checking">Checking</Select.Option>
-              <Select.Option value="savings">Savings</Select.Option>
-              <Select.Option value="credit_card">Credit Card</Select.Option>
-              <Select.Option value="investment">Investment</Select.Option>
-              <Select.Option value="loan">Loan</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item name="balance" label="Initial Balance" initialValue={0}>
-            <Input type="number" step="0.01" />
-          </Form.Item>
-          <Form.Item name="currency" label="Currency" initialValue="INR">
-            <Input />
-          </Form.Item>
-        </Form>
-      </Modal>
     </Container>
   );
 };

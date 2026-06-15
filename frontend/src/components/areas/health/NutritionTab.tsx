@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button, Form, Input, Select, AutoComplete, InputNumber } from 'antd'
-import { Plus, Utensils, Clock, Search } from 'lucide-react'
+import { Utensils, Clock, Search } from 'lucide-react'
 import { healthApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import type { FoodDbItem } from '@/types'
+import { GlassCard } from '@/components/lumina'
+import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack']
 
@@ -97,7 +98,6 @@ function parseMealNotes(notes: string | null): ParsedMeal {
 export function NutritionTab() {
   const [form] = Form.useForm()
   const queryClient = useQueryClient()
-  const [showForm, setShowForm] = useState(false)
   const [foodQuery, setFoodQuery] = useState('')
   const [selectedFood, setSelectedFood] = useState<FoodDbItem | null>(null)
   const [grams, setGrams] = useState<number | null>(null)
@@ -105,7 +105,6 @@ export function NutritionTab() {
   const { data: foods } = useQuery({
     queryKey: ['health', 'foods', foodQuery],
     queryFn: () => healthApi.foods(foodQuery || undefined),
-    enabled: showForm,
   })
 
   // Scale per-100g macros to the chosen quantity and fill the form
@@ -157,7 +156,8 @@ export function NutritionTab() {
       queryClient.invalidateQueries({ queryKey: ['health', 'nutrition'] })
       toast.success('Meal logged')
       form.resetFields()
-      setShowForm(false)
+      setSelectedFood(null)
+      setGrams(null)
     },
     onError: () => toast.error('Failed to log meal'),
   })
@@ -171,7 +171,6 @@ export function NutritionTab() {
       fat: String(item.fat),
       meal_type: item.type,
     })
-    setShowForm(true)
   }
 
   const calorieTarget = goals?.calorie_target ?? 2000
@@ -179,161 +178,150 @@ export function NutritionTab() {
   const carbTarget = goals?.carb_target ?? 250
   const fatTarget = goals?.fat_target ?? 65
 
+  const rail = (
+    <>
+      <RailHeading>Log Meal</RailHeading>
+      <GlassCard hoverable fadeIn="up">
+        <div className="mb-2">
+          <p className="text-[11px] text-muted-foreground mb-1.5">Quick Add</p>
+          <div className="flex gap-1.5 flex-wrap">
+            {QUICK_ADDS.map(item => (
+              <button
+                key={item.label}
+                onClick={() => handleQuickAdd(item)}
+                className="text-[11px] font-medium px-2 py-1 rounded-lg bg-muted hover:bg-muted/70 text-foreground border border-border/60 transition"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex gap-2 mb-2">
+          <AutoComplete
+            className="flex-1"
+            placeholder="Search food — Roti, Dal…"
+            onSearch={setFoodQuery}
+            onSelect={handleFoodSelect}
+            options={(foods ?? []).map(f => ({
+              value: f.name,
+              label: (
+                <div className="flex justify-between gap-2">
+                  <span>{f.name}</span>
+                  <span className="text-muted-foreground text-[11px]">{f.calories} kcal/100g{f.serving_desc ? ` · ${f.serving_desc}` : ''}</span>
+                </div>
+              ),
+            }))}
+            suffixIcon={<Search size={12} />}
+            allowClear
+            size="small"
+            onClear={() => { setSelectedFood(null); setGrams(null) }}
+          />
+          <InputNumber
+            placeholder="g"
+            min={1}
+            className="w-16"
+            size="small"
+            value={grams}
+            onChange={handleGramsChange}
+            disabled={!selectedFood}
+          />
+        </div>
+        {selectedFood && grams && (
+          <div className="text-[11px] text-muted-foreground mb-2">
+            {selectedFood.name} × {grams}g — macros auto-filled
+          </div>
+        )}
+        <Form form={form} layout="vertical" onFinish={logMealMutation.mutate} requiredMark={false}>
+          <Form.Item name="food_name" label={<span className="text-[11px] text-muted-foreground">Food Name</span>} rules={[{ required: true }]}>
+            <Input placeholder="e.g. Chicken Rice Bowl" size="small" />
+          </Form.Item>
+          <Form.Item name="meal_type" label={<span className="text-[11px] text-muted-foreground">Meal Type</span>} initialValue="Snack">
+            <Select size="small">
+              {MEAL_TYPES.map(m => <Select.Option key={m} value={m}>{m}</Select.Option>)}
+            </Select>
+          </Form.Item>
+          <div className="grid grid-cols-2 gap-2">
+            <Form.Item name="calories" label={<span className="text-[11px] text-muted-foreground">Calories</span>} rules={[{ required: true }]}>
+              <Input type="number" suffix="kcal" placeholder="0" min="0" size="small" />
+            </Form.Item>
+            <Form.Item name="protein" label={<span className="text-[11px] text-muted-foreground">Protein (g)</span>}>
+              <Input type="number" suffix="g" placeholder="0" min="0" size="small" />
+            </Form.Item>
+            <Form.Item name="carbs" label={<span className="text-[11px] text-muted-foreground">Carbs (g)</span>}>
+              <Input type="number" suffix="g" placeholder="0" min="0" size="small" />
+            </Form.Item>
+            <Form.Item name="fat" label={<span className="text-[11px] text-muted-foreground">Fat (g)</span>}>
+              <Input type="number" suffix="g" placeholder="0" min="0" size="small" />
+            </Form.Item>
+          </div>
+          <Button type="primary" htmlType="submit" loading={logMealMutation.isPending} size="small" block>Log Meal</Button>
+        </Form>
+      </GlassCard>
+    </>
+  )
+
   return (
-    <div className="space-y-4 max-w-2xl">
-      {/* Calorie ring + macros */}
-      <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Today's Nutrition</p>
-        {loadingNutrition || loadingGoals ? (
-          <Skeleton className="h-40 w-full" />
-        ) : (
-          <div className="flex flex-col sm:flex-row items-center gap-6">
-            <CalorieRing calories={nutrition?.calories ?? 0} target={calorieTarget} />
-            <div className="flex-1 w-full space-y-3">
-              <MacroBar label="Protein" current={nutrition?.protein ?? 0} target={proteinTarget} color="#10b981" />
-              <MacroBar label="Carbs" current={nutrition?.carbs ?? 0} target={carbTarget} color="#f59e0b" />
-              <MacroBar label="Fat" current={nutrition?.fat ?? 0} target={fatTarget} color="#f43f5e" />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Quick adds */}
-      <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Quick Add</p>
-        <div className="flex gap-2 flex-wrap">
-          {QUICK_ADDS.map(item => (
-            <button
-              key={item.label}
-              onClick={() => handleQuickAdd(item)}
-              className="text-[11px] font-medium px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/70 text-foreground border border-border/60 transition"
-            >
-              {item.label} <span className="text-muted-foreground">{item.kcal}kcal</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Log meal form */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Utensils className="w-4 h-4 text-muted-foreground" />
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Log a Meal</p>
-        </div>
-        {!showForm && (
-          <Button type="primary" size="small" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowForm(true)}>
-            Add Meal
-          </Button>
-        )}
-      </div>
-
-      {showForm && (
-        <div className="bg-muted/40 border border-border/60 rounded-xl p-4">
-          <div className="flex gap-2 mb-3">
-            <AutoComplete
-              className="flex-1"
-              placeholder="Search food database — Roti, Dal, Paneer…"
-              onSearch={setFoodQuery}
-              onSelect={handleFoodSelect}
-              options={(foods ?? []).map(f => ({
-                value: f.name,
-                label: (
-                  <div className="flex justify-between gap-2">
-                    <span>{f.name}</span>
-                    <span className="text-muted-foreground text-[11px]">{f.calories} kcal/100g{f.serving_desc ? ` · ${f.serving_desc}` : ''}</span>
-                  </div>
-                ),
-              }))}
-              suffixIcon={<Search size={12} />}
-              allowClear
-              onClear={() => { setSelectedFood(null); setGrams(null) }}
-            />
-            <InputNumber
-              placeholder="g"
-              min={1}
-              className="w-24"
-              value={grams}
-              onChange={handleGramsChange}
-              disabled={!selectedFood}
-              addonAfter="g"
-            />
-          </div>
-          {selectedFood && grams && (
-            <div className="text-[11px] text-muted-foreground mb-2">
-              {selectedFood.name} × {grams}g — macros auto-filled below, adjust if needed
+    <WorkspaceLayout rail={rail}>
+      <div className="space-y-4">
+        {/* Calorie ring + macros */}
+        <div className="bg-card border border-subtle rounded-xl p-4 shadow-premium-sm">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Today's Nutrition</p>
+          {loadingNutrition || loadingGoals ? (
+            <Skeleton className="h-40 w-full" />
+          ) : (
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              <CalorieRing calories={nutrition?.calories ?? 0} target={calorieTarget} />
+              <div className="flex-1 w-full space-y-3">
+                <MacroBar label="Protein" current={nutrition?.protein ?? 0} target={proteinTarget} color="#10b981" />
+                <MacroBar label="Carbs" current={nutrition?.carbs ?? 0} target={carbTarget} color="#f59e0b" />
+                <MacroBar label="Fat" current={nutrition?.fat ?? 0} target={fatTarget} color="#f43f5e" />
+              </div>
             </div>
           )}
-          <Form form={form} layout="vertical" onFinish={logMealMutation.mutate} requiredMark={false}>
-            <div className="grid grid-cols-2 gap-3">
-              <Form.Item name="food_name" label={<span className="text-[11px] text-muted-foreground">Food Name</span>} rules={[{ required: true }]} className="col-span-2">
-                <Input placeholder="e.g. Chicken Rice Bowl" />
-              </Form.Item>
-              <Form.Item name="meal_type" label={<span className="text-[11px] text-muted-foreground">Meal Type</span>}>
-                <Select placeholder="Snack" defaultValue="Snack">
-                  {MEAL_TYPES.map(m => <Select.Option key={m} value={m}>{m}</Select.Option>)}
-                </Select>
-              </Form.Item>
-              <Form.Item name="calories" label={<span className="text-[11px] text-muted-foreground">Calories</span>} rules={[{ required: true }]}>
-                <Input type="number" suffix="kcal" placeholder="0" min="0" />
-              </Form.Item>
-              <Form.Item name="protein" label={<span className="text-[11px] text-muted-foreground">Protein (g)</span>}>
-                <Input type="number" suffix="g" placeholder="0" min="0" />
-              </Form.Item>
-              <Form.Item name="carbs" label={<span className="text-[11px] text-muted-foreground">Carbs (g)</span>}>
-                <Input type="number" suffix="g" placeholder="0" min="0" />
-              </Form.Item>
-              <Form.Item name="fat" label={<span className="text-[11px] text-muted-foreground">Fat (g)</span>}>
-                <Input type="number" suffix="g" placeholder="0" min="0" />
-              </Form.Item>
-            </div>
-            <div className="flex gap-2">
-              <Button type="primary" htmlType="submit" loading={logMealMutation.isPending} size="small">Log Meal</Button>
-              <Button type="text" size="small" onClick={() => { setShowForm(false); form.resetFields() }}>Cancel</Button>
-            </div>
-          </Form>
         </div>
-      )}
 
-      {/* Today's meals */}
-      <div className="bg-card border border-subtle rounded-xl overflow-hidden shadow-premium-sm">
-        <div className="px-4 py-2.5 border-b border-border/40">
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Today's Meals</p>
-        </div>
-        {loadingNutrition ? (
-          <div className="p-3 space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
-        ) : !nutrition?.meals.length ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">No meals logged today.</div>
-        ) : (
-          <div className="divide-y divide-border/40">
-            {nutrition.meals.map(meal => {
-              const parsed = parseMealNotes(meal.notes)
-              return (
-                <div key={meal.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/20 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="p-1.5 bg-primary/10 rounded-lg">
-                      <Utensils className="w-3.5 h-3.5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{parsed.food_name}</p>
-                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                        <Clock className="w-3 h-3" />
-                        {format(new Date(meal.logged_at), 'h:mm a')}
-                        <span className="capitalize">· {parsed.meal_type}</span>
+        {/* Today's meals */}
+        <div className="bg-card border border-subtle rounded-xl overflow-hidden shadow-premium-sm">
+          <div className="px-4 py-2.5 border-b border-border/40">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Today's Meals</p>
+          </div>
+          {loadingNutrition ? (
+            <div className="p-3 space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+          ) : !nutrition?.meals.length ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">No meals logged today. Use the rail to log one.</div>
+          ) : (
+            <div className="divide-y divide-border/40">
+              {nutrition.meals.map(meal => {
+                const parsed = parseMealNotes(meal.notes)
+                return (
+                  <div key={meal.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/20 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 bg-primary/10 rounded-lg">
+                        <Utensils className="w-3.5 h-3.5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{parsed.food_name}</p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <Clock className="w-3 h-3" />
+                          {format(new Date(meal.logged_at), 'h:mm a')}
+                          <span className="capitalize">· {parsed.meal_type}</span>
+                        </div>
                       </div>
                     </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-foreground">{parsed.protein + parsed.carbs + parsed.fat > 0 ? `${Math.round((parsed.protein * 4 + parsed.carbs * 4 + parsed.fat * 9))} kcal` : ''}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        P:{parsed.protein}g C:{parsed.carbs}g F:{parsed.fat}g
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-foreground">{parsed.protein + parsed.carbs + parsed.fat > 0 ? `${Math.round((parsed.protein * 4 + parsed.carbs * 4 + parsed.fat * 9))} kcal` : ''}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      P:{parsed.protein}g C:{parsed.carbs}g F:{parsed.fat}g
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </WorkspaceLayout>
   )
 }

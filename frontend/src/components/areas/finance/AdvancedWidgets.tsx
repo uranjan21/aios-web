@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { financeApi } from '@/api/areas';
 import { formatCurrency } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { GlassCard } from '@/components/lumina';
 
 const { Text } = Typography;
 
@@ -259,7 +260,12 @@ export const SubscriptionManagement = () => {
   const subs = (bills ?? []).filter(b => b.category === 'subscriptions');
 
   return (
-    <PremiumCard title="Subscriptions" extra={<button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Manage</button>}>
+    <GlassCard
+      title="Subscriptions"
+      action={<button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Manage</button>}
+      hoverable
+      fadeIn="up"
+    >
       {isLoading ? (
         <div className="space-y-3">
           <Skeleton className="h-12 w-full" />
@@ -301,6 +307,6 @@ export const SubscriptionManagement = () => {
           )}
         />
       )}
-    </PremiumCard>
+    </GlassCard>
   );
 };

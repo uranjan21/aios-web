@@ -4,21 +4,21 @@ import styled from 'styled-components'
 export const AreaTabs = styled(Tabs)`
   .ant-tabs-nav {
     margin-bottom: 20px !important;
-    &::before { border-bottom: 1.5px solid hsl(var(--border-divider) / 0.1) !important; }
+    &::before { border-bottom: none !important; }
   }
   .ant-tabs-ink-bar {
     background: hsl(var(--primary)) !important;
-    height: 1.5px !important;
-    border-radius: 0;
+    height: 2px !important;
+    border-radius: 1px;
   }
   .ant-tabs-tab {
-    font-size: 11px !important;
+    font-size: 13px !important;
     font-weight: 500 !important;
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
+    letter-spacing: normal;
+    text-transform: none;
     color: hsl(var(--muted-foreground)) !important;
-    margin-right: 4px !important;
-    padding: 8px 12px !important;
+    margin-right: 24px !important;
+    padding: 8px 2px !important;
     transition: color 0.15s ease !important;
     &:hover { color: hsl(var(--foreground)) !important; }
   }

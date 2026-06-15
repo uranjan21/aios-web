@@ -5,13 +5,16 @@ import isoWeek from 'dayjs/plugin/isoWeek'
 import { Segmented, Button, Modal, Form, Input, InputNumber, Select, DatePicker, Empty, Popconfirm, Switch, Tag } from 'antd'
 import { toast } from 'sonner'
 import {
-  Plus, ChevronLeft, ChevronRight, ShoppingBag, Clapperboard, Home, Heart,
+  ChevronLeft, ChevronRight, ShoppingBag, Clapperboard, Home, Heart,
   CreditCard, Shirt, GraduationCap, Zap, Wallet, TrendingUp, ArrowUpRight, ArrowDownRight,
-  ArrowLeftRight, PencilLine, Trash2, Search, SlidersHorizontal, Upload as UploadIcon,
+  ArrowLeftRight, ArrowDownCircle, ArrowUpCircle, PencilLine, Trash2, Search, Upload as UploadIcon,
 } from 'lucide-react'
 import { financeApi } from '@/api/areas'
-import { formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
+import { GlassCard } from '@/components/lumina'
+import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
+import { TextTabs } from '@/components/ui/TextTabs'
 import { TransactionCalendar } from './TransactionCalendar'
 import { ImportCsvModal } from './ImportCsvModal'
 
@@ -364,8 +367,8 @@ export function TransactionsTab() {
   const [selectedDate, setSelectedDate] = useState(() => dayjs().format('YYYY-MM-DD'))
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Txn | null>(null)
+  const [quickKind, setQuickKind] = useState<Kind>('Expense')
   const [search, setSearch] = useState('')
-  const [filtersOpen, setFiltersOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [filterKind, setFilterKind] = useState<string>('all')
   const [filterAccount, setFilterAccount] = useState<string | undefined>()
@@ -408,12 +411,10 @@ export function TransactionsTab() {
   const { data: accounts } = useQuery({
     queryKey: ['finance', 'accounts'],
     queryFn: financeApi.accounts,
-    enabled: filtersOpen,
   })
   const { data: categories } = useQuery({
     queryKey: ['finance', 'categories'],
     queryFn: financeApi.categories,
-    enabled: filtersOpen,
   })
 
   const { data: searchResult, isLoading: loadingSearch } = useQuery({
@@ -470,84 +471,102 @@ export function TransactionsTab() {
     setFilterMin(null); setFilterMax(null); setFilterRange(null); setFilterTag('')
   }
 
+  const openQuickAdd = (kind: Kind) => { setEditing(null); setQuickKind(kind); setModalOpen(true) }
+
   const header = (
-    <div className="mb-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Segmented
-          options={['Daily', 'Calendar', 'Weekly', 'Monthly', 'Total']}
-          value={view}
-          onChange={v => setView(v as typeof view)}
-        />
-        <div className="flex items-center gap-2">
-          <Input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search all transactions"
-            prefix={<Search size={13} className="text-muted-foreground" />}
-            allowClear
-            className="w-48"
-            size="small"
-          />
-          <Button
-            size="small"
-            type={filtersActive ? 'primary' : 'default'}
-            icon={<SlidersHorizontal size={13} />}
-            onClick={() => setFiltersOpen(o => !o)}
-            aria-label="Toggle search filters"
-          />
-          <Button size="small" icon={<UploadIcon size={13} />} onClick={() => setImportOpen(true)} aria-label="Import CSV" />
-          <Button type="primary" icon={<Plus size={14} />} onClick={() => { setEditing(null); setModalOpen(true) }}>Add</Button>
-        </div>
-      </div>
-      {filtersOpen && (
-        <div className="flex flex-wrap items-center gap-2 mt-3 p-3 bg-muted/40 border border-border/60 rounded-lg">
-          <Segmented
-            size="small"
-            options={[{ label: 'All', value: 'all' }, { label: 'Expense', value: 'expense' }, { label: 'Income', value: 'income' }, { label: 'Transfer', value: 'transfer' }]}
-            value={filterKind}
-            onChange={v => setFilterKind(v as string)}
-          />
-          <Select
-            size="small"
-            placeholder="Account"
-            allowClear
-            className="w-36"
-            value={filterAccount}
-            onChange={setFilterAccount}
-            options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))}
-          />
-          <Select
-            size="small"
-            placeholder="Category"
-            allowClear
-            className="w-36"
-            value={filterCategory}
-            onChange={setFilterCategory}
-            options={(categories ?? []).map((c: any) => ({ label: c.name, value: c.name }))}
-          />
-          <Input size="small" placeholder="Tag" className="w-28" value={filterTag} onChange={e => setFilterTag(e.target.value)} allowClear />
-          <InputNumber size="small" placeholder="Min ₹" min={0} className="w-24" value={filterMin} onChange={setFilterMin} />
-          <InputNumber size="small" placeholder="Max ₹" min={0} className="w-24" value={filterMax} onChange={setFilterMax} />
-          <DatePicker.RangePicker
-            size="small"
-            value={filterRange}
-            onChange={v => setFilterRange(v as [Dayjs, Dayjs] | null)}
-          />
-          {filtersActive && (
-            <Button size="small" type="text" onClick={clearFilters}>Clear</Button>
-          )}
-        </div>
-      )}
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <TextTabs
+        options={['Daily', 'Calendar', 'Weekly', 'Monthly', 'Total']}
+        value={view}
+        onChange={v => setView(v as typeof view)}
+      />
+      <Input
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder="Search all transactions"
+        prefix={<Search size={13} className="text-muted-foreground" />}
+        allowClear
+        className="w-56"
+        size="small"
+      />
     </div>
+  )
+
+  const rail = (
+    <>
+      <RailHeading>Quick Log</RailHeading>
+      <GlassCard title="Quick Actions" hoverable fadeIn="up">
+        <div className="flex flex-col gap-2">
+          {[
+            { label: 'Add Expense', icon: ArrowDownCircle, tone: 'text-kpi-red', onClick: () => openQuickAdd('Expense') },
+            { label: 'Add Income', icon: ArrowUpCircle, tone: 'text-kpi-emerald', onClick: () => openQuickAdd('Income') },
+            { label: 'Transfer', icon: ArrowLeftRight, tone: 'text-primary', onClick: () => openQuickAdd('Transfer') },
+            { label: 'Import CSV', icon: UploadIcon, tone: 'text-muted-foreground', onClick: () => setImportOpen(true) },
+          ].map(a => (
+            <button
+              key={a.label}
+              onClick={a.onClick}
+              className="flex items-center gap-3 w-full px-3.5 py-3 rounded-xl bg-muted/40 border border-border/60 hover:border-primary/40 hover:bg-muted/70 transition-all text-left group"
+            >
+              <a.icon size={18} className={cn(a.tone, 'shrink-0')} />
+              <span className="text-[13px] font-medium text-foreground flex-1">{a.label}</span>
+              <ChevronRight size={14} className="text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          ))}
+        </div>
+      </GlassCard>
+
+      <RailHeading>Filters</RailHeading>
+      <GlassCard hoverable fadeIn="up" contentClassName="space-y-2">
+        <TextTabs
+          block
+          options={[{ label: 'All', value: 'all' }, { label: 'Exp', value: 'expense' }, { label: 'Inc', value: 'income' }, { label: 'Trf', value: 'transfer' }]}
+          value={filterKind}
+          onChange={setFilterKind}
+        />
+        <Select
+          size="small"
+          placeholder="Account"
+          allowClear
+          className="w-full"
+          value={filterAccount}
+          onChange={setFilterAccount}
+          options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))}
+        />
+        <Select
+          size="small"
+          placeholder="Category"
+          allowClear
+          className="w-full"
+          value={filterCategory}
+          onChange={setFilterCategory}
+          options={(categories ?? []).map((c: any) => ({ label: c.name, value: c.name }))}
+        />
+        <Input size="small" placeholder="Tag" value={filterTag} onChange={e => setFilterTag(e.target.value)} allowClear />
+        <div className="flex gap-2">
+          <InputNumber size="small" placeholder="Min ₹" min={0} className="w-full" value={filterMin} onChange={setFilterMin} />
+          <InputNumber size="small" placeholder="Max ₹" min={0} className="w-full" value={filterMax} onChange={setFilterMax} />
+        </div>
+        <DatePicker.RangePicker
+          size="small"
+          className="w-full"
+          value={filterRange}
+          onChange={v => setFilterRange(v as [Dayjs, Dayjs] | null)}
+        />
+        {filtersActive && (
+          <Button size="small" type="text" block onClick={clearFilters}>Clear filters</Button>
+        )}
+      </GlassCard>
+    </>
   )
 
   if (isLoading) {
     return (
-      <div className="bg-card border border-border/60 rounded-xl p-4">
+      <WorkspaceLayout rail={rail}>
         {header}
         <Skeleton className="h-10 w-full mb-3" />
         <Skeleton className="h-64 w-full" />
-      </div>
+      </WorkspaceLayout>
     )
   }
 
@@ -751,11 +770,13 @@ export function TransactionsTab() {
   }
 
   return (
-    <div className="bg-card border border-border/60 rounded-xl p-4">
-      {header}
-      {body}
-      <TransactionModal open={modalOpen} onClose={closeModal} editing={editing} />
+    <>
+      <WorkspaceLayout rail={rail}>
+        {header}
+        {body}
+      </WorkspaceLayout>
+      <TransactionModal open={modalOpen} onClose={closeModal} editing={editing} initialKind={quickKind} />
       <ImportCsvModal open={importOpen} onClose={() => setImportOpen(false)} />
-    </div>
+    </>
   )
 }

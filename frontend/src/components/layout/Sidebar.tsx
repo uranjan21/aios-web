@@ -36,11 +36,10 @@ export function Sidebar() {
 
   return (
     <Tooltip.Provider delayDuration={300} skipDelayDuration={0}>
-      {/* Floating dock — inset panel, not an edge-to-edge website rail */}
-      <div className="hidden md:flex h-[100dvh] shrink-0 py-3 pl-3 relative z-40">
+      <div className="hidden md:flex h-[100dvh] shrink-0 relative z-40">
       <aside
         className={cn(
-          'flex flex-col h-full rounded-2xl border border-border/70 bg-card/80 backdrop-blur-xl shadow-premium-md overflow-hidden transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]',
+          'flex flex-col h-full border-r border-border/70 bg-card/80 backdrop-blur-xl overflow-hidden transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]',
           sidebarOpen ? 'w-[228px]' : 'w-[60px]'
         )}
       >
