@@ -66,7 +66,26 @@ export function SkillGapCard() {
   })
 
   return (
-    <Card title="AI Skill-Gap Analysis" size="md" icon={<StyledTarget size={14} />}>
+    <Card
+      title="AI Skill-Gap Analysis"
+      subtitle="Compare your skills against a target role to see what's missing"
+      size="md"
+      icon={<StyledTarget size={14} />}
+      action={
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={!role.trim() || isPending}
+          onClick={(e: any) => {
+            e.stopPropagation()
+            mutate()
+          }}
+          startIcon={<Sparkles size={13} />}
+        >
+          Analyse
+        </Button>
+      }
+    >
       <InputRow>
         <Input
           placeholder="Target role — e.g. Senior Fullstack Engineer, AI Engineer…"
@@ -79,14 +98,6 @@ export function SkillGapCard() {
             }
           }}
         />
-        <Button
-          variant="primary"
-          disabled={!role.trim() || isPending}
-          onClick={() => mutate()}
-          startIcon={<Sparkles size={13} />}
-        >
-          Analyse
-        </Button>
       </InputRow>
       {isPending ? (
         <SkeletonStack>

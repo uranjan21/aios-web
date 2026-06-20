@@ -2,13 +2,12 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@/components/ui/Popconfirm'
-import { Button, Dialog, Input, DataTable } from '@ledgr/ui'
-import { Trash2, PencilLine, CalendarDays } from 'lucide-react'
+import { Button, Dialog, Input, DataTable, SegmentedControl, Card } from '@ledgr/ui'
+import { Trash2, PencilLine, CalendarDays, Target } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { FinancialGoal } from '@/types'
 import { differenceInDays } from 'date-fns'
-import { Card } from '@/components/ui/Card'
 import styled from 'styled-components'
 
 const GoalCell = styled.div`
@@ -148,6 +147,7 @@ export function GoalsTab() {
   const queryClient = useQueryClient()
   const [updatingGoal, setUpdatingGoal] = useState<FinancialGoal | null>(null)
   const [currentAmount, setCurrentAmount] = useState<string>('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'overdue'>('all')
 
   const { data: goals, isLoading } = useQuery({
     queryKey: ['finance', 'goals'],
@@ -260,13 +260,40 @@ export function GoalsTab() {
     }
   ]
 
+  const visibleGoals = (goals ?? []).filter((g) => {
+    if (statusFilter === 'all') return true
+    const done = g.target_amount > 0 && g.current_amount >= g.target_amount
+    if (statusFilter === 'completed') return done
+    const days = daysLeft(g.deadline)
+    if (statusFilter === 'overdue') return !done && days !== null && days < 0
+    return !done
+  })
+
   if (isLoading) return <LoadingContainer><LoadingHeader /><LoadingBody /></LoadingContainer>;
 
   return (
     <div>
-      <Card title="Savings Goals">
+      <Card
+        title="Savings Goals"
+        subtitle="Track progress toward each savings target"
+        icon={<Target size={16} />}
+        action={
+          <SegmentedControl
+            size="sm"
+            aria-label="Filter goals by status"
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as typeof statusFilter)}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'active', label: 'Active' },
+              { value: 'completed', label: 'Done' },
+              { value: 'overdue', label: 'Overdue' },
+            ]}
+          />
+        }
+      >
         <DataTable
-          rows={goals ?? []}
+          rows={visibleGoals}
           columns={columns}
           getRowKey={row => row.id}
         />

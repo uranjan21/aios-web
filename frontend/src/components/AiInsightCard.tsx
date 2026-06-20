@@ -7,27 +7,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Card as GlassCard } from '@ledgr/ui';
 import styled from 'styled-components'
 
-const CardHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-`
-
-const TitleRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`
-
-const CardTitle = styled.h2`
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  margin: 0;
-`
 
 const SkeletonStack = styled.div`
   display: flex;
@@ -71,12 +50,12 @@ export function AiInsightCard({ area, title, className }: { area: 'finance' | 'h
   })
 
   return (
-    <GlassCard className={className}>
-      <CardHeader>
-        <TitleRow>
-          <Sparkles size={14} style={{ color: '#7c3aed', flexShrink: 0 }} />
-          <CardTitle>{title ?? (area === 'finance' ? 'Explain This Month' : 'Explain This Week')}</CardTitle>
-        </TitleRow>
+    <GlassCard
+      className={className}
+      title={title ?? (area === 'finance' ? 'Explain This Month' : 'Explain This Week')}
+      subtitle={area === 'finance' ? 'AI financial advisor analysis' : 'AI health analyst snapshot'}
+      icon={<Sparkles size={14} style={{ color: '#7c3aed', flexShrink: 0 }} />}
+      action={
         <Button
           size="sm"
           variant={data ? 'ghost' : 'primary'}
@@ -86,7 +65,8 @@ export function AiInsightCard({ area, title, className }: { area: 'finance' | 'h
         >
           {data ? 'Refresh' : 'Analyse'}
         </Button>
-      </CardHeader>
+      }
+    >
       {isPending ? (
         <SkeletonStack>
           <SkelInsightLine1 />

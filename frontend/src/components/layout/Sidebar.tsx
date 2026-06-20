@@ -303,9 +303,9 @@ const NAV_GROUPS = [
     items: [
       { to: '/areas/finance', icon: IndianRupee, label: 'Finance' },
       { to: '/areas/health', icon: Heart, label: 'Health' },
-      { to: '/areas/career', icon: Briefcase, label: 'Career' },
-      { to: '/areas/business', icon: Rocket, label: 'Business' },
-      { to: '/areas/content', icon: PenLine, label: 'Content' },
+      // { to: '/areas/career', icon: Briefcase, label: 'Career' },
+      // { to: '/areas/business', icon: Rocket, label: 'Business' },
+      // { to: '/areas/content', icon: PenLine, label: 'Content' },
     ]
   },
   {

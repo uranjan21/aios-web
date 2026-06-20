@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, BellOff, Settings } from 'lucide-react'
+import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, BellOff, Settings, Palette, Activity, Sparkles, Keyboard, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { chatApi } from '@/api/chat'
@@ -10,8 +10,7 @@ import { useUIStore } from '@/stores/uiStore'
 import { useVaultSync } from '@/hooks/useVaultSync'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ProgressBar } from '@/components/lumina';
-import { Card as GlassCard } from '@ledgr/ui';
-import { PageHeader } from '@/components/layout/PageLayout'
+import { Card as GlassCard, PageHeader, Select } from '@ledgr/ui';
 import { Button } from '@/components/ui/button'
 import styled, { useTheme } from 'styled-components'
 
@@ -63,9 +62,26 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   )
 }
 
-function Section({ title, children, delay }: { title: string; children: React.ReactNode; delay?: 0 | 100 | 200 | 300 }) {
+const SECTION_META: Record<string, { icon: React.ReactNode; subtitle: string }> = {
+  Appearance: { icon: <Palette size={16} />, subtitle: 'Theme, density, and visual preferences' },
+  'System Status': { icon: <Activity size={16} />, subtitle: 'Live state of backend, sync, and integrations' },
+  'AI Usage': { icon: <Sparkles size={16} />, subtitle: 'Token spend and model usage this period' },
+  'Keyboard Shortcuts': { icon: <Keyboard size={16} />, subtitle: 'Quick reference for in-app shortcuts' },
+  Account: { icon: <User size={16} />, subtitle: 'Sign-out and account-level controls' },
+}
+
+function Section({ title, children, delay, action }: { title: string; children: React.ReactNode; delay?: 0 | 100 | 200 | 300; action?: React.ReactNode }) {
+  const meta = SECTION_META[title]
   return (
-    <GlassCard title={title} noPadding fadeIn="up" delay={delay}>
+    <GlassCard
+      title={title}
+      subtitle={meta?.subtitle}
+      icon={meta?.icon}
+      action={action}
+      noPadding
+      fadeIn="up"
+      delay={delay}
+    >
       {children}
     </GlassCard>
   )
@@ -385,9 +401,13 @@ function VaultSyncRow() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
+  const queryClient = useQueryClient()
   const logout = useAuthStore(s => s.logout)
   const navigate = useNavigate()
   const { theme, setTheme } = useUIStore()
+
+  const [aiRange, setAiRange] = useState('daily')
+  const [shortcutCategory, setShortcutCategory] = useState('all')
 
   const handleLogout = async () => {
     try { await api.post('/auth/logout') } catch (e) { console.error('Logout failed:', e) }
@@ -397,9 +417,16 @@ export function SettingsPage() {
   return (
     <PageRoot>
       <PageContent>
-        <PageHeader title="Settings" description="Preferences, integrations and account management." icon={Settings} category="SYSTEM" />
+        <PageHeader title="Settings" subtitle="Preferences, integrations and account management." icon={<Settings />} eyebrow="SYSTEM" />
 
-        <Section title="Appearance">
+        <Section
+          title="Appearance"
+          action={
+            <Button size="sm" variant="ghost" onClick={() => setTheme('light')}>
+              Reset
+            </Button>
+          }
+        >
           <Row label="Theme">
             <ThemeSwitcher>
               <ThemeBtn onClick={() => setTheme('dark')} aria-pressed={theme === 'dark'} aria-label="Dark mode" $active={theme === 'dark'}>
@@ -412,7 +439,22 @@ export function SettingsPage() {
           </Row>
         </Section>
 
-        <Section title="System Status" delay={100}>
+        <Section
+          title="System Status"
+          delay={100}
+          action={
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ['health'] })
+                toast.success('System status refreshed')
+              }}
+            >
+              <RefreshCw size={12} style={{ marginRight: 4 }} /> Refresh
+            </Button>
+          }
+        >
           <Row label="Backend"><BackendStatus /></Row>
           <VaultSyncRow />
           <PushNotificationsRow />
@@ -421,29 +463,75 @@ export function SettingsPage() {
           </Row>
         </Section>
 
-        <Section title="AI Usage" delay={200}>
+        <Section
+          title="AI Usage"
+          delay={200}
+          action={
+            <Select
+              size="sm"
+              fullWidth={false}
+              options={[
+                { label: 'Daily', value: 'daily' },
+                { label: 'Weekly', value: 'weekly' },
+                { label: 'Monthly', value: 'monthly' },
+              ]}
+              value={aiRange}
+              onChange={(val) => setAiRange(val as string)}
+            />
+          }
+        >
           <TokenGauge />
           <Row label="Model"><span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>claude-sonnet-4-5</span></Row>
           <Row label="Session limit"><span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>50,000 tokens</span></Row>
         </Section>
 
-        <Section title="Keyboard Shortcuts" delay={300}>
+        <Section
+          title="Keyboard Shortcuts"
+          delay={300}
+          action={
+            <Select
+              size="sm"
+              fullWidth={false}
+              options={[
+                { label: 'All Keys', value: 'all' },
+                { label: 'Navigation', value: 'nav' },
+                { label: 'Actions', value: 'action' },
+              ]}
+              value={shortcutCategory}
+              onChange={(val) => setShortcutCategory(val as string)}
+            />
+          }
+        >
           {[
-            ['⌘K', 'Command palette'], ['⌘L', 'Quick capture'], ['?', 'Command palette (alt)'],
-            ['⌘⇧T', 'Toggle theme'], ['G then D', 'Go to Dashboard'], ['G then C', 'Go to Chat'],
-            ['G then F', 'Go to Finance'], ['G then H', 'Go to Health'], ['G then R', 'Go to Career'],
-            ['G then B', 'Go to Business'], ['G then N', 'Go to Content'],
-          ].map(([key, label]) => (
-            <Row key={key} label={label}>
-              <KbdEl>{key}</KbdEl>
-            </Row>
-          ))}
+            ['⌘K', 'Command palette', 'action'], ['⌘L', 'Quick capture', 'action'], ['?', 'Command palette (alt)', 'action'],
+            ['⌘⇧T', 'Toggle theme', 'action'], ['G then D', 'Go to Dashboard', 'nav'], ['G then C', 'Go to Chat', 'nav'],
+            ['G then F', 'Go to Finance', 'nav'], ['G then H', 'Go to Health', 'nav'], ['G then R', 'Go to Career', 'nav'],
+            ['G then B', 'Go to Business', 'nav'], ['G then N', 'Go to Content', 'nav'],
+          ]
+            .filter(([,, cat]) => shortcutCategory === 'all' || cat === shortcutCategory)
+            .map(([key, label]) => (
+              <Row key={key} label={label}>
+                <KbdEl>{key}</KbdEl>
+              </Row>
+            ))
+          }
         </Section>
 
-        <GlassCard title="Account" fadeIn="up" delay={300}>
-          <Button variant="destructive" onClick={handleLogout}>
-            <LogOut size={16} /> Sign out
-          </Button>
+        <GlassCard
+          title="Account"
+          subtitle="Sign-out and account-level controls"
+          icon={<User size={16} />}
+          action={
+            <Button variant="destructive" size="sm" onClick={handleLogout}>
+              <LogOut size={12} /> Sign out
+            </Button>
+          }
+          fadeIn="up"
+          delay={300}
+        >
+          <div style={{ padding: '14px 20px', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+            Logged in as personal administrator. All config files and data are stored locally in your vault.
+          </div>
         </GlassCard>
       </PageContent>
     </PageRoot>

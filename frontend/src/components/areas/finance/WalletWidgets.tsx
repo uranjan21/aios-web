@@ -1,40 +1,13 @@
 import { formatCurrency } from '@/lib/utils'
-import { Card as GlassCard } from '@ledgr/ui';
+import { Card as GlassCard, SegmentedControl } from '@ledgr/ui';
+import { Wallet } from 'lucide-react'
 import Highcharts from 'highcharts'
 import HighchartsReact from 'highcharts-react-official'
 import styled, { useTheme } from 'styled-components'
 
 Highcharts.setOptions({ accessibility: { enabled: false } })
 
-const TabContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.125rem;
-  background-color: ${({ theme }) => theme.color.muted}99;
-  border-radius: 9999px;
-  width: fit-content;
-  margin-bottom: 1.5rem;
-  position: relative;
-  z-index: 10;
-`
 
-const TabButton = styled.button<{ $active: boolean }>`
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 11px;
-  font-weight: 500;
-  transition: all 0.2s;
-  background-color: ${({ $active, theme }) => $active ? theme.color.background : 'transparent'};
-  color: ${({ $active, theme }) => $active ? theme.color.foreground : theme.color.mutedForeground};
-  box-shadow: ${({ $active }) => $active ? '0 1px 2px rgba(0, 0, 0, 0.05)' : 'none'};
-  border: none;
-  cursor: pointer;
- 
-  &:hover {
-    color: ${({ theme }) => theme.color.foreground};
-  }
-`
 
 const BalanceText = styled.h1`
   font-size: 28px;
@@ -69,21 +42,25 @@ export function BalanceWidget({ balance = 0, chartData = [], activeTab = 'Genera
   const tabs = ['General', 'Expenses', 'Income']
 
   return (
-    <GlassCard title="Net Worth Trend" style={{ position: 'relative', overflow: 'hidden' }} hoverable fadeIn="up">
+    <GlassCard
+      title="Net Worth Trend"
+      subtitle="Balance over time, broken down by cashflow type"
+      icon={<Wallet size={16} />}
+      action={
+        <SegmentedControl
+          size="sm"
+          aria-label="Cashflow view"
+          value={activeTab}
+          onChange={(v) => onTabChange?.(v)}
+          options={tabs.map((tab) => ({ label: tab, value: tab }))}
+        />
+      }
+      style={{ position: 'relative', overflow: 'hidden' }}
+      hoverable
+      fadeIn="up"
+    >
       {/* Decorative ambient glow */}
       <AmbientGlow />
-
-      <TabContainer>
-        {tabs.map((tab) => (
-          <TabButton
-            key={tab}
-            onClick={() => onTabChange?.(tab)}
-            $active={activeTab === tab}
-          >
-            {tab}
-          </TabButton>
-        ))}
-      </TabContainer>
 
       <ContentWrapper>
         <BalanceText>{formatCurrency(balance)}</BalanceText>

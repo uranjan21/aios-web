@@ -6,35 +6,11 @@ import { formatCurrency } from '@/lib/utils'
 import type { FinanceLoan } from '@/types'
 import styled from 'styled-components'
 
-const HeaderSection = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-`
-
-const TitleGroup = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`
-
-const TitleText = styled.h2`
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  margin: 0;
-`
-
 const ControlsGroup = styled.div`
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 `
 
 const ExtraInputGroup = styled.div`
@@ -46,6 +22,7 @@ const ExtraInputGroup = styled.div`
 const ExtraLabel = styled.span`
   font-size: 11px;
   color: ${({ theme }) => theme.color.mutedForeground};
+  white-space: nowrap;
 `
 
 const StatsGrid = styled.div`
@@ -187,15 +164,16 @@ export function PayoffPlanner({ loans }: { loans: FinanceLoan[] }) {
   const monthsSaved = baseline.months - result.months
 
   return (
-    <Card style={{ marginTop: '1rem' }}>
-      <HeaderSection>
-        <TitleGroup>
-          <Landmark size={14} color="var(--muted-foreground)" />
-          <TitleText>Debt Payoff Planner</TitleText>
-        </TitleGroup>
+    <Card
+      style={{ marginTop: '1rem' }}
+      title="Debt Payoff Planner"
+      subtitle="Project debt-free date and savings under your chosen strategy"
+      icon={<Landmark size={16} />}
+      action={
         <ControlsGroup>
           <SegmentedControl
             size="sm"
+            aria-label="Payoff strategy"
             value={strategy}
             onChange={v => setStrategy(v as Strategy)}
             options={[
@@ -205,11 +183,11 @@ export function PayoffPlanner({ loans }: { loans: FinanceLoan[] }) {
           />
           <ExtraInputGroup>
             <ExtraLabel>Extra / month</ExtraLabel>
-            <Input size="sm" type="number" startAdornment="₹" min="0" step="1000" style={{ width: '7rem' }} value={String(extra)} onChange={e => setExtra(Number(e.target.value) || 0)} />
+            <Input size="sm" type="number" startAdornment="₹" min="0" step="1000" style={{ width: '6rem' }} value={String(extra)} onChange={e => setExtra(Number(e.target.value) || 0)} />
           </ExtraInputGroup>
         </ControlsGroup>
-      </HeaderSection>
-
+      }
+    >
       <StatsGrid>
         <div>
           <StatLabel>Debt-free</StatLabel>

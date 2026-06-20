@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react'
+import { Plus } from 'lucide-react'
+import { Button } from '@ledgr/ui'
+import { AreaToolbar, HeaderActionPortal } from '@ledgr/ui'
 import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
 import { BudgetsTab } from './BudgetsTab'
 import { GoalsTab } from './GoalsTab'
@@ -36,13 +39,21 @@ export function BudgetTab() {
   return (
     <>
       <WorkspaceLayout rail={undefined}>
-        <div style={{ paddingBottom: '16px' }}>
-          <TextTabs
-            options={['Budget', 'Goal', 'Bill', 'Subscription']}
-            value={activeTab}
-            onChange={(val) => setActiveTab(val as any)}
-          />
-        </div>
+        <AreaToolbar
+          left={
+            <TextTabs
+              options={['Budget', 'Goal', 'Bill', 'Subscription']}
+              value={activeTab}
+              onChange={(val) => setActiveTab(val as any)}
+            />
+          }
+        >
+        </AreaToolbar>
+        <HeaderActionPortal>
+          <Button size="sm" variant="primary" onClick={() => setModalOpen(true)}>
+            <Plus size={12} style={{ marginRight: 4 }} /> Add {activeTab}
+          </Button>
+        </HeaderActionPortal>
         <GridContainer>
           {activeTab === 'Budget' && (
             <GridItem>

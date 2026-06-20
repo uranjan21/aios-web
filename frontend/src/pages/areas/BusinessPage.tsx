@@ -4,12 +4,11 @@ import { useQuery } from '@tanstack/react-query'
 import { Rocket, History, Plus, Activity, TrendingUp, LayoutDashboard, Calendar, BarChart3, Bot, Search, Bell, PlusCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
-import { FilterBar, PeriodSelect } from '@/components/ui/FilterBar'
 import { motion } from 'framer-motion'
 import styled from 'styled-components'
 import { Timeline } from 'antd'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Button, Badge } from '@ledgr/ui'
+import { Button, Badge, Select } from '@ledgr/ui'
 import { AreaTabs } from '@/components/ui/AreaTabs'
 import { EventsTab } from '@/components/areas/business/EventsTab'
 import { SummaryTab } from '@/components/areas/business/SummaryTab'
@@ -18,7 +17,7 @@ import { BusinessLogModal } from '@/components/areas/business/BusinessLogModal'
 import { businessApi } from '@/api/areas'
 import { formatDate } from '@/lib/utils'
 import { EmptyState } from '@/components/EmptyState'
-import { PageHeader, ActionChip } from '@/components/layout/PageLayout'
+import { PageHeader } from '@ledgr/ui'
 import { IconBadge } from '@/components/lumina';
 import { Card as GlassCard } from '@ledgr/ui';
 
@@ -64,30 +63,6 @@ const DashboardContent = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1rem;
-`
-
-const ProjectHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-`
-
-const ProjectTitle = styled.h2`
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: ${({ theme }) => theme.color?.foreground || 'inherit'};
-  margin: 0;
-`
-
-const ProjectDescription = styled.p`
-  font-size: 0.75rem;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  margin: 0;
-`
-
-const BadgeWrapper = styled.div`
-  margin-left: auto;
 `
 
 const MetricsGrid = styled.div`
@@ -263,6 +238,7 @@ const RunwayMessage = styled.span`
 function RunwayCalculator() {
   const [cash, setCash] = useState(50000)
   const [burnRate, setBurnRate] = useState(5000)
+  const [runwayPeriod, setRunwayPeriod] = useState('monthly')
 
   const runwayMonths = burnRate > 0 ? (cash / burnRate).toFixed(1) : '∞'
   const isHealthy = burnRate === 0 || cash / burnRate > 6
@@ -270,8 +246,20 @@ function RunwayCalculator() {
   return (
     <GlassCard
       title="Runway Calculator"
+      subtitle="Calculate cash runway based on burn rate"
       icon={<TrendingUp size={16} color="var(--muted-foreground)" />}
-      action={null}
+      action={
+        <Select
+          size="sm"
+          fullWidth={false}
+          options={[
+            { label: 'Monthly Scope', value: 'monthly' },
+            { label: 'Quarterly Scope', value: 'quarterly' },
+          ]}
+          value={runwayPeriod}
+          onChange={(val) => setRunwayPeriod(val as string)}
+        />
+      }
       hoverable
       fadeIn="up"
     >
@@ -310,9 +298,7 @@ function RunwayCalculator() {
 
 export function BusinessPage() {
   const [isLogModalOpen, setIsLogModalOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const [eventType, setEventType] = useState('all')
-  const [period, setPeriod] = useState('2026-06')
+  const [eventTypeFilter, setEventTypeFilter] = useState('all')
   const navigate = useNavigate()
   const { setCmdPaletteOpen, setCaptureModalOpen } = useUIStore()
   const { data: events, isLoading: loadingEvents } = useQuery({ queryKey: ['business', 'events'], queryFn: businessApi.events })
@@ -322,43 +308,13 @@ export function BusinessPage() {
     <PageWrapper>
       <PageContainer>
       <PageHeader
-        icon={Rocket}
-        category="Ventures"
+        icon={<Rocket />}
+        eyebrow="Ventures"
         title="Business"
-        description="Metrics, milestones and the event timeline — track your venture in one place."
-        actions={
-          <>
-            <ActionChip onClick={() => navigate('/chat')}><Bot /> Ask AI</ActionChip>
-            <ActionChip onClick={() => setCaptureModalOpen(true)}><PlusCircle /> Capture</ActionChip>
-            <ActionChip onClick={() => setCmdPaletteOpen(true)}><Search /> Search</ActionChip>
-            <ActionChip onClick={() => navigate('/agents')}><Bell /> Reminders</ActionChip>
-          </>
-        }
+        subtitle="Metrics, milestones and the event timeline — track your venture in one place."
       />
       <AreaTabs
         defaultActiveKey="1"
-        toolbar={
-          <FilterBar
-            search={{ value: query, onChange: setQuery, placeholder: 'Search events, milestones…' }}
-            filters={[
-              { id: 'eventType', label: 'Type', value: eventType, onChange: setEventType, options: [
-                { value: 'all', label: 'All types' },
-                { value: 'feature', label: 'Feature' },
-                { value: 'milestone', label: 'Milestone' },
-                { value: 'revenue', label: 'Revenue' },
-              ] },
-            ]}
-            period={<PeriodSelect value={period} onChange={setPeriod} />}
-            actions={
-              <Button size="sm" variant="primary" onClick={() => setIsLogModalOpen(true)}>
-                <ActionButtonContent>
-                  <Plus size={12} />
-                  <span>Log Business Event</span>
-                </ActionButtonContent>
-              </Button>
-            }
-          />
-        }
         items={[
           {
             key: '1',
@@ -368,18 +324,14 @@ export function BusinessPage() {
 
                 {/* Main content */}
                 <DashboardContent>
-                  <GlassCard hoverable fadeIn="up">
-                    <ProjectHeader>
-                      <IconBadge icon={Rocket} color="primary" size="md" />
-                      <div>
-                        <ProjectTitle>Ledgr</ProjectTitle>
-                        <ProjectDescription>SaaS accounting for Indian freelancers</ProjectDescription>
-                      </div>
-                      <BadgeWrapper>
-                        <Badge tone="info">Building</Badge>
-                      </BadgeWrapper>
-                    </ProjectHeader>
-
+                  <GlassCard
+                    title="Ledgr"
+                    subtitle="SaaS accounting for Indian freelancers"
+                    icon={<Rocket size={16} />}
+                    action={<Badge tone="info">Building</Badge>}
+                    hoverable
+                    fadeIn="up"
+                  >
                     <MetricsGrid>
                       <MetricCard>
                         <div>
@@ -405,8 +357,33 @@ export function BusinessPage() {
 
                   <GlassCard
                     title="Event Timeline"
+                    subtitle="Recent venture milestones and decisions"
                     icon={<History size={16} color="var(--muted-foreground)" />}
-                    action={null}
+                    action={
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Select
+                          size="sm"
+                          fullWidth={false}
+                          options={[
+                            { label: 'All Events', value: 'all' },
+                            { label: 'Feature Shipped', value: 'feature_shipped' },
+                            { label: 'Decision', value: 'decision' },
+                            { label: 'Revenue', value: 'revenue' },
+                            { label: 'Blocker', value: 'blocker' },
+                            { label: 'Milestone', value: 'milestone' },
+                            { label: 'Note', value: 'note' },
+                          ]}
+                          value={eventTypeFilter}
+                          onChange={(val) => setEventTypeFilter(val as string)}
+                        />
+                        <Button size="sm" onClick={() => setIsLogModalOpen(true)}>
+                          <ActionButtonContent>
+                            <Plus size={12} />
+                            <span>Log Event</span>
+                          </ActionButtonContent>
+                        </Button>
+                      </div>
+                    }
                     hoverable
                     fadeIn="up"
                     delay={100}
@@ -414,25 +391,27 @@ export function BusinessPage() {
                     {loadingEvents ? <Skeleton active /> : events?.length ? (
                       <TimelineWrapper>
                         <Timeline
-                          items={events.map((e: any, i: number) => ({
-                            color: EVENT_TYPE_COLORS[e.event_type] || 'blue',
-                            children: (
-                              <AnimatedTimelineItem initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
-                                <TimelineItemHeader>
-                                  <TimelineContentCol>
-                                    <TimelineTitleRow>
-                                      <TimelineBadgeContainer>
-                                        <Badge tone={(EVENT_TYPE_COLORS[e.event_type] || 'neutral') as any}>{e.event_type.replace('_', ' ')}</Badge>
-                                      </TimelineBadgeContainer>
-                                      <TimelineTitle>{e.title}</TimelineTitle>
-                                    </TimelineTitleRow>
-                                    {e.description && <TimelineDescription>{e.description}</TimelineDescription>}
-                                  </TimelineContentCol>
-                                  <TimelineDate>{formatDate(e.occurred_at)}</TimelineDate>
-                                </TimelineItemHeader>
-                              </AnimatedTimelineItem>
-                            )
-                          }))}
+                          items={events
+                            .filter(e => eventTypeFilter === 'all' || e.event_type === eventTypeFilter)
+                            .map((e: any, i: number) => ({
+                              color: EVENT_TYPE_COLORS[e.event_type] || 'blue',
+                              children: (
+                                <AnimatedTimelineItem initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
+                                  <TimelineItemHeader>
+                                    <TimelineContentCol>
+                                      <TimelineTitleRow>
+                                        <TimelineBadgeContainer>
+                                          <Badge tone={(EVENT_TYPE_COLORS[e.event_type] || 'neutral') as any}>{e.event_type.replace('_', ' ')}</Badge>
+                                        </TimelineBadgeContainer>
+                                        <TimelineTitle>{e.title}</TimelineTitle>
+                                      </TimelineTitleRow>
+                                      {e.description && <TimelineDescription>{e.description}</TimelineDescription>}
+                                    </TimelineContentCol>
+                                    <TimelineDate>{formatDate(e.occurred_at)}</TimelineDate>
+                                  </TimelineItemHeader>
+                                </AnimatedTimelineItem>
+                              )
+                            }))}
                         />
                       </TimelineWrapper>
                     ) : (

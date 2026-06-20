@@ -1,10 +1,9 @@
 // @ts-nocheck
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, History, Plus, Briefcase, ExternalLink, LayoutDashboard, Map, Target, Bot, Search, Bell, PlusCircle } from 'lucide-react'
+import { BookOpen, History, Plus, Briefcase, ExternalLink, LayoutDashboard, Map, Target, Bot, Search, Bell, PlusCircle, Activity } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
-import { FilterBar, PeriodSelect } from '@/components/ui/FilterBar'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import styled from 'styled-components'
@@ -18,7 +17,7 @@ import { CareerLogModal } from '@/components/areas/career/CareerLogModal'
 import { careerApi } from '@/api/areas'
 import { ErrorCard } from '@/components/ErrorCard'
 import { EmptyState } from '@/components/EmptyState'
-import { PageHeader, ActionChip } from '@/components/layout/PageLayout'
+import { PageHeader } from '@ledgr/ui'
 import { CareerRadar } from '@/components/CareerRadar'
 import { Card as GlassCard } from '@ledgr/ui';
 import { Card as AppCard } from '@ledgr/ui'
@@ -276,21 +275,25 @@ function OpportunityRow({ opp }: { opp: JobOpportunity }) {
   )
 }
 
-function CareerStat({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
+function CareerStat({ title, value, subtitle, accent, icon }: { title: string; value: string; subtitle?: string; accent?: string; icon: React.ReactNode }) {
   return (
-    <AppCard size="md" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <StatLabel>{label}</StatLabel>
-      <StatValue $accent={accent}>{value}</StatValue>
-      {sub && <StatSub>{sub}</StatSub>}
+    <AppCard
+      title={title}
+      subtitle={subtitle}
+      icon={icon}
+      size="sm"
+      style={{ display: 'flex', flexDirection: 'column', gap: 4, height: '100%' }}
+    >
+      <StatValue $accent={accent} style={{ marginTop: 'auto' }}>{value}</StatValue>
     </AppCard>
   )
 }
 
 export function CareerPage() {
   const [isLogModalOpen, setIsLogModalOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const [stage, setStage] = useState('all')
-  const [period, setPeriod] = useState('2026-06')
+  const [oppStatusFilter, setOppStatusFilter] = useState('all')
+  const [timelineFilter, setTimelineFilter] = useState('all')
+  const [radarFilter, setRadarFilter] = useState('all')
   const navigate = useNavigate()
   const { setCmdPaletteOpen, setCaptureModalOpen } = useUIStore()
 
@@ -299,46 +302,27 @@ export function CareerPage() {
   const { data: opportunities, isLoading: loadingOpps } = useQuery({ queryKey: ['career', 'opportunities'], queryFn: careerApi.opportunities })
 
   const activeOpps = opportunities?.filter(o => !['rejected', 'closed'].includes(o.status)) ?? []
+  const filteredActiveOpps = activeOpps.filter(o => oppStatusFilter === 'all' || o.status === oppStatusFilter)
+  const filteredEvents = events?.filter(e => timelineFilter === 'all' || e.event_type === timelineFilter)
+  const filteredSkills = skills?.filter(s => {
+    if (radarFilter === 'all') return true
+    if (radarFilter === 'technical') return s.category?.toLowerCase() === 'technical' || s.category?.toLowerCase() === 'hard'
+    if (radarFilter === 'soft') return s.category?.toLowerCase() === 'soft' || s.category?.toLowerCase() === 'interpersonal'
+    return true
+  })
   const inPlay = opportunities?.filter(o => ['interview', 'offer'].includes(o.status)).length ?? 0
 
   return (
     <PageRoot>
       <PageContent>
         <PageHeader
-          icon={Briefcase}
-          category="Growth"
+          icon={<Briefcase />}
+          eyebrow="Growth"
           title="Career"
-          description="Skills, roadmap and opportunities — manage your career in one place."
-          actions={
-            <>
-              <ActionChip onClick={() => navigate('/chat')}><Bot /> Ask AI</ActionChip>
-              <ActionChip onClick={() => setCaptureModalOpen(true)}><PlusCircle /> Capture</ActionChip>
-              <ActionChip onClick={() => setCmdPaletteOpen(true)}><Search /> Search</ActionChip>
-              <ActionChip onClick={() => navigate('/agents')}><Bell /> Reminders</ActionChip>
-            </>
-          }
+          subtitle="Skills, roadmap and opportunities — manage your career in one place."
         />
         <AreaTabs
           defaultActiveKey="1"
-          toolbar={
-            <FilterBar
-              search={{ value: query, onChange: setQuery, placeholder: 'Search skills, roles, companies…' }}
-              filters={[
-                { id: 'stage', label: 'Stage', value: stage, onChange: setStage, options: [
-                  { value: 'all', label: 'All stages' },
-                  { value: 'applied', label: 'Applied' },
-                  { value: 'interview', label: 'Interview' },
-                  { value: 'offer', label: 'Offer' },
-                ] },
-              ]}
-              period={<PeriodSelect value={period} onChange={setPeriod} />}
-              actions={
-                <Button size="sm" variant="primary" onClick={() => setIsLogModalOpen(true)} startIcon={<Plus size={12} />}>
-                  Add Career Item
-                </Button>
-              }
-            />
-          }
           items={[
             {
               key: '1',
@@ -346,15 +330,35 @@ export function CareerPage() {
               children: (
                 <DashCol>
                   <KpiGrid>
-                    <CareerStat label="Skills Tracked" value={String(skills?.length ?? 0)} sub="across categories" />
-                    <CareerStat label="Active Pipeline" value={String(activeOpps.length)} sub="open opportunities" accent="text-primary" />
-                    <CareerStat label="In Play" value={String(inPlay)} sub="interview or offer" accent={inPlay > 0 ? 'text-kpi-emerald' : undefined} />
-                    <CareerStat label="Milestones" value={String(events?.length ?? 0)} sub="logged on timeline" />
+                    <CareerStat title="Skills Tracked" value={String(skills?.length ?? 0)} subtitle="total skills tracked" icon={<BookOpen size={16} />} />
+                    <CareerStat title="Active Pipeline" value={String(activeOpps.length)} subtitle="open opportunities" accent="text-primary" icon={<Briefcase size={16} />} />
+                    <CareerStat title="In Play" value={String(inPlay)} subtitle="interview or offer stages" accent={inPlay > 0 ? 'text-kpi-emerald' : undefined} icon={<Target size={16} />} />
+                    <CareerStat title="Milestones" value={String(events?.length ?? 0)} subtitle="timeline logs" icon={<History size={16} />} />
                   </KpiGrid>
 
-                  <GlassCard title="Opportunities Pipeline" icon={<Briefcase size={16} />} hoverable fadeIn="up">
+                  <GlassCard
+                    title="Opportunities Pipeline"
+                    subtitle="Track active job applications and stages"
+                    icon={<Briefcase size={16} />}
+                    action={
+                      <Select
+                        size="sm"
+                        fullWidth={false}
+                        options={[
+                          { label: 'All Active', value: 'all' },
+                          { label: 'Applied', value: 'applied' },
+                          { label: 'Interview', value: 'interview' },
+                          { label: 'Offer', value: 'offer' },
+                        ]}
+                        value={oppStatusFilter}
+                        onChange={(val) => setOppStatusFilter(val as string)}
+                      />
+                    }
+                    hoverable
+                    fadeIn="up"
+                  >
                     {loadingOpps ? <StyledSkeleton $height="40px" /> :
-                      activeOpps.length ? activeOpps.map(opp => <OpportunityRow key={opp.id} opp={opp} />) :
+                      filteredActiveOpps.length ? filteredActiveOpps.map(opp => <OpportunityRow key={opp.id} opp={opp} />) :
                       <EmptyState
                         icon={Briefcase}
                         title="No opportunities"
@@ -364,11 +368,38 @@ export function CareerPage() {
                   </GlassCard>
 
                   <TwoColGrid>
-                    <GlassCard title="Career Timeline" icon={<History size={16} />} hoverable fadeIn="up" delay={100}>
-                      {loadingEvents ? <StyledSkeleton $height="200px" /> : events?.length ? (
+                    <GlassCard
+                      title="Career Timeline"
+                      subtitle="Career history and milestone timeline"
+                      icon={<History size={16} />}
+                      action={
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Select
+                            size="sm"
+                            fullWidth={false}
+                            options={[
+                              { label: 'All Milestones', value: 'all' },
+                              { label: 'Certification', value: 'certification' },
+                              { label: 'Project', value: 'project' },
+                              { label: 'Promotion', value: 'promotion' },
+                              { label: 'Note', value: 'note' },
+                            ]}
+                            value={timelineFilter}
+                            onChange={(val) => setTimelineFilter(val as string)}
+                          />
+                          <Button size="sm" onClick={() => setIsLogModalOpen(true)}>
+                            <Plus size={12} style={{ marginRight: 4 }} /> Log Milestone
+                          </Button>
+                        </div>
+                      }
+                      hoverable
+                      fadeIn="up"
+                      delay={100}
+                    >
+                      {loadingEvents ? <StyledSkeleton $height="200px" /> : filteredEvents?.length ? (
                         <Timeline
                           style={{ marginTop: 16 }}
-                          items={events.slice(0, 20).map((e: CareerEvent, i: number) => ({
+                          items={filteredEvents.slice(0, 20).map((e: CareerEvent, i: number) => ({
                             children: (
                               <AnimatedTimelineItem
                                 initial={{ opacity: 0, x: -20 }}
@@ -399,12 +430,32 @@ export function CareerPage() {
                       )}
                     </GlassCard>
 
-                    <GlassCard title="Skills Radar" icon={<BookOpen size={16} />} hoverable fadeIn="up" delay={200}>
-                      {loadingSkills ? <StyledSkeleton $height="200px" /> : skills?.length ? (
+                    <GlassCard
+                      title="Skills Radar"
+                      subtitle="Visual mapping of core competencies"
+                      icon={<BookOpen size={16} />}
+                      action={
+                        <Select
+                          size="sm"
+                          fullWidth={false}
+                          options={[
+                            { label: 'All Skills', value: 'all' },
+                            { label: 'Technical', value: 'technical' },
+                            { label: 'Soft Skills', value: 'soft' },
+                          ]}
+                          value={radarFilter}
+                          onChange={(val) => setRadarFilter(val as string)}
+                        />
+                      }
+                      hoverable
+                      fadeIn="up"
+                      delay={200}
+                    >
+                      {loadingSkills ? <StyledSkeleton $height="200px" /> : filteredSkills?.length ? (
                         <>
-                          <CareerRadar skills={skills} />
+                          <CareerRadar skills={filteredSkills} />
                           <SkillListWrap>
-                            {skills.map(skill => <SkillRow key={skill.id} skill={skill} />)}
+                            {filteredSkills.map(skill => <SkillRow key={skill.id} skill={skill} />)}
                           </SkillListWrap>
                         </>
                       ) : (

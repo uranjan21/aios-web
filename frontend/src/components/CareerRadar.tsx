@@ -5,7 +5,6 @@ import HighchartsReact from 'highcharts-react-official'
 import highchartsMore from 'highcharts/highcharts-more'
 import { SkillInventory } from '@/types'
 import styled, { useTheme } from 'styled-components'
-import { Card as GlassCard } from '@ledgr/ui'
 
 if (typeof Highcharts === 'object') {
   try {
@@ -115,13 +114,7 @@ export function CareerRadar({ skills }: { skills: SkillInventory[] }) {
     },
   }
 
-const FullWidthCard = styled(GlassCard)`
-  width: 100%;
-`
-
   return (
-    <FullWidthCard>
-      <HighchartsReact highcharts={Highcharts} options={options} />
-    </FullWidthCard>
+    <HighchartsReact highcharts={Highcharts} options={options} />
   )
 }

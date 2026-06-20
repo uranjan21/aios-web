@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import dayjs from 'dayjs'
-import { EmptyState } from '@ledgr/ui'
-import { X } from 'lucide-react'
+import { EmptyState, Card, Select, Button } from '@ledgr/ui'
+import { X, PieChart as PieChartIcon, Layers, Target, Receipt } from 'lucide-react'
+import type { ReactNode } from 'react'
 import Highcharts from 'highcharts'
 Highcharts.setOptions({ accessibility: { enabled: false } })
 import HighchartsReact from 'highcharts-react-official'
@@ -16,15 +17,11 @@ const StyledSkeleton = styled(Skeleton)<{ $height: string }>`
   width: 100%;
 `
 
-const PIE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#8B5CF6', '#EF4444', '#14B8A6', '#F97316']
-
 type Period = 'This Week' | 'This Month' | 'This Year'
 
-import { Card } from '@ledgr/ui'
-
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+function ChartCard({ title, subtitle, icon, action, children }: { title: string; subtitle?: string; icon?: ReactNode; action?: ReactNode; children: React.ReactNode }) {
   return (
-    <Card title={title} size="md" style={{ height: '100%' }}>
+    <Card title={title} subtitle={subtitle} icon={icon} action={action} size="md" style={{ height: '100%' }}>
       {children}
     </Card>
   )
@@ -290,6 +287,11 @@ export function FinanceStats({ period }: { period: Period }) {
   const [drillCategory, setDrillCategory] = useState<string | null>(null)
   const month = dayjs().format('YYYY-MM')
 
+  const [incExpPeriod, setIncExpPeriod] = useState('monthly')
+  const [spendPeriod, setSpendPeriod] = useState('monthly')
+  const [budgetFilterStatus, setBudgetFilterStatus] = useState('all')
+  const [trendTimeline, setTrendTimeline] = useState('6m')
+
   const pieColors = useMemo(() => [
     theme.color.accent,
     theme.color.primary,
@@ -396,7 +398,36 @@ export function FinanceStats({ period }: { period: Period }) {
   return (
     <StatsGrid>
       <Col5>
-        <ChartCard title="Income vs Expense">
+        <ChartCard
+          title="Income vs Expense"
+          subtitle="Period totals and the resulting net cashflow"
+          icon={<Layers size={16} />}
+          action={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              {!isLoading && donutTotal > 0 && (
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  {donutData.map((d, i) => (
+                    <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                      <LegendDot $color={[theme.color.accent, theme.color.mutedForeground][i]} />
+                      <span>{d.name}</span>
+                      <span style={{ fontWeight: 500 }}>{formatCurrency(d.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Select
+                size="sm"
+                fullWidth={false}
+                options={[
+                  { label: 'Monthly', value: 'monthly' },
+                  { label: 'Yearly', value: 'yearly' },
+                ]}
+                value={incExpPeriod}
+                onChange={(val) => setIncExpPeriod(val as string)}
+              />
+            </div>
+          }
+        >
           {isLoading ? <StyledSkeleton $height="200px" /> : donutTotal === 0 ? (
             <EmptyState title="No data for this period" />
           ) : (
@@ -415,29 +446,57 @@ export function FinanceStats({ period }: { period: Period }) {
                   <DonutNetValue>{formatCurrency(donutData[0].value - donutData[1].value)}</DonutNetValue>
                 </DonutCenter>
               </DonutWrap>
-              <LegendList>
-                {donutData.map((d, i) => (
-                  <LegendRow key={d.name}>
-                    <LegendLeft>
-                      <LegendDot $color={[theme.color.accent, theme.color.mutedForeground][i]} />
-                      <LegendLabel>{d.name}</LegendLabel>
-                    </LegendLeft>
-                    <LegendValue>{formatCurrency(d.value)}</LegendValue>
-                  </LegendRow>
-                ))}
-              </LegendList>
             </DonutRow>
           )}
         </ChartCard>
       </Col5>
 
       <Col7>
-        <ChartCard title={`Spending by Category${period === 'This Year' ? ' (This Month)' : ''}`}>
+        <ChartCard
+          title={`Spending by Category${period === 'This Year' ? ' (This Month)' : ''}`}
+          subtitle="Tap a slice to drill into its transactions"
+          icon={<PieChartIcon size={16} />}
+          action={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              {!isLoading && pieData.length > 0 && (
+                <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', maxWidth: '300px' }}>
+                  {pieData.map((d, i) => {
+                    const total = pieData.reduce((a, b) => a + b.value, 0)
+                    return (
+                      <PieBtn
+                        key={d.name}
+                        $active={drillCategory === d.name}
+                        onClick={() => setDrillCategory(c => c === d.name ? null : d.name)}
+                        style={{ padding: '2px 8px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <LegendDot $color={pieColors[i % pieColors.length]} />
+                        <span style={{ fontSize: '11px', fontWeight: 500 }}>{d.name}</span>
+                        <span style={{ fontSize: '10px', opacity: 0.7 }}>
+                          {total > 0 ? `${((d.value / total) * 100).toFixed(0)}%` : '0%'}
+                        </span>
+                      </PieBtn>
+                    )
+                  })}
+                </div>
+              )}
+              <Select
+                size="sm"
+                fullWidth={false}
+                options={[
+                  { label: 'Monthly', value: 'monthly' },
+                  { label: 'Yearly', value: 'yearly' },
+                ]}
+                value={spendPeriod}
+                onChange={(val) => setSpendPeriod(val as string)}
+              />
+            </div>
+          }
+        >
           {isLoading ? <StyledSkeleton $height="200px" /> : pieData.length === 0 ? (
             <EmptyState title="No expenses for this period" />
           ) : (
             <DonutRow>
-              <div style={{ width: 144, height: 144, flexShrink: 0 }}>
+              <div style={{ width: 144, height: 144, flexShrink: 0, margin: '0 auto' }}>
                 <HighchartsReact highcharts={Highcharts} options={{
                   chart: { type: 'pie', backgroundColor: 'transparent', margin: [0, 0, 0, 0], height: 144, width: 144 },
                   title: { text: null }, credits: { enabled: false },
@@ -447,24 +506,6 @@ export function FinanceStats({ period }: { period: Period }) {
                   series: [{ data: pieData.map(d => ({ name: d.name, y: d.value })) }],
                 }} />
               </div>
-              <PieScroll>
-                {pieData.map((d, i) => {
-                  const total = pieData.reduce((a, b) => a + b.value, 0)
-                  return (
-                    <PieBtn
-                      key={d.name}
-                      $active={drillCategory === d.name}
-                      onClick={() => setDrillCategory(c => c === d.name ? null : d.name)}
-                    >
-                      <PieBtnLeft>
-                        <LegendDot $color={pieColors[i % pieColors.length]} />
-                        <PieCatLabel>{d.name}</PieCatLabel>
-                      </PieBtnLeft>
-                      <PiePctLabel>{total > 0 ? `${((d.value / total) * 100).toFixed(0)}%` : '0%'}</PiePctLabel>
-                    </PieBtn>
-                  )
-                })}
-              </PieScroll>
             </DonutRow>
           )}
         </ChartCard>
@@ -472,10 +513,16 @@ export function FinanceStats({ period }: { period: Period }) {
 
       {drillCategory && (
         <Col12>
-          <ChartCard title={`${drillCategory} — Transactions This Month`}>
-            <CloseBtn onClick={() => setDrillCategory(null)} aria-label="Close drill-down">
-              <X size={14} />
-            </CloseBtn>
+          <ChartCard
+            title={`${drillCategory} — Transactions This Month`}
+            subtitle="Drill-down view for the selected category"
+            icon={<Receipt size={16} />}
+            action={
+              <Button size="sm" variant="ghost" onClick={() => setDrillCategory(null)} aria-label="Close drill-down">
+                <X size={14} style={{ marginRight: '4px' }} /> Close
+              </Button>
+            }
+          >
             {(() => {
               const items = (expensesPage?.items ?? []).filter(e => e.category === drillCategory)
               if (items.length === 0) return <EmptyState title="No transactions" />
@@ -498,34 +545,74 @@ export function FinanceStats({ period }: { period: Period }) {
       )}
 
       <Col6>
-        <ChartCard title="Budget vs Actual — This Month">
+        <ChartCard
+          title="Budget vs Actual — This Month"
+          subtitle="How much of each category limit you've used"
+          icon={<Target size={16} />}
+          action={
+            <Select
+              size="sm"
+              fullWidth={false}
+              options={[
+                { label: 'All Budgets', value: 'all' },
+                { label: 'Over Budget', value: 'over' },
+                { label: 'Under Budget', value: 'under' },
+              ]}
+              value={budgetFilterStatus}
+              onChange={(val) => setBudgetFilterStatus(val as string)}
+            />
+          }
+        >
           {(budgetStatus?.items ?? []).length === 0 ? (
             <EmptyState title="No budgets set — add limits in the Budget tab" />
           ) : (
             <BudgetList>
-              {(budgetStatus?.items ?? []).map(b => {
-                const pct = Math.min(100, b.pct)
-                const over = b.spent > b.monthly_limit
-                const barColor = over ? '#F4A261' : b.pct >= 80 ? '#F4A261' : '#F8D168'
-                return (
-                  <BudgetRow key={b.category}>
-                    <BudgetMeta>
-                      <BudgetCat>{b.category}</BudgetCat>
-                      <BudgetAmt $over={over}>{formatCurrency(b.spent)} / {formatCurrency(b.monthly_limit)}</BudgetAmt>
-                    </BudgetMeta>
-                    <BudgetTrack>
-                      <BudgetBar $pct={pct} $color={barColor} />
-                    </BudgetTrack>
-                  </BudgetRow>
-                )
-              })}
+              {(budgetStatus?.items ?? [])
+                .filter(b => {
+                  if (budgetFilterStatus === 'over') return b.spent > b.monthly_limit
+                  if (budgetFilterStatus === 'under') return b.spent <= b.monthly_limit
+                  return true
+                })
+                .map(b => {
+                  const pct = Math.min(100, b.pct)
+                  const over = b.spent > b.monthly_limit
+                  const barColor = over ? '#F4A261' : b.pct >= 80 ? '#F4A261' : '#F8D168'
+                  return (
+                    <BudgetRow key={b.category}>
+                      <BudgetMeta>
+                        <BudgetCat>{b.category}</BudgetCat>
+                        <BudgetAmt $over={over}>{formatCurrency(b.spent)} / {formatCurrency(b.monthly_limit)}</BudgetAmt>
+                      </BudgetMeta>
+                      <BudgetTrack>
+                        <BudgetBar $pct={pct} $color={barColor} />
+                      </BudgetTrack>
+                    </BudgetRow>
+                  )
+                })}
             </BudgetList>
           )}
         </ChartCard>
       </Col6>
 
       <Col6>
-        <ChartCard title={`Trend — ${period}`}>
+        <ChartCard
+          title={`Trend — ${period}`}
+          subtitle="Net cashflow over the selected horizon"
+          icon={<Layers size={16} />}
+          action={
+            <Select
+              size="sm"
+              fullWidth={false}
+              options={[
+                { label: '6 Months', value: '6m' },
+                { label: '12 Months', value: '12m' },
+                { label: 'All Time', value: 'all' },
+              ]}
+              value={trendTimeline}
+              onChange={(val) => setTrendTimeline(val as string)}
+            />
+          }
+        >
           {isLoading ? <StyledSkeleton $height="240px" /> : (
             <HighchartsReact highcharts={Highcharts} options={trendOptions} />
           )}

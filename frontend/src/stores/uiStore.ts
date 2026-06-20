@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { ReactNode } from 'react'
 
 type Theme = 'dark' | 'light'
 
@@ -48,3 +49,4 @@ export const useUIStore = create<UIState>()(
     { name: 'aios-ui', partialize: (s) => ({ theme: s.theme }) }  // don't persist sidebarOpen — desktop always shows; mobile always starts closed
   )
 )
+

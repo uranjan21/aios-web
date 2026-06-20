@@ -1,21 +1,26 @@
+import { createElement, isValidElement } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 import { ArrowUp, ArrowDown } from 'lucide-react'
 import styled from 'styled-components'
 import { Card } from '../primitives/Card/Card'
 
+type LucideIcon = ComponentType<{ size?: number | string; className?: string }>
+
 export interface KpiCardProps {
   label: string
   value: React.ReactNode
+  /** Optional icon rendered in the card header next to the label. Accepts a Lucide icon component or any ReactNode. */
+  icon?: LucideIcon | ReactNode
+  /** Optional one-line subtitle rendered below the label. Overrides the default "Compared to last month" footer when set. */
+  sub?: string
+  /** Right-aligned header action (e.g. a small Badge or filter). */
+  action?: ReactNode
+  /** @deprecated retained for backwards-compat — no-op. Use theme to control accent. */
+  color?: string
   trend?: { value: number; direction: 'up' | 'down' }
   loading?: boolean
   className?: string
 }
-
-const SectionLabel = styled.div`
-  font-size: 14px;
-  font-weight: 500;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  margin-bottom: 12px;
-`
 
 const Value = styled.div`
   font-size: 28px;
@@ -56,20 +61,39 @@ const ContextText = styled.div`
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
-export function KpiCard({ label, value, trend, loading, className }: KpiCardProps) {
+function renderIcon(icon: KpiCardProps['icon']): ReactNode {
+  if (!icon) return null
+  // Already a React element (e.g. <Scale size={16} />) — pass through.
+  if (isValidElement(icon)) return icon
+  // Component reference (function or forwardRef object, e.g. lucide-react icons) — instantiate.
+  if (typeof icon === 'function' || (typeof icon === 'object' && icon !== null && '$$typeof' in icon)) {
+    return createElement(icon as ComponentType<{ size?: number | string }>, { size: 16 })
+  }
+  return icon as ReactNode
+}
+
+export function KpiCard({ label, value, icon, sub, action, trend, loading, className }: KpiCardProps) {
   return (
-    <Card size="lg" className={className}>
-      <SectionLabel>{label}</SectionLabel>
+    <Card
+      size="lg"
+      className={className}
+      title={label}
+      subtitle={sub}
+      icon={renderIcon(icon)}
+      action={action}
+    >
       {loading ? <Skeleton /> : <Value>{value}</Value>}
-      <FooterRow>
-        {trend && (
-          <TrendPill $up={trend.direction === 'up'}>
-            {trend.direction === 'up' ? <ArrowUp size={12} strokeWidth={3} /> : <ArrowDown size={12} strokeWidth={3} />}
-            {Math.abs(trend.value)}%
-          </TrendPill>
-        )}
-        <ContextText>Compared to last month</ContextText>
-      </FooterRow>
+      {(trend || !sub) && (
+        <FooterRow>
+          {trend && (
+            <TrendPill $up={trend.direction === 'up'}>
+              {trend.direction === 'up' ? <ArrowUp size={12} strokeWidth={3} /> : <ArrowDown size={12} strokeWidth={3} />}
+              {Math.abs(trend.value)}%
+            </TrendPill>
+          )}
+          {!sub && <ContextText>Compared to last month</ContextText>}
+        </FooterRow>
+      )}
     </Card>
   )
 }

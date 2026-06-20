@@ -3,7 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { IndianRupee, Heart, Briefcase, Rocket, PenLine, Zap, Loader2, CheckCircle2, LayoutDashboard, type LucideIcon } from 'lucide-react'
+import { IndianRupee, Heart, Briefcase, Rocket, PenLine, Zap, Loader2, CheckCircle2, LayoutDashboard, Inbox, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { financeApi, careerApi, businessApi, capturesApi, contentApi } from '@/api/areas'
 import { healthApi } from '@/api/areas'
@@ -16,7 +16,7 @@ import { IconBadge, StatusPill, type IconBadgeColor } from '@/components/lumina'
 import { Card as GlassCard } from '@ledgr/ui';
 import { EmptyState } from '@/components/EmptyState';
 
-import { Button, Textarea, Stack } from '@ledgr/ui'
+import { Button, Textarea, Stack, Select } from '@ledgr/ui'
 import { Card as AppCard } from '@ledgr/ui'
 
 const spin = keyframes`
@@ -265,15 +265,17 @@ function TrendChip({ value, suffix = '%' }: { value: number; suffix?: string }) 
 }
 
 function SummaryCard({
-  icon: Icon,
-  color,
+  icon,
+  subtitle,
+  action,
   title,
   stats,
   loading,
   onClick,
 }: {
-  icon: LucideIcon
-  color: IconBadgeColor
+  icon?: React.ReactNode
+  subtitle?: string
+  action?: React.ReactNode
   title: string
   stats: Array<{ label: string; value: string }>
   loading?: boolean
@@ -294,6 +296,10 @@ function SummaryCard({
 
   return (
     <SummaryCardWrapper
+      title={title}
+      subtitle={subtitle}
+      icon={icon}
+      action={action}
       className="hover:scale-[1.02] transition-transform duration-200"
       hoverable={!!onClick}
       $clickable={!!onClick}
@@ -302,10 +308,6 @@ function SummaryCard({
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick() } : undefined}
     >
-      <SummaryCardHeader>
-        <IconBadge icon={Icon} color={color} size="sm" />
-        <SummaryCardTitle>{title}</SummaryCardTitle>
-      </SummaryCardHeader>
       <StatsList>
         {stats.map(({ label, value }, idx) => (
           idx === 0 ? (
@@ -326,15 +328,17 @@ function SummaryCard({
 }
 
 function AreaTile({
-  icon: Icon,
-  color,
+  icon,
+  subtitle,
+  action,
   title,
   stats,
   loading,
   onClick,
 }: {
-  icon: LucideIcon
-  color: IconBadgeColor
+  icon?: React.ReactNode
+  subtitle?: string
+  action?: React.ReactNode
   title: string
   stats: Array<{ label: string; value: string }>
   loading?: boolean
@@ -354,6 +358,10 @@ function AreaTile({
 
   return (
     <AreaTileWrapper
+      title={title}
+      subtitle={subtitle}
+      icon={icon}
+      action={action}
       className="hover:scale-[1.02] transition-transform duration-200"
       hoverable={!!onClick}
       $clickable={!!onClick}
@@ -362,10 +370,6 @@ function AreaTile({
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick() } : undefined}
     >
-      <AreaTileHeader>
-        <IconBadge icon={Icon} color={color} size="sm" />
-        <AreaTileTitle>{title}</AreaTileTitle>
-      </AreaTileHeader>
       <AreaTileStatsList>
         {stats.map(({ label, value }) => (
           <StatRow key={label}>
@@ -380,6 +384,13 @@ function AreaTile({
 
 export function DashboardPage() {
   const navigate = useNavigate()
+  const [financePeriod, setFinancePeriod] = useState('monthly')
+  const [healthPeriod, setHealthPeriod] = useState('30d')
+  const [agentStatus, setAgentStatus] = useState('all')
+  const [careerPeriod, setCareerPeriod] = useState('30d')
+  const [businessMrr, setBusinessMrr] = useState('all')
+  const [contentStatus, setContentStatus] = useState('all')
+
   const { data: latestSnapshot, isLoading: loadingFinance } = useQuery({
     queryKey: ['finance', 'latestSnapshot'],
     queryFn: financeApi.latestSnapshot,
@@ -457,9 +468,23 @@ export function DashboardPage() {
         <Grid>
           <GridItem5>
             <SummaryCard
-              icon={IndianRupee}
-              color="primary"
               title="Finance"
+              subtitle="Net worth, CC debt, and take-home income"
+              icon={<IndianRupee size={16} />}
+              action={
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Select
+                    size="sm"
+                    fullWidth={false}
+                    options={[
+                      { label: 'Monthly', value: 'monthly' },
+                      { label: 'Yearly', value: 'yearly' },
+                    ]}
+                    value={financePeriod}
+                    onChange={(val) => setFinancePeriod(val as string)}
+                  />
+                </div>
+              }
               loading={loadingFinance}
               onClick={() => navigate('/areas/finance')}
               stats={[
@@ -471,9 +496,23 @@ export function DashboardPage() {
           </GridItem5>
           <GridItem4>
             <SummaryCard
-              icon={Heart}
-              color="accent"
               title="Health"
+              subtitle="Weight logs, gym streaks, and active stats"
+              icon={<Heart size={16} />}
+              action={
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Select
+                    size="sm"
+                    fullWidth={false}
+                    options={[
+                      { label: '7 Days', value: '7d' },
+                      { label: '30 Days', value: '30d' },
+                    ]}
+                    value={healthPeriod}
+                    onChange={(val) => setHealthPeriod(val as string)}
+                  />
+                </div>
+              }
               loading={loadingHealth || loadingStreak}
               onClick={() => navigate('/areas/health')}
               stats={[
@@ -485,9 +524,23 @@ export function DashboardPage() {
           </GridItem4>
           <GridItem3>
             <SummaryCard
-              icon={Zap}
-              color="muted"
               title="Agents"
+              subtitle="Autonomous agent task runners and status"
+              icon={<Zap size={16} />}
+              action={
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Select
+                    size="sm"
+                    fullWidth={false}
+                    options={[
+                      { label: 'All', value: 'all' },
+                      { label: 'Active', value: 'active' },
+                    ]}
+                    value={agentStatus}
+                    onChange={(val) => setAgentStatus(val as string)}
+                  />
+                </div>
+              }
               loading={loadingAgents}
               onClick={() => navigate('/agents')}
               stats={[
@@ -503,9 +556,23 @@ export function DashboardPage() {
           <GridItem8>
             <InnerGrid>
               <AreaTile
-                icon={Briefcase}
-                color="primary"
                 title="Career"
+                subtitle="Tracked skills and development events"
+                icon={<Briefcase size={16} />}
+                action={
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Select
+                      size="sm"
+                      fullWidth={false}
+                      options={[
+                        { label: '30 Days', value: '30d' },
+                        { label: '90 Days', value: '90d' },
+                      ]}
+                      value={careerPeriod}
+                      onChange={(val) => setCareerPeriod(val as string)}
+                    />
+                  </div>
+                }
                 loading={loadingCareer}
                 onClick={() => navigate('/areas/career')}
                 stats={[
@@ -514,9 +581,23 @@ export function DashboardPage() {
                 ]}
               />
               <AreaTile
-                icon={Rocket}
-                color="accent"
                 title="Business"
+                subtitle="Monthly recurring revenue and milestones"
+                icon={<Rocket size={16} />}
+                action={
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Select
+                      size="sm"
+                      fullWidth={false}
+                      options={[
+                        { label: 'MRR: All', value: 'all' },
+                        { label: 'MRR: Active', value: 'active' },
+                      ]}
+                      value={businessMrr}
+                      onChange={(val) => setBusinessMrr(val as string)}
+                    />
+                  </div>
+                }
                 loading={loadingBusiness}
                 onClick={() => navigate('/areas/business')}
                 stats={[
@@ -525,9 +606,23 @@ export function DashboardPage() {
                 ]}
               />
               <AreaTile
-                icon={PenLine}
-                color="muted"
                 title="Content"
+                subtitle="Post pipeline and publication pipeline"
+                icon={<PenLine size={16} />}
+                action={
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Select
+                      size="sm"
+                      fullWidth={false}
+                      options={[
+                        { label: 'All Status', value: 'all' },
+                        { label: 'Published', value: 'published' },
+                      ]}
+                      value={contentStatus}
+                      onChange={(val) => setContentStatus(val as string)}
+                    />
+                  </div>
+                }
                 loading={loadingContent}
                 onClick={() => navigate('/areas/content')}
                 stats={[
@@ -539,7 +634,15 @@ export function DashboardPage() {
           </GridItem8>
 
           <GridItem4Xl>
-            <GlassCard title="Quick Capture" hoverable fadeIn="up" delay={100}>
+            <GlassCard
+              title="Quick Capture"
+              subtitle="One-line jot that lands in your inbox"
+              icon={<Inbox size={16} />}
+              action={<Button size="sm" variant="ghost" onClick={() => navigate('/captures')}>View All</Button>}
+              hoverable
+              fadeIn="up"
+              delay={100}
+            >
               <QuickLogInput />
             </GlassCard>
           </GridItem4Xl>

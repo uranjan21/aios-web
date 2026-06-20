@@ -2,12 +2,11 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@/components/ui/Popconfirm'
-import { Button, Switch, Dialog, Badge, Input, DataTable } from '@ledgr/ui'
-import { Trash2, PencilLine } from 'lucide-react'
+import { Button, Switch, Dialog, Badge, Input, DataTable, SegmentedControl, Card } from '@ledgr/ui'
+import { Trash2, PencilLine, Landmark } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { FinanceLoan } from '@/types'
-import { Card } from '@/components/ui/Card'
 import { PayoffPlanner } from './PayoffPlanner'
 import styled from 'styled-components'
 
@@ -140,6 +139,7 @@ export function LoansTab() {
   const queryClient = useQueryClient()
   const [updatingLoan, setUpdatingLoan] = useState<FinanceLoan | null>(null)
   const [outstandingAmount, setOutstandingAmount] = useState<string>('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paid'>('all')
 
   const { data: loans, isLoading } = useQuery({
     queryKey: ['finance', 'loans'],
@@ -286,13 +286,34 @@ export function LoansTab() {
     }
   ]
 
+  const visibleLoans = (loans ?? []).filter(l =>
+    statusFilter === 'all' ? true : statusFilter === 'active' ? l.is_active : !l.is_active
+  )
+
   if (isLoading) return <LoadingContainer><LoadHead /><LoadBody /></LoadingContainer>;
 
   return (
     <RootContainer>
-      <Card title="Loans & EMIs">
+      <Card
+        title="Loans & EMIs"
+        subtitle="Outstanding balances and monthly EMI obligations"
+        icon={<Landmark size={16} />}
+        action={
+          <SegmentedControl
+            size="sm"
+            aria-label="Filter loans by status"
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as typeof statusFilter)}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'active', label: 'Active' },
+              { value: 'paid', label: 'Paid off' },
+            ]}
+          />
+        }
+      >
         <DataTable
-          rows={loans ?? []}
+          rows={visibleLoans}
           columns={columns}
           getRowKey={(row: any) => row.id}
         />

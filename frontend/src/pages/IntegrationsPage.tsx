@@ -11,8 +11,7 @@ import {
   AlertDialogCancel, AlertDialogAction,
 } from '@/components/ui/alert-dialog'
 import { IconBadge, StatusPill } from '@/components/lumina';
-import { Card as GlassCard } from '@ledgr/ui';
-import { PageHeader } from '@/components/layout/PageLayout'
+import { Card as GlassCard, PageHeader } from '@ledgr/ui';
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
 import type { Integration } from '@/types'
@@ -162,21 +161,19 @@ function IntegrationCard({ integration }: { integration: Integration }) {
   const [dialogOpen, setDialogOpen] = useState(false)
 
   return (
-    <GlassCard hoverable fadeIn="up">
-      <CardTop>
-        <ProviderInfo>
-          <StatusIcon status={integration.status} />
-          <ProviderText>
-            <h3 style={{ fontSize: 14, fontWeight: 500, color: theme.color.foreground, margin: 0 }}>{info.label}</h3>
-            <p style={{ fontSize: 12, color: theme.color.mutedForeground, margin: 0 }}>{info.desc}</p>
-          </ProviderText>
-        </ProviderInfo>
+    <GlassCard
+      hoverable
+      fadeIn="up"
+      title={info.label}
+      subtitle={info.desc}
+      icon={<StatusIcon status={integration.status} />}
+      action={
         <StatusPill
           label={integration.status}
           tone={integration.status === 'connected' ? 'primary' : integration.status === 'expired' ? 'accent' : 'muted'}
         />
-      </CardTop>
-
+      }
+    >
       <CardActions>
         {integration.status !== 'connected' ? (
           <Button onClick={() => connectMutation.mutate()} disabled={connectMutation.isPending}>
@@ -230,7 +227,7 @@ export function IntegrationsPage() {
   return (
     <PageRoot>
       <PageContent>
-        <PageHeader title="Integrations" description="Connect your favorite tools and services." icon={Puzzle} />
+        <PageHeader title="Integrations" subtitle="Connect your favorite tools and services." icon={<Puzzle />} />
         {isError ? (
           <ErrorCard message="Could not load integrations" onRetry={() => refetch()} />
         ) : (

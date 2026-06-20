@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@/components/ui/Popconfirm'
-import { Button, Switch, Badge } from '@ledgr/ui'
-import { Trash2, Zap } from 'lucide-react'
+import { useState } from 'react'
+import { Button, Switch, Badge, SegmentedControl } from '@ledgr/ui'
+import { Trash2, Zap, Receipt } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { FinanceBill } from '@/types'
@@ -101,6 +102,7 @@ function ordinal(n: number) {
 
 export function BillsTab() {
   const queryClient = useQueryClient()
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused'>('all')
   const { data: bills, isLoading } = useQuery({
     queryKey: ['finance', 'bills'],
     queryFn: financeApi.bills,
@@ -124,6 +126,9 @@ export function BillsTab() {
   const sorted = [...(bills ?? [])].sort((a, b) => getDaysUntilDue(a.due_day) - getDaysUntilDue(b.due_day))
   const activeBills = sorted.filter(b => b.is_active)
   const totalAmount = activeBills.reduce((s, b) => s + Number(b.amount), 0)
+  const visible = sorted.filter(b =>
+    statusFilter === 'all' ? true : statusFilter === 'active' ? b.is_active : !b.is_active
+  )
 
   const columns = [
     {
@@ -208,7 +213,22 @@ export function BillsTab() {
   return (
     <Table
       title="Recurring Bills"
-      rows={sorted}
+      subtitle="Upcoming monthly bills sorted by due date"
+      icon={<Receipt size={16} />}
+      action={
+        <SegmentedControl
+          size="sm"
+          aria-label="Filter bills by status"
+          value={statusFilter}
+          onChange={(v) => setStatusFilter(v as typeof statusFilter)}
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'active', label: 'Active' },
+            { value: 'paused', label: 'Paused' },
+          ]}
+        />
+      }
+      rows={visible}
       columns={columns}
       getRowKey={row => row.id}
       footer={

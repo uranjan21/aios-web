@@ -72,9 +72,9 @@ const Trigger = styled.button<{ $size: SelectSize; $invalid: boolean; $fullWidth
   width: ${({ $fullWidth }) => ($fullWidth ? '100%' : 'auto')};
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   color: ${({ theme }) => theme.color.foreground};
+  border-radius: 9999px;
   background: ${({ theme }) => theme.color.card};
-  border: 1px solid ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.input)};
-  border-radius: ${({ theme }) => theme.radii.md};
+  border: 1px solid ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.border)};
   cursor: pointer;
   text-align: left;
   white-space: nowrap;

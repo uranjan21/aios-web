@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Popconfirm } from '@/components/ui/Popconfirm';
-import { Button, Badge, EmptyState, DataTable, Dialog } from '@ledgr/ui';
-import { Trash2 } from 'lucide-react';
+import { Button, Badge, EmptyState, DataTable, Dialog, Select, Card } from '@ledgr/ui';
+import { Trash2, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 import styled from 'styled-components';
 import dayjs from 'dayjs';
 import { financeApi } from '@/api/areas';
 import { formatCurrency } from '@/lib/utils';
-import { Card } from '@/components/ui/Card';
+import { PencilLine } from 'lucide-react';
+import { Input } from '@ledgr/ui';
 
 const LoadingText = styled.div`
   font-size: 12px;
@@ -116,6 +117,14 @@ function AccountLedgerDrawer({ account, onClose }: { account: any | null; onClos
 export const AccountManager: React.FC = () => {
   const queryClient = useQueryClient();
   const [ledgerAccount, setLedgerAccount] = useState<any | null>(null);
+  const [editingAccount, setEditingAccount] = useState<any | null>(null);
+  const [editName, setEditName] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+
+  // Sync editing state
+  React.useEffect(() => {
+    if (editingAccount) setEditName(editingAccount.name);
+  }, [editingAccount]);
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['finance', 'accounts'],
@@ -130,6 +139,15 @@ export const AccountManager: React.FC = () => {
     }
   });
 
+  const updateMutation = useMutation({
+    mutationFn: (data: { id: string, name: string }) => financeApi.updateAccount(data.id, { name: data.name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['finance', 'accounts'] });
+      toast.success('Account updated');
+      setEditingAccount(null);
+    }
+  });
+
   const columns = [
     { id: 'name', header: 'Name', cell: (row: any) => row.name },
     { id: 'type', header: 'Type', cell: (row: any) => row.type.replace('_', ' ').toUpperCase() },
@@ -138,19 +156,46 @@ export const AccountManager: React.FC = () => {
       id: 'action',
       header: 'Action',
       cell: (row: any) => (
-        <Popconfirm title="Delete account?" onConfirm={() => deleteMutation.mutate(row.id)}>
-          <Button variant="destructive" size="icon" onClick={e => e.stopPropagation()}>
-            <Trash2 size={14} />
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Button variant="outline" size="icon" onClick={(e) => { e.stopPropagation(); setEditingAccount(row); }}>
+            <PencilLine size={14} />
           </Button>
-        </Popconfirm>
+          <Popconfirm title="Delete account?" onConfirm={() => deleteMutation.mutate(row.id)}>
+            <Button variant="destructive" size="icon" onClick={e => e.stopPropagation()}>
+              <Trash2 size={14} />
+            </Button>
+          </Popconfirm>
+        </div>
       ),
     },
   ];
 
+  const accountTypes = Array.from(new Set(accounts.map((a: any) => a.type))) as string[];
+  const visibleAccounts = typeFilter === 'all'
+    ? accounts
+    : accounts.filter((a: any) => a.type === typeFilter);
+
   return (
-    <Card title="Accounts">
+    <Card
+      title="Accounts"
+      subtitle="Your cash, bank, and wallet balances"
+      icon={<Wallet size={16} />}
+      action={
+        <Select
+          size="sm"
+          fullWidth={false}
+          aria-label="Filter accounts by type"
+          value={typeFilter}
+          onChange={(v) => setTypeFilter(String(v))}
+          options={[
+            { value: 'all', label: 'All types' },
+            ...accountTypes.map((t) => ({ value: t, label: t.replace('_', ' ').toUpperCase() })),
+          ]}
+        />
+      }
+    >
       <DataTable
-        rows={accounts}
+        rows={visibleAccounts}
         columns={columns}
         getRowKey={row => row.id}
         loading={isLoading}
@@ -158,6 +203,17 @@ export const AccountManager: React.FC = () => {
       />
 
       <AccountLedgerDrawer account={ledgerAccount} onClose={() => setLedgerAccount(null)} />
+
+      <Dialog title="Edit Account" open={!!editingAccount} onOpenChange={v => { if (!v) setEditingAccount(null) }}>
+        <div style={{ padding: '4px 0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ fontSize: 12, fontWeight: 500 }}>Account Name</div>
+          <Input value={editName} onChange={e => setEditName(e.target.value)} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+          <Button variant="ghost" onClick={() => setEditingAccount(null)}>Cancel</Button>
+          <Button variant="primary" onClick={() => updateMutation.mutate({ id: editingAccount.id, name: editName })} loading={updateMutation.isPending}>Save</Button>
+        </div>
+      </Dialog>
     </Card>
   );
 };

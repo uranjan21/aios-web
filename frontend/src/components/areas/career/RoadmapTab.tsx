@@ -1,7 +1,8 @@
 // @ts-nocheck
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Timeline } from 'antd'
-import { Badge, Card } from '@ledgr/ui'
+import { Badge, Card, SegmentedControl } from '@ledgr/ui'
 import { History, MapPin } from 'lucide-react'
 import { careerApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -139,6 +140,7 @@ function EventCard({ event }: { event: CareerEvent }) {
 }
 
 export function RoadmapTab({ onAddEvent }: { onAddEvent?: () => void }) {
+  const [eventFilter, setEventFilter] = useState<'all' | 'milestone' | 'learning' | 'project'>('all')
   const { data: events, isLoading } = useQuery({
     queryKey: ['career', 'events'],
     queryFn: careerApi.events,
@@ -165,7 +167,10 @@ export function RoadmapTab({ onAddEvent }: { onAddEvent?: () => void }) {
     )
   }
 
-  const timelineItems = events.map(event => ({
+  const visibleEvents = events.filter(e =>
+    eventFilter === 'all' ? true : (e.event_type || '').toLowerCase().includes(eventFilter)
+  )
+  const timelineItems = visibleEvents.map(event => ({
     key: event.id,
     dot: <TimelineDot />,
     children: <EventCard event={event} />,
@@ -178,7 +183,26 @@ export function RoadmapTab({ onAddEvent }: { onAddEvent?: () => void }) {
         <MapPin size={16} style={{ color: 'var(--muted-foreground)' }} />
         <CountText>{events.length} events on your career timeline</CountText>
       </CountRow>
-      <Card size="md">
+      <Card
+        title="Career Timeline"
+        subtitle="Milestones, learning, and projects in chronological order"
+        icon={<History size={16} />}
+        action={
+          <SegmentedControl
+            size="sm"
+            aria-label="Filter timeline by event type"
+            value={eventFilter}
+            onChange={(v) => setEventFilter(v as typeof eventFilter)}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'milestone', label: 'Milestones' },
+              { value: 'learning', label: 'Learning' },
+              { value: 'project', label: 'Projects' },
+            ]}
+          />
+        }
+        size="md"
+      >
         <Timeline items={timelineItems} style={{ marginTop: 8 }} />
       </Card>
     </Root>

@@ -2,13 +2,12 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@/components/ui/Popconfirm'
-import { Button, Select, SelectItem, Input, DataTable } from '@ledgr/ui'
-import { Trash2, PencilLine } from 'lucide-react'
+import { Button, Select, SelectItem, Input, DataTable, SegmentedControl, Card } from '@ledgr/ui'
+import { Trash2, PencilLine, Gauge } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { formatCurrency } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { BudgetLimit } from '@/types'
-import { Card } from '@/components/ui/Card'
 import { TableFooter } from '@/components/ui/Table'
 import styled from 'styled-components'
 
@@ -130,6 +129,7 @@ export function BudgetsTab() {
   const [editing, setEditing] = useState<BudgetLimit | null>(null)
   const [formCategory, setFormCategory] = useState<string>('')
   const [formLimit, setFormLimit] = useState<string>('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'over' | 'near' | 'ok'>('all')
 
   const { data: budgets, isLoading } = useQuery({
     queryKey: ['finance', 'budgets'],
@@ -241,10 +241,38 @@ export function BudgetsTab() {
     }
   ]
 
+  const visibleBudgets = (budgets ?? []).filter((b) => {
+    if (statusFilter === 'all') return true
+    const limit = Number(b.monthly_limit)
+    const spent = spentByCategory.get(b.category) ?? 0
+    const pct = limit > 0 ? (spent / limit) * 100 : 0
+    if (statusFilter === 'over') return spent > limit
+    if (statusFilter === 'near') return spent <= limit && pct >= 80
+    return pct < 80
+  })
+
   if (isLoading) return <LoadingContainer><LoadingHeader /><LoadingBody /></LoadingContainer>;
 
   return (
-    <Card title="Limits by Category">
+    <Card
+      title="Limits by Category"
+      subtitle="Monthly spending caps and how much you've used"
+      icon={<Gauge size={16} />}
+      action={
+        <SegmentedControl
+          size="sm"
+          aria-label="Filter budgets by status"
+          value={statusFilter}
+          onChange={(v) => setStatusFilter(v as typeof statusFilter)}
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'over', label: 'Over' },
+            { value: 'near', label: 'Near' },
+            { value: 'ok', label: 'On track' },
+          ]}
+        />
+      }
+    >
       {/* Add/Edit form */}
       {showForm && (
         <FormContainer>
@@ -271,7 +299,7 @@ export function BudgetsTab() {
       )}
 
       <DataTable
-        rows={budgets ?? []}
+        rows={visibleBudgets}
         columns={columns}
         getRowKey={row => row.category}
       />

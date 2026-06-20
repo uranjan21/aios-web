@@ -3,15 +3,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import styled from 'styled-components'
 
-import { Utensils, Clock, Search } from 'lucide-react'
+import { Utensils, Clock, Search, Plus, Flame, ListChecks } from 'lucide-react'
 import { healthApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import { format } from 'date-fns'
 import type { FoodDbItem } from '@/types'
 import { Card as GlassCard } from '@ledgr/ui';
 import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
-import { TabToolbar } from '@/components/ui/TabToolbar'
-import { Dialog, Button, Input, Select, SelectItem, Card } from '@ledgr/ui'
+import { Dialog, Button, Input, Select, SelectItem, Card, HeaderActionPortal, SegmentedControl } from '@ledgr/ui'
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack']
 
@@ -367,6 +366,7 @@ const StyledButtonContent = styled.span`
 
 export function NutritionTab() {
   const [formState, setFormState] = useState({ food_name: '', calories: '', protein: '', carbs: '', fat: '', meal_type: 'Snack' })
+  const [nutritionPeriod, setNutritionPeriod] = useState('today')
   const queryClient = useQueryClient()
   const [foodQuery, setFoodQuery] = useState('')
   const [selectedFood, setSelectedFood] = useState<FoodDbItem | null>(null)
@@ -450,6 +450,7 @@ export function NutritionTab() {
   const fatTarget = goals?.fat_target ?? 65
 
   const [logModalOpen, setLogModalOpen] = useState(false)
+  const [mealFilter, setMealFilter] = useState<'all' | 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack'>('all')
 
   useEffect(() => {
     const handleOpen = () => setLogModalOpen(true)
@@ -462,9 +463,34 @@ export function NutritionTab() {
   return (
     <>
     <WorkspaceLayout rail={undefined}>
+      <HeaderActionPortal>
+        <Button size="sm" variant="primary" onClick={() => setLogModalOpen(true)}>
+          <Plus size={12} style={{ marginRight: 4 }} /> Log Meal
+        </Button>
+      </HeaderActionPortal>
       <StyledContainer>
         {/* Calorie ring + macros */}
-        <Card title="Today's Nutrition" size="md">
+        <Card
+          title="Today's Nutrition"
+          subtitle="Calories burned vs target with macro breakdown"
+          icon={<Flame size={16} />}
+          action={
+            <div onClick={(e) => e.stopPropagation()}>
+              <Select
+                size="sm"
+                value={nutritionPeriod}
+                onChange={(val: any) => setNutritionPeriod(val)}
+                options={[
+                  { value: 'today', label: 'Today' },
+                  { value: 'weekly', label: 'Weekly (Avg)' },
+                  { value: 'monthly', label: 'Monthly (Avg)' },
+                ]}
+                style={{ width: '120px' }}
+              />
+            </div>
+          }
+          size="md"
+        >
           {loadingNutrition || loadingGoals ? (
             <Skeleton style={{ height: '10rem', width: '100%' }} />
           ) : (
@@ -480,14 +506,40 @@ export function NutritionTab() {
         </Card>
 
         {/* Today's meals */}
-        <Card title="Today's Meals" size="none">
+        <Card
+          title="Today's Meals"
+          subtitle="Each meal you've logged today with macros"
+          icon={<ListChecks size={16} />}
+          action={
+            <SegmentedControl
+              size="sm"
+              aria-label="Filter meals by type"
+              value={mealFilter}
+              onChange={(v) => setMealFilter(v as typeof mealFilter)}
+              options={[
+                { value: 'all', label: 'All' },
+                { value: 'Breakfast', label: 'B' },
+                { value: 'Lunch', label: 'L' },
+                { value: 'Dinner', label: 'D' },
+                { value: 'Snack', label: 'S' },
+              ]}
+            />
+          }
+          size="none"
+        >
           {loadingNutrition ? (
             <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>{[1, 2, 3].map(i => <Skeleton key={i} style={{ height: '3rem', width: '100%' }} />)}</div>
           ) : !nutrition?.meals.length ? (
             <StyledEmptyState>No meals logged today. Use the rail to log one.</StyledEmptyState>
           ) : (
             <StyledMealsList>
-              {nutrition.meals.map(meal => {
+              {nutrition.meals
+                .filter(meal => {
+                  if (mealFilter === 'all') return true
+                  const parsed = parseMealNotes(meal.notes)
+                  return parsed.meal_type === mealFilter
+                })
+                .map(meal => {
                 const parsed = parseMealNotes(meal.notes)
                 return (
                   <StyledMealItem key={meal.id}>

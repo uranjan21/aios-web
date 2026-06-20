@@ -1,8 +1,9 @@
 import React from 'react';
 import styled, { useTheme } from 'styled-components';
 import { Popconfirm } from '@/components/ui/Popconfirm';
-import { Button, Badge, EmptyState, DataTable } from '@ledgr/ui';
-import { Sparkles, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Button, Badge, EmptyState, DataTable, SegmentedControl } from '@ledgr/ui';
+import { Sparkles, TrendingUp, AlertCircle, CheckCircle, Repeat } from 'lucide-react';
 import Highcharts from 'highcharts';
 Highcharts.setOptions({ accessibility: { enabled: false } });
 import HighchartsReact from 'highcharts-react-official';
@@ -197,7 +198,11 @@ export const AIInsightsEngine = () => {
   }
 
   return (
-    <GlassCard title="AI Financial Insights" icon={<Sparkles size={16} color={theme.color.accent} />}>
+    <GlassCard
+      title="AI Financial Insights"
+      subtitle="Patterns and tips inferred from your recent activity"
+      icon={<Sparkles size={16} color={theme.color.accent} />}
+    >
       {isLoading ? (
         <InsightsLoadingContainer>
           <InsightsLoadingSkeleton />
@@ -275,7 +280,11 @@ export const CashflowForecasting = () => {
   };
 
   return (
-    <GlassCard title="Cashflow Trend" icon={<TrendingUp size={16} color={theme.color.primary} />}>
+    <GlassCard
+      title="Cashflow Trend"
+      subtitle="Daily net inflow minus outflow over the period"
+      icon={<TrendingUp size={16} color={theme.color.primary} />}
+    >
       {isLoading ? (
         <Skeleton style={{ height: '250px', width: '100%' }} />
       ) : byDay.length === 0 ? (
@@ -289,6 +298,7 @@ export const CashflowForecasting = () => {
 
 export const SubscriptionManagement = () => {
   const queryClient = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused'>('all');
 
   const { data: bills, isLoading } = useQuery({
     queryKey: ['finance', 'bills'],
@@ -307,6 +317,9 @@ export const SubscriptionManagement = () => {
   const subs = (bills ?? []).filter(b => b.category === 'subscriptions');
   const activeCount = subs.filter(s => s.is_active).length;
   const activeTotal = subs.filter(s => s.is_active).reduce((s, b) => s + Number(b.amount), 0);
+  const visibleSubs = subs.filter(s =>
+    statusFilter === 'all' ? true : statusFilter === 'active' ? s.is_active : !s.is_active
+  );
 
   const columns = [
     {
@@ -359,9 +372,26 @@ export const SubscriptionManagement = () => {
   if (isLoading) return <LoadingContainer><LoadingHeader /><LoadingBody /></LoadingContainer>;
 
   return (
-    <GlassCard title="Subscriptions">
+    <GlassCard
+      title="Subscriptions"
+      subtitle="Recurring service charges and their state"
+      icon={<Repeat size={16} />}
+      action={
+        <SegmentedControl
+          size="sm"
+          aria-label="Filter subscriptions by status"
+          value={statusFilter}
+          onChange={(v) => setStatusFilter(v as typeof statusFilter)}
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'active', label: 'Active' },
+            { value: 'paused', label: 'Paused' },
+          ]}
+        />
+      }
+    >
       <DataTable
-        rows={subs}
+        rows={visibleSubs}
         columns={columns}
         getRowKey={row => row.id}
       />

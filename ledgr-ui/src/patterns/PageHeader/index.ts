@@ -1,2 +1,2 @@
-export { PageHeader } from './PageHeader';
+export { PageHeader, PageHeaderProvider, HeaderActionPortal } from './PageHeader';
 export type { PageHeaderProps } from './PageHeader';

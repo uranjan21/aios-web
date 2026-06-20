@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Timeline } from 'antd'
 import { Button, Input, Select, SelectItem, Textarea, Badge, Card } from '@ledgr/ui'
-import { Plus, History } from 'lucide-react'
+import { Plus, History, ListChecks } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import styled from 'styled-components'
 import { businessApi } from '@/api/areas'
@@ -216,13 +216,16 @@ const StyledEventSkeleton = styled(Skeleton)`
 
 export function EventsTab() {
   const [showForm, setShowForm] = useState(false)
+  const [eventTypeFilter, setEventTypeFilter] = useState('all')
 
   const { data: events, isLoading } = useQuery({
     queryKey: ['business', 'events'],
     queryFn: businessApi.events,
   })
 
-  const timelineItems = events?.map(event => ({
+  const filteredEvents = events?.filter(event => eventTypeFilter === 'all' || event.event_type === eventTypeFilter)
+
+  const timelineItems = filteredEvents?.map(event => ({
     key: event.id,
     dot: <TimelineDot />,
     children: (
@@ -256,15 +259,34 @@ export function EventsTab() {
         {showForm && <NewEventForm onClose={() => setShowForm(false)} />}
       </AnimatePresence>
 
-      <Card 
-        title="Event Log" 
+      <Card
+        title="Event Log"
+        subtitle="Recent milestones, feature ships, and notable changes"
+        icon={<ListChecks size={16} />}
         size="md"
         action={
-          !showForm ? (
-            <LogEventButton onClick={() => setShowForm(true)}>
-              <Plus size={12} /> Log Event
-            </LogEventButton>
-          ) : undefined
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Select
+              size="sm"
+              fullWidth={false}
+              options={[
+                { label: 'All Events', value: 'all' },
+                { label: 'Feature Shipped', value: 'feature_shipped' },
+                { label: 'Decision', value: 'decision' },
+                { label: 'Revenue', value: 'revenue' },
+                { label: 'Blocker', value: 'blocker' },
+                { label: 'Milestone', value: 'milestone' },
+                { label: 'Note', value: 'note' },
+              ]}
+              value={eventTypeFilter}
+              onChange={(val) => setEventTypeFilter(val as string)}
+            />
+            {!showForm && (
+              <LogEventButton onClick={() => setShowForm(true)}>
+                <Plus size={12} /> Log Event
+              </LogEventButton>
+            )}
+          </div>
         }
       >
         {isLoading ? (

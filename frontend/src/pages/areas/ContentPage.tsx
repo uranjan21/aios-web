@@ -1,13 +1,12 @@
 // @ts-nocheck
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, forwardRef } from 'react'
-import { Input, Dialog, ConfirmDialog, Button } from '@ledgr/ui'
+import { Input, Dialog, ConfirmDialog, Button, Select } from '@ledgr/ui'
 import { Card as AppCard } from '@ledgr/ui'
 import { toast } from 'sonner'
 import { Plus, LayoutGrid, Edit2, Calendar, Trash2, TrendingUp, Eye, MousePointerClick, WandSparkles, PenLine, Columns3, Bot, Search, Bell, PlusCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
-import { FilterBar, PeriodSelect } from '@/components/ui/FilterBar'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   DndContext, DragOverlay, PointerSensor,
@@ -21,7 +20,8 @@ import { TwitterQueueCard } from '@/components/areas/content/TwitterQueueCard'
 import { ColumnDropZone } from '@/components/areas/content/ColumnDropZone'
 import { ContentCaptureModal } from '@/components/areas/content/ContentCaptureModal'
 import { StatusPill, type StatusPillTone } from '@/components/lumina'
-import { PageHeader, PageToolbar, ActionChip } from '@/components/layout/PageLayout'
+import { PageToolbar } from '@/components/layout/PageLayout'
+import { PageHeader } from '@ledgr/ui'
 import { AreaTabs } from '@/components/ui/AreaTabs'
 import type { ContentItem } from '@/types'
 import styled from 'styled-components'
@@ -317,12 +317,30 @@ const EngagStats = styled.div`
 `
 
 function EngagementWidget({ publishedCount }: { publishedCount: number }) {
+  const [period, setPeriod] = useState('30d')
   return (
-    <AppCard noPadding={false} size="md" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-      <EngagHeader>
-        <TrendingUp size={16} style={{ color: '#1e50d0' }} />
-        <EngagTitle>Content Summary</EngagTitle>
-      </EngagHeader>
+    <AppCard
+      title="Content Summary"
+      subtitle="Snapshot of what you've shipped and engagement signal"
+      icon={<TrendingUp size={16} style={{ color: '#1e50d0' }} />}
+      action={
+        <div onClick={(e) => e.stopPropagation()}>
+          <Select
+            size="sm"
+            value={period}
+            onChange={(val: any) => setPeriod(val)}
+            options={[
+              { value: '7d', label: '7 Days' },
+              { value: '30d', label: '30 Days' },
+              { value: '90d', label: '90 Days' },
+            ]}
+          />
+        </div>
+      }
+      noPadding={false}
+      size="md"
+      style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+    >
       <EngagStats>
         <StatItemRoot>
           <StatItemLabel><Eye size={14} /> Published</StatItemLabel>
@@ -339,26 +357,10 @@ function EngagementWidget({ publishedCount }: { publishedCount: number }) {
 
 // ── Published drop zone ───────────────────────────────────────────────────────
 
-const PublishedZoneRoot = styled.div<{ $over: boolean }>`
-  background: ${({ $over }) => $over ? 'rgba(22,163,74,0.1)' : 'rgba(22,163,74,0.05)'};
-  border-radius: 18px;
-  padding: 16px;
-  min-height: 150px;
+const StyledPublishedCard = styled(AppCard)<{ $over: boolean }>`
+  background: ${({ $over }) => $over ? 'rgba(22,163,74,0.1)' : 'rgba(22,163,74,0.05)'} !important;
   transition: all 300ms;
-  box-shadow: ${({ $over }) => $over ? '0 0 0 2px rgba(22,163,74,0.4)' : 'none'};
-`
-
-const PublishedHead = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24px;
-`
-
-const PublishedLabel = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  border-color: ${({ $over }) => $over ? 'rgba(22,163,74,0.4)' : 'rgba(22,163,74,0.15)'} !important;
 `
 
 const PublishedDot = styled.div`
@@ -368,13 +370,6 @@ const PublishedDot = styled.div`
   background: #16a34a;
   animation: pulse 2s ease-in-out infinite;
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-`
-
-const PublishedTitle = styled.h3`
-  font-size: 14px;
-  font-weight: 500;
-  color: #16a34a;
-  margin: 0;
 `
 
 const PublishedCount = styled.span`
@@ -417,14 +412,15 @@ const PublishedSkeleton = styled(Skeleton)`
 function PublishedDropZone({ items, isLoading, activeId, onEdit, onSchedule, onDelete }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'published' })
   return (
-    <PublishedZoneRoot ref={setNodeRef} $over={isOver}>
-      <PublishedHead>
-        <PublishedLabel>
-          <PublishedDot />
-          <PublishedTitle>Published Content</PublishedTitle>
-        </PublishedLabel>
-        <PublishedCount>{isLoading ? '·' : items.length} live</PublishedCount>
-      </PublishedHead>
+    <StyledPublishedCard
+      ref={setNodeRef}
+      $over={isOver}
+      title="Published Content"
+      subtitle="Catalog of successfully published posts and articles"
+      icon={<div style={{ display: 'flex', alignItems: 'center' }}><PublishedDot /></div>}
+      action={<PublishedCount>{isLoading ? '·' : items.length} live</PublishedCount>}
+      size="md"
+    >
       <PublishedGrid>
         {isLoading ? (
           <>
@@ -452,7 +448,7 @@ function PublishedDropZone({ items, isLoading, activeId, onEdit, onSchedule, onD
           </AnimatePresence>
         )}
       </PublishedGrid>
-    </PublishedZoneRoot>
+    </StyledPublishedCard>
   )
 }
 
@@ -466,9 +462,6 @@ export function ContentPage() {
   const queryClient = useQueryClient()
   const [isLogModalOpen, setIsLogModalOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
-  const [platform, setPlatform] = useState('all')
-  const [period, setPeriod] = useState('2026-06')
   const navigate = useNavigate()
   const { setCmdPaletteOpen, setCaptureModalOpen } = useUIStore()
 
@@ -533,40 +526,13 @@ export function ContentPage() {
     <PageRoot>
       <PageContent>
         <PageHeader
-          icon={PenLine}
-          category="Creator"
+          icon={<PenLine />}
+          eyebrow="Creator"
           title="Content"
-          description="Ideas, pipeline and publishing — manage your content engine in one place."
-          actions={
-            <>
-              <ActionChip onClick={() => navigate('/chat')}><Bot /> Ask AI</ActionChip>
-              <ActionChip onClick={() => setCaptureModalOpen(true)}><PlusCircle /> Capture</ActionChip>
-              <ActionChip onClick={() => setCmdPaletteOpen(true)}><Search /> Search</ActionChip>
-              <ActionChip onClick={() => navigate('/agents')}><Bell /> Reminders</ActionChip>
-            </>
-          }
+          subtitle="Ideas, pipeline and publishing — manage your content engine in one place."
         />
         <AreaTabs
           defaultActiveKey="pipeline"
-          toolbar={
-            <FilterBar
-              search={{ value: query, onChange: setQuery, placeholder: 'Search ideas, drafts, posts…' }}
-              filters={[
-                { id: 'platform', label: 'Platform', value: platform, onChange: setPlatform, options: [
-                  { value: 'all', label: 'All platforms' },
-                  { value: 'twitter', label: 'Twitter / X' },
-                  { value: 'linkedin', label: 'LinkedIn' },
-                  { value: 'blog', label: 'Blog' },
-                ] },
-              ]}
-              period={<PeriodSelect value={period} onChange={setPeriod} />}
-              actions={
-                <Button variant="primary" size="sm" onClick={() => setIsLogModalOpen(true)} startIcon={<Plus size={12} />}>
-                  Capture Idea
-                </Button>
-              }
-            />
-          }
           items={[
           {
             key: 'pipeline',
@@ -589,6 +555,9 @@ export function ContentPage() {
                           </StatBlock>
                         </StatsChip>
                       )}
+                      <Button variant="primary" size="sm" onClick={() => setIsLogModalOpen(true)} startIcon={<Plus size={12} />}>
+                        Capture Idea
+                      </Button>
                     </PageToolbar>
                   </FullRow>
 

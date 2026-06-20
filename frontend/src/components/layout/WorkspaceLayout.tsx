@@ -1,5 +1,7 @@
-import type { ReactNode } from 'react'
+import { ReactNode } from 'react'
 import styled from 'styled-components'
+import { Card } from '@ledgr/ui'
+import { LayoutDashboard } from 'lucide-react'
 
 const Root = styled.div`
   display: flex;
@@ -14,17 +16,9 @@ const Root = styled.div`
   }
 `
 
-const Rail = styled.div`
+const StyledRail = styled(Card)`
   width: 100%;
   flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  border-radius: ${({ theme }) => theme.radii['2xl']};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  background: ${({ theme }) => theme.color.card};
-  box-shadow: ${({ theme }) => theme.shadow.xs};
-  padding: 16px;
 
   @media (min-width: 1024px) {
     width: 280px;
@@ -43,7 +37,16 @@ const Main = styled.div`
 export function WorkspaceLayout({ children, rail }: { children: ReactNode; rail?: ReactNode }) {
   return (
     <Root>
-      {rail && <Rail>{rail}</Rail>}
+      {rail && (
+        <StyledRail
+          title="Workspace"
+          subtitle="Workspace tools & quick actions"
+          icon={<LayoutDashboard size={16} />}
+          variant="glass"
+        >
+          {rail}
+        </StyledRail>
+      )}
       <Main>{children}</Main>
     </Root>
   )

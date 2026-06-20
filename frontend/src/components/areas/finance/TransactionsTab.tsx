@@ -8,7 +8,7 @@ import { SegmentedControl, Button, Dialog, DialogFooter, Input, Select, SelectIt
 import { toast } from 'sonner'
 import {
   ChevronLeft, ChevronRight, ShoppingBag, Clapperboard, Home, Heart,
-  CreditCard, Shirt, GraduationCap, Zap, Wallet, TrendingUp, ArrowUpRight, ArrowDownRight,
+  CreditCard, Shirt, GraduationCap, Zap, Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   ArrowLeftRight, ArrowDownCircle, ArrowUpCircle, PencilLine, Trash2, Search, Upload as UploadIcon,
   Plus } from 'lucide-react'
 import { financeApi } from '@/api/areas'
@@ -16,11 +16,12 @@ import { cn, formatCurrency } from '@/lib/utils'
 import styled from 'styled-components'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card as GlassCard } from '@ledgr/ui';
-import { AreaToolbar, ToolbarDivider, ToolbarIconBtn, DateNav, DateNavBtn, DateNavLabel } from '@/components/ui/AreaToolbar'
+import { AreaToolbar, ToolbarDivider, ToolbarIconBtn, DateNav, DateNavBtn, DateNavLabel, HeaderActionPortal } from '@ledgr/ui'
 import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
 import { TextTabs } from '@/components/ui/TextTabs'
 import { TransactionCalendar } from './TransactionCalendar'
 import { ImportCsvModal } from './ImportCsvModal'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
 
 dayjs.extend(isoWeek)
 
@@ -67,20 +68,6 @@ const SummaryGrid = styled.div`
   margin-bottom: 12px;
 `
 
-const SumPill = styled.div<{ $bg: string }>`
-  border-radius: 8px;
-  background: ${({ $bg }) => $bg};
-  padding: 6px 10px;
-`
-
-const SumLabel = styled.div<{ $color: string }>`
-  font-size: 9px;
-  color: ${({ $color }) => $color};
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-`
-
 const SumValue = styled.div<{ $color: string }>`
   font-size: 12px;
   font-weight: 500;
@@ -92,18 +79,30 @@ function SummaryBar({ income, expense }: { income: number; expense: number }) {
   const net = income - expense
   return (
     <SummaryGrid>
-      <SumPill $bg="rgba(248, 209, 104, 0.1)">
-        <SumLabel $color="var(--primary)">Income</SumLabel>
+      <GlassCard
+        title="Income"
+        subtitle="Total income"
+        icon={<TrendingUp size={14} style={{ color: 'var(--primary)' }} />}
+        size="sm"
+      >
         <SumValue $color="var(--primary)">{formatCurrency(income)}</SumValue>
-      </SumPill>
-      <SumPill $bg="rgba(244, 162, 97, 0.1)">
-        <SumLabel $color="var(--accent)">Expenses</SumLabel>
+      </GlassCard>
+      <GlassCard
+        title="Expenses"
+        subtitle="Total expenses"
+        icon={<TrendingDown size={14} style={{ color: 'var(--accent)' }} />}
+        size="sm"
+      >
         <SumValue $color="var(--accent)">{formatCurrency(expense)}</SumValue>
-      </SumPill>
-      <SumPill $bg="rgba(45, 49, 58, 0.04)">
-        <SumLabel>Net</SumLabel>
+      </GlassCard>
+      <GlassCard
+        title="Net"
+        subtitle="Net balance"
+        icon={<Wallet size={14} style={{ color: net >= 0 ? 'var(--primary)' : 'var(--accent)' }} />}
+        size="sm"
+      >
         <SumValue $color={net >= 0 ? 'var(--foreground)' : 'var(--accent)'}>{formatCurrency(net)}</SumValue>
-      </SumPill>
+      </GlassCard>
     </SummaryGrid>
   )
 }
@@ -487,7 +486,11 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
       {!isEdit && (
         <FullWidthWrap>
           <SegmentedControl
-            options={['Expense', 'Income', 'Transfer']}
+            options={[
+              { value: 'Expense', label: 'Expense' },
+              { value: 'Income', label: 'Income' },
+              { value: 'Transfer', label: 'Transfer' },
+            ]}
             value={kind}
             onChange={v => { setKind(v as Kind); setCategory(undefined) }}
           />
@@ -584,8 +587,9 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
 
 // ── Main tab ─────────────────────────────────────────────────────────────────
 export function TransactionsTab() {
-  const [view, setView] = useState<'Daily' | 'Calendar' | 'Weekly' | 'Monthly' | 'Total'>('Daily')
+  const [view, setView] = useState<'Daily' | 'Calendar' | 'Weekly' | 'Monthly'>('Daily')
   const [month, setMonth] = useState(() => dayjs().startOf('month'))
+  const [compareMonth, setCompareMonth] = useState(() => dayjs().subtract(1, 'month').startOf('month'))
   const [selectedDate, setSelectedDate] = useState(() => dayjs().format('YYYY-MM-DD'))
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Txn | null>(null)
@@ -600,7 +604,7 @@ export function TransactionsTab() {
   const [filterMax, setFilterMax] = useState<number | null>(null)
   const [filterRange, setFilterRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [filterTag, setFilterTag] = useState('')
-
+  const [chartFilter, setChartFilter] = useState<'Daily' | 'Weekly' | 'Monthly' | 'Yearly' | 'All Time'>('Monthly')
   useEffect(() => {
     const handleOpen = () => {
       setEditing(null)
@@ -622,7 +626,7 @@ export function TransactionsTab() {
   const searchActive = deferredSearch.trim().length > 0 || filtersActive
 
   const monthStr = month.format('YYYY-MM')
-  const prevMonthStr = month.subtract(1, 'month').format('YYYY-MM')
+  const prevMonthStr = compareMonth.format('YYYY-MM')
 
   const { data: cashflow, isLoading: loadingCashflow } = useQuery({
     queryKey: ['finance', 'cashflow', monthStr],
@@ -630,6 +634,10 @@ export function TransactionsTab() {
   const { data: prevCashflow } = useQuery({
     queryKey: ['finance', 'cashflow', prevMonthStr],
     queryFn: () => financeApi.cashflow(prevMonthStr),
+    enabled: view === 'Total' })
+  const { data: budgetStatus } = useQuery({
+    queryKey: ['finance', 'budgets', 'status', monthStr],
+    queryFn: () => financeApi.budgetStatus(monthStr),
     enabled: view === 'Total' })
   const { data: expensesPage, isLoading: loadingExpenses } = useQuery({
     queryKey: ['finance', 'expenses', 'month', monthStr],
@@ -746,50 +754,45 @@ export function TransactionsTab() {
   }
 
   const toolbar = (
-    <AreaToolbar
-      left={
-        <>
-          {/* Search */}
-          <Input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search…"
-            startAdornment={<Search size={13} />}
-            size="sm"
-            style={{ width: 160 }}
-          />
-          {/* Filters */}
-          <ToolbarIconBtn
-            onClick={() => setFilterOpen(true)}
-            data-active={filtersActive}
-            aria-pressed={filtersActive}
-          >
-            <Search size={13} />
-            Filters
-            {filtersActive && (
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', display: 'inline-block' }} />
-            )}
-          </ToolbarIconBtn>
-          {searchActive && (
-            <ToolbarIconBtn onClick={clearFilters}>
-              Clear
-            </ToolbarIconBtn>
+    <>
+      <HeaderActionPortal>
+        <Input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search transactions…"
+          startAdornment={<Search size={13} />}
+          size="sm"
+          style={{ width: 200 }}
+        />
+        <ToolbarIconBtn
+          onClick={() => setFilterOpen(true)}
+          data-active={filtersActive}
+          aria-pressed={filtersActive}
+        >
+          Filters
+          {filtersActive && (
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', display: 'inline-block', marginLeft: 4 }} />
           )}
-        </>
-      }
-    >
+        </ToolbarIconBtn>
+        {searchActive && (
+          <ToolbarIconBtn onClick={clearFilters}>
+            Clear
+          </ToolbarIconBtn>
+        )}
+        <Button size="sm" variant="primary" onClick={() => openAdd('Expense')}>
+          <Plus size={12} style={{ marginRight: 4 }} /> Add Transaction
+        </Button>
+      </HeaderActionPortal>
+      <AreaToolbar>
       {/* View switcher */}
-      <Select
-        size="sm"
+      <TextTabs
         value={view}
-        onChange={v => setView(v as any)}
-        style={{ minWidth: 120 }}
+        onChange={(v: any) => setView(v)}
         options={[
           { label: 'Daily', value: 'Daily' },
           { label: 'Weekly', value: 'Weekly' },
           { label: 'Monthly', value: 'Monthly' },
           { label: 'Calendar', value: 'Calendar' },
-          { label: 'Compare', value: 'Total' },
         ]}
       />
       {/* Date navigation */}
@@ -810,14 +813,15 @@ export function TransactionsTab() {
         <UploadIcon size={13} />
         Import
       </ToolbarIconBtn>
-    </AreaToolbar>
+      </AreaToolbar>
+    </>
   )
 
   if (isLoading) return (
-    <CardContent>
+    <div style={{ padding: '16px' }}>
       <StyledSkeleton $height="2.5rem" $margin="0 0 12px 0" />
       <StyledSkeleton $height="16rem" />
-    </CardContent>
+    </div>
   )
 
   // ── Search results (server-side, all months/types) ─────────────────────────
@@ -916,85 +920,19 @@ export function TransactionsTab() {
         <TxnList txns={transactions} emptyText="No transactions this month" onEdit={openEdit} />
       </>
     )
-  } else if (view === 'Total') {
-    const thisMonth = { income: cashflow?.income_total ?? 0, expense: cashflow?.expense_total ?? 0 }
-    const lastMonth = { income: prevCashflow?.income_total ?? 0, expense: prevCashflow?.expense_total ?? 0 }
-
-    const byCategory = new Map<string, number>()
-    transactions.filter(t => t.type === 'expense').forEach(t => byCategory.set(t.category, (byCategory.get(t.category) ?? 0) + t.amount))
-    const topCategories = Array.from(byCategory.entries()).sort((a, b) => b[1] - a[1]).slice(0, 6)
-    const maxCat = topCategories[0]?.[1] ?? 1
-
-    const Delta = ({ now, prev }: { now: number; prev: number }) => {
-      if (prev === 0) return null
-      const pct = ((now - prev) / prev) * 100
-      const up = pct >= 0
-      return (
-        <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 10, fontWeight: 500, marginLeft: 6, color: up ? 'var(--accent)' : 'var(--primary)' }}>
-          {up ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}{Math.abs(pct).toFixed(0)}%
-        </span>
-      )
-    }
-
-    body = (
-      <>
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: 12 }}>
-          {month.format('MMMM YYYY')} vs {month.subtract(1, 'month').format('MMMM YYYY')}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-          {[
-            { label: 'This Month', data: thisMonth, showDelta: true },
-            { label: 'Last Month', data: lastMonth, showDelta: false },
-          ].map(({ label, data, showDelta }) => (
-            <div key={label} style={{ borderRadius: 18, background: 'var(--muted, #eef1f7)', padding: 12 }}>
-              <div style={{ fontSize: 10, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 8 }}>{label}</div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                <span style={{ color: 'var(--muted-foreground)' }}>Income</span>
-                <span style={{ fontWeight: 600, color: 'var(--primary)' }}>
-                  {formatCurrency(data.income)}
-                  {showDelta && <Delta now={data.income} prev={lastMonth.income} />}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                <span style={{ color: 'var(--muted-foreground)' }}>Expenses</span>
-                <span style={{ fontWeight: 600, color: 'var(--accent)' }}>
-                  {formatCurrency(data.expense)}
-                  {showDelta && <Delta now={data.expense} prev={lastMonth.expense} />}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, paddingTop: 4, borderTop: '1px solid var(--border, #dde3ef)', marginTop: 4 }}>
-                <span style={{ color: 'var(--muted-foreground)' }}>Net</span>
-                <span style={{ fontWeight: 600, color: 'var(--foreground)' }}>{formatCurrency(data.income - data.expense)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Top Categories This Month</div>
-        {topCategories.length === 0 ? <EmptyState title="No expenses this month" style={{ padding: '16px 0' }} /> : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {topCategories.map(([cat, amt]) => (
-              <div key={cat}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                  <span style={{ color: 'var(--foreground)' }}>{cat}</span>
-                  <span style={{ fontWeight: 500, color: 'var(--foreground)' }}>{formatCurrency(amt)}</span>
-                </div>
-                <div style={{ height: 6, borderRadius: 999, background: 'var(--muted, #eef1f7)', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: 999, background: 'var(--primary)', width: `${(amt / maxCat) * 100}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </>
-    )
   }
 
   return (
     <>
       <WorkspaceLayout rail={undefined}>
         {toolbar}
-        {body}
+        <GlassCard
+          title="Transactions"
+          subtitle="Browse and search transaction logs for the selected period"
+          icon={<ArrowLeftRight size={16} />}
+        >
+          {body}
+        </GlassCard>
       </WorkspaceLayout>
       <TransactionModal open={modalOpen} onClose={closeModal} editing={editing} initialKind={quickKind} />
       <ImportCsvModal open={importOpen} onClose={() => setImportOpen(false)} />

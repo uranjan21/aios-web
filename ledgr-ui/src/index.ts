@@ -54,6 +54,7 @@ export * from './interactive/Select';
 /* ── Patterns ───────────────────────────────────────────────────────── */
 export * from './patterns/EmptyState';
 export * from './patterns/PageHeader';
+export * from './patterns/AreaToolbar';
 export * from './patterns/SegmentedControl';
 export * from './patterns/StatusBadge';
 export * from './patterns/MonthPicker';

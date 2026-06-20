@@ -2,12 +2,11 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@/components/ui/Popconfirm'
-import { Button, Dialog, Input, DataTable } from '@ledgr/ui'
-import { Trash2, PencilLine } from 'lucide-react'
+import { Button, Dialog, Input, DataTable, Select, Card } from '@ledgr/ui'
+import { Trash2, PencilLine, TrendingUp } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { FinanceInvestment } from '@/types'
-import { Card } from '@/components/ui/Card'
 import styled from 'styled-components'
 
 const AssetCell = styled.div`
@@ -131,6 +130,7 @@ export function InvestmentsTab() {
   const queryClient = useQueryClient()
   const [updatingHolding, setUpdatingHolding] = useState<FinanceInvestment | null>(null)
   const [currentValue, setCurrentValue] = useState<string>('')
+  const [typeFilter, setTypeFilter] = useState<string>('all')
 
   const { data: holdings, isLoading } = useQuery({
     queryKey: ['finance', 'investments'],
@@ -242,12 +242,32 @@ export function InvestmentsTab() {
     }
   ];
 
+  const holdingTypes = Array.from(new Set((holdings ?? []).map(h => h.type))) as string[]
+  const visibleHoldings = (holdings ?? []).filter(h => typeFilter === 'all' || h.type === typeFilter)
+
   if (isLoading) return <LoadingContainer><LoadingHeader /><LoadingBody /></LoadingContainer>;
 
   return (
-    <Card title="Portfolio Holdings">
+    <Card
+      title="Portfolio Holdings"
+      subtitle="Your investments and their current returns"
+      icon={<TrendingUp size={16} />}
+      action={
+        <Select
+          size="sm"
+          fullWidth={false}
+          aria-label="Filter holdings by asset type"
+          value={typeFilter}
+          onChange={(v) => setTypeFilter(String(v))}
+          options={[
+            { value: 'all', label: 'All assets' },
+            ...holdingTypes.map(t => ({ value: t, label: TYPE_META[t]?.label ?? t })),
+          ]}
+        />
+      }
+    >
       <DataTable
-        rows={holdings ?? []}
+        rows={visibleHoldings}
         columns={columns}
         getRowKey={row => row.id}
       />

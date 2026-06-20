@@ -2,10 +2,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
-import { Scale, Plus, Flame, Trophy, Activity, Target, Zap, Heart, LayoutDashboard, Moon, Apple, Dumbbell, History, Bot, Search, Bell, PlusCircle } from 'lucide-react'
+import { Scale, Flame, Trophy, Activity, Target, Zap, Heart, LayoutDashboard, Moon, Apple, Dumbbell, History, Bot, Search, Bell, PlusCircle, LineChart as LineChartIcon } from 'lucide-react'
+import { SegmentedControl } from '@ledgr/ui'
 import { useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
-import { FilterBar, PeriodSelect } from '@/components/ui/FilterBar'
 import { healthApi } from '@/api/areas'
 import { formatRelativeTime, exportToCsv } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -15,7 +15,7 @@ import { StatusPill } from '@/components/lumina';
 import { KpiCard } from '@ledgr/ui';
 import { Card as GlassCard } from '@ledgr/ui';
 import { Card as SectionCard } from '@ledgr/ui'
-import { Badge, Button } from '@ledgr/ui'
+import { Badge } from '@ledgr/ui'
 import { AreaTabs } from '@/components/ui/AreaTabs'
 import { HistoryTab } from '@/components/areas/health/HistoryTab'
 import { NutritionTab } from '@/components/areas/health/NutritionTab'
@@ -23,7 +23,7 @@ import { WaterTrackerWidget } from '@/components/areas/health/WaterTrackerWidget
 import { BodySleepTab } from '@/components/areas/health/BodySleepTab'
 import { FitnessTab } from '@/components/areas/health/FitnessTab'
 import { HealthLogModal } from '@/components/areas/health/HealthLogModal'
-import { PageHeader, ActionChip } from '@/components/layout/PageLayout'
+import { PageHeader } from '@ledgr/ui'
 import { AiInsightCard } from '@/components/AiInsightCard'
 import styled, { useTheme } from 'styled-components'
 
@@ -53,14 +53,6 @@ const StyledPageWrapper = styled.div`
 const StyledContentWrapper = styled.div`
   margin: 0 auto;
   max-width: 1200px;
-`;
-
-const StyledButtonContent = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 12px;
-  font-weight: 500;
 `;
 
 const StyledDashboardGrid = styled.div`
@@ -181,9 +173,7 @@ export function HealthPage() {
 
   const [activeKey, setActiveKey] = useState('1')
   const [isLogModalOpen, setIsLogModalOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const [logType, setLogType] = useState('all')
-  const [period, setPeriod] = useState('2026-06')
+  const [weightRange, setWeightRange] = useState<'7d' | '30d' | '90d'>('30d')
   const navigate = useNavigate()
   const { setCmdPaletteOpen, setCaptureModalOpen } = useUIStore()
 
@@ -191,15 +181,17 @@ export function HealthPage() {
   const animatedSessions = useCountUp(gymLogs?.length ?? null)
 
   const weightDataProcessed = useMemo(() => {
-    return weightLogs?.slice(0, 30).reverse().map(l => [
+    const days = weightRange === '7d' ? 7 : weightRange === '30d' ? 30 : 90
+    return weightLogs?.slice(0, days).reverse().map(l => [
       new Date(l.logged_at).getTime(),
       Number(l.value)
     ]) ?? [];
-  }, [weightLogs])
+  }, [weightLogs, weightRange])
 
   const weightOptions = useMemo(() => ({
     ...commonChartOptions,
     chart: { ...commonChartOptions.chart, type: 'area', height: 180 },
+    legend: { enabled: false },
     xAxis: {
       type: 'datetime',
       labels: { style: { color: theme.color.mutedForeground } }
@@ -231,77 +223,58 @@ export function HealthPage() {
     <StyledPageWrapper>
       <StyledContentWrapper>
       <PageHeader
-        icon={Heart}
-        category="Wellness"
+        icon={<Heart />}
+        eyebrow="Wellness"
         title="Health"
-        description="Body, sleep, nutrition and fitness — track every metric in one place."
-        actions={
-          <>
-            <ActionChip onClick={() => navigate('/chat')}><Bot /> Ask AI</ActionChip>
-            <ActionChip onClick={() => setCaptureModalOpen(true)}><PlusCircle /> Capture</ActionChip>
-            <ActionChip onClick={() => setCmdPaletteOpen(true)}><Search /> Search</ActionChip>
-            <ActionChip onClick={() => navigate('/agents')}><Bell /> Reminders</ActionChip>
-          </>
-        }
+        subtitle="Body, sleep, nutrition and fitness — track every metric in one place."
       />
       <AreaTabs
         activeKey={activeKey}
         onChange={setActiveKey}
-        toolbar={
-          <FilterBar
-            search={{ value: query, onChange: setQuery, placeholder: 'Search logs, meals, workouts…' }}
-            filters={[
-              { id: 'type', label: 'Type', value: logType, onChange: setLogType, options: [
-                { value: 'all', label: 'All types' },
-                { value: 'gym', label: 'Gym' },
-                { value: 'weight', label: 'Weight' },
-                { value: 'meal', label: 'Meal' },
-                { value: 'sleep', label: 'Sleep' },
-              ] },
-            ]}
-            period={<PeriodSelect value={period} onChange={setPeriod} />}
-            actions={
-              activeKey === '2' ? (
-                <Button size="sm" variant="primary" onClick={() => window.dispatchEvent(new CustomEvent('open-new-body-sleep'))}>
-                  <StyledButtonContent><Plus size={12} /><span>Log Body Stats / Sleep</span></StyledButtonContent>
-                </Button>
-              ) : activeKey === '3' ? (
-                <Button size="sm" variant="primary" onClick={() => window.dispatchEvent(new CustomEvent('open-new-nutrition'))}>
-                  <StyledButtonContent><Plus size={12} /><span>Log Meal</span></StyledButtonContent>
-                </Button>
-              ) : activeKey === '4' ? (
-                <Button size="sm" variant="primary" onClick={() => window.dispatchEvent(new CustomEvent('open-new-workout'))}>
-                  <StyledButtonContent><Plus size={12} /><span>Log Health Data</span></StyledButtonContent>
-                </Button>
-              ) : (
-                <Button size="sm" variant="primary" onClick={() => setIsLogModalOpen(true)}>
-                  <StyledButtonContent><Plus size={12} /><span>Log Health Data</span></StyledButtonContent>
-                </Button>
-              )
-            }
-          />
-        }
         items={[
         { key: '1', label: <StyledTabLabel><LayoutDashboard size={14} /> Dashboard</StyledTabLabel>, children: (
           <>
             <StyledDashboardGrid>
               {/* Row 1: KPIs */}
             <StyledGridItemKpi>
-              <KpiCard label="Current Weight" icon={Scale} color="primary" loading={loadingSummary} value={`${summary?.weight ?? '—'} kg`} />
+              <KpiCard label="Current Weight" icon={Scale} sub="Latest logged body weight" loading={loadingSummary} value={`${summary?.weight ?? '—'} kg`} />
             </StyledGridItemKpi>
             <StyledGridItemKpi>
-              <KpiCard label="Gym Streak" icon={Flame} color="amber" loading={loadingStreak} value={`${Math.round(animatedStreak ?? 0)} days`} />
+              <KpiCard label="Gym Streak" icon={Flame} sub="Consecutive days with a workout" loading={loadingStreak} value={`${Math.round(animatedStreak ?? 0)} days`} />
             </StyledGridItemKpi>
             <StyledGridItemKpi>
-              <KpiCard label="Last Workout" icon={Activity} color="purple" loading={loadingStreak} value={formatRelativeTime(streak?.last_workout_at ?? null)} />
+              <KpiCard label="Last Workout" icon={Activity} sub="Time since your last gym session" loading={loadingStreak} value={formatRelativeTime(streak?.last_workout_at ?? null)} />
             </StyledGridItemKpi>
             <StyledGridItemKpi>
-              <KpiCard label="Total Sessions" icon={Target} color="emerald" loading={loadingGym} value={Math.round(animatedSessions ?? 0)} />
+              <KpiCard label="Total Sessions" icon={Target} sub="Workouts logged across all time" loading={loadingGym} value={Math.round(animatedSessions ?? 0)} />
             </StyledGridItemKpi>
-
+ 
             {/* Weight Progression chart */}
             <StyledGridItemMain>
-              <SectionCard title="Weight Progression" action={<Badge tone="primary" size="sm" style={{ fontSize: '10px' }}>Past 30 Days</Badge>}>
+              <SectionCard
+                title="Weight Progression"
+                subtitle="Body weight logs over the selected window"
+                icon={<LineChartIcon size={16} />}
+                action={
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }} onClick={(e) => e.stopPropagation()}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: theme.color?.mutedForeground || 'var(--muted-foreground)' }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: theme.color?.accent || 'var(--accent)' }} />
+                      <span>Weight</span>
+                    </div>
+                    <SegmentedControl
+                      size="sm"
+                      aria-label="Weight range"
+                      value={weightRange}
+                      onChange={(v) => setWeightRange(v as typeof weightRange)}
+                      options={[
+                        { value: '7d', label: '7d' },
+                        { value: '30d', label: '30d' },
+                        { value: '90d', label: '90d' },
+                      ]}
+                    />
+                  </div>
+                }
+              >
                 {loadingWeight ? <Skeleton style={{ height: '120px' }} /> : <HighchartsReact highcharts={Highcharts} options={weightOptions} />}
               </SectionCard>
             </StyledGridItemMain>

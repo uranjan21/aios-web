@@ -1,37 +1,11 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button, Dialog, Select, SelectItem, Input } from '@ledgr/ui';
+import { Button, Dialog, Select, SelectItem, Input, Card } from '@ledgr/ui';
 import { Popconfirm } from '@/components/ui/Popconfirm';
-import { Trash2, Edit, Plus, PlusCircle, ChevronRight, ChevronDown } from 'lucide-react';
+import { Trash2, Edit, Plus, PlusCircle, ChevronRight, ChevronDown, Tags } from 'lucide-react';
 import { toast } from 'sonner';
 import styled from 'styled-components';
 import { financeApi } from '@/api/areas';
-
-const Container = styled.div`
-  background: ${({ theme }) => theme.color.card};
-  border-radius: 24px;
-  padding: 16px;
-  border: none;
-  box-shadow: var(--shadow-premium-sm);
-  width: 100%;
-  height: 100%;
-`;
-
-const Header = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-  padding: 0 4px;
-  h3 {
-    margin: 0;
-    color: ${({ theme }) => theme.color.mutedForeground};
-    font-size: 11px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-`;
 
 const RowActions = styled.span`
   display: flex;
@@ -283,14 +257,16 @@ export const CategoryManager: React.FC = () => {
     : [];
 
   return (
-    <Container>
-      <Header>
-        <h3>Categories</h3>
+    <Card
+      title="Categories"
+      subtitle="Organize spending into a category tree"
+      icon={<Tags size={16} />}
+      action={
         <Button variant="ghost" size="sm" onClick={openCreateTop}>
           <ButtonContent><Plus size={14} /> Add</ButtonContent>
         </Button>
-      </Header>
-
+      }
+    >
       {isLoading ? <LoadingText>Loading...</LoadingText> : (
         <TreeContainer>
           {topLevelCategories.map((c: any) => (
@@ -336,6 +312,6 @@ export const CategoryManager: React.FC = () => {
           </ActionsContainer>
         </FormContainer>
       </Dialog>
-    </Container>
+    </Card>
   );
 };

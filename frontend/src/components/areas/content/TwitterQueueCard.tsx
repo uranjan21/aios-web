@@ -1,6 +1,6 @@
-// @ts-nocheck
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { EmptyState } from '@ledgr/ui'
+import { EmptyState, Select } from '@ledgr/ui'
 import { Twitter } from 'lucide-react'
 import { contentApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -10,9 +10,9 @@ const StyledTwitter = styled(Twitter)`
   color: ${({ theme }) => theme.color.primary};
 `
 const CountLabel = styled.span`
-  margin-left: auto;
   font-size: 11px;
   color: ${({ theme }) => theme.color.mutedForeground};
+  white-space: nowrap;
 `
 
 const List = styled.div`
@@ -63,6 +63,7 @@ const QueueSkeleton = styled(Skeleton)`
 
 /** Renders the vault's twitter-queue.md — list items become queue entries. */
 export function TwitterQueueCard() {
+  const [filter, setFilter] = useState('all')
   const { data, isLoading } = useQuery({
     queryKey: ['content', 'twitter-queue'],
     queryFn: contentApi.twitterQueue,
@@ -77,7 +78,28 @@ export function TwitterQueueCard() {
     .filter(Boolean)
 
   return (
-    <Card title="Twitter Queue" size="md" icon={<StyledTwitter size={14} />} action={<CountLabel>{entries.length} items</CountLabel>}>
+    <Card
+      title="Twitter Queue"
+      subtitle="Drafts staged to publish on X"
+      size="md"
+      icon={<StyledTwitter size={14} />}
+      action={
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={(e) => e.stopPropagation()}>
+          <Select
+            size="sm"
+            value={filter}
+            onChange={(val: any) => setFilter(val)}
+            options={[
+              { value: 'all', label: 'All Drafts' },
+              { value: 'ready', label: 'Ready' },
+              { value: 'ideas', label: 'Ideas' },
+            ]}
+            style={{ width: '90px' }}
+          />
+          <CountLabel>{entries.length} items</CountLabel>
+        </div>
+      }
+    >
       {isLoading ? (
         <SkeletonStack>
           <QueueSkeleton />

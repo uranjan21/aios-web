@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Popconfirm } from '@/components/ui/Popconfirm'
-import { Button, Input, Badge, Dialog, SegmentedControl } from '@ledgr/ui'
+import { Button, Input, Badge, Dialog, SegmentedControl, HeaderActionPortal, Select } from '@ledgr/ui'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import { Plus, Trash2, Dumbbell, Trophy, X, Target, Droplets, Scale, CheckCircle2, Flame, Repeat } from 'lucide-react'
@@ -11,8 +11,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/EmptyState'
 import type { WorkoutSessionItem, HabitItem } from '@/types'
 import { Card as GlassCard } from '@ledgr/ui';
+import { KpiCard } from '@ledgr/ui';
 import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
-import { TabToolbar } from '@/components/ui/TabToolbar'
+
 import styled from 'styled-components'
 
 const COMMON_EXERCISES = [
@@ -200,17 +201,14 @@ function GoalCard({ goal, current, target, onTargetChange }: {
     : (current != null && current >= target)
 
   return (
-    <GlassCard size="sm" style={{ padding: '0.75rem' }}>
-      <StyledGoalCardHeader>
-        <StyledGoalCardTitleWrapper>
-          <StyledGoalCardIconWrapper $color={goal.color}>
-            <Icon style={{ width: '14px', height: '14px' }} />
-          </StyledGoalCardIconWrapper>
-          <StyledGoalCardTitle>{goal.label}</StyledGoalCardTitle>
-        </StyledGoalCardTitleWrapper>
-        {done && <CheckCircle2 style={{ width: '16px', height: '16px', color: 'var(--primary)' }} />}
-      </StyledGoalCardHeader>
-
+    <GlassCard
+      size="sm"
+      style={{ padding: '0.75rem' }}
+      title={goal.label}
+      subtitle="Daily fitness and water goals tracker"
+      icon={<Icon style={{ width: '14px', height: '14px', color: goal.color }} />}
+      action={done ? <CheckCircle2 style={{ width: '16px', height: '16px', color: 'var(--primary)' }} /> : undefined}
+    >
       <StyledGoalValueWrapper>
         <StyledGoalCurrentValue>
           {current != null ? current : '—'}
@@ -328,18 +326,19 @@ function SessionCard({ session }: { session: WorkoutSessionItem }) {
   }, {})
 
   return (
-    <GlassCard size="sm">
-      <StyledSessionCardHeader>
-        <div>
-          <StyledSessionCardTitle>{session.name}</StyledSessionCardTitle>
-          <StyledSessionCardDate>{dayjs(session.logged_at).format('ddd, MMM D')}</StyledSessionCardDate>
-        </div>
+    <GlassCard
+      size="sm"
+      title={session.name}
+      subtitle={dayjs(session.logged_at).format('ddd, MMM D')}
+      icon={<Dumbbell size={14} />}
+      action={
         <Popconfirm title="Delete this workout?" onConfirm={() => deleteMutation.mutate()} okText="Delete" okButtonProps={{ danger: true }}>
           <StyledDeleteButton aria-label="Delete workout">
             <Trash2 size={13} />
           </StyledDeleteButton>
         </Popconfirm>
-      </StyledSessionCardHeader>
+      }
+    >
       <StyledSessionSetsWrapper>
         {Object.entries(byExercise).map(([ex, sets]) => (
           <StyledSessionSetRow key={ex}>
@@ -703,9 +702,12 @@ export function FitnessTab() {
     return GOALS.reduce((acc, g) => ({ ...acc, [g.key]: saved[g.key] ?? g.defaultTarget }), {} as Record<string, number>)
   })
 
+  const [prLimit, setPrLimit] = useState<number>(8)
+  const [workoutLimit, setWorkoutLimit] = useState<number>(10)
+
   const { data: sessions, isLoading: loadingSessions } = useQuery({
     queryKey: ['health', 'workouts'],
-    queryFn: () => healthApi.workouts(10),
+    queryFn: () => healthApi.workouts(20),
   })
   const { data: prs } = useQuery({
     queryKey: ['health', 'workout-prs'],
@@ -767,6 +769,7 @@ export function FitnessTab() {
 
   const [logModalOpen, setLogModalOpen] = useState(false)
   const [logType, setLogType] = useState<'workout' | 'habit'>('workout')
+  const [habitFilter, setHabitFilter] = useState<'all' | 'done' | 'pending'>('all')
 
   useEffect(() => {
     const handleOpen = () => setLogModalOpen(true)
@@ -777,6 +780,11 @@ export function FitnessTab() {
   return (
     <>
     <WorkspaceLayout rail={undefined}>
+      <HeaderActionPortal>
+        <Button size="sm" variant="primary" onClick={() => setLogModalOpen(true)}>
+          <Plus size={12} style={{ marginRight: 4 }} /> Log Workout
+        </Button>
+      </HeaderActionPortal>
       <StyledContainer>
         {/* Goals */}
         <div>
@@ -803,13 +811,29 @@ export function FitnessTab() {
 
         {/* PRs */}
         {prs && prs.length > 0 && (
-          <GlassCard size="sm" style={{ padding: '0.75rem' }}>
-            <StyledPrHeader>
-              <Trophy size={14} style={{ color: 'var(--primary)' }} />
-              <StyledPrTitle>Personal Records</StyledPrTitle>
-            </StyledPrHeader>
+          <GlassCard
+            title="Personal Records"
+            subtitle="Top lifts logged across every workout session"
+            icon={<Trophy size={16} />}
+            action={
+              <div onClick={(e) => e.stopPropagation()}>
+                <Select
+                  size="sm"
+                  value={String(prLimit)}
+                  onChange={(val: any) => setPrLimit(Number(val))}
+                  options={[
+                    { value: '5', label: 'Top 5 Lifts' },
+                    { value: '8', label: 'Top 8 Lifts' },
+                    { value: '15', label: 'Top 15 Lifts' },
+                  ]}
+                />
+              </div>
+            }
+            size="sm"
+            style={{ padding: '0.75rem' }}
+          >
             <StyledBadgesWrapper>
-              {prs.slice(0, 8).map(pr => (
+              {prs.slice(0, prLimit).map(pr => (
                 <Badge key={pr.exercise} tone="warning">{pr.exercise} — {pr.weight_kg}kg × {pr.reps}</Badge>
               ))}
             </StyledBadgesWrapper>
@@ -819,18 +843,49 @@ export function FitnessTab() {
         {/* Habits */}
         <div>
           <StyledHabitsGrid>
-            {[
-              { label: 'Habits', value: String(habits?.length ?? 0) },
-              { label: 'Done Today', value: `${doneToday}/${habits?.length ?? 0}` },
-              { label: 'Best Streak', value: bestStreak > 0 ? `${bestStreak}d` : '—' },
-            ].map(c => (
-              <GlassCard size="sm" key={c.label} style={{ textAlign: 'center' }}>
-                <StyledHabitsStatsLabel>{c.label}</StyledHabitsStatsLabel>
-                <StyledHabitsStatsValue>{c.value}</StyledHabitsStatsValue>
-              </GlassCard>
-            ))}
+            <KpiCard
+              label="Habits"
+              icon={Repeat}
+              sub="Total habits monitored"
+              loading={loadingHabits}
+              value={String(habits?.length ?? 0)}
+            />
+            <KpiCard
+              label="Done Today"
+              icon={CheckCircle2}
+              sub="Habits checked today"
+              loading={loadingHabits}
+              value={`${doneToday}/${habits?.length ?? 0}`}
+            />
+            <KpiCard
+              label="Best Streak"
+              icon={Flame}
+              color="primary"
+              sub="Highest habit streak"
+              loading={loadingHabits}
+              value={bestStreak > 0 ? `${bestStreak}d` : '—'}
+            />
           </StyledHabitsGrid>
-          <GlassCard size="none" style={{ overflow: 'hidden' }}>
+          <GlassCard
+            title="Daily Habits"
+            subtitle="Toggle each day; build streaks over time"
+            icon={<Repeat size={16} />}
+            action={
+              <SegmentedControl
+                size="sm"
+                aria-label="Filter habits by today's status"
+                value={habitFilter}
+                onChange={(v) => setHabitFilter(v as typeof habitFilter)}
+                options={[
+                  { value: 'all', label: 'All' },
+                  { value: 'done', label: 'Done' },
+                  { value: 'pending', label: 'Pending' },
+                ]}
+              />
+            }
+            size="none"
+            style={{ overflow: 'hidden' }}
+          >
             {loadingHabits ? (
               <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {[1, 2, 3].map(i => <Skeleton key={i} style={{ height: '2.5rem', width: '100%' }} />)}
@@ -849,16 +904,40 @@ export function FitnessTab() {
                 }}
               />
             ) : (
-              habits.map(h => <HabitRow key={h.id} habit={h} />)
+              habits
+                .filter(h => {
+                  if (habitFilter === 'all') return true
+                  const today = dayjs().format('YYYY-MM-DD')
+                  const doneToday = h.checks?.includes(today) ?? false
+                  return habitFilter === 'done' ? doneToday : !doneToday
+                })
+                .map(h => <HabitRow key={h.id} habit={h} />)
             )}
           </GlassCard>
         </div>
 
         {/* Workout sessions */}
-        <div>
-          <StyledWorkoutsHeader>Recent Workouts</StyledWorkoutsHeader>
+        <GlassCard
+          title="Recent Workouts"
+          subtitle="Browse your recently completed workouts and exercises"
+          icon={<Dumbbell size={16} />}
+          action={
+            <div onClick={(e) => e.stopPropagation()}>
+              <Select
+                size="sm"
+                value={String(workoutLimit)}
+                onChange={(val: any) => setWorkoutLimit(Number(val))}
+                options={[
+                  { value: '5', label: 'Last 5 Sessions' },
+                  { value: '10', label: 'Last 10 Sessions' },
+                  { value: '20', label: 'Last 20 Sessions' },
+                ]}
+              />
+            </div>
+          }
+        >
           {loadingSessions ? (
-            <StyledListWrapper>
+            <StyledListWrapper style={{ padding: '0.75rem' }}>
               {[1, 2].map(i => <Skeleton key={i} style={{ height: '100px', borderRadius: '0.75rem', width: '100%' }} />)}
             </StyledListWrapper>
           ) : !sessions?.length ? (
@@ -875,11 +954,11 @@ export function FitnessTab() {
               }}
             />
           ) : (
-            <StyledListWrapper>
-              {sessions.map(s => <SessionCard key={s.id} session={s} />)}
+            <StyledListWrapper style={{ padding: '0.75rem' }}>
+              {sessions.slice(0, workoutLimit).map(s => <SessionCard key={s.id} session={s} />)}
             </StyledListWrapper>
           )}
-        </div>
+        </GlassCard>
       </StyledContainer>
     </WorkspaceLayout>
 

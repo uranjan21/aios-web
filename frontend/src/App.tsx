@@ -13,28 +13,32 @@ const queryClient = new QueryClient({
   },
 })
 
+import { PageHeaderProvider } from '@ledgr/ui'
+
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-      <RouterProvider router={router} future={{ v7_startTransition: true }} />
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          style: {
-            background: 'var(--color-card, #ffffff)',
-            color: 'var(--color-cardForeground, #0f172a)',
-            border: 'none',
-            borderRadius: '16px',
-            boxShadow: '0 4px 12px rgba(45, 49, 58, 0.08), 0 2px 4px rgba(45, 49, 58, 0.04)',
-            fontSize: '14px',
-          },
-          classNames: {
-            description: 'toast-description',
-            actionButton: 'toast-action',
-          },
-        }}
-      />
+        <PageHeaderProvider>
+          <RouterProvider router={router} future={{ v7_startTransition: true }} />
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: 'var(--color-card, #ffffff)',
+                color: 'var(--color-cardForeground, #0f172a)',
+                border: 'none',
+                borderRadius: '16px',
+                boxShadow: '0 4px 12px rgba(45, 49, 58, 0.08), 0 2px 4px rgba(45, 49, 58, 0.04)',
+                fontSize: '14px',
+              },
+              classNames: {
+                description: 'toast-description',
+                actionButton: 'toast-action',
+              },
+            }}
+          />
+        </PageHeaderProvider>
       </ThemeProvider>
     </QueryClientProvider>
   )

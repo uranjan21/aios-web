@@ -8,6 +8,8 @@ export type CardSize = 'sm' | 'md' | 'lg' | 'none';
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   /** Optional section heading rendered in the card header row. */
   title?: string;
+  /** Optional subtitle rendered below the title. */
+  subtitle?: string;
   /** Icon rendered left of the title. */
   icon?: ReactNode;
   /** Action element (button/link) rendered right of the title. */
@@ -40,6 +42,13 @@ const SIZE_PADDING: Record<CardSize, string> = {
   none: '0',
 };
 
+const SIZE_PADDING_BOTTOM: Record<CardSize, string> = {
+  sm:   '8px',
+  md:   '12px',
+  lg:   '16px',
+  none: '0',
+};
+
 const variantStyles = {
   default: css`
     background: ${({ theme }) => theme.color.card};
@@ -52,8 +61,10 @@ const variantStyles = {
     box-shadow: ${({ theme }) => theme.shadow.md};
   `,
   glass: css`
-    background: ${({ theme }) => theme.color.card};
-    border: 1px solid ${({ theme }) => theme.color.border};
+    background: color-mix(in srgb, ${({ theme }) => theme.color.card} 70%, transparent);
+    border: 1px solid color-mix(in srgb, ${({ theme }) => theme.color.border} 70%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   `,
   outline: css`
@@ -78,6 +89,7 @@ const StyledCard = styled.div<{
   border-radius: ${({ theme }) => theme.radii.lg};
   color: ${({ theme }) => theme.color.cardForeground};
   padding: ${({ $size }) => SIZE_PADDING[$size]};
+  padding-bottom: ${({ $size }) => SIZE_PADDING_BOTTOM[$size]};
   ${({ $variant }) => variantStyles[$variant]}
   transition: box-shadow ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard},
               transform ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard},
@@ -87,7 +99,12 @@ const StyledCard = styled.div<{
     cursor: pointer;
     &:hover {
       box-shadow: ${theme.shadow.md};
-      transform: translateY(-2px);
+      transform: translateY(-4px) scale(1.01);
+      border-color: ${theme.color.accent}55;
+    }
+    &:focus-visible {
+      outline: 2px solid ${theme.color.ring};
+      outline-offset: 2px;
     }
   `}
 
@@ -99,11 +116,21 @@ const StyledCard = styled.div<{
   `}
 `;
 
-export const CardHeader = styled.div`
+export const CardHeader = styled.div<{ $inset?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  border-bottom: 1px solid ${({ theme }) => theme.color.border};
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  /* When the parent Card has no padding, the header needs its own horizontal
+     inset so icon/title don't sit flush at the card edge. */
+  ${({ $inset }) => $inset && `
+    padding-top: 16px;
+    padding-left: 20px;
+    padding-right: 20px;
+    margin-bottom: 0;
+  `}
 `;
 
 export const TitleGroup = styled.div`
@@ -118,6 +145,15 @@ export const CardTitle = styled.h2`
   font-size: 14px;
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
+  line-height: 1.2;
+`;
+
+export const CardSubtitle = styled.p`
+  margin: 0;
+  margin-top: 2px;
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
   line-height: 1.2;
 `;
 
@@ -145,6 +181,7 @@ export const CardFooter = styled.div`
 export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
   { 
     title,
+    subtitle,
     icon,
     action,
     variant = 'default', 
@@ -170,15 +207,19 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
       $size={effectiveSize}
       $fadeIn={fadeIn}
       $delay={delay}
+      tabIndex={isInteractive ? 0 : undefined}
       {...rest}
     >
-      {(title || icon || action) && (
-        <CardHeader>
+      {(title || subtitle || icon || action) && (
+        <CardHeader $inset={effectiveSize === 'none'}>
           <TitleGroup>
             {icon}
-            {title && <CardTitle>{title}</CardTitle>}
+            <div>
+              {title && <CardTitle>{title}</CardTitle>}
+              {subtitle && <CardSubtitle>{subtitle}</CardSubtitle>}
+            </div>
           </TitleGroup>
-          {action}
+          {action && <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>{action}</div>}
         </CardHeader>
       )}
       {children}

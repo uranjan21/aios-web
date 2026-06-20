@@ -1,36 +1,20 @@
-# Execution Plan: AIOS UI/UX Polish, Accessibility, and Responsive Enhancement
+# Refactoring Plan: Card Redesign, Tab Toolbar Extraction, and Card Action Repositioning
 
 ## Target Requirements
 
-### R1. Audit and Fix All Visual Inconsistencies
-- Audit `DashboardPage`, `LoginPage`, `ChatPage`, `AgentsPage`, `SettingsPage`, `IntegrationsPage`, and all five area pages (Finance, Health, Career, Business, Content).
-- Replace hardcoded hex colors, shadows, fonts with `theme.color.*` or `theme.shadow.*` tokens from `aiosTheme.ts`.
-- Ensure all body typography uses `DM Sans` (sans-serif) and display headings use `Playfair Display` (serif).
+Based on the latest user follow-up request (2026-06-20T14:20:08Z):
 
-### R2. Fix Accessibility and UX Interaction Bugs
-- Ensure `cursor: pointer` on hover for buttons, links, tabs, cards, inputs, dropdowns.
-- Add smooth hover/active transitions (150–300ms) on interactive elements.
-- Visible focus rings using `#CA8A04` via Tailwind/theme tokens for keyboard navigation.
-- Fix z-index conflicts (Sidebar, Modals, Toasts, Command Palette).
-- Associate `<label>` elements or `aria-label` attributes for all form inputs.
-- Add skeleton loadings or spinners for async fetches.
+### R1. Complete Toolbar Extraction
+Identify all remaining tabs (`BodySleepTab`, `FitnessTab`, `NutritionTab`, and `OpportunitiesTab`) that render a `TabToolbar` or a custom `Toolbar` with action buttons. Move these action buttons into the `<HeaderActionPortal>` from `@ledgr/ui`. Delete the redundant `TabToolbar` component.
 
-### R3. Elevate to Award-Worthy Polish
-- **KPI cards on Dashboard:** Add count-up number animation on mount.
-- **Page transitions:** Smooth fade/slide transitions between routes (via `PageTransition.tsx`).
-- **Sidebar active states:** Active navigation item with clear gold `#CA8A04` accent.
-- **Empty states:** Check all `EmptyState` components have an icon, headline, and clear CTA.
-- **Bento grid layout on Dashboard:** Asymmetric grid layout for Dashboard KPIs.
-- **Micro-interactions:** Add `hover:scale-[1.02] transition-transform duration-200` to clickable cards.
-- **TopBar backdrop:** Glassmorphism (`backdrop-blur`) / subtle shadow.
+### R2. Global Card Redesign
+Update the `Card` component in `@ledgr/ui` globally to match the new design:
+- Add a bottom border below the `CardHeader`.
+- Reduce the padding at the bottom of the card universally.
+- Incorporate premium design touches from the `/ui-ux-pro-max` guidelines (subtle hover scale, gold border highlight, and clean layout transitions).
 
-### R4. Responsive Layout Verification
-- Mobile (375px): Sidebar hidden, BottomNav visible, no horizontal scroll.
-- Tablet (768px): Sidebar collapsible/icon-only.
-- Desktop (1440px): Sidebar + content, no overflows.
-
-### R5. Verify and Maintain Build Integrity
-- Compile cleanly via `pnpm build` in `frontend/`. Zero TS/lint errors.
+### R3. Reposition Card Actions
+Pass the segmented controls and legends of the `WalletWidgets` "Net Worth Trend" card into the `action` slot of the Card component.
 
 ---
 
@@ -38,20 +22,16 @@
 
 | # | Milestone Name | Scope | Verification Criteria | Status |
 |---|---|---|---|---|
-| 1 | **Codebase Exploration & Analysis** | Audit the frontend files to locate visual inconsistencies, missing focus/hover styles, empty states, and layout issues. | Audit report generated. | PLANNED |
-| 2 | **Visual & Accessibility Fixes (R1 & R2)** | Fix hardcoded colors/fonts/shadows, add cursor-pointer, transitions, focus rings, form labels, and skeleton states. | Clean audit report, verification checks pass. | PLANNED |
-| 3 | **Premium UI/UX Polish (R3)** | Implement Dashboard Bento grid, count-up animations, page transitions, Sidebar accent, glassmorphic TopBar, and card hover effects. | Premium design requirements satisfied. | PLANNED |
-| 4 | **Responsive Layout & Build Verification (R4 & R5)** | Verify responsive layout at 375px/768px/1440px and verify build via `pnpm build` output. | `pnpm build` passes with zero warnings/errors. Responsive rules satisfied. | PLANNED |
-| 5 | **Forensic Audit & Integrity Gate** | Perform independent static analysis and check for mock/hardcoded implementations. | Milestone 4 verified. | DONE |
-| 6 | **Resolve Follow-up UI/UX Issues (R1-R4)** | Implement unified toolbar & pinned actions, strict card/table wrapper usage, sidebar contrast fix, and TopBar breadcrumbs + spacing. | Verify all acceptance criteria for follow-up issues are met and build compiles cleanly. | PLANNED |
+| 1 | **Exploration & Strategy** | Audit `Card.tsx`, `TabToolbar.tsx`, `OpportunitiesTab.tsx`, `BodySleepTab.tsx`, `FitnessTab.tsx`, `NutritionTab.tsx`, and `WalletWidgets.tsx`. | Explorer handoff report confirming code locations and implementation details. | PLANNED |
+| 2 | **Component Refactoring** | Implement Card bottom border, bottom padding reductions, premium hover states. Relocate action buttons in the four target tabs to `HeaderActionPortal`. Reposition "Net Worth Trend" tabs to the `action` prop of `Card`. Delete `TabToolbar.tsx` file. | Worker handoff confirming implementation and compile checks. | PLANNED |
+| 3 | **Verification & Audit** | Run build compilation check `pnpm build` in `frontend/` directory, execute reviewer checks for visuals/layout, and perform Forensic Integrity Audit. | Build compiles with 0 errors, Auditor passes with CLEAN verdict. | PLANNED |
 
 ---
 
 ## Orchestration Details
-
-- **Pattern**: Explorer → Worker → Reviewer → Challenger → Forensic Auditor.
+- **Pattern**: direct iteration loop (Explorer -> Worker -> Reviewer -> Challenger/Auditor).
+- **Integrity Mode**: demo.
 - **Verification Strategy**:
-  - Spawn specialized subagents to analyze and implement changes.
-  - Spawn Reviewer to review code changes.
-  - Spawn Challenger to verify correctness.
-  - Spawn Auditor to verify build integrity and ensure no cheat implementations.
+  - Run build command `pnpm build` under the `frontend` directory to ensure build integrity.
+  - Review rendering of cards, actions, and tabs.
+  - Ensure `TabToolbar` imports are entirely removed and the file is deleted.

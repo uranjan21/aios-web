@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import styled, { keyframes, useTheme } from 'styled-components'
-import { Button, Input } from '@ledgr/ui'
+import { Button, Input, Card } from '@ledgr/ui'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/authStore'
+import { StatusPill } from '@/components/lumina'
 import {
   IndianRupee, Heart, Briefcase, Rocket, PenLine,
-  ArrowRight, Eye, EyeOff, Sparkles, Shield, Zap,
+  ArrowRight, Eye, EyeOff, Sparkles, Shield, Zap, Lock,
 } from 'lucide-react'
 
 /* ── Animations ────────────────────────────────────────────────────── */
@@ -207,37 +208,8 @@ const MobileSub = styled.p`
   margin: 0;
 `
 
-const DesktopWelcome = styled.div`
-  margin-bottom: 28px;
-  animation: ${fadeUp} 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-  display: none;
-  @media (min-width: 1024px) { display: block; }
-`
 
-const WelcomeTitle = styled.h2`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
-  font-size: 28px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.color.foreground};
-  letter-spacing: -0.02em;
-  margin: 0 0 6px;
-`
-
-const WelcomeSub = styled.p`
-  font-size: 14px;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  margin: 0;
-`
-
-const LoginCard = styled.form`
-  background: ${({ theme }) => theme.color.card};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.xl};
-  padding: 28px;
-  box-shadow: ${({ theme }) => theme.shadow.md};
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+const LoginCardForm = styled.form`
   animation: ${fadeUp} 0.5s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
 `
 
@@ -422,71 +394,73 @@ export function LoginPage() {
             <MobileSub>Your life, beautifully run</MobileSub>
           </MobileBrand>
 
-          {/* Desktop welcome */}
-          <DesktopWelcome>
-            <WelcomeTitle>Welcome back</WelcomeTitle>
-            <WelcomeSub>Enter your passphrase to continue</WelcomeSub>
-          </DesktopWelcome>
-
-          <LoginCard onSubmit={handleSubmit}>
-            <div>
-              <FieldLabel htmlFor="login-email">Email</FieldLabel>
-              <Input
-                id="login-email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                autoFocus
-                required
-                fullWidth
-                size="lg"
-              />
-            </div>
-
-            <div>
-              <FieldLabel htmlFor="login-password">Passphrase</FieldLabel>
-              <PasswordWrap>
+          <LoginCardForm onSubmit={handleSubmit}>
+            <Card
+              title="Welcome back"
+              subtitle="Enter your passphrase to continue"
+              icon={<Shield size={16} />}
+              action={<StatusPill label="Secure" tone="primary" />}
+              style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
+            >
+              <div>
+                <FieldLabel htmlFor="login-email">Email</FieldLabel>
                 <Input
-                  id="login-password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your passphrase"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  id="login-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  autoFocus
                   required
                   fullWidth
                   size="lg"
-                  style={{ paddingRight: '44px' }}
                 />
-                <ShowHideBtn
-                  type="button"
-                  onClick={() => setShowPassword(v => !v)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </ShowHideBtn>
-              </PasswordWrap>
-            </div>
+              </div>
 
-            {error && <ErrorBox>{error}</ErrorBox>}
+              <div>
+                <FieldLabel htmlFor="login-password">Passphrase</FieldLabel>
+                <PasswordWrap>
+                  <Input
+                    id="login-password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter your passphrase"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required
+                    fullWidth
+                    size="lg"
+                    style={{ paddingRight: '44px' }}
+                  />
+                  <ShowHideBtn
+                    type="button"
+                    onClick={() => setShowPassword(v => !v)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </ShowHideBtn>
+                </PasswordWrap>
+              </div>
 
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              disabled={loading || !email || !password}
-              style={{ width: '100%', justifyContent: 'center' }}
-            >
-              {loading ? 'Unlocking…' : <><span>Enter</span><ArrowRight size={16} /></>}
-            </Button>
+              {error && <ErrorBox>{error}</ErrorBox>}
 
-            <DemoLink
-              type="button"
-              onClick={() => { setEmail('demo@aios.dev'); setPassword('demo1234') }}
-            >
-              Use demo credentials
-            </DemoLink>
-          </LoginCard>
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                disabled={loading || !email || !password}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                {loading ? 'Unlocking…' : <><span>Enter</span><ArrowRight size={16} /></>}
+              </Button>
+
+              <DemoLink
+                type="button"
+                onClick={() => { setEmail('demo@aios.dev'); setPassword('demo1234') }}
+              >
+                Use demo credentials
+              </DemoLink>
+            </Card>
+          </LoginCardForm>
 
           <MobileDomains>
             {DOMAINS.map(d => (

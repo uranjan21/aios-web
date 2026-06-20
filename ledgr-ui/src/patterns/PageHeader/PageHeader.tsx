@@ -1,3 +1,4 @@
+import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import styled from 'styled-components';
 
@@ -106,6 +107,9 @@ const Actions = styled.div`
 `;
 
 export function PageHeader({ eyebrow, icon, title, subtitle, actions, className }: PageHeaderProps) {
+  const ctx = useContext(PageHeaderActionsContext);
+  const finalActions = ctx?.actions || actions;
+
   return (
     <Root className={className}>
       <Left>
@@ -116,7 +120,43 @@ export function PageHeader({ eyebrow, icon, title, subtitle, actions, className 
           {subtitle && <Subtitle>{subtitle}</Subtitle>}
         </TextCol>
       </Left>
-      {actions && <Actions>{actions}</Actions>}
+      {finalActions && <Actions>{finalActions}</Actions>}
     </Root>
   );
+}
+
+/* ── Portal System ──────────────────────────────────────────────────── */
+
+interface PageHeaderActionsContextValue {
+  actions: ReactNode | null;
+  setActions: (actions: ReactNode | null) => void;
+}
+
+const PageHeaderActionsContext = createContext<PageHeaderActionsContextValue | null>(null);
+
+/**
+ * Wrap your app layout in this provider to enable the HeaderActionPortal.
+ */
+export function PageHeaderProvider({ children }: { children: ReactNode }) {
+  const [actions, setActions] = useState<ReactNode | null>(null);
+  return (
+    <PageHeaderActionsContext.Provider value={{ actions, setActions }}>
+      {children}
+    </PageHeaderActionsContext.Provider>
+  );
+}
+
+/**
+ * Render this component anywhere in your app (e.g. inside a tab) to "beam" 
+ * its children directly into the parent PageHeader's actions slot.
+ */
+export function HeaderActionPortal({ children }: { children: ReactNode }) {
+  const ctx = useContext(PageHeaderActionsContext);
+
+  useEffect(() => {
+    ctx?.setActions(children);
+    return () => ctx?.setActions(null);
+  }, [children, ctx]);
+
+  return null;
 }

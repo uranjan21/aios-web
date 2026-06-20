@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import styled from 'styled-components'
 
 import { Card } from '@ledgr/ui'
+import { Droplet } from 'lucide-react'
 
 const StyledProgressText = styled.span`
   font-size: 0.875rem;
@@ -93,7 +94,14 @@ export function WaterTrackerWidget() {
   const remaining = Math.max(0, target - glasses)
 
   return (
-    <Card title="Water Intake" size="md" action={<StyledProgressText>{glasses} / {target} glasses</StyledProgressText>} style={{ height: '100%' }}>
+    <Card
+      title="Water Intake"
+      subtitle="Tap a glass to log a serving toward today's target"
+      icon={<Droplet size={16} />}
+      size="md"
+      action={<StyledProgressText>{glasses} / {target} glasses</StyledProgressText>}
+      style={{ height: '100%' }}
+    >
 
       {isLoading ? (
         <Skeleton style={{ height: '3rem', width: '100%' }} />

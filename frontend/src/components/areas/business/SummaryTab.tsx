@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { businessApi } from '@/api/areas'
 import { formatCurrency, formatRelativeTime } from '@/lib/utils'
@@ -8,7 +9,7 @@ import Highcharts from 'highcharts'
 Highcharts.setOptions({ accessibility: { enabled: false } })
 import HighchartsReact from 'highcharts-react-official'
 import styled, { useTheme } from 'styled-components'
-import { Card } from '@ledgr/ui'
+import { Card, Select } from '@ledgr/ui'
 import type React from 'react'
 
 const ACCENT_HEX: Record<string, string> = {
@@ -22,6 +23,7 @@ const ACCENT_HEX: Record<string, string> = {
 
 function MrrTrendCard() {
   const theme = useTheme()
+  const [mrrPeriod, setMrrPeriod] = useState('6m')
   const { data: history } = useQuery({
     queryKey: ['business', 'mrr-history'],
     queryFn: businessApi.mrrHistory,
@@ -30,7 +32,25 @@ function MrrTrendCard() {
   if (!history || history.length < 2) return null
 
   return (
-    <Card title="MRR Trend" size="md" icon={<LineChart size={14} style={{ color: theme.color.mutedForeground }} />}>
+    <Card
+      title="MRR Trend"
+      subtitle="Monthly recurring revenue over recent snapshots"
+      size="md"
+      icon={<LineChart size={14} style={{ color: theme.color.mutedForeground }} />}
+      action={
+        <Select
+          size="sm"
+          fullWidth={false}
+          options={[
+            { label: '6 Months', value: '6m' },
+            { label: '12 Months', value: '12m' },
+            { label: 'All Time', value: 'all' },
+          ]}
+          value={mrrPeriod}
+          onChange={(val) => setMrrPeriod(val as string)}
+        />
+      }
+    >
       <HighchartsReact
         highcharts={Highcharts}
         options={{
@@ -68,8 +88,6 @@ function MrrTrendCard() {
 
 // ── Metric Tile ───────────────────────────────────────────────────────────────
 
-
-
 const IconWrap = styled.div<{ $color: string }>`
   padding: 6px;
   border-radius: 8px;
@@ -81,23 +99,12 @@ const IconWrap = styled.div<{ $color: string }>`
   flex-shrink: 0;
 `
 
-
-
 const TileValue = styled.p`
   font-size: 12px;
   font-weight: 700;
   color: ${({ theme }) => theme.color.foreground};
   letter-spacing: -0.01em;
   margin: 0;
-`
-
-const TileSub = styled.p`
-  font-size: 10px;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  margin: 2px 0 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 `
 
 function MetricTile({ icon: Icon, label, value, sub, accent }: {
@@ -108,9 +115,10 @@ function MetricTile({ icon: Icon, label, value, sub, accent }: {
   accent?: string
 }) {
   return (
-    <Card 
-      title={label} 
-      size="sm" 
+    <Card
+      title={label}
+      subtitle={sub}
+      size="sm"
       icon={
         <IconWrap $color={ACCENT_HEX[accent || ''] || 'primary'}>
           <Icon size={12} />
@@ -118,7 +126,6 @@ function MetricTile({ icon: Icon, label, value, sub, accent }: {
       }
     >
       <TileValue>{value}</TileValue>
-      {sub && <TileSub>{sub}</TileSub>}
     </Card>
   )
 }

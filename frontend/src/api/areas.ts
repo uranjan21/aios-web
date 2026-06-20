@@ -63,6 +63,8 @@ export const financeApi = {
   accounts: () => api.get<any[]>('/areas/finance/accounts').then(r => r.data),
   createAccount: (data: { name: string; type: string; balance?: number; currency?: string }) =>
     api.post<any>('/areas/finance/accounts', data).then(r => r.data),
+  updateAccount: (id: string, data: Partial<{ name: string; type: string }>) =>
+    api.patch<any>(`/areas/finance/accounts/${id}`, data).then(r => r.data),
   deleteAccount: (id: string) => api.delete(`/areas/finance/accounts/${id}`).then(r => r.data),
   accountLedger: (id: string, limit = 50) =>
     api.get<{ account: any; entries: LedgerEntry[] }>(`/areas/finance/accounts/${id}/ledger`, { params: { limit } }).then(r => r.data),

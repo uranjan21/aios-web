@@ -2,23 +2,21 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
-import { Select, Badge, EmptyState } from '@ledgr/ui'
-import { ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, Wallet, Landmark, CreditCard, PiggyBank, ChevronRight, Plus, type LucideIcon } from 'lucide-react'
+import { Select, Badge, EmptyState, Button, HeaderActionPortal } from '@ledgr/ui'
 import { financeApi } from '@/api/areas'
 import { formatCurrency, cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorCard } from '@/components/ErrorCard'
-import { IconBadge, ProgressBar } from '@/components/lumina';
+import { ProgressBar } from '@/components/lumina';
 import { Card as GlassCard } from '@ledgr/ui';
 import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
 import { PageToolbar } from '@/components/layout/PageLayout'
-import { BalanceWidget } from './WalletWidgets'
-
-import { FinanceStats } from './FinanceStats'
-import { TextTabs } from '@/components/ui/TextTabs'
 import { AiInsightCard } from '@/components/AiInsightCard'
 import { AIInsightsEngine } from './AdvancedWidgets'
 import styled, { useTheme } from 'styled-components'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
+import { SegmentedControl } from '@ledgr/ui'
+import { TrendingDown, TrendingUp, Wallet, PiggyBank, CalendarClock, HeartPulse, Target, PieChart as PieChartIcon } from 'lucide-react'
 
 const StyledSkeleton = styled(Skeleton)<{ $height: string }>`
   height: ${({ $height }) => $height};
@@ -270,12 +268,7 @@ function urgencyColor(days: number): 'error' | 'warning' | 'success' {
   return 'success'
 }
 
-const ACCOUNT_ICONS: Record<string, LucideIcon> = {
-  bank: Landmark,
-  cash: Wallet,
-  credit_card: CreditCard,
-  savings: PiggyBank,
-}
+
 
 const BAND_STYLES: Record<string, { label: string; tag: string; barColor: string }> = {
   excellent: { label: 'Excellent', tag: 'success', barColor: '#F8D168' },
@@ -290,16 +283,41 @@ function scoreBand(score: number): string {
 
 function HealthScoreCard({ data, delay = 0 }: { data: import('@/types').FinanceHealthScore | undefined; delay?: 0 | 100 | 200 | 300 }) {
   const theme = useTheme()
+  const [healthPeriod, setHealthPeriod] = useState('current')
+
   if (!data) {
     return (
-      <GlassCard title="Financial Health" hoverable fadeIn="up" delay={delay}>
+      <GlassCard title="Financial Health" subtitle="Your overall financial score" icon={<HeartPulse size={16} />} hoverable fadeIn="up" delay={delay} style={{ height: '100%' }}>
         <StyledSkeleton $height="10rem" />
       </GlassCard>
     )
   }
   const band = BAND_STYLES[data.band] ?? BAND_STYLES.fair
   return (
-    <GlassCard title="Financial Health" action={<Badge tone={band.tag as any} style={{ fontSize: '10px', lineHeight: '1.2', padding: '0 4px' }}>{band.label}</Badge>} hoverable fadeIn="up" delay={delay}>
+    <GlassCard
+      title="Financial Health"
+      subtitle="Your overall financial score"
+      icon={<HeartPulse size={16} />}
+      action={
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Badge tone={band.tag as any} style={{ fontSize: '10px', lineHeight: '1.2', padding: '0 4px' }}>{band.label}</Badge>
+          <Select
+            size="sm"
+            fullWidth={false}
+            options={[
+              { label: 'Current', value: 'current' },
+              { label: 'Previous', value: 'prev' },
+            ]}
+            value={healthPeriod}
+            onChange={(val) => setHealthPeriod(val as string)}
+          />
+        </div>
+      }
+      hoverable
+      fadeIn="up"
+      delay={delay}
+      style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+    >
       <HealthScoreTop>
         <HealthScoreValue>{data.score}</HealthScoreValue>
         <HealthScoreMax>/ 100</HealthScoreMax>
@@ -332,19 +350,31 @@ function NavButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-function StatTile({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
+function StatTile({ label, value, sub, accent, icon, action }: { label: string; value: string; sub?: string; accent?: string; icon?: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <StatTileContainer>
-      <StatLabel>{label}</StatLabel>
-      <StatValue $accent={accent}>{value}</StatValue>
-      {sub && <StatSub>{sub}</StatSub>}
-    </StatTileContainer>
+    <GlassCard
+      title={label}
+      subtitle={sub}
+      icon={icon}
+      action={action}
+      style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '120px' }}
+    >
+      <StatValue $accent={accent} style={{ marginTop: 'auto' }}>{value}</StatValue>
+    </GlassCard>
   )
 }
 
 export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => void }) {
-  const [balanceTab, setBalanceTab] = useState('General')
   const [period, setPeriod] = useState<'This Week' | 'This Month' | 'This Year'>('This Month')
+  const [showInsights, setShowInsights] = useState(false)
+  const [showExplainMonth, setShowExplainMonth] = useState(false)
+  const [chartFilter, setChartFilter] = useState<'Daily' | 'Weekly' | 'Monthly' | 'Yearly' | 'All Time'>('Monthly')
+
+  const [netWorthFilter, setNetWorthFilter] = useState('all')
+  const [spentFilter, setSpentFilter] = useState('month')
+  const [incomeFilter, setIncomeFilter] = useState('month')
+  const [savingsFilter, setSavingsFilter] = useState('monthly')
+  const [upcomingFilter, setUpcomingFilter] = useState('all')
 
   const month = format(new Date(), 'yyyy-MM')
 
@@ -353,14 +383,14 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
     queryFn: financeApi.netWorth,
   })
 
+  const { data: budgetStatus } = useQuery({
+    queryKey: ['finance', 'budgets', 'status', month],
+    queryFn: () => financeApi.budgetStatus(month),
+  })
+
   const { data: snapshots } = useQuery({
     queryKey: ['finance', 'snapshots'],
     queryFn: financeApi.snapshots,
-  })
-
-  const { data: accounts, isLoading: loadingAccounts } = useQuery({
-    queryKey: ['finance', 'accounts'],
-    queryFn: financeApi.accounts,
   })
 
   const { data: bills } = useQuery({
@@ -383,11 +413,6 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
     queryFn: () => financeApi.income(month),
   })
 
-  const { data: transfers } = useQuery({
-    queryKey: ['finance', 'transfers', month],
-    queryFn: () => financeApi.transfers(month),
-  })
-
   const { data: healthScore } = useQuery({
     queryKey: ['finance', 'health-score'],
     queryFn: financeApi.healthScore,
@@ -395,23 +420,75 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
 
   const expenseItems = expenses?.items ?? []
 
-  const chartData = useMemo(() => {
-    if (!snapshots) return []
-    return snapshots.slice(0, 7).reverse().map(s => ({
-      name: s.snapshot_month.slice(5, 7),
-      value: Number(s.net_worth ?? 0)
-    }))
-  }, [snapshots])
-
   const totalExpenses = useMemo(() => expenseItems.reduce((acc, e) => acc + Number(e.amount), 0), [expenseItems])
   const totalIncome = useMemo(() => (income ?? []).reduce((acc, i) => acc + Number(i.amount), 0), [income])
   const savingsRate = totalIncome > 0 ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100) : null
 
-  const balanceValue = balanceTab === 'General'
-    ? Number(netWorth?.net_worth ?? 0)
-    : balanceTab === 'Expenses'
-      ? totalExpenses
-      : totalIncome
+  const byCategory = new Map<string, number>()
+  expenseItems.forEach(t => byCategory.set(t.category ?? 'Other', (byCategory.get(t.category ?? 'Other') ?? 0) + Number(t.amount)))
+  const allCategories = Array.from(byCategory.entries()).sort((a, b) => b[1] - a[1])
+  let topCategories = allCategories.slice(0, 5)
+  const otherAmount = allCategories.slice(5).reduce((sum, [, amt]) => sum + amt, 0)
+  if (otherAmount > 0) {
+    topCategories.push(['Other', otherAmount])
+  }
+
+  const COLORS = ['var(--primary)', 'var(--accent)', '#F4A261', '#E76F51', '#2A9D8F', '#E9C46A'];
+
+  const renderCustomizedLabel = (props: any) => {
+    const { cx, cy, midAngle, outerRadius, value, name, fill } = props;
+    const RADIAN = Math.PI / 180;
+    const sin = Math.sin(-RADIAN * midAngle);
+    const cos = Math.cos(-RADIAN * midAngle);
+    const sx = cx + (outerRadius) * cos;
+    const sy = cy + (outerRadius) * sin;
+    const mx = cx + (outerRadius + 20) * cos;
+    const my = cy + (outerRadius + 20) * sin;
+    const ex = mx + (cos >= 0 ? 1 : -1) * 20;
+    const ey = my;
+    const textAnchor = cos >= 0 ? 'start' : 'end';
+    const arrowId = `arrow-${name.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+    return (
+      <g>
+        <defs>
+          <marker id={arrowId} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill={fill} />
+          </marker>
+        </defs>
+        <path d={`M${ex},${ey} L${mx},${my} L${sx},${sy}`} stroke={fill} fill="none" strokeWidth={1.5} markerEnd={`url(#${arrowId})`}/>
+        <text x={ex + (cos >= 0 ? 1 : -1) * 8} y={ey} dy={-6} textAnchor={textAnchor} fill="var(--foreground)" fontSize={11} fontWeight={600}>
+          {name}
+        </text>
+        <text x={ex + (cos >= 0 ? 1 : -1) * 8} y={ey} dy={10} textAnchor={textAnchor} fill="var(--muted-foreground)" fontSize={10}>
+          {formatCurrency(value)}
+        </text>
+      </g>
+    );
+  };
+
+  const renderBudgetLegend = () => (
+    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--primary)' }} />
+        <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>Budget</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--accent)' }} />
+        <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>Actual</span>
+      </div>
+    </div>
+  );
+
+  const budgetChartData = (budgetStatus?.items?.length ? budgetStatus.items : topCategories.map(([name, value]) => ({ category: name, monthly_limit: value * 1.2, spent: value })))
+    .map(b => {
+      const mult = chartFilter === 'Daily' ? 1/30 : chartFilter === 'Weekly' ? 1/4 : chartFilter === 'Yearly' ? 12 : chartFilter === 'All Time' ? 24 : 1;
+      return {
+        category: b.category,
+        Budget: Math.round((b.monthly_limit || 0) * mult),
+        Actual: Math.round((b.spent || 0) * mult)
+      }
+    })
 
   const upcoming = useMemo(() => {
     const billItems = (bills ?? []).filter(b => b.is_active).map(b => ({
@@ -433,15 +510,6 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
     return [...billItems, ...loanItems].sort((a, b) => a.days - b.days).slice(0, 5)
   }, [bills, loans])
 
-  const recentActivity = useMemo(() => {
-    const items = [
-      ...expenseItems.map(e => ({ id: e.id, label: e.description || e.category, sub: e.category, amount: -Number(e.amount), date: e.logged_at, kind: 'Expense' as const })),
-      ...(income ?? []).map(i => ({ id: i.id, label: i.description || i.source, sub: i.source, amount: Number(i.amount), date: i.logged_at, kind: 'Income' as const })),
-      ...(transfers ?? []).map(t => ({ id: t.id, label: t.description || 'Transfer', sub: 'Transfer', amount: Number(t.amount), date: t.logged_at, kind: 'Transfer' as const })),
-    ]
-    return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5)
-  }, [expenseItems, income, transfers])
-
   if (loadingSnapshot || loadingExpenses) {
     return (
       <LoadingWrapper>
@@ -460,147 +528,267 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
 
   return (
     <>
-    <WorkspaceLayout>
-      <PageToolbar title="Overview">
-        <Select
-          size="sm"
-          value={period}
-          onChange={v => setPeriod(v as 'This Week' | 'This Month' | 'This Year')}
-          style={{ minWidth: '130px' }}
-          options={[
-            { label: 'This Week', value: 'This Week' },
-            { label: 'This Month', value: 'This Month' },
-            { label: 'This Year', value: 'This Year' },
-          ]}
-        />
-      </PageToolbar>
-      {/* KPI lead row */}
-      <KpiGrid>
-        <StatTile
-          label="Net Worth"
-          value={formatCurrency(Number(netWorth?.net_worth ?? 0))}
-          sub="assets − liabilities"
-          accent={Number(netWorth?.net_worth ?? 0) < 0 ? 'var(--accent)' : undefined}
-        />
-        <StatTile label="Spent · This month" value={formatCurrency(totalExpenses)} sub={`${expenseItems.length} transactions`} accent="var(--accent)" />
-        <StatTile label="Income · This month" value={formatCurrency(totalIncome)} sub={`${(income ?? []).length} entries`} accent="var(--primary)" />
-        <StatTile
-          label="Savings Rate"
-          value={savingsRate === null ? '—' : `${savingsRate}%`}
-          sub={savingsRate === null ? 'log income to see' : savingsRate >= 20 ? 'healthy' : 'aim for 20%+'}
-          accent={savingsRate !== null && savingsRate >= 20 ? 'var(--primary)' : undefined}
-        />
-      </KpiGrid>
+      <WorkspaceLayout>
+        <PageToolbar title="Overview">
+          <Button
+            size="sm"
+            variant={showInsights ? "primary" : "outline"}
+            onClick={() => setShowInsights(!showInsights)}
+          >
+            Insights
+          </Button>
+          <Button
+            size="sm"
+            variant={showExplainMonth ? "primary" : "outline"}
+            onClick={() => setShowExplainMonth(!showExplainMonth)}
+          >
+            Explain Month
+          </Button>
+        </PageToolbar>
+        {/* KPI lead row */}
+        <KpiGrid>
+          <StatTile
+            label="Net Worth"
+            value={formatCurrency(Number(netWorth?.net_worth ?? 0))}
+            sub="assets − liabilities"
+            accent={Number(netWorth?.net_worth ?? 0) < 0 ? 'var(--accent)' : undefined}
+            icon={<Wallet size={16} />}
+            action={
+              <Select
+                size="sm"
+                fullWidth={false}
+                options={[
+                  { label: 'All Assets', value: 'all' },
+                  { label: 'Liquid Only', value: 'liquid' },
+                ]}
+                value={netWorthFilter}
+                onChange={(val) => setNetWorthFilter(val as string)}
+              />
+            }
+          />
+          <StatTile 
+            label="Spent" 
+            value={formatCurrency(totalExpenses)} 
+            sub={`${expenseItems.length} transactions this month`} 
+            accent="var(--accent)" 
+            icon={<TrendingDown size={16} />}
+            action={
+              <Select
+                size="sm"
+                fullWidth={false}
+                options={[
+                  { label: 'This Month', value: 'month' },
+                  { label: 'This Week', value: 'week' },
+                ]}
+                value={spentFilter}
+                onChange={(val) => setSpentFilter(val as string)}
+              />
+            }
+          />
+          <StatTile 
+            label="Income" 
+            value={formatCurrency(totalIncome)} 
+            sub={`${(income ?? []).length} entries this month`} 
+            accent="var(--primary)" 
+            icon={<TrendingUp size={16} />}
+            action={
+              <Select
+                size="sm"
+                fullWidth={false}
+                options={[
+                  { label: 'This Month', value: 'month' },
+                  { label: 'This Week', value: 'week' },
+                ]}
+                value={incomeFilter}
+                onChange={(val) => setIncomeFilter(val as string)}
+              />
+            }
+          />
+          <StatTile
+            label="Savings Rate"
+            value={savingsRate === null ? '—' : `${savingsRate}%`}
+            sub={savingsRate === null ? 'log income to see' : savingsRate >= 20 ? 'healthy' : 'aim for 20%+'}
+            accent={savingsRate !== null && savingsRate >= 20 ? 'var(--primary)' : undefined}
+            icon={<PiggyBank size={16} />}
+            action={
+              <Select
+                size="sm"
+                fullWidth={false}
+                options={[
+                  { label: 'Monthly', value: 'monthly' },
+                  { label: 'Yearly', value: 'yearly' },
+                ]}
+                value={savingsFilter}
+                onChange={(val) => setSavingsFilter(val as string)}
+              />
+            }
+          />
+        </KpiGrid>
 
-      {/* Net Worth trend — full width */}
-      <ChartContainer>
-        <BalanceWidget
-          balance={balanceValue}
-          chartData={chartData}
-          activeTab={balanceTab}
-          onTabChange={setBalanceTab}
-        />
-      </ChartContainer>
-
-      {/* Analytics: 2×2 */}
-      <AnalyticsGrid>
-        {/* Recent Activity */}
-        <div>
-          <GlassCard title="Recent Activity" action={<NavButton onClick={() => onNavigateTab('2')} />} hoverable fadeIn="up" delay={0}>
-            {recentActivity.length === 0 ? (
-              <EmptyState title="No transactions this month" />
-            ) : (
-              <ListContainer>
-                {recentActivity.map(item => (
-                  <ListItem key={`${item.kind}-${item.id}`}>
-                    <div>
-                      <ItemTitle>{item.label}</ItemTitle>
-                      <ItemSubtitle>{item.sub} · {format(new Date(item.date), 'MMM d')}</ItemSubtitle>
-                    </div>
-                    <ItemAmountText $color={item.amount < 0 ? "var(--accent)" : item.kind === 'Transfer' ? "var(--muted-foreground)" : "var(--primary)"}>
-                      {item.amount < 0 ? '-' : '+'}{formatCurrency(Math.abs(item.amount))}
-                    </ItemAmountText>
-                  </ListItem>
-                ))}
-              </ListContainer>
+        {/* Conditional InsightsGrid */}
+        {(showInsights || showExplainMonth) && (
+          <InsightsGrid>
+            {showExplainMonth && (
+              <AiInsightCard area="finance" style={{ height: '100%' }} />
             )}
-          </GlassCard>
-        </div>
+            {showInsights && <AIInsightsEngine />}
+          </InsightsGrid>
+        )}
 
-        {/* Upcoming Payments */}
-        <div>
-          <GlassCard title="Upcoming Payments" action={<NavButton onClick={() => onNavigateTab('5')} />} hoverable fadeIn="up" delay={100}>
-            {upcoming.length === 0 ? (
-              <EmptyState title="No bills or EMIs due" />
-            ) : (
-              <ListContainer>
-                {upcoming.map(item => (
-                  <ListItem key={item.id}>
-                    <div>
-                      <ItemTitle>{item.name}</ItemTitle>
-                      <ItemSubtitle>{item.type} · due {ordinal(item.dueDay)}</ItemSubtitle>
-                    </div>
-                    <AmountContainer>
-                      <ItemAmountText>{formatCurrency(item.amount)}</ItemAmountText>
-                      <Badge tone={urgencyColor(item.days)} variant="soft" style={{ fontSize: '10px', lineHeight: '1.2', padding: '0 4px', margin: 0 }}>{item.days === 0 ? 'Today' : `${item.days}d`}</Badge>
-                    </AmountContainer>
-                  </ListItem>
-                ))}
-              </ListContainer>
-            )}
-          </GlassCard>
-        </div>
-
-        {/* Accounts Overview */}
-        <div>
-          <GlassCard title="Accounts" action={<NavButton onClick={() => onNavigateTab('4')} />} hoverable fadeIn="up" delay={200}>
-            {loadingAccounts ? (
-              <ListContainer>
-                <StyledSkeleton $height="2.5rem" />
-                <StyledSkeleton $height="2.5rem" />
-              </ListContainer>
-            ) : !accounts || accounts.length === 0 ? (
-              <EmptyState title="No accounts yet — add one in the Accounts tab" />
-            ) : (
-              <ListContainer>
-                {accounts.map(a => {
-                  const Icon = ACCOUNT_ICONS[a.type] ?? Wallet
-                  return (
-                    <ListItem key={a.id}>
-                      <ItemContent>
-                        <IconBadge icon={Icon} color="muted" size="md" />
+        {/* Analytics: 2×2 */}
+        <AnalyticsGrid>
+          {/* Upcoming Payments */}
+          <div>
+            <GlassCard 
+              title="Upcoming Payments" 
+              subtitle="Upcoming bills and EMIs"
+              icon={<CalendarClock size={16} />}
+              action={
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Select
+                    size="sm"
+                    fullWidth={false}
+                    options={[
+                      { label: 'All Due', value: 'all' },
+                      { label: 'Next 7 Days', value: '7d' },
+                    ]}
+                    value={upcomingFilter}
+                    onChange={(val) => setUpcomingFilter(val as string)}
+                  />
+                  <NavButton onClick={() => onNavigateTab('5')} />
+                </div>
+              } 
+              hoverable fadeIn="up" delay={100} style={{ height: 380, display: 'flex', flexDirection: 'column' }}
+            >
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {upcoming.length === 0 ? (
+                  <EmptyState title="No bills or EMIs due" />
+                ) : (
+                  <ListContainer>
+                    {upcoming.map(item => (
+                      <ListItem key={item.id}>
                         <div>
-                          <ItemTitle>{a.name}</ItemTitle>
-                          <ItemSubtitle>{String(a.type).replace('_', ' ').toUpperCase()}</ItemSubtitle>
+                          <ItemTitle>{item.name}</ItemTitle>
+                          <ItemSubtitle>{item.type} · due {ordinal(item.dueDay)}</ItemSubtitle>
                         </div>
-                      </ItemContent>
-                      <ItemAmountText>{formatCurrency(Number(a.balance))}</ItemAmountText>
-                    </ListItem>
-                  )
-                })}
-              </ListContainer>
-            )}
-          </GlassCard>
-        </div>
+                        <AmountContainer>
+                          <ItemAmountText>{formatCurrency(item.amount)}</ItemAmountText>
+                          <Badge tone={urgencyColor(item.days)} variant="soft" style={{ fontSize: '10px', lineHeight: '1.2', padding: '0 4px', margin: 0 }}>{item.days === 0 ? 'Today' : `${item.days}d`}</Badge>
+                        </AmountContainer>
+                      </ListItem>
+                    ))}
+                  </ListContainer>
+                )}
+              </div>
+            </GlassCard>
+          </div>
 
-        {/* Financial Health Score */}
-        <div>
-          <HealthScoreCard data={healthScore} delay={300} />
-        </div>
-      </AnalyticsGrid>
-        
-      {/* Unified Stats Widgets */}
-      <UnifiedStats>
-        <FinanceStats period={period} />
-      </UnifiedStats>
+          {/* Financial Health Score */}
+          <div>
+            <div style={{ height: 380, display: 'flex', flexDirection: 'column' }}>
+              <HealthScoreCard data={healthScore} delay={300} />
+            </div>
+          </div>
+        </AnalyticsGrid>
 
-      {/* AI Insights & Analytics */}
-      <InsightsGrid>
-        <AiInsightCard area="finance" style={{ height: '100%' }} />
-        <AIInsightsEngine />
-      </InsightsGrid>
-    </WorkspaceLayout>
+        {/* Budget and Top Categories */}
+        <AnalyticsGrid>
+          <div>
+            <GlassCard 
+              title="Budget Tracking" 
+              subtitle="Actual spent vs allocated limit"
+              icon={<Target size={16} />}
+              action={
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  {renderBudgetLegend()}
+                  <SegmentedControl
+                    size="sm"
+                    aria-label="Budget chart range"
+                    options={[
+                      { value: 'Daily', label: 'D' },
+                      { value: 'Weekly', label: 'W' },
+                      { value: 'Monthly', label: 'M' },
+                      { value: 'Yearly', label: 'Y' },
+                      { value: 'All Time', label: 'All' },
+                    ]}
+                    value={chartFilter}
+                    onChange={(v) => setChartFilter(v as any)}
+                  />
+                </div>
+              }
+              hoverable fadeIn="up" delay={150} style={{ height: 380, display: 'flex', flexDirection: 'column' }}
+            >
+              <div style={{ flex: 1, width: '100%', minHeight: 0 }}>
+                {budgetChartData.length === 0 ? (
+                  <EmptyState title="No budget data" />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={budgetChartData} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                      <XAxis dataKey="category" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} tickFormatter={v => '₹' + v} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: 'var(--card)', borderRadius: 8, border: '1px solid var(--border)' }}
+                        formatter={(value: number) => formatCurrency(value)}
+                      />
+                      <Line type="monotone" dataKey="Budget" stroke="var(--primary)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey="Actual" stroke="var(--accent)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </GlassCard>
+          </div>
 
+          <div>
+            <GlassCard 
+              title="Top Categories" 
+              subtitle="Highest spending categories"
+              icon={<PieChartIcon size={16} />}
+              action={
+                <SegmentedControl
+                  size="sm"
+                  aria-label="Top categories period"
+                  value={period}
+                  onChange={v => setPeriod(v as 'This Week' | 'This Month' | 'This Year')}
+                  options={[
+                    { label: 'Week', value: 'This Week' },
+                    { label: 'Month', value: 'This Month' },
+                    { label: 'Year', value: 'This Year' },
+                  ]}
+                />
+              }
+              hoverable fadeIn="up" delay={200} style={{ height: 380, display: 'flex', flexDirection: 'column' }}
+            >
+              {topCategories.length === 0 ? <EmptyState title="No expenses" style={{ padding: '16px 0' }} /> : (
+                <div style={{ flex: 1, width: '100%', minHeight: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie 
+                        data={topCategories.map(([name, value]) => ({ name, value }))} 
+                        dataKey="value" 
+                        nameKey="name" 
+                        cx="50%" 
+                        cy="50%" 
+                        innerRadius={60} 
+                        outerRadius={90} 
+                        paddingAngle={2}
+                        label={renderCustomizedLabel}
+                        labelLine={false}
+                      >
+                        {topCategories.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </GlassCard>
+          </div>
+        </AnalyticsGrid>
+      </WorkspaceLayout>
     </>
   )
 }

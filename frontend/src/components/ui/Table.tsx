@@ -45,15 +45,19 @@ export const TableFooter = styled.div`
 export interface TableProps<Row> extends DataTableProps<Row> {
   /** Card-header title (rendered via the Card's native header). */
   title?: string
+  /** Card-header icon, rendered left of the title. */
+  icon?: ReactNode
+  /** One-line faded subtitle rendered below the title. */
+  subtitle?: string
   /** Optional right-aligned header action (button, link, filter). */
   action?: ReactNode
   /** Optional footer content laid out as a justified row (e.g. totals). */
   footer?: ReactNode
 }
 
-export function Table<Row>({ title, action, footer, className, ...dataTable }: TableProps<Row>) {
+export function Table<Row>({ title, icon, subtitle, action, footer, className, ...dataTable }: TableProps<Row>) {
   return (
-    <Surface title={title} action={action} className={className}>
+    <Surface title={title} icon={icon} subtitle={subtitle} action={action} className={className}>
       <DataTable {...(dataTable as DataTableProps<Row>)} />
       {footer && <TableFooter>{footer}</TableFooter>}
     </Surface>

@@ -28,9 +28,11 @@ const Shell = styled.div<{ $fullWidth: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
-  background: transparent;
-  border: none;
-  padding: 0;
+  background: ${({ theme }) => theme.color.card};
+  border: 1px solid ${({ theme }) => theme.color.border};
+  padding: 10px 12px;
+  border-radius: 16px;
+  box-shadow: ${({ theme }) => theme.shadow.xs};
   margin-bottom: 16px;
   min-height: 44px;
   overflow-x: auto;

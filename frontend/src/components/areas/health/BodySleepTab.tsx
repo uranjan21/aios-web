@@ -2,8 +2,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button, Input, Select, Dialog, SegmentedControl } from '@ledgr/ui'
-import { Scale, Percent, Ruler, Moon, Clock } from 'lucide-react'
+import { Button, Input, Select, Dialog, SegmentedControl, HeaderActionPortal } from '@ledgr/ui'
+import { Scale, Percent, Ruler, Moon, Clock, Plus, LineChart as LineChartIcon, BarChart3, BedDouble } from 'lucide-react'
 import { healthApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import { format } from 'date-fns'
@@ -15,7 +15,7 @@ import { KpiCard } from '@ledgr/ui';
 import { Card as GlassCard } from '@ledgr/ui';
 import { Card as SectionCard } from '@ledgr/ui'
 import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
-import { TabToolbar } from '@/components/ui/TabToolbar'
+
 import styled, { useTheme } from 'styled-components'
 
 const QUALITY_OPTIONS = ['poor', 'fair', 'good', 'excellent']
@@ -175,6 +175,9 @@ export function BodySleepTab() {
   const [editingHeight, setEditingHeight] = useState(false)
   const [bodyFormState, setBodyFormState] = useState({ logged_at: '', weight_kg: '', body_fat_pct: '', notes: '' })
   const [sleepFormState, setSleepFormState] = useState({ logged_at: '', hours: '', quality: 'good' })
+  const [bodyPeriod, setBodyPeriod] = useState<'7d' | '30d' | '90d'>('30d')
+  const [sleepPeriod, setSleepPeriod] = useState<'7d' | '30d'>('7d')
+  const [sleepQualityFilter, setSleepQualityFilter] = useState<string>('all')
 
   const { data: weightLogs, isLoading: loadingWeight } = useQuery({
     queryKey: ['health', 'logs', 'weight'],
@@ -249,22 +252,33 @@ export function BodySleepTab() {
 
   const bodyChartData = useMemo(() => {
     const map = new Map<string, { date: string; weight?: number; body_fat?: number }>()
-    weightLogs?.slice(0, 30).forEach(l => {
+    const sliceCount = bodyPeriod === '7d' ? 7 : bodyPeriod === '30d' ? 30 : 90
+    weightLogs?.slice(0, sliceCount).forEach(l => {
       const d = l.logged_at.slice(0, 10)
       map.set(d, { ...(map.get(d) ?? { date: d }), weight: l.value != null ? Number(l.value) : undefined })
     })
-    bodyFatLogs?.slice(0, 30).forEach(l => {
+    bodyFatLogs?.slice(0, sliceCount).forEach(l => {
       const d = l.logged_at.slice(0, 10)
       map.set(d, { ...(map.get(d) ?? { date: d }), body_fat: l.value != null ? Number(l.value) : undefined })
     })
     return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date))
-  }, [weightLogs, bodyFatLogs])
+  }, [weightLogs, bodyFatLogs, bodyPeriod])
 
   const target = sleep?.target ?? 8
   const lastNight = sleep?.last_night
   const weeklyAvg = sleep?.weekly_avg ?? 0
   const avgVsTarget = weeklyAvg - target
   const sleepChartData = sleep?.daily ?? []
+
+  const filteredSleepChartData = useMemo(() => {
+    const sliceCount = sleepPeriod === '7d' ? 7 : 30
+    return sleepChartData.slice(-sliceCount)
+  }, [sleepChartData, sleepPeriod])
+
+  const filteredSleepList = useMemo(() => {
+    if (sleepQualityFilter === 'all') return sleepChartData
+    return sleepChartData.filter(d => d.quality === sleepQualityFilter)
+  }, [sleepChartData, sleepQualityFilter])
 
   const isLoadingBody = loadingWeight || loadingBodyFat
 
@@ -286,17 +300,49 @@ export function BodySleepTab() {
   return (
     <>
     <WorkspaceLayout rail={undefined}>
+      <HeaderActionPortal>
+        <Button size="sm" variant="primary" onClick={() => setLogModalOpen(true)}>
+          <Plus size={12} style={{ marginRight: 4 }} /> Log Body Stats / Sleep
+        </Button>
+      </HeaderActionPortal>
       <StyledContainer>
         <StyledKpiGrid>
-          <KpiCard label="Weight" icon={Scale} color="primary" loading={loadingWeight} value={latestWeight != null ? `${latestWeight} kg` : '—'} />
-          <KpiCard label="Body Fat" icon={Percent} color="purple" loading={loadingBodyFat} value={latestBodyFat != null ? `${latestBodyFat}%` : '—'} />
-          <KpiCard label="BMI" icon={Ruler} color="emerald" loading={loadingGoals} value={bmi != null ? bmi.toFixed(1) : 'Set height & weight'} />
-          <KpiCard label="Last Night" icon={Moon} color="indigo" loading={loadingSleep} value={lastNight != null ? `${lastNight}h` : '—'} />
-          <KpiCard label="7-Day Avg" icon={Clock} color="primary" loading={loadingSleep} value={`${weeklyAvg}h`} />
+          <KpiCard label="Weight" icon={Scale} color="primary" sub="Latest body weight" loading={loadingWeight} value={latestWeight != null ? `${latestWeight} kg` : '—'} />
+          <KpiCard label="Body Fat" icon={Percent} color="purple" sub="Estimated body fat %" loading={loadingBodyFat} value={latestBodyFat != null ? `${latestBodyFat}%` : '—'} />
+          <KpiCard label="BMI" icon={Ruler} color="emerald" sub="Body mass index" loading={loadingGoals} value={bmi != null ? bmi.toFixed(1) : 'Set height & weight'} />
+          <KpiCard label="Last Night" icon={Moon} color="indigo" sub="Last logged sleep duration" loading={loadingSleep} value={lastNight != null ? `${lastNight}h` : '—'} />
+          <KpiCard label="7-Day Avg" icon={Clock} color="primary" sub="Average sleep this week" loading={loadingSleep} value={`${weeklyAvg}h`} />
         </StyledKpiGrid>
 
         <StyledChartsGrid>
-          <SectionCard title="Weight & Body Fat Trend" style={{ height: '100%' }}>
+          <SectionCard
+            title="Weight & Body Fat Trend"
+            subtitle="Recent body composition logs over time"
+            icon={<LineChartIcon size={16} />}
+            action={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, color: 'var(--muted-foreground)' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 999, background: theme.color.accent }} /> Weight
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 999, background: theme.color.primary }} /> Body fat
+                  </span>
+                </div>
+                <Select
+                  size="sm"
+                  value={bodyPeriod}
+                  onChange={(val: any) => setBodyPeriod(val)}
+                  options={[
+                    { value: '7d', label: '7 Days' },
+                    { value: '30d', label: '30 Days' },
+                    { value: '90d', label: '90 Days' },
+                  ]}
+                />
+              </div>
+            }
+            style={{ height: '100%' }}
+          >
             {isLoadingBody ? <Skeleton style={{ height: '200px', width: '100%' }} /> : !bodyChartData.length ? (
               <StyledEmptyState>No body composition logs yet</StyledEmptyState>
             ) : (
@@ -314,7 +360,6 @@ export function BodySleepTab() {
                     contentStyle={{ background: theme.color.card, border: `1px solid ${theme.color.border}`, borderRadius: 8, fontSize: 12 }}
                     labelFormatter={d => { try { return format(new Date(d as string), 'MMM d, yyyy') } catch { return d as string } }}
                   />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Area yAxisId="weight" type="monotone" dataKey="weight" name="Weight (kg)" stroke={theme.color.accent} fill={`color-mix(in srgb, ${theme.color.accent} 15%, transparent)`} connectNulls strokeWidth={2} isAnimationActive={false} />
                   <Area yAxisId="fat" type="monotone" dataKey="body_fat" name="Body Fat (%)" stroke={theme.color.primary} fill={`color-mix(in srgb, ${theme.color.primary} 12%, transparent)`} connectNulls strokeWidth={2} isAnimationActive={false} />
                 </ComposedChart>
@@ -322,12 +367,38 @@ export function BodySleepTab() {
             )}
           </SectionCard>
 
-          <SectionCard title="Sleep Duration Trend" style={{ height: '100%' }}>
-            {loadingSleep ? <Skeleton style={{ height: '200px', width: '100%' }} /> : !sleepChartData.length ? (
+          <SectionCard
+            title="Sleep Duration Trend"
+            subtitle="Hours slept per day vs your target"
+            icon={<BarChart3 size={16} />}
+            action={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, color: 'var(--muted-foreground)' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 2, background: theme.color.accent }} /> At/above target
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 2, background: theme.color.mutedForeground }} /> Below target
+                  </span>
+                </div>
+                <Select
+                  size="sm"
+                  value={sleepPeriod}
+                  onChange={(val: any) => setSleepPeriod(val)}
+                  options={[
+                    { value: '7d', label: '7 Days' },
+                    { value: '30d', label: '30 Days' },
+                  ]}
+                />
+              </div>
+            }
+            style={{ height: '100%' }}
+          >
+            {loadingSleep ? <Skeleton style={{ height: '200px', width: '100%' }} /> : !filteredSleepChartData.length ? (
               <StyledEmptyState>No sleep logs yet</StyledEmptyState>
             ) : (
               <ResponsiveContainer width="100%" height={200}>
-                <ComposedChart data={sleepChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <ComposedChart data={filteredSleepChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={theme.color.border} />
                   <XAxis
                     dataKey="date"
@@ -346,7 +417,7 @@ export function BodySleepTab() {
                   />
                   <ReferenceLine y={target} stroke={theme.color.accent} strokeDasharray="4 4" label={{ value: `Target ${target}h`, position: 'insideTopRight', fontSize: 10, fill: theme.color.accent }} />
                   <Bar dataKey="hours" name="Hours" radius={[3, 3, 0, 0]} maxBarSize={32} isAnimationActive={false}>
-                    {sleepChartData.map((d, i) => (
+                    {filteredSleepChartData.map((d, i) => (
                       <Cell key={i} fill={d.hours >= target ? theme.color.accent : theme.color.mutedForeground} />
                     ))}
                   </Bar>
@@ -356,14 +427,35 @@ export function BodySleepTab() {
           </SectionCard>
         </StyledChartsGrid>
 
-        <SectionCard title="Sleep — Last 7 Days" style={{ height: '100%' }}>
+        <SectionCard
+          title="Sleep — Last 7 Days"
+          subtitle="Each night's hours and quality rating"
+          icon={<BedDouble size={16} />}
+          action={
+            <div onClick={(e) => e.stopPropagation()}>
+              <Select
+                size="sm"
+                value={sleepQualityFilter}
+                onChange={(val: any) => setSleepQualityFilter(val)}
+                options={[
+                  { value: 'all', label: 'All Qualities' },
+                  { value: 'excellent', label: 'Excellent' },
+                  { value: 'good', label: 'Good' },
+                  { value: 'fair', label: 'Fair' },
+                  { value: 'poor', label: 'Poor' },
+                ]}
+              />
+            </div>
+          }
+          style={{ height: '100%' }}
+        >
           {loadingSleep ? (
             <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>{[1, 2, 3].map(i => <Skeleton key={i} style={{ height: '3rem', width: '100%' }} />)}</div>
-          ) : !sleepChartData.length ? (
+          ) : !filteredSleepList.length ? (
             <StyledEmptyState>No sleep logged yet. Use the rail to log tonight's sleep.</StyledEmptyState>
           ) : (
             <StyledListWrapper>
-              {[...sleepChartData].reverse().map(d => (
+              {[...filteredSleepList].reverse().map(d => (
                 <StyledListItem key={d.date}>
                   <div>
                     <StyledListItemTitle>{format(new Date(d.date), 'EEE, MMM d')}</StyledListItemTitle>

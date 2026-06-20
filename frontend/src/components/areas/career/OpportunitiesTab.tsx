@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@/components/ui/Popconfirm'
-import { Input, Select, SelectItem, Button, Badge, SegmentedControl } from '@ledgr/ui'
+import { Input, Select, SelectItem, Button, Badge, SegmentedControl, HeaderActionPortal } from '@ledgr/ui'
 import { Plus, ExternalLink, Trash2, Briefcase, XCircle } from 'lucide-react'
 import {
   DndContext, DragOverlay, PointerSensor,
@@ -34,11 +34,7 @@ const Root = styled.div<{ $pipeline: boolean }>`
   max-width: ${({ $pipeline }) => $pipeline ? 'none' : '42rem'};
 `
 
-const Toolbar = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-`
+
 
 const AddBtn = styled.button`
   display: flex;
@@ -505,25 +501,52 @@ function PipelineBoard({ opps }: { opps: JobOpportunity[] }) {
 }
 
 function OppListSection({ label, opps, isLoading, onAdd }: { label: string; opps: JobOpportunity[]; isLoading: boolean; onAdd: () => void }) {
+  const isClosed = /closed|rejected/i.test(label)
+  const [listPeriod, setListPeriod] = useState('all')
+
+  const filteredOpps = opps.filter(o => {
+    if (listPeriod === 'all') return true
+    if (!o.applied_date) return true
+    const diff = (new Date().getTime() - new Date(o.applied_date).getTime()) / (1000 * 60 * 60 * 24)
+    if (listPeriod === '30d') return diff <= 30
+    if (listPeriod === '90d') return diff <= 90
+    return true
+  })
+
   return (
-    <Card size="none">
-      <ListSectionHead>
-        <ListSectionLabel>{label}</ListSectionLabel>
-      </ListSectionHead>
+    <Card
+      title={label}
+      subtitle={isClosed ? 'Past applications that did not move forward' : 'Roles you are actively pursuing'}
+      icon={isClosed ? <XCircle size={16} /> : <Briefcase size={16} />}
+      size="none"
+      action={
+        <Select
+          size="sm"
+          fullWidth={false}
+          options={[
+            { label: 'All Time', value: 'all' },
+            { label: 'Last 30 Days', value: '30d' },
+            { label: 'Last 90 Days', value: '90d' },
+          ]}
+          value={listPeriod}
+          onChange={(val) => setListPeriod(val as string)}
+        />
+      }
+    >
       {isLoading ? (
         <ListSkeletonPad>
           {[1, 2, 3].map(i => <StyledListSkeleton key={i} />)}
         </ListSkeletonPad>
-      ) : !opps.length ? (
+      ) : !filteredOpps.length ? (
         <EmptyState
           icon={Briefcase}
-          title="No active opportunities"
-          description="Track jobs you're applying to here."
+          title="No opportunities found"
+          description="Try changing the period filter."
           action={{ label: "Add Entry", onClick: onAdd }}
         />
       ) : (
         <ListPad>
-          {opps.map(o => <OppRow key={o.id} opp={o} />)}
+          {filteredOpps.map(o => <OppRow key={o.id} opp={o} />)}
         </ListPad>
       )}
     </Card>
@@ -544,16 +567,16 @@ export function OpportunitiesTab() {
 
   return (
     <Root $pipeline={view === 'Pipeline'}>
-      <Toolbar>
-        <SegmentedControl
-          options={[{ label: 'Pipeline', value: 'Pipeline' }, { label: 'List', value: 'List' }]}
-          value={view}
-          onChange={v => setView(v as typeof view)}
-        />
+      <SegmentedControl
+        options={[{ label: 'Pipeline', value: 'Pipeline' }, { label: 'List', value: 'List' }]}
+        value={view}
+        onChange={v => setView(v as typeof view)}
+      />
+      <HeaderActionPortal>
         <AddBtn onClick={() => setShowForm(s => !s)}>
           <Plus size={12} /> Add
         </AddBtn>
-      </Toolbar>
+      </HeaderActionPortal>
 
       {showForm && <AddForm onClose={() => setShowForm(false)} />}
 

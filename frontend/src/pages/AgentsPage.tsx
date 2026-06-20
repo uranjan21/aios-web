@@ -7,11 +7,10 @@ import { formatRelativeTime } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorCard } from '@/components/ErrorCard'
 import { EmptyState } from '@/components/EmptyState'
-import { PageHeader } from '@/components/layout/PageLayout'
 import type { Agent } from '@/types'
 
 import styled, { keyframes, createGlobalStyle, useTheme } from 'styled-components'
-import { Button, Switch, Tooltip, Sheet } from '@ledgr/ui'
+import { Button, Switch, Tooltip, Sheet, PageHeader } from '@ledgr/ui'
 import { Card as AppCard } from '@ledgr/ui'
 
 class AgentErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error: Error | null}> {
@@ -297,54 +296,32 @@ function AgentCard({ agent }: { agent: Agent }) {
 
   return (
     <>
-      <AgentCardWrapper $status={status} noPadding hoverable>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0 }}>
-          <Activity size={18} style={{ color: theme.color.primary, flexShrink: 0 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-            <AgentName>{agent.name}</AgentName>
-            {agent.description && <AgentDesc>{agent.description}</AgentDesc>}
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', flexShrink: 0, flexWrap: 'wrap' }}>
-          <StatusIndicator $status={status}>
-            {status === 'running' ? <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} /> :
-             status === 'success' ? <CheckCircle size={12} /> : 
-             status === 'error' ? <XCircle size={12} /> : null}
-            <span>{status}</span>
-          </StatusIndicator>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-            <InfoItem>
-              <InfoLabel><Calendar size={12} /> Schedule</InfoLabel>
-              <InfoValue>{agent.cron_expression || 'Manual'}</InfoValue>
-            </InfoItem>
-            <InfoItem>
-              <InfoLabel><Zap size={12} /> Last Run</InfoLabel>
-              <InfoValue>{agent.last_run_at ? formatRelativeTime(agent.last_run_at) : 'Never'}</InfoValue>
-            </InfoItem>
-            {agent.cron_expression && agent.is_active && (
-              <InfoItem>
-                <InfoLabel><RefreshCw size={12} /> Next Run</InfoLabel>
-                <NextRunCountdown cron={agent.cron_expression} />
-              </InfoItem>
-            )}
-          </div>
-
+      <AgentCardWrapper
+        $status={status}
+        hoverable
+        title={agent.name}
+        subtitle={agent.description || 'Scheduled automation agent'}
+        icon={<Activity size={18} style={{ color: theme.color.primary, flexShrink: 0 }} />}
+        action={
           <ControlsGroup>
+            <StatusIndicator $status={status}>
+              {status === 'running' ? <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} /> :
+               status === 'success' ? <CheckCircle size={12} /> :
+               status === 'error' ? <XCircle size={12} /> : null}
+              <span>{status}</span>
+            </StatusIndicator>
             <Tooltip content={agent.is_active ? "Pause Agent" : "Enable Agent"}>
-              <Switch 
+              <Switch
                 aria-label={`Toggle ${agent.name}`}
-                checked={agent.is_active} 
+                checked={agent.is_active}
                 onChange={(e) => toggleMutation.mutate(e.target.checked)}
                 disabled={toggleMutation.isPending}
                 size="sm"
                 style={{ background: agent.is_active ? theme.color.primary : theme.color.muted }}
               />
             </Tooltip>
-            
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               onClick={() => triggerMutation.mutate()}
               loading={triggerMutation.isPending}
               disabled={triggering}
@@ -354,9 +331,8 @@ function AgentCard({ agent }: { agent: Agent }) {
                {triggering ? <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Play size={14} />}
               Run
             </Button>
-            
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setTerminalOpen(true)}
               size="sm"
               style={{ color: theme.color.mutedForeground, display: 'flex', alignItems: 'center' }}
@@ -364,6 +340,23 @@ function AgentCard({ agent }: { agent: Agent }) {
               <Terminal size={14} />
             </Button>
           </ControlsGroup>
+        }
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <InfoItem>
+            <InfoLabel><Calendar size={12} /> Schedule</InfoLabel>
+            <InfoValue>{agent.cron_expression || 'Manual'}</InfoValue>
+          </InfoItem>
+          <InfoItem>
+            <InfoLabel><Zap size={12} /> Last Run</InfoLabel>
+            <InfoValue>{agent.last_run_at ? formatRelativeTime(agent.last_run_at) : 'Never'}</InfoValue>
+          </InfoItem>
+          {agent.cron_expression && agent.is_active && (
+            <InfoItem>
+              <InfoLabel><RefreshCw size={12} /> Next Run</InfoLabel>
+              <NextRunCountdown cron={agent.cron_expression} />
+            </InfoItem>
+          )}
         </div>
       </AgentCardWrapper>
 
@@ -400,7 +393,7 @@ export function AgentsPage() {
   return (
       <PageContainer>
         <SpinGlobal />
-        <PageHeader title="Agents" description="Autonomous agents that manage your life OS." icon={Bot} category="AUTOMATION" />
+        <PageHeader title="Agents" subtitle="Autonomous agents that manage your life OS." icon={<Bot />} eyebrow="AUTOMATION" />
         {isError ? (
           <ErrorCard message="Could not load agents" onRetry={() => refetch()} />
         ) : isLoading ? (

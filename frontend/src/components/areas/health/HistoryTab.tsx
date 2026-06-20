@@ -1,14 +1,14 @@
 // @ts-nocheck
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Select, Badge, Button } from '@ledgr/ui'
-import { Download, Activity } from 'lucide-react'
+import { Select, Badge, Button, Card } from '@ledgr/ui'
+import { Download, Activity, History } from 'lucide-react'
 import { healthApi } from '@/api/areas'
 import { exportToCsv, formatRelativeTime } from '@/lib/utils'
 import { format } from 'date-fns'
 import { Table } from '@/components/ui/Table'
 import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
-import { AreaToolbar } from '@/components/ui/AreaToolbar'
+import { AreaToolbar, HeaderActionPortal } from '@ledgr/ui'
 import styled from 'styled-components'
 
 const TYPE_COLORS: Record<string, "success" | "info" | "warning" | "accent" | "neutral" | "primary" | "destructive"> = {
@@ -129,50 +129,50 @@ export function HistoryTab({ onLogClick }: { onLogClick?: () => void }) {
     },
   ]
 
-  const toolbar = (
-    <AreaToolbar
-      left={
-        <Select
-          value={filterType}
-          onChange={setFilterType}
-          size="sm"
-          options={selectOptions}
-          style={{ minWidth: '120px', fontSize: '12px', height: '2rem' }}
-        />
-      }
-    >
-      <Button
-        size="sm"
-        variant="ghost"
-        onClick={handleExport}
-        disabled={!filtered?.length}
-        style={{ height: '2rem', padding: '0 0.625rem' }}
-      >
-        <StyledButtonContent>
-          <Download size={13} />
-          <span>Export CSV</span>
-        </StyledButtonContent>
-      </Button>
-    </AreaToolbar>
-  )
-
   return (
-    <>
     <WorkspaceLayout rail={undefined}>
-      {toolbar}
-      <Table
-        columns={columns}
-        rows={filtered ?? []}
-        getRowKey={(log: any) => log.id}
-        loading={isLoading}
-        empty={{
-          icon: <Activity size={20} />,
-          title: 'No logs',
-          description: 'Start logging to see your history here.',
-          action: <Button size="sm" variant="primary" onClick={onLogClick || (() => {})}>Add Entry</Button>,
-        }}
-      />
+      <Card
+        title="Health Logs"
+        subtitle="History of logged body metrics, sleep, nutrition and fitness logs"
+        icon={<Activity size={16} />}
+        action={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={(e) => e.stopPropagation()}>
+            <Select
+              value={filterType}
+              onChange={setFilterType}
+              size="sm"
+              options={selectOptions}
+              style={{ minWidth: '120px', fontSize: '12px', height: '2rem' }}
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleExport}
+              disabled={!filtered?.length}
+              style={{ height: '2rem', padding: '0 0.625rem' }}
+            >
+              <StyledButtonContent>
+                <Download size={13} />
+                <span>Export CSV</span>
+              </StyledButtonContent>
+            </Button>
+          </div>
+        }
+        size="none"
+      >
+        <Table
+          columns={columns}
+          rows={filtered ?? []}
+          getRowKey={(log: any) => log.id}
+          loading={isLoading}
+          empty={{
+            icon: <Activity size={20} />,
+            title: 'No logs',
+            description: 'Start logging to see your history here.',
+            action: <Button size="sm" variant="primary" onClick={onLogClick || (() => {})}>Add Entry</Button>,
+          }}
+        />
+      </Card>
     </WorkspaceLayout>
-    </>
   )
 }
