@@ -1,9 +1,102 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Form, Input, Select, Button, Modal, Segmented } from 'antd'
+import { Popconfirm } from '@/components/ui/Popconfirm'
+import { Button, Input, Select, SelectItem, Dialog, SegmentedControl } from '@ledgr/ui'
 import { financeApi } from '@/api/areas'
-import { cn } from '@/lib/utils'
+import styled from 'styled-components'
+
+const FormStack = styled.form`
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`
+
+const DivStack = styled.div`
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`
+
+const LabelText = styled.div`
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const HelperText = styled.div`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-bottom: 0.25rem;
+`
+
+const InfoText = styled.div`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-top: -0.25rem;
+`
+
+const Grid2Col = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+`
+
+const ColSpan2 = styled.div`
+  grid-column: span 2 / span 2;
+`
+
+const FullInput = styled(Input)`
+  width: 100%;
+`
+
+const SubmitButton = styled(Button)`
+  width: 100%;
+  margin-top: 0.5rem;
+`
+
+const TypePickerContainer = styled.div`
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+`
+
+const TypeButton = styled.button<{ $active: boolean }>`
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid ${({ $active, theme }) => $active ? theme.color.primary : theme.color.border};
+  background-color: ${({ $active, theme }) => $active ? `${theme.color.primary}1a` : 'transparent'};
+  color: ${({ $active, theme }) => $active ? theme.color.foreground : theme.color.mutedForeground};
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+
+  &:hover {
+    border-color: ${({ $active, theme }) => $active ? theme.color.primary : `${theme.color.primary}80`};
+  }
+`
+
+const DialogTitle = styled.span`
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const ActionsGroup = styled.div`
+  display: flex;
+  gap: 0.5rem;
+`
+
+const OptionalText = styled.span`
+  color: ${({ theme }) => theme.color.mutedForeground};
+  font-weight: 400;
+`
 
 const INVESTMENT_TYPE_META: Record<string, { label: string; icon: string }> = {
   stock: { label: 'Stocks', icon: '📈' },
@@ -27,103 +120,213 @@ const LOAN_TYPE_META: Record<string, { label: string; icon: string }> = {
 
 function TypePicker({ meta, value, onChange }: { meta: Record<string, { label: string; icon: string }>; value: string; onChange: (v: string) => void }) {
   return (
-    <div className="flex gap-1.5 flex-wrap mb-2">
+    <TypePickerContainer>
       {Object.entries(meta).map(([k, m]) => (
-        <button
+        <TypeButton
           key={k}
           type="button"
           onClick={() => onChange(k)}
-          className={cn(
-            'px-2 py-1 rounded-lg text-[11px] font-medium border transition flex items-center gap-1',
-            value === k ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:border-primary/50'
-          )}
+          $active={value === k}
         >
           <span>{m.icon}</span>{m.label}
-        </button>
+        </TypeButton>
       ))}
-    </div>
+    </TypePickerContainer>
   )
 }
 
 function AddAccountForm({ onSuccess }: { onSuccess?: () => void }) {
-  const [form] = Form.useForm()
   const queryClient = useQueryClient()
+  const [values, setValues] = useState({ name: '', type: 'checking', balance: '0', currency: 'INR' })
+
   const { mutate, isPending } = useMutation({
     mutationFn: (v: any) => financeApi.createAccount({ ...v, balance: Number(v.balance) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'accounts'] })
       toast.success('Account created')
-      form.resetFields()
+      setValues({ name: '', type: 'checking', balance: '0', currency: 'INR' })
       onSuccess?.()
     },
     onError: () => toast.error('Failed to create account'),
   })
 
   return (
-    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false} className="mt-3">
-      <Form.Item name="name" label="Account Name" rules={[{ required: true }]}>
-        <Input placeholder="e.g. HDFC Savings" />
-      </Form.Item>
-      <Form.Item name="type" label="Type" rules={[{ required: true }]} initialValue="checking">
-        <Select>
-          <Select.Option value="checking">Checking</Select.Option>
-          <Select.Option value="savings">Savings</Select.Option>
-          <Select.Option value="credit_card">Credit Card</Select.Option>
-          <Select.Option value="investment">Investment</Select.Option>
-          <Select.Option value="loan">Loan</Select.Option>
-        </Select>
-      </Form.Item>
-      <div className="grid grid-cols-2 gap-2">
-        <Form.Item name="balance" label="Initial Balance" initialValue={0}>
-          <Input type="number" step="0.01" />
-        </Form.Item>
-        <Form.Item name="currency" label="Currency" initialValue="INR">
-          <Input />
-        </Form.Item>
+    <FormStack onSubmit={e => { e.preventDefault(); mutate(values) }}>
+      <div>
+        <LabelText>Account Name</LabelText>
+        <FullInput required placeholder="e.g. HDFC Savings" value={values.name} onChange={e => setValues({ ...values, name: e.target.value })} />
       </div>
-      <Button type="primary" htmlType="submit" loading={isPending} size="small" block>Add Account</Button>
-    </Form>
+      <div>
+        <LabelText>Type</LabelText>
+        <Select value={values.type} onChange={v => setValues({ ...values, type: String(v) })} options={[
+          { label: 'Checking', value: 'checking' },
+          { label: 'Savings', value: 'savings' },
+          { label: 'Credit Card', value: 'credit_card' },
+          { label: 'Investment', value: 'investment' },
+          { label: 'Loan', value: 'loan' }
+        ]} />
+      </div>
+      <Grid2Col>
+        <div>
+          <LabelText>Initial Balance</LabelText>
+          <FullInput type="number" step="0.01" value={values.balance} onChange={e => setValues({ ...values, balance: e.target.value })} />
+        </div>
+        <div>
+          <LabelText>Currency</LabelText>
+          <FullInput value={values.currency} onChange={e => setValues({ ...values, currency: e.target.value })} />
+        </div>
+      </Grid2Col>
+      <SubmitButton type="submit" variant="primary" loading={isPending}>Add Account</SubmitButton>
+    </FormStack>
   )
 }
 
 function AddCategoryForm({ onSuccess }: { onSuccess?: () => void }) {
-  const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const { data: categories } = useQuery({ queryKey: ['finance_categories'], queryFn: financeApi.categories })
 
-  const { mutate, isPending } = useMutation({
-    mutationFn: (v: any) => financeApi.createCategory(v),
+  const [categoryText, setCategoryText] = useState('')
+  const [subcategoryText, setSubcategoryText] = useState('')
+  const [icon, setIcon] = useState('')
+  const syncedIdRef = useRef<string | null>(null)
+
+  const topLevel = (categories ?? []).filter((c: any) => !c.parent_id)
+  const categoryMatch = topLevel.find((c: any) => c.name.toLowerCase() === categoryText.trim().toLowerCase())
+  const subOptions = categoryMatch ? (categories ?? []).filter((c: any) => c.parent_id === categoryMatch.id) : []
+  const subMatch = subOptions.find((c: any) => c.name.toLowerCase() === subcategoryText.trim().toLowerCase())
+  const activeMatch = subMatch ?? categoryMatch ?? null
+
+  useEffect(() => {
+    const id = activeMatch?.id ?? null
+    if (id !== syncedIdRef.current) {
+      setIcon(activeMatch?.icon ?? '')
+      syncedIdRef.current = id
+    }
+  }, [activeMatch])
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['finance_categories'] })
+
+  const resetForm = () => {
+    setCategoryText('')
+    setSubcategoryText('')
+    setIcon('')
+    syncedIdRef.current = null
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const catName = categoryText.trim()
+      const subName = subcategoryText.trim()
+      const iconValue = icon.trim() || null
+      if (!catName) throw new Error('Category name is required')
+
+      let categoryId: string
+      if (!categoryMatch) {
+        const created = await financeApi.createCategory({ name: catName, parent_id: null, icon: subName ? null : iconValue })
+        categoryId = created.id
+      } else {
+        categoryId = categoryMatch.id
+        const patch: any = {}
+        if (catName !== categoryMatch.name) patch.name = catName
+        if (!subName && iconValue !== (categoryMatch.icon ?? null)) patch.icon = iconValue
+        if (Object.keys(patch).length) await financeApi.updateCategory(categoryId, patch)
+      }
+
+      if (subName) {
+        if (!subMatch) {
+          await financeApi.createCategory({ name: subName, parent_id: categoryId, icon: iconValue })
+        } else {
+          const patch: any = {}
+          if (subName !== subMatch.name) patch.name = subName
+          if (iconValue !== (subMatch.icon ?? null)) patch.icon = iconValue
+          if (subMatch.parent_id !== categoryId) patch.parent_id = categoryId
+          if (Object.keys(patch).length) await financeApi.updateCategory(subMatch.id, patch)
+        }
+      }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['finance_categories'] })
-      toast.success('Category created')
-      form.resetFields()
+      invalidate()
+      toast.success('Saved')
+      resetForm()
       onSuccess?.()
     },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to create category'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || e?.message || 'Failed to save'),
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => financeApi.deleteCategory(id),
+    onSuccess: () => {
+      invalidate()
+      toast.success('Deleted')
+      resetForm()
+      onSuccess?.()
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to delete'),
+  })
+
+  let helperText = 'Pick an existing category or type a new one'
+  if (subcategoryText.trim()) {
+    helperText = subMatch
+      ? `Editing subcategory "${subMatch.name}"`
+      : `New subcategory "${subcategoryText.trim()}" under "${categoryMatch?.name ?? categoryText.trim()}"`
+  } else if (categoryText.trim()) {
+    helperText = categoryMatch ? `Editing category "${categoryMatch.name}"` : `New category "${categoryText.trim()}"`
+  }
+
   return (
-    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false} className="mt-3">
-      <Form.Item name="name" label="Category Name" rules={[{ required: true }]}>
-        <Input placeholder="e.g. Groceries" />
-      </Form.Item>
-      <Form.Item name="parent_id" label="Parent Category">
-        <Select allowClear placeholder="None (top level)">
-          {(categories ?? []).map((c: any) => <Select.Option key={c.id} value={c.id}>{c.name}</Select.Option>)}
-        </Select>
-      </Form.Item>
-      <Form.Item name="icon" label="Emoji Icon">
-        <Input placeholder="🛒" maxLength={2} />
-      </Form.Item>
-      <Button type="primary" htmlType="submit" loading={isPending} size="small" block>Add Category</Button>
-    </Form>
+    <DivStack>
+      <div>
+        <LabelText>Category</LabelText>
+        <FullInput
+          list="category-options"
+          value={categoryText}
+          onChange={(e) => { setCategoryText(e.target.value); setSubcategoryText('') }}
+          placeholder="Select existing or type a new category"
+        />
+        <datalist id="category-options">
+          {topLevel.map((c: any) => <option key={c.name} value={c.name}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>)}
+        </datalist>
+      </div>
+
+      <div>
+        <LabelText>Subcategory <OptionalText>(optional)</OptionalText></LabelText>
+        <FullInput
+          list="subcategory-options"
+          value={subcategoryText}
+          onChange={(e) => setSubcategoryText(e.target.value)}
+          placeholder={categoryText.trim() ? 'Select existing or type a new subcategory' : 'Choose a category first'}
+          disabled={!categoryText.trim()}
+        />
+        <datalist id="subcategory-options">
+          {subOptions.map((c: any) => <option key={c.name} value={c.name}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>)}
+        </datalist>
+      </div>
+
+      <div>
+        <LabelText>Emoji Icon</LabelText>
+        <FullInput value={icon} onChange={(e) => setIcon(e.target.value)} placeholder="🛒" maxLength={2} />
+      </div>
+
+      <InfoText>{helperText}</InfoText>
+
+      <ActionsGroup>
+        <Button variant="primary" onClick={() => saveMutation.mutate()} loading={saveMutation.isPending} style={{ width: '100%' }}>Save</Button>
+        {activeMatch ? (
+          <Popconfirm title="Delete this?" onConfirm={() => activeMatch && deleteMutation.mutate(activeMatch.id)}>
+            <Button variant="destructive" loading={deleteMutation.isPending}>Delete</Button>
+          </Popconfirm>
+        ) : (
+          <Button variant="destructive" disabled>Delete</Button>
+        )}
+      </ActionsGroup>
+    </DivStack>
   )
 }
 
 function AddInvestmentForm({ onSuccess }: { onSuccess?: () => void }) {
-  const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const [type, setType] = useState('mutual_fund')
+  const [values, setValues] = useState({ name: '', invested_amount: '', current_value: '', units: '', purchase_date: '', notes: '' })
 
   const { mutate, isPending } = useMutation({
     mutationFn: (v: Record<string, string>) => financeApi.createInvestment({
@@ -138,7 +341,7 @@ function AddInvestmentForm({ onSuccess }: { onSuccess?: () => void }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'investments'] })
       toast.success('Holding added')
-      form.resetFields()
+      setValues({ name: '', invested_amount: '', current_value: '', units: '', purchase_date: '', notes: '' })
       setType('mutual_fund')
       onSuccess?.()
     },
@@ -146,39 +349,50 @@ function AddInvestmentForm({ onSuccess }: { onSuccess?: () => void }) {
   })
 
   return (
-    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false} className="mt-3">
-      <div className="text-[11px] text-muted-foreground mb-1">Type</div>
-      <TypePicker meta={INVESTMENT_TYPE_META} value={type} onChange={setType} />
-      <Form.Item name="name" label="Name" rules={[{ required: true }]}>
-        <Input placeholder="e.g. Nifty 50 Index Fund" />
-      </Form.Item>
-      <div className="grid grid-cols-2 gap-2">
-        <Form.Item name="invested_amount" label="Invested (₹)" rules={[{ required: true }]}>
-          <Input type="number" min="0" />
-        </Form.Item>
-        <Form.Item name="current_value" label="Current (₹)">
-          <Input type="number" min="0" placeholder="= invested" />
-        </Form.Item>
-        <Form.Item name="units" label="Units">
-          <Input type="number" min="0" step="any" />
-        </Form.Item>
-        <Form.Item name="purchase_date" label="Purchased">
-          <Input type="date" />
-        </Form.Item>
+    <FormStack onSubmit={e => { e.preventDefault(); mutate(values) }}>
+      <div>
+        <HelperText>Type</HelperText>
+        <TypePicker meta={INVESTMENT_TYPE_META} value={type} onChange={setType} />
       </div>
-      <Form.Item name="notes" label="Notes">
-        <Input placeholder="Optional" />
-      </Form.Item>
-      <Button type="primary" htmlType="submit" loading={isPending} size="small" block>Add Holding</Button>
-    </Form>
+      <div>
+        <LabelText>Name</LabelText>
+        <FullInput required placeholder="e.g. Nifty 50 Index Fund" value={values.name} onChange={e => setValues({ ...values, name: e.target.value })} />
+      </div>
+      <Grid2Col>
+        <div>
+          <LabelText>Invested (₹)</LabelText>
+          <FullInput required type="number" min="0" value={values.invested_amount} onChange={e => setValues({ ...values, invested_amount: e.target.value })} />
+        </div>
+        <div>
+          <LabelText>Current (₹)</LabelText>
+          <FullInput type="number" min="0" placeholder="= invested" value={values.current_value} onChange={e => setValues({ ...values, current_value: e.target.value })} />
+        </div>
+        <div>
+          <LabelText>Units</LabelText>
+          <FullInput type="number" min="0" step="any" value={values.units} onChange={e => setValues({ ...values, units: e.target.value })} />
+        </div>
+        <div>
+          <LabelText>Purchased</LabelText>
+          <FullInput type="date" value={values.purchase_date} onChange={e => setValues({ ...values, purchase_date: e.target.value })} />
+        </div>
+      </Grid2Col>
+      <div>
+        <LabelText>Notes</LabelText>
+        <FullInput placeholder="Optional" value={values.notes} onChange={e => setValues({ ...values, notes: e.target.value })} />
+      </div>
+      <SubmitButton type="submit" variant="primary" loading={isPending}>Add Holding</SubmitButton>
+    </FormStack>
   )
 }
 
 function AddLoanForm({ onSuccess }: { onSuccess?: () => void }) {
-  const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const [type, setType] = useState('personal')
   const { data: accounts } = useQuery({ queryKey: ['finance', 'accounts'], queryFn: financeApi.accounts })
+
+  const [values, setValues] = useState({
+    name: '', lender: '', account_id: '', principal_amount: '', outstanding_amount: '', emi_amount: '', emi_day: '', interest_rate: '', tenure_months: '', notes: ''
+  })
 
   const { mutate, isPending } = useMutation({
     mutationFn: (v: Record<string, string>) => financeApi.createLoan({
@@ -197,7 +411,9 @@ function AddLoanForm({ onSuccess }: { onSuccess?: () => void }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'loans'] })
       toast.success('Loan added')
-      form.resetFields()
+      setValues({
+        name: '', lender: '', account_id: '', principal_amount: '', outstanding_amount: '', emi_amount: '', emi_day: '', interest_rate: '', tenure_months: '', notes: ''
+      })
       setType('personal')
       onSuccess?.()
     },
@@ -205,83 +421,84 @@ function AddLoanForm({ onSuccess }: { onSuccess?: () => void }) {
   })
 
   return (
-    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false} className="mt-3">
-      <div className="text-[11px] text-muted-foreground mb-1">Type</div>
-      <TypePicker meta={LOAN_TYPE_META} value={type} onChange={setType} />
-      <div className="grid grid-cols-2 gap-2">
-        <Form.Item name="name" label="Loan Name" rules={[{ required: true }]} className="col-span-2">
-          <Input placeholder="e.g. Home Loan - HDFC" />
-        </Form.Item>
-        <Form.Item name="lender" label="Lender">
-          <Input placeholder="Optional" />
-        </Form.Item>
-        <Form.Item name="account_id" label="EMI From">
-          <Select placeholder="Account" allowClear>
-            {(accounts ?? []).map((a: any) => <Select.Option key={a.id} value={a.id}>{a.name}</Select.Option>)}
-          </Select>
-        </Form.Item>
-        <Form.Item name="principal_amount" label="Principal (₹)" rules={[{ required: true }]}>
-          <Input type="number" min="0" />
-        </Form.Item>
-        <Form.Item name="outstanding_amount" label="Outstanding (₹)">
-          <Input type="number" min="0" placeholder="= principal" />
-        </Form.Item>
-        <Form.Item name="emi_amount" label="EMI Amount (₹)" rules={[{ required: true }]}>
-          <Input type="number" min="0" />
-        </Form.Item>
-        <Form.Item name="emi_day" label="EMI Day (1-31)" rules={[{ required: true }]}>
-          <Input type="number" min="1" max="31" />
-        </Form.Item>
-        <Form.Item name="interest_rate" label="Interest % p.a.">
-          <Input type="number" min="0" step="0.01" />
-        </Form.Item>
-        <Form.Item name="tenure_months" label="Tenure (mo)">
-          <Input type="number" min="0" />
-        </Form.Item>
+    <FormStack onSubmit={e => { e.preventDefault(); mutate(values) }}>
+      <div>
+        <HelperText>Type</HelperText>
+        <TypePicker meta={LOAN_TYPE_META} value={type} onChange={setType} />
       </div>
-      <Form.Item name="notes" label="Notes">
-        <Input placeholder="Optional" />
-      </Form.Item>
-      <Button type="primary" htmlType="submit" loading={isPending} size="small" block>Add Loan</Button>
-    </Form>
+      <Grid2Col>
+        <ColSpan2>
+          <LabelText>Loan Name</LabelText>
+          <FullInput required placeholder="e.g. Home Loan - HDFC" value={values.name} onChange={e => setValues({ ...values, name: e.target.value })} />
+        </ColSpan2>
+        <div>
+          <LabelText>Lender</LabelText>
+          <FullInput placeholder="Optional" value={values.lender} onChange={e => setValues({ ...values, lender: e.target.value })} />
+        </div>
+        <div>
+          <LabelText>EMI From</LabelText>
+          <Select value={values.account_id} onChange={v => setValues({ ...values, account_id: String(v) })} options={[{label: 'Select account', value: ''}, ...(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))]} />
+        </div>
+        <div>
+          <LabelText>Principal (₹)</LabelText>
+          <FullInput required type="number" min="0" value={values.principal_amount} onChange={e => setValues({ ...values, principal_amount: e.target.value })} />
+        </div>
+        <div>
+          <LabelText>Outstanding (₹)</LabelText>
+          <FullInput type="number" min="0" placeholder="= principal" value={values.outstanding_amount} onChange={e => setValues({ ...values, outstanding_amount: e.target.value })} />
+        </div>
+        <div>
+          <LabelText>EMI Amount (₹)</LabelText>
+          <FullInput required type="number" min="0" value={values.emi_amount} onChange={e => setValues({ ...values, emi_amount: e.target.value })} />
+        </div>
+        <div>
+          <LabelText>EMI Day (1-31)</LabelText>
+          <FullInput required type="number" min="1" max="31" value={values.emi_day} onChange={e => setValues({ ...values, emi_day: e.target.value })} />
+        </div>
+        <div>
+          <LabelText>Interest % p.a.</LabelText>
+          <FullInput type="number" min="0" step="0.01" value={values.interest_rate} onChange={e => setValues({ ...values, interest_rate: e.target.value })} />
+        </div>
+        <div>
+          <LabelText>Tenure (mo)</LabelText>
+          <FullInput type="number" min="0" value={values.tenure_months} onChange={e => setValues({ ...values, tenure_months: e.target.value })} />
+        </div>
+      </Grid2Col>
+      <div>
+        <LabelText>Notes</LabelText>
+        <FullInput placeholder="Optional" value={values.notes} onChange={e => setValues({ ...values, notes: e.target.value })} />
+      </div>
+      <SubmitButton type="submit" variant="primary" loading={isPending}>Add Loan</SubmitButton>
+    </FormStack>
   )
 }
 
 export function AccountsTabModal({ open, onClose, defaultTab = 'Account' }: { open: boolean; onClose: () => void; defaultTab?: 'Account' | 'Category' | 'Investment' | 'Loan' }) {
   const [activeTab, setActiveTab] = useState<'Account' | 'Category' | 'Investment' | 'Loan'>(defaultTab)
 
-  const handleOpenChange = (visible: boolean) => {
-    if (visible) {
-      setActiveTab(defaultTab)
-    }
-  }
-
   return (
-    <Modal
-      title="Add Financial Asset / Liability"
+    <Dialog
+      title={<DialogTitle>Add Financial Asset / Liability</DialogTitle>}
       open={open}
-      onCancel={onClose}
-      footer={null}
-      width={420}
-      destroyOnClose
-      afterOpenChange={handleOpenChange}
+      onOpenChange={(v) => { if (!v) onClose() }}
+      size="sm"
     >
-      <Segmented
-        block
-        options={[
-          { label: 'Account', value: 'Account' },
-          { label: 'Category', value: 'Category' },
-          { label: 'Investment', value: 'Investment' },
-          { label: 'Loan', value: 'Loan' }
-        ]}
-        value={activeTab}
-        onChange={v => setActiveTab(v as any)}
-        className="mb-3"
-      />
+      <div style={{ marginBottom: '0.75rem' }}>
+        <SegmentedControl
+          options={[
+            { label: 'Account', value: 'Account' },
+            { label: 'Category', value: 'Category' },
+            { label: 'Investment', value: 'Investment' },
+            { label: 'Loan', value: 'Loan' }
+          ]}
+          value={activeTab}
+          onChange={v => setActiveTab(v as any)}
+        />
+      </div>
       {activeTab === 'Account' && <AddAccountForm onSuccess={onClose} />}
       {activeTab === 'Category' && <AddCategoryForm onSuccess={onClose} />}
       {activeTab === 'Investment' && <AddInvestmentForm onSuccess={onClose} />}
       {activeTab === 'Loan' && <AddLoanForm onSuccess={onClose} />}
-    </Modal>
+    </Dialog>
   )
 }

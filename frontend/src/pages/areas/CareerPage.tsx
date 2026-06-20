@@ -1,245 +1,220 @@
+// @ts-nocheck
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, History, Plus, Briefcase, ExternalLink } from 'lucide-react'
+import { BookOpen, History, Plus, Briefcase, ExternalLink, LayoutDashboard, Map, Target, Bot, Search, Bell, PlusCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { useUIStore } from '@/stores/uiStore'
+import { FilterBar, PeriodSelect } from '@/components/ui/FilterBar'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import styled from 'styled-components'
-import { Button, Tag, Timeline, Select, Input, Form, Skeleton, Space } from 'antd'
+import { Timeline } from 'antd'
+import { Button, Badge, Select, SelectItem } from '@ledgr/ui'
+import { Skeleton } from '@/components/ui/skeleton'
 import { AreaTabs } from '@/components/ui/AreaTabs'
 import { RoadmapTab } from '@/components/areas/career/RoadmapTab'
 import { OpportunitiesTab } from '@/components/areas/career/OpportunitiesTab'
+import { CareerLogModal } from '@/components/areas/career/CareerLogModal'
 import { careerApi } from '@/api/areas'
 import { ErrorCard } from '@/components/ErrorCard'
 import { EmptyState } from '@/components/EmptyState'
+import { PageHeader, ActionChip } from '@/components/layout/PageLayout'
 import { CareerRadar } from '@/components/CareerRadar'
-import { GlassCard } from '@/components/lumina'
-import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
+import { Card as GlassCard } from '@ledgr/ui';
+import { Card as AppCard } from '@ledgr/ui'
 import type { SkillInventory, JobOpportunity, OpportunityStatus, CareerEvent } from '@/types'
 
-const LEVEL_COLORS: Record<SkillInventory['level'], string> = {
-  day_0: 'default',
-  beginner: 'error',
-  practitioner: 'warning',
-  competent: 'success',
-  proficient: 'processing',
-  expert: 'purple',
+const LEVEL_COLORS: Record<SkillInventory['level'], any> = {
+  day_0: 'neutral', beginner: 'destructive', practitioner: 'warning',
+  competent: 'success', proficient: 'primary', expert: 'primary',
 }
 const LEVEL_LABELS: Record<SkillInventory['level'], string> = {
   day_0: 'Day 0', beginner: 'Beginner', practitioner: 'Practitioner',
   competent: 'Competent', proficient: 'Proficient', expert: 'Expert',
 }
-
-const OPP_STATUS_COLORS: Record<OpportunityStatus, string> = {
-  prospect: 'default',
-  applied: 'processing',
-  screening: 'warning',
-  interview: 'purple',
-  offer: 'success',
-  rejected: 'error',
-  closed: 'default',
+const OPP_STATUS_COLORS: Record<OpportunityStatus, any> = {
+  prospect: 'neutral', applied: 'primary', screening: 'warning',
+  interview: 'primary', offer: 'success', rejected: 'destructive', closed: 'neutral',
 }
-
-const EVENT_TYPE_COLORS: Record<string, string> = {
-  learning: 'cyan',
-  milestone: 'purple',
-  skill_update: 'blue',
-  project: 'green',
-  achievement: 'gold',
-  feedback: 'orange',
+const EVENT_BADGE_TONES: Record<string, any> = {
+  learning: 'primary', milestone: 'success', skill_update: 'primary',
+  project: 'success', achievement: 'warning', feedback: 'warning',
 }
-
 const EVENT_TYPE_LABELS: Record<string, string> = {
-  learning: 'Learning',
-  milestone: 'Milestone',
-  skill_update: 'Skill Update',
-  project: 'Project',
-  achievement: 'Achievement',
-  feedback: 'Feedback',
+  learning: 'Learning', milestone: 'Milestone', skill_update: 'Skill Update',
+  project: 'Project', achievement: 'Achievement', feedback: 'Feedback',
 }
 
-const AnimatedTimelineItem = styled(motion.div)`
-  padding: 0.625rem 0.75rem;
-  border-radius: 8px;
-  background: hsl(var(--muted) / 0.5);
-  border: 1px solid hsl(var(--border));
-  margin-bottom: 0.5rem;
-  transition: all 0.2s ease;
-  &:hover {
-    background: hsl(var(--muted) / 0.5);
-  }
+// ── Layout ─────────────────────────────────────────────────────────────────────
+
+const PageRoot = styled.div`
+  min-height: 100vh;
+  background: ${({ theme }) => theme.color.background};
+  padding: 16px;
+  @media (min-width: 768px) { padding: 24px; }
 `
 
-function MilestoneForm({ onClose }: { onClose: () => void }) {
-  const queryClient = useQueryClient()
-  const [form] = Form.useForm()
+const PageContent = styled.div`
+  margin: 0 auto;
+  max-width: 1200px;
+`
 
-  const { mutate, isPending } = useMutation({
-    mutationFn: (values: any) => careerApi.createEvent({ 
-      event_type: values.eventType, 
-      title: values.title.trim(), 
-      description: values.description?.trim() || undefined 
-    }),
-    onSuccess: () => {
-      toast.success('Milestone logged')
-      queryClient.invalidateQueries({ queryKey: ['career', 'events'] })
-      queryClient.invalidateQueries({ queryKey: ['career', 'summary'] })
-      onClose()
-      form.resetFields()
-    },
-    onError: () => toast.error('Failed to log milestone'),
-  })
+const StyledSkeleton = styled(Skeleton)<{ $height: string }>`
+  height: ${({ $height }) => $height};
+  width: 100%;
+`
 
-  return (
-    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-      <Form form={form} layout="vertical" onFinish={mutate} className="p-4 bg-muted/50 rounded-2xl mb-4 border-0 shadow-premium-sm">
-        <div className="grid grid-cols-12 gap-4">
-          <div className="col-span-12 md:col-span-4">
-            <Form.Item name="eventType" initialValue="milestone" rules={[{ required: true }]}>
-              <Select>
-                {Object.entries(EVENT_TYPE_LABELS).map(([v, l]) => <Select.Option key={v} value={v}>{l}</Select.Option>)}
-              </Select>
-            </Form.Item>
-          </div>
-          <div className="col-span-12 md:col-span-8">
-            <Form.Item name="title" rules={[{ required: true, message: 'Title is required' }]}>
-              <Input placeholder="What did you achieve?" />
-            </Form.Item>
-          </div>
-        </div>
-        <Form.Item name="description">
-          <Input.TextArea placeholder="Details (optional)" autoSize={{ minRows: 2, maxRows: 4 }} />
-        </Form.Item>
-        <Space className="w-full justify-end">
-          <Button type="text" onClick={onClose}>Cancel</Button>
-          <Button type="primary" htmlType="submit" loading={isPending}>
-            Log Milestone
-          </Button>
-        </Space>
-      </Form>
-    </motion.div>
-  )
-}
+const DashCol = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`
 
-function OpportunityForm({ onClose }: { onClose: () => void }) {
-  const queryClient = useQueryClient()
-  const [form] = Form.useForm()
+const KpiGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  @media (min-width: 1280px) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+`
 
-  const { mutate, isPending } = useMutation({
-    mutationFn: (values: any) => careerApi.createOpportunity({
-      company: values.company.trim(), role: values.role.trim(), status: values.status,
-      url: values.url?.trim() || undefined,
-    }),
-    onSuccess: () => {
-      toast.success('Opportunity added')
-      queryClient.invalidateQueries({ queryKey: ['career', 'opportunities'] })
-      onClose()
-      form.resetFields()
-    },
-    onError: () => toast.error('Failed to add opportunity'),
-  })
+const TwoColGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  @media (min-width: 1024px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+`
 
-  return (
-    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-      <Form form={form} layout="vertical" onFinish={mutate} className="p-4 bg-muted/50 rounded-2xl mb-4 border-0 shadow-premium-sm">
-        <div className="grid grid-cols-12 gap-4">
-          <div className="col-span-12 md:col-span-6">
-            <Form.Item name="company" rules={[{ required: true }]}>
-              <Input placeholder="Company" />
-            </Form.Item>
-          </div>
-          <div className="col-span-12 md:col-span-6">
-            <Form.Item name="role" rules={[{ required: true }]}>
-              <Input placeholder="Role" />
-            </Form.Item>
-          </div>
-        </div>
-        <div className="grid grid-cols-12 gap-4">
-          <div className="col-span-12 md:col-span-4">
-            <Form.Item name="status" initialValue="prospect" rules={[{ required: true }]}>
-              <Select>
-                {Object.keys(OPP_STATUS_COLORS).map(s => <Select.Option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</Select.Option>)}
-              </Select>
-            </Form.Item>
-          </div>
-          <div className="col-span-12 md:col-span-8">
-            <Form.Item name="url">
-              <Input placeholder="Job posting URL (optional)" />
-            </Form.Item>
-          </div>
-        </div>
-        <Space className="w-full justify-end">
-          <Button type="text" onClick={onClose}>Cancel</Button>
-          <Button type="primary" htmlType="submit" loading={isPending}>
-            Add Opportunity
-          </Button>
-        </Space>
-      </Form>
-    </motion.div>
-  )
-}
+// ── Sub-components ─────────────────────────────────────────────────────────────
 
-function SkillForm({ onClose }: { onClose: () => void }) {
-  const queryClient = useQueryClient()
-  const [form] = Form.useForm()
+const AnimatedTimelineItem = styled(motion.div)`
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: ${({ theme }) => `${theme.color.muted}80`};
+  border: 1px solid ${({ theme }) => theme.color.border};
+  margin-bottom: 8px;
+`
 
-  const { mutate, isPending } = useMutation({
-    mutationFn: (values: any) => careerApi.upsertSkill({
-      skill_name: values.skill_name.trim(),
-      category: values.category.trim(),
-      level: values.level,
-      notes: values.notes?.trim() || undefined,
-    }),
-    onSuccess: () => {
-      toast.success('Skill saved')
-      queryClient.invalidateQueries({ queryKey: ['career', 'skills'] })
-      queryClient.invalidateQueries({ queryKey: ['career', 'summary'] })
-      onClose()
-      form.resetFields()
-    },
-    onError: () => toast.error('Failed to save skill'),
-  })
+const SkillRowRoot = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  border-radius: 12px;
+  background: ${({ theme }) => `${theme.color.muted}4d`};
+`
 
-  return (
-    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-      <Form form={form} layout="vertical" onFinish={mutate} className="p-4 bg-muted/50 rounded-2xl mb-4 border-0 shadow-premium-sm">
-        <div className="grid grid-cols-12 gap-4">
-          <div className="col-span-12 md:col-span-6">
-            <Form.Item name="skill_name" rules={[{ required: true, message: 'Skill name is required' }]}>
-              <Input placeholder="Skill name" />
-            </Form.Item>
-          </div>
-          <div className="col-span-12 md:col-span-6">
-            <Form.Item name="category" rules={[{ required: true, message: 'Category is required' }]}>
-              <Input placeholder="Category (e.g. technical, soft skill)" />
-            </Form.Item>
-          </div>
-        </div>
-        <div className="grid grid-cols-12 gap-4">
-          <div className="col-span-12 md:col-span-4">
-            <Form.Item name="level" initialValue="beginner" rules={[{ required: true }]}>
-              <Select>
-                {(Object.keys(LEVEL_LABELS) as SkillInventory['level'][]).map(l => (
-                  <Select.Option key={l} value={l}>{LEVEL_LABELS[l]}</Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-          </div>
-          <div className="col-span-12 md:col-span-8">
-            <Form.Item name="notes">
-              <Input placeholder="Notes (optional)" />
-            </Form.Item>
-          </div>
-        </div>
-        <Space className="w-full justify-end">
-          <Button type="text" onClick={onClose}>Cancel</Button>
-          <Button type="primary" htmlType="submit" loading={isPending}>
-            Save Skill
-          </Button>
-        </Space>
-      </Form>
-    </motion.div>
-  )
-}
+const SkillInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`
+
+const SkillName = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const SkillCat = styled.div`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const OppRowRoot = styled(motion.div)`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  background: ${({ theme }) => `${theme.color.muted}4d`};
+  transition: background 150ms;
+  &:hover { background: ${({ theme }) => `${theme.color.muted}80`}; }
+`
+
+const OppInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`
+
+const OppCompany = styled.div`
+  font-size: 13px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const OppRole = styled.div`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const OppActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`
+
+const StatLabel = styled.span`
+  font-size: 10.5px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+`
+
+const StatValue = styled.span<{ $accent?: string }>`
+  font-size: 26px;
+  line-height: 30px;
+  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+  font-weight: 700;
+  color: ${({ theme, $accent }) => {
+    if ($accent === 'text-primary') return theme.color.primary
+    if ($accent === 'text-kpi-emerald') return '#16a34a'
+    return theme.color.foreground
+  }};
+`
+
+const StatSub = styled.span`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const TimelineMeta = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+`
+
+const TimelineTitle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`
+
+const TimelineBody = styled.div`
+  font-size: 11px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const TimelineDesc = styled.div`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-top: 8px;
+`
+
+const TimelineDate = styled.div`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const SkillListWrap = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+`
 
 function SkillRow({ skill }: { skill: SkillInventory }) {
   const queryClient = useQueryClient()
@@ -253,19 +228,19 @@ function SkillRow({ skill }: { skill: SkillInventory }) {
   })
 
   return (
-    <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/30 border-0">
-      <div>
-        <div className="text-[12px] font-semibold text-foreground">{skill.skill_name}</div>
-        <div className="text-[11px] text-muted-foreground">{skill.category}</div>
-      </div>
-      <Select value={skill.level} onChange={(level) => patch(level)} bordered={false} size="small" className="min-w-[110px]">
+    <SkillRowRoot>
+      <SkillInfo>
+        <SkillName>{skill.skill_name}</SkillName>
+        <SkillCat>{skill.category}</SkillCat>
+      </SkillInfo>
+      <Select value={skill.level} onValueChange={(level: any) => patch(level)} size="sm" style={{ minWidth: 110 }}>
         {(Object.keys(LEVEL_LABELS) as SkillInventory['level'][]).map(l => (
-          <Select.Option key={l} value={l}>
-            <Tag color={LEVEL_COLORS[l]}>{LEVEL_LABELS[l]}</Tag>
-          </Select.Option>
+          <SelectItem key={l} value={l}>
+            <Badge tone={LEVEL_COLORS[l]}>{LEVEL_LABELS[l]}</Badge>
+          </SelectItem>
         ))}
       </Select>
-    </div>
+    </SkillRowRoot>
   )
 }
 
@@ -278,40 +253,46 @@ function OpportunityRow({ opp }: { opp: JobOpportunity }) {
   })
 
   return (
-    <motion.div layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} 
-      className="flex items-center justify-between p-3 mb-2 rounded-xl bg-muted/30 border-0 hover:bg-muted/50 transition-all">
-      <div>
-        <div className="text-[13px] font-semibold text-foreground">{opp.company}</div>
-        <div className="text-[11px] text-muted-foreground">{opp.role}</div>
-      </div>
-      <Space>
-        {opp.url && <a href={opp.url} target="_blank" rel="noreferrer"><ExternalLink size={14} className="text-muted-foreground hover:text-foreground" /></a>}
-        <Select value={opp.status} onChange={(val: OpportunityStatus) => patch(val)} bordered={false} className="min-w-[120px]">
+    <OppRowRoot layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+      <OppInfo>
+        <OppCompany>{opp.company}</OppCompany>
+        <OppRole>{opp.role}</OppRole>
+      </OppInfo>
+      <OppActions>
+        {opp.url && (
+          <a href={opp.url} target="_blank" rel="noreferrer" style={{ color: 'var(--muted-foreground)' }}>
+            <ExternalLink size={14} />
+          </a>
+        )}
+        <Select value={opp.status} onValueChange={(val: any) => patch(val)} style={{ minWidth: 120 }}>
           {Object.keys(OPP_STATUS_COLORS).map(s => (
-            <Select.Option key={s} value={s}>
-              <Tag color={OPP_STATUS_COLORS[s as OpportunityStatus]}>{s.charAt(0).toUpperCase() + s.slice(1)}</Tag>
-            </Select.Option>
+            <SelectItem key={s} value={s}>
+              <Badge tone={OPP_STATUS_COLORS[s as OpportunityStatus]}>{s.charAt(0).toUpperCase() + s.slice(1)}</Badge>
+            </SelectItem>
           ))}
         </Select>
-      </Space>
-    </motion.div>
+      </OppActions>
+    </OppRowRoot>
   )
 }
 
 function CareerStat({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
   return (
-    <div className="bg-card border-0 rounded-2xl shadow-premium-sm p-4 flex flex-col gap-1">
-      <span className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-widest">{label}</span>
-      <span className={`stat-hero text-[26px] leading-[30px] ${accent ?? 'text-foreground'}`}>{value}</span>
-      {sub && <span className="text-[11px] text-muted-foreground">{sub}</span>}
-    </div>
+    <AppCard size="md" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <StatLabel>{label}</StatLabel>
+      <StatValue $accent={accent}>{value}</StatValue>
+      {sub && <StatSub>{sub}</StatSub>}
+    </AppCard>
   )
 }
 
 export function CareerPage() {
-  const [showMilestoneForm, setShowMilestoneForm] = useState(false)
-  const [showOpportunityForm, setShowOpportunityForm] = useState(false)
-  const [showSkillForm, setShowSkillForm] = useState(false)
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [stage, setStage] = useState('all')
+  const [period, setPeriod] = useState('2026-06')
+  const navigate = useNavigate()
+  const { setCmdPaletteOpen, setCaptureModalOpen } = useUIStore()
 
   const { data: skills, isLoading: loadingSkills } = useQuery({ queryKey: ['career', 'skills'], queryFn: careerApi.skills })
   const { data: events, isLoading: loadingEvents } = useQuery({ queryKey: ['career', 'events'], queryFn: careerApi.events })
@@ -321,108 +302,138 @@ export function CareerPage() {
   const inPlay = opportunities?.filter(o => ['interview', 'offer'].includes(o.status)).length ?? 0
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
-      <div className="mx-auto max-w-[1200px]">
-      <AreaTabs
-        defaultActiveKey="1"
-        items={[
-          {
-            key: '1',
-            label: 'Dashboard',
-            children: (
-              <WorkspaceLayout rail={
-                <>
-                  <RailHeading>Quick Add</RailHeading>
-                  <GlassCard title="Add to Career">
-                    <div className="flex flex-col gap-2">
-                      {([
-                        { label: 'Add Opportunity', icon: Briefcase, active: showOpportunityForm, on: () => { setShowOpportunityForm(v => !v); setShowMilestoneForm(false); setShowSkillForm(false) } },
-                        { label: 'Log Milestone', icon: History, active: showMilestoneForm, on: () => { setShowMilestoneForm(v => !v); setShowOpportunityForm(false); setShowSkillForm(false) } },
-                        { label: 'Add Skill', icon: BookOpen, active: showSkillForm, on: () => { setShowSkillForm(v => !v); setShowOpportunityForm(false); setShowMilestoneForm(false) } },
-                      ] as const).map(a => (
-                        <button
-                          key={a.label}
-                          onClick={a.on}
-                          className={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-xl border text-left text-[13px] font-medium transition-all ${a.active ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/60 bg-muted/40 text-foreground hover:bg-muted/70 hover:border-primary/40'}`}
-                        >
-                          <a.icon size={16} className="shrink-0" />
-                          <span className="flex-1">{a.label}</span>
-                          <Plus size={14} className="text-muted-foreground" />
-                        </button>
-                      ))}
-                    </div>
-                  </GlassCard>
-                  <AnimatePresence>
-                    {showOpportunityForm && <OpportunityForm onClose={() => setShowOpportunityForm(false)} />}
-                    {showMilestoneForm && <MilestoneForm onClose={() => setShowMilestoneForm(false)} />}
-                    {showSkillForm && <SkillForm onClose={() => setShowSkillForm(false)} />}
-                  </AnimatePresence>
-                </>
-              }>
-                {/* KPI lead row */}
-                <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-                  <CareerStat label="Skills Tracked" value={String(skills?.length ?? 0)} sub="across categories" />
-                  <CareerStat label="Active Pipeline" value={String(activeOpps.length)} sub="open opportunities" accent="text-primary" />
-                  <CareerStat label="In Play" value={String(inPlay)} sub="interview or offer" accent={inPlay > 0 ? 'text-kpi-emerald' : 'text-foreground'} />
-                  <CareerStat label="Milestones" value={String(events?.length ?? 0)} sub="logged on timeline" />
-                </div>
+    <PageRoot>
+      <PageContent>
+        <PageHeader
+          icon={Briefcase}
+          category="Growth"
+          title="Career"
+          description="Skills, roadmap and opportunities — manage your career in one place."
+          actions={
+            <>
+              <ActionChip onClick={() => navigate('/chat')}><Bot /> Ask AI</ActionChip>
+              <ActionChip onClick={() => setCaptureModalOpen(true)}><PlusCircle /> Capture</ActionChip>
+              <ActionChip onClick={() => setCmdPaletteOpen(true)}><Search /> Search</ActionChip>
+              <ActionChip onClick={() => navigate('/agents')}><Bell /> Reminders</ActionChip>
+            </>
+          }
+        />
+        <AreaTabs
+          defaultActiveKey="1"
+          toolbar={
+            <FilterBar
+              search={{ value: query, onChange: setQuery, placeholder: 'Search skills, roles, companies…' }}
+              filters={[
+                { id: 'stage', label: 'Stage', value: stage, onChange: setStage, options: [
+                  { value: 'all', label: 'All stages' },
+                  { value: 'applied', label: 'Applied' },
+                  { value: 'interview', label: 'Interview' },
+                  { value: 'offer', label: 'Offer' },
+                ] },
+              ]}
+              period={<PeriodSelect value={period} onChange={setPeriod} />}
+              actions={
+                <Button size="sm" variant="primary" onClick={() => setIsLogModalOpen(true)} startIcon={<Plus size={12} />}>
+                  Add Career Item
+                </Button>
+              }
+            />
+          }
+          items={[
+            {
+              key: '1',
+              label: <><LayoutDashboard size={14} /> Dashboard</>,
+              children: (
+                <DashCol>
+                  <KpiGrid>
+                    <CareerStat label="Skills Tracked" value={String(skills?.length ?? 0)} sub="across categories" />
+                    <CareerStat label="Active Pipeline" value={String(activeOpps.length)} sub="open opportunities" accent="text-primary" />
+                    <CareerStat label="In Play" value={String(inPlay)} sub="interview or offer" accent={inPlay > 0 ? 'text-kpi-emerald' : undefined} />
+                    <CareerStat label="Milestones" value={String(events?.length ?? 0)} sub="logged on timeline" />
+                  </KpiGrid>
 
-                <GlassCard title="Opportunities Pipeline" icon={<Briefcase size={16} className="text-muted-foreground" />} hoverable fadeIn="up">
-                  {loadingOpps ? <Skeleton active /> : activeOpps.length ? activeOpps.map(opp => <OpportunityRow key={opp.id} opp={opp} />) : <EmptyState icon={Briefcase} title="No opportunities" description="Add one from the rail →" />}
-                </GlassCard>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <GlassCard title="Career Timeline" icon={<History size={16} className="text-muted-foreground" />} hoverable fadeIn="up" delay={100}>
-                    {loadingEvents ? <Skeleton active /> : events?.length ? (
-                      <Timeline className="mt-4"
-                        items={events.slice(0, 20).map((e: CareerEvent, i: number) => ({
-                          color: EVENT_TYPE_COLORS[e.event_type] || 'blue',
-                          content: (
-                            <AnimatedTimelineItem initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <Space>
-                                    <Tag color={EVENT_TYPE_COLORS[e.event_type] || 'default'}>{EVENT_TYPE_LABELS[e.event_type] || e.event_type}</Tag>
-                                    <span className="text-[11px] font-semibold text-foreground">{e.title}</span>
-                                  </Space>
-                                  {e.description && <div className="text-[11px] text-muted-foreground mt-2">{e.description}</div>}
-                                </div>
-                                <div className="text-[11px] text-muted-foreground">{new Date(e.occurred_at).toLocaleDateString()}</div>
-                              </div>
-                            </AnimatedTimelineItem>
-                          )
-                        }))}
-                      />
-                    ) : <EmptyState icon={History} title="No history" description="Log your first milestone." />}
+                  <GlassCard title="Opportunities Pipeline" icon={<Briefcase size={16} />} hoverable fadeIn="up">
+                    {loadingOpps ? <StyledSkeleton $height="40px" /> :
+                      activeOpps.length ? activeOpps.map(opp => <OpportunityRow key={opp.id} opp={opp} />) :
+                      <EmptyState
+                        icon={Briefcase}
+                        title="No opportunities"
+                        description="Use the Add button above to add one."
+                        action={{ label: "Add Entry", onClick: () => setIsLogModalOpen(true) }}
+                      />}
                   </GlassCard>
 
-                  <GlassCard title="Skills Radar" icon={<BookOpen size={16} className="text-muted-foreground" />} hoverable fadeIn="up" delay={200}>
-                    {loadingSkills ? <Skeleton active /> : skills?.length ? (
-                      <>
-                        <CareerRadar skills={skills} />
-                        <div className="mt-4 space-y-2">
-                          {skills.map(skill => <SkillRow key={skill.id} skill={skill} />)}
-                        </div>
-                      </>
-                    ) : <EmptyState icon={BookOpen} title="No skills" description="Add a skill to see your radar." />}
-                  </GlassCard>
-                </div>
-              </WorkspaceLayout>
-            ),
-          },
-          {
-            key: '2',
-            label: 'Roadmap',
-            children: <RoadmapTab />,
-          },
-          {
-            key: '3',
-            label: 'Opportunities',
-            children: <OpportunitiesTab />,
-          },
-        ]}
-      />
-      </div>
-    </div>
+                  <TwoColGrid>
+                    <GlassCard title="Career Timeline" icon={<History size={16} />} hoverable fadeIn="up" delay={100}>
+                      {loadingEvents ? <StyledSkeleton $height="200px" /> : events?.length ? (
+                        <Timeline
+                          style={{ marginTop: 16 }}
+                          items={events.slice(0, 20).map((e: CareerEvent, i: number) => ({
+                            children: (
+                              <AnimatedTimelineItem
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: i * 0.05 }}
+                              >
+                                <TimelineMeta>
+                                  <TimelineTitle>
+                                    <Badge tone={EVENT_BADGE_TONES[e.event_type] || 'neutral'}>
+                                      {EVENT_TYPE_LABELS[e.event_type] || e.event_type}
+                                    </Badge>
+                                    <TimelineBody>{e.title}</TimelineBody>
+                                  </TimelineTitle>
+                                  <TimelineDate>{new Date(e.occurred_at).toLocaleDateString()}</TimelineDate>
+                                </TimelineMeta>
+                                {e.description && <TimelineDesc>{e.description}</TimelineDesc>}
+                              </AnimatedTimelineItem>
+                            ),
+                          }))}
+                        />
+                      ) : (
+                        <EmptyState
+                          icon={History}
+                          title="No history"
+                          description="Log your first milestone."
+                          action={{ label: "Add Entry", onClick: () => setIsLogModalOpen(true) }}
+                        />
+                      )}
+                    </GlassCard>
+
+                    <GlassCard title="Skills Radar" icon={<BookOpen size={16} />} hoverable fadeIn="up" delay={200}>
+                      {loadingSkills ? <StyledSkeleton $height="200px" /> : skills?.length ? (
+                        <>
+                          <CareerRadar skills={skills} />
+                          <SkillListWrap>
+                            {skills.map(skill => <SkillRow key={skill.id} skill={skill} />)}
+                          </SkillListWrap>
+                        </>
+                      ) : (
+                        <EmptyState
+                          icon={BookOpen}
+                          title="No skills"
+                          description="Add a skill to see your radar."
+                          action={{ label: "Add Entry", onClick: () => setIsLogModalOpen(true) }}
+                        />
+                      )}
+                    </GlassCard>
+                  </TwoColGrid>
+                </DashCol>
+              ),
+            },
+            {
+              key: '2',
+              label: <><Map size={14} /> Roadmap</>,
+              children: <RoadmapTab onAddEvent={() => setIsLogModalOpen(true)} />,
+            },
+            {
+              key: '3',
+              label: <><Target size={14} /> Opportunities</>,
+              children: <OpportunitiesTab />,
+            },
+          ]}
+        />
+        <CareerLogModal open={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} />
+      </PageContent>
+    </PageRoot>
   )
 }

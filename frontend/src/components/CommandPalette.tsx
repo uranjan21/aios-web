@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Command } from 'cmdk'
 import { toast } from 'sonner'
+import styled, { createGlobalStyle } from 'styled-components'
 import {
   LayoutDashboard, MessageSquare, Bot, IndianRupee, Heart,
   Briefcase, Rocket, PenLine, Plug, Settings, Sun, Moon,
@@ -27,15 +28,142 @@ const NAV_COMMANDS = [
 const PATH_LABEL: Record<string, string> = Object.fromEntries(NAV_COMMANDS.map(c => [c.to, c.label]))
 const PATH_ICON: Record<string, typeof LayoutDashboard> = Object.fromEntries(NAV_COMMANDS.map(c => [c.to, c.icon]))
 
-const GROUP_CLASS = '[&>[cmdk-group-heading]]:px-3 [&>[cmdk-group-heading]]:py-1.5 [&>[cmdk-group-heading]]:text-[10px] [&>[cmdk-group-heading]]:font-semibold [&>[cmdk-group-heading]]:uppercase [&>[cmdk-group-heading]]:tracking-wide [&>[cmdk-group-heading]]:text-muted-foreground/60'
-const ITEM_CLASS = 'flex items-center gap-3 px-3 py-2.5 text-sm text-foreground cursor-pointer data-[selected=true]:bg-primary/10 data-[selected=true]:text-primary outline-none'
+/* cmdk global overrides (uses theme via ThemeProvider context) */
+const CmdkStyles = createGlobalStyle`
+  [cmdk-group-heading] {
+    padding: 6px 12px 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: ${({ theme }) => theme.color.mutedForeground};
+    opacity: 0.7;
+  }
+  [cmdk-item] {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: ${({ theme }) => theme.color.foreground};
+    cursor: pointer;
+    border-radius: 8px;
+    margin: 0 4px;
+    outline: none;
+    transition: background 100ms;
+  }
+  [cmdk-item][data-selected="true"] {
+    background: ${({ theme }) => theme.color.primary}14;
+    color: ${({ theme }) => theme.color.primary};
+  }
+  [cmdk-list] { padding: 4px 0; }
+  [cmdk-empty] {
+    padding: 24px;
+    text-align: center;
+    font-size: 14px;
+    color: ${({ theme }) => theme.color.mutedForeground};
+  }
+`
+
+const Overlay = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: ${({ theme }) => theme.zIndex.modal};
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 20vh;
+  background: ${({ theme }) => theme.color.overlay};
+`
+
+const Panel = styled.div`
+  position: relative;
+  width: 100%;
+  max-width: 512px;
+  margin: 0 16px;
+  background: ${({ theme }) => theme.color.card};
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radii['2xl']};
+  box-shadow: ${({ theme }) => theme.shadow.xl};
+  overflow: hidden;
+`
+
+const SearchRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid ${({ theme }) => theme.color.border};
+
+  [cmdk-input] {
+    flex: 1;
+    height: 44px;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    color: ${({ theme }) => theme.color.foreground};
+    &::placeholder { color: ${({ theme }) => theme.color.mutedForeground}; }
+  }
+`
+
+const EscKbd = styled.kbd`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  background: ${({ theme }) => theme.color.muted};
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-family: ${({ theme }) => theme.typography.fontFamily.mono};
+`
+
+const ListWrap = styled.div`
+  max-height: 384px;
+  overflow-y: auto;
+`
+
+const Footer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px;
+  border-top: 1px solid ${({ theme }) => theme.color.border};
+  font-size: 10px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+
+  kbd {
+    font-family: ${({ theme }) => theme.typography.fontFamily.mono};
+    background: ${({ theme }) => theme.color.muted};
+    border-radius: 4px;
+    padding: 1px 4px;
+    margin-right: 2px;
+  }
+`
+
+const PausedBadge = styled.span`
+  margin-left: auto;
+  font-size: 10px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  background: ${({ theme }) => theme.color.muted};
+  padding: 2px 6px;
+  border-radius: 4px;
+`
 
 export function CommandPalette() {
   const { cmdPaletteOpen, setCmdPaletteOpen, theme, toggleTheme, recentPages } = useUIStore()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const triggerRef = useRef<Element | null>(null)
 
-  // Fetch agents only when palette is open
+  useEffect(() => {
+    if (cmdPaletteOpen) {
+      triggerRef.current = document.activeElement
+    } else if (triggerRef.current instanceof HTMLElement) {
+      triggerRef.current.focus()
+      triggerRef.current = null
+    }
+  }, [cmdPaletteOpen])
+
   const { data: agents } = useQuery({
     queryKey: ['agents'],
     queryFn: agentsApi.list,
@@ -59,9 +187,7 @@ export function CommandPalette() {
         e.preventDefault()
         setCmdPaletteOpen(!cmdPaletteOpen)
       }
-      if (e.key === 'Escape' && cmdPaletteOpen) {
-        setCmdPaletteOpen(false)
-      }
+      if (e.key === 'Escape' && cmdPaletteOpen) setCmdPaletteOpen(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -70,132 +196,87 @@ export function CommandPalette() {
   if (!cmdPaletteOpen) return null
 
   const sections = [...new Set(NAV_COMMANDS.map(c => c.section))]
-
-  const handleNav = (to: string) => {
-    setCmdPaletteOpen(false)
-    navigate(to)
-  }
-
-  // Recent pages: exclude current route (index 0 is current), show up to 4
   const recentToShow = recentPages.slice(1, 5).filter(p => PATH_LABEL[p])
+  const handleNav = (to: string) => { setCmdPaletteOpen(false); navigate(to) }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh]"
-      onClick={() => setCmdPaletteOpen(false)}
-    >
-      <div className="absolute inset-0 bg-black/60" aria-hidden="true" />
+    <>
+      <CmdkStyles />
+      <Overlay onClick={() => setCmdPaletteOpen(false)}>
+        <Panel onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Command palette">
+          <Command>
+            <SearchRow>
+              <Command.Input autoFocus placeholder="Search commands…" />
+              <EscKbd>ESC</EscKbd>
+            </SearchRow>
 
-      <div
-        className="relative w-full max-w-lg mx-4 rounded-3xl bg-card border-0 shadow-premium-md overflow-hidden"
-        onClick={e => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Command palette"
-      >
-        <Command>
-          <div className="flex items-center px-3">
-            <Command.Input
-              autoFocus
-              placeholder="Search commands…"
-              className="flex-1 py-3.5 bg-transparent text-foreground placeholder:text-muted-foreground text-sm outline-none"
-            />
-            <kbd className="text-[10px] text-muted-foreground bg-muted shadow-premium-sm rounded-lg px-1.5 py-0.5 font-mono">ESC</kbd>
-          </div>
+            <ListWrap>
+              <Command.List>
+                <Command.Empty>No commands found.</Command.Empty>
 
-          <Command.List className="max-h-96 overflow-y-auto py-1">
-            <Command.Empty className="py-6 text-center text-sm text-muted-foreground">
-              No commands found.
-            </Command.Empty>
+                {recentToShow.length > 0 && (
+                  <Command.Group heading="Recent">
+                    {recentToShow.map(path => {
+                      const label = PATH_LABEL[path]
+                      const Icon = PATH_ICON[path] ?? Clock
+                      return (
+                        <Command.Item key={`recent-${path}`} value={`recent ${label}`} onSelect={() => handleNav(path)}>
+                          <Clock size={16} aria-hidden />
+                          <span>{label}</span>
+                          <Icon size={14} style={{ marginLeft: 'auto', opacity: 0.4 }} aria-hidden />
+                        </Command.Item>
+                      )
+                    })}
+                  </Command.Group>
+                )}
 
-            {/* Recent pages */}
-            {recentToShow.length > 0 && (
-              <Command.Group heading="Recent" className={GROUP_CLASS}>
-                {recentToShow.map(path => {
-                  const label = PATH_LABEL[path]
-                  const Icon = PATH_ICON[path] ?? Clock
-                  return (
-                    <Command.Item
-                      key={`recent-${path}`}
-                      value={`recent ${label}`}
-                      onSelect={() => handleNav(path)}
-                      className={ITEM_CLASS}
-                    >
-                      <Clock className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
-                      <span>{label}</span>
-                      <Icon className="w-3.5 h-3.5 text-muted-foreground/40 ml-auto" aria-hidden="true" />
-                    </Command.Item>
-                  )
-                })}
-              </Command.Group>
-            )}
-
-            {/* Nav sections */}
-            {sections.map(section => (
-              <Command.Group key={section} heading={section} className={GROUP_CLASS}>
-                {NAV_COMMANDS.filter(c => c.section === section).map(cmd => {
-                  const Icon = cmd.icon
-                  return (
-                    <Command.Item
-                      key={cmd.to}
-                      value={cmd.label}
-                      onSelect={() => handleNav(cmd.to)}
-                      className={ITEM_CLASS}
-                    >
-                      <Icon className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
-                      {cmd.label}
-                    </Command.Item>
-                  )
-                })}
-              </Command.Group>
-            ))}
-
-            {/* Agent trigger commands */}
-            {agents && agents.length > 0 && (
-              <Command.Group heading="Run Agent" className={GROUP_CLASS}>
-                {agents.map(agent => (
-                  <Command.Item
-                    key={`run-${agent.task_id}`}
-                    value={`run agent ${agent.name}`}
-                    onSelect={() => {
-                      setCmdPaletteOpen(false)
-                      triggerMutation.mutate(agent.task_id)
-                    }}
-                    className={ITEM_CLASS}
-                  >
-                    <Play className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
-                    <span>Run <span className="font-medium">{agent.name}</span></span>
-                    {!agent.is_active && (
-                      <span className="ml-auto text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-mono">paused</span>
-                    )}
-                  </Command.Item>
+                {sections.map(section => (
+                  <Command.Group key={section} heading={section}>
+                    {NAV_COMMANDS.filter(c => c.section === section).map(cmd => (
+                      <Command.Item key={cmd.to} value={cmd.label} onSelect={() => handleNav(cmd.to)}>
+                        <cmd.icon size={16} aria-hidden />
+                        {cmd.label}
+                      </Command.Item>
+                    ))}
+                  </Command.Group>
                 ))}
-              </Command.Group>
-            )}
 
-            {/* Actions */}
-            <Command.Group heading="Actions" className={GROUP_CLASS}>
-              <Command.Item
-                value={`switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-                onSelect={() => { toggleTheme(); setCmdPaletteOpen(false) }}
-                className={ITEM_CLASS}
-              >
-                {theme === 'dark'
-                  ? <Sun className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
-                  : <Moon className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
-                }
-                Switch to {theme === 'dark' ? 'Light' : 'Dark'} mode
-              </Command.Item>
-            </Command.Group>
-          </Command.List>
+                {agents && agents.length > 0 && (
+                  <Command.Group heading="Run Agent">
+                    {agents.map(agent => (
+                      <Command.Item
+                        key={`run-${agent.task_id}`}
+                        value={`run agent ${agent.name}`}
+                        onSelect={() => { setCmdPaletteOpen(false); triggerMutation.mutate(agent.task_id) }}
+                      >
+                        <Play size={16} aria-hidden />
+                        <span>Run <strong>{agent.name}</strong></span>
+                        {!agent.is_active && <PausedBadge>paused</PausedBadge>}
+                      </Command.Item>
+                    ))}
+                  </Command.Group>
+                )}
 
-          <div className="border-t border-border px-3 py-2 flex items-center gap-4 text-[10px] text-muted-foreground">
-            <span><kbd className="font-mono">↑↓</kbd> navigate</span>
-            <span><kbd className="font-mono">↵</kbd> select</span>
-            <span><kbd className="font-mono">esc</kbd> close</span>
-          </div>
-        </Command>
-      </div>
-    </div>
+                <Command.Group heading="Actions">
+                  <Command.Item
+                    value={`switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                    onSelect={() => { toggleTheme(); setCmdPaletteOpen(false) }}
+                  >
+                    {theme === 'dark' ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
+                    Switch to {theme === 'dark' ? 'Light' : 'Dark'} mode
+                  </Command.Item>
+                </Command.Group>
+              </Command.List>
+            </ListWrap>
+
+            <Footer>
+              <span><kbd>↑↓</kbd> navigate</span>
+              <span><kbd>↵</kbd> select</span>
+              <span><kbd>esc</kbd> close</span>
+            </Footer>
+          </Command>
+        </Panel>
+      </Overlay>
+    </>
   )
 }

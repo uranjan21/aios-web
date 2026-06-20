@@ -1,8 +1,9 @@
+import styled, { keyframes } from 'styled-components'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { IndianRupee, Heart, Briefcase, Rocket, PenLine, Zap, Loader2, CheckCircle2, type LucideIcon } from 'lucide-react'
+import { IndianRupee, Heart, Briefcase, Rocket, PenLine, Zap, Loader2, CheckCircle2, LayoutDashboard, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { financeApi, careerApi, businessApi, capturesApi, contentApi } from '@/api/areas'
 import { healthApi } from '@/api/areas'
@@ -11,7 +12,243 @@ import { formatCurrency, formatRelativeTime } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cardEntrance } from '@/components/PageTransition'
 import { useCountUp } from '@/hooks/useCountUp'
-import { GlassCard, IconBadge, StatusPill, type IconBadgeColor } from '@/components/lumina'
+import { IconBadge, StatusPill, type IconBadgeColor } from '@/components/lumina';
+import { Card as GlassCard } from '@ledgr/ui';
+import { EmptyState } from '@/components/EmptyState';
+
+import { Button, Textarea, Stack } from '@ledgr/ui'
+import { Card as AppCard } from '@ledgr/ui'
+
+const spin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`
+
+const SpinningLoader = styled(Loader2)`
+  animation: ${spin} 1s linear infinite;
+`
+
+const Container = styled.div`
+  min-height: 100vh;
+  background-color: ${({ theme }) => theme.color.background};
+  padding: ${({ theme }) => theme.spacing[4]};
+  @media (min-width: ${({ theme }) => theme.breakpoint?.md || '768px'}) {
+    padding: ${({ theme }) => theme.spacing[6]};
+  }
+`
+
+const ContentWrapper = styled.div`
+  margin: 0 auto;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing[4]};
+`
+
+const Grid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: ${({ theme }) => theme.spacing[4]};
+`
+
+const GridItem4 = styled.div`
+  grid-column: span 12 / span 12;
+  @media (min-width: ${({ theme }) => theme.breakpoint?.md || '768px'}) {
+    grid-column: span 4 / span 4;
+  }
+`
+
+const GridItem5 = styled.div`
+  grid-column: span 12 / span 12;
+  @media (min-width: ${({ theme }) => theme.breakpoint?.md || '768px'}) {
+    grid-column: span 5 / span 5;
+  }
+`
+
+const GridItem3 = styled.div`
+  grid-column: span 12 / span 12;
+  @media (min-width: ${({ theme }) => theme.breakpoint?.md || '768px'}) {
+    grid-column: span 3 / span 3;
+  }
+`
+
+const GridItem8 = styled.div`
+  grid-column: span 12 / span 12;
+  @media (min-width: ${({ theme }) => theme.breakpoint?.xl || '1280px'}) {
+    grid-column: span 8 / span 8;
+  }
+`
+
+const GridItem4Xl = styled.div`
+  grid-column: span 12 / span 12;
+  @media (min-width: ${({ theme }) => theme.breakpoint?.xl || '1280px'}) {
+    grid-column: span 4 / span 4;
+  }
+`
+
+const InnerGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: ${({ theme }) => theme.spacing[4]};
+  @media (min-width: ${({ theme }) => theme.breakpoint?.sm || '640px'}) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+`
+
+const SummaryCardWrapper = styled(AppCard)<{ $clickable?: boolean }>`
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out;
+  ${({ $clickable }) => $clickable && `
+    cursor: pointer;
+    &:hover {
+      transform: scale(1.02);
+    }
+    &:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px currentColor;
+    }
+  `}
+`
+
+const AreaTileWrapper = styled(AppCard)<{ $clickable?: boolean }>`
+  padding: 12px !important;
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out;
+  ${({ $clickable }) => $clickable && `
+    cursor: pointer;
+    &:hover {
+      transform: scale(1.02);
+    }
+    &:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px currentColor;
+    }
+  `}
+`
+
+const SummaryCardHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing[2]};
+  margin-bottom: ${({ theme }) => theme.spacing[3]};
+`
+
+const AreaTileHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: ${({ theme }) => theme.spacing[2]};
+`
+
+const SummaryCardTitle = styled.span`
+  font-size: 12px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+`
+
+const AreaTileTitle = styled.span`
+  font-size: 12px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const StatsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing[2]};
+`
+
+const AreaTileStatsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`
+
+const StatHeroValue = styled.div`
+  font-size: 13px;
+  line-height: 16px;
+  color: ${({ theme }) => theme.color.foreground};
+  font-weight: 600;
+`
+
+const StatHeroLabel = styled.span`
+  font-size: 10.5px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+`
+
+const StatRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`
+
+const StatLabel = styled.span`
+  font-size: 11px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+`
+
+const StatValue = styled.span`
+  font-size: 13px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.color.foreground};
+  font-variant-numeric: tabular-nums;
+`
+
+const AreaTileStatLabel = styled.span`
+  font-size: 10px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+`
+
+const AreaTileStatValue = styled.span`
+  font-size: 11px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.color.foreground};
+  font-variant-numeric: tabular-nums;
+`
+
+const TitleGradient = styled.span`
+  font-style: italic;
+  background: linear-gradient(to right, ${({ theme }) => theme.color.primary}, ${({ theme }) => theme.color.accent});
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+`
+
+const QuickLogConfirmed = styled.p`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color.success};
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing[1]};
+  font-weight: 500;
+`
+
+const QuickLogRecentTitle = styled.p`
+  font-size: 10px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+`
+
+const QuickLogRecentItem = styled.span`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  background-color: ${({ theme }) => theme.color.muted}80;
+  border-radius: ${({ theme }) => theme.radii.md};
+  padding: ${({ theme }) => theme.spacing[1]} ${({ theme }) => theme.spacing[2]};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`
 
 function getGreeting(): string {
   const h = new Date().getHours()
@@ -24,7 +261,7 @@ function getGreeting(): string {
 
 function TrendChip({ value, suffix = '%' }: { value: number; suffix?: string }) {
   const up = value >= 0
-  return <StatusPill label={`${up ? '↑' : '↓'} ${Math.abs(value)}${suffix}`} tone={up ? 'emerald' : 'red'} />
+  return <StatusPill label={`${up ? '↑' : '↓'} ${Math.abs(value)}${suffix}`} tone={up ? 'primary' : 'muted'} />
 }
 
 function SummaryCard({
@@ -44,44 +281,47 @@ function SummaryCard({
 }) {
   if (loading) {
     return (
-      <div className="bg-card border-0 rounded-2xl shadow-premium-sm p-4 space-y-3">
-        <Skeleton className="h-3 w-24" />
-        <Skeleton className="h-2 w-full" />
-        <Skeleton className="h-2 w-3/4" />
-        <Skeleton className="h-2 w-1/2" />
-      </div>
+      <SummaryCardWrapper noPadding={false}>
+        <Stack direction="column" gap={3}>
+          <Skeleton style={{ height: '12px', width: '6rem' }} />
+          <Skeleton style={{ height: '8px', width: '100%' }} />
+          <Skeleton style={{ height: '8px', width: '75%' }} />
+          <Skeleton style={{ height: '8px', width: '50%' }} />
+        </Stack>
+      </SummaryCardWrapper>
     )
   }
 
   return (
-    <motion.div
-      variants={cardEntrance}
+    <SummaryCardWrapper
+      className="hover:scale-[1.02] transition-transform duration-200"
+      hoverable={!!onClick}
+      $clickable={!!onClick}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick() } : undefined}
-      className="bg-card border-0 rounded-2xl shadow-premium-sm p-4 transition-all duration-200 hover:shadow-premium-hover cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
-      <div className="flex items-center gap-2 mb-3">
+      <SummaryCardHeader>
         <IconBadge icon={Icon} color={color} size="sm" />
-        <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">{title}</span>
-      </div>
-      <div className="space-y-2">
+        <SummaryCardTitle>{title}</SummaryCardTitle>
+      </SummaryCardHeader>
+      <StatsList>
         {stats.map(({ label, value }, idx) => (
           idx === 0 ? (
             <div key={label}>
-              <div className="stat-hero text-[30px] leading-[34px] text-foreground">{value}</div>
-              <span className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-widest">{label}</span>
+              <StatHeroValue>{value}</StatHeroValue>
+              <StatHeroLabel>{label}</StatHeroLabel>
             </div>
           ) : (
-            <div key={label} className="flex justify-between items-center">
-              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
-              <span className="text-[13px] font-semibold text-foreground font-mono tabular-nums">{value}</span>
-            </div>
+            <StatRow key={label}>
+              <StatLabel>{label}</StatLabel>
+              <StatValue>{value}</StatValue>
+            </StatRow>
           )
         ))}
-      </div>
-    </motion.div>
+      </StatsList>
+    </SummaryCardWrapper>
   )
 }
 
@@ -102,36 +342,39 @@ function AreaTile({
 }) {
   if (loading) {
     return (
-      <div className="bg-card border-0 rounded-2xl shadow-premium-sm p-3 space-y-2">
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-2 w-full" />
-        <Skeleton className="h-2 w-3/4" />
-      </div>
+      <AreaTileWrapper>
+        <Stack direction="column" gap={2}>
+          <Skeleton style={{ height: '12px', width: '5rem' }} />
+          <Skeleton style={{ height: '8px', width: '100%' }} />
+          <Skeleton style={{ height: '8px', width: '75%' }} />
+        </Stack>
+      </AreaTileWrapper>
     )
   }
 
   return (
-    <motion.div
-      variants={cardEntrance}
+    <AreaTileWrapper
+      className="hover:scale-[1.02] transition-transform duration-200"
+      hoverable={!!onClick}
+      $clickable={!!onClick}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick() } : undefined}
-      className="bg-card border-0 rounded-2xl shadow-premium-sm p-3 transition-all duration-200 hover:shadow-premium-hover cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
-      <div className="flex items-center gap-1.5 mb-2">
+      <AreaTileHeader>
         <IconBadge icon={Icon} color={color} size="sm" />
-        <span className="text-[12px] font-semibold text-foreground">{title}</span>
-      </div>
-      <div className="space-y-1.5">
+        <AreaTileTitle>{title}</AreaTileTitle>
+      </AreaTileHeader>
+      <AreaTileStatsList>
         {stats.map(({ label, value }) => (
-          <div key={label} className="flex justify-between items-center">
-            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
-            <span className="text-[11px] font-semibold text-foreground font-mono tabular-nums">{value}</span>
-          </div>
+          <StatRow key={label}>
+            <AreaTileStatLabel>{label}</AreaTileStatLabel>
+            <AreaTileStatValue>{value}</AreaTileStatValue>
+          </StatRow>
         ))}
-      </div>
-    </motion.div>
+      </AreaTileStatsList>
+    </AreaTileWrapper>
   )
 }
 
@@ -180,7 +423,6 @@ export function DashboardPage() {
     return a.last_run_at > latest ? a.last_run_at : latest
   }, null as string | null)
 
-  // Count up animation values
   const animatedNetWorth = useCountUp(netWorth ? netWorth.net_worth : null)
   const animatedCCDebt = useCountUp(latestSnapshot?.cc_debt ? Number(latestSnapshot.cc_debt) : null)
   const animatedTakeHome = useCountUp(latestSnapshot?.take_home ? Number(latestSnapshot.take_home) : null)
@@ -198,8 +440,6 @@ export function DashboardPage() {
     const now = new Date()
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
   }).length ?? 0
-  const contentLatest = contentItems?.filter(i => i.status === 'published' && i.publish_date)
-    .sort((a, b) => b.publish_date!.localeCompare(a.publish_date!))[0]?.publish_date ?? null
 
   const animatedContentPipeline = useCountUp(contentTotal - contentPublished)
   const animatedContentMonth = useCountUp(contentThisMonth)
@@ -209,23 +449,16 @@ export function DashboardPage() {
   })
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
-      <div className="mx-auto max-w-[1200px] space-y-4">
+    <Container>
+      <ContentWrapper>
 
-        {/* Row 0: Greeting */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-[34px] leading-[40px] font-medium text-foreground">{getGreeting()}, <span className="text-gradient italic">Utsav</span></h1>
-            <p className="text-[12.5px] text-muted-foreground mt-1 tracking-wide">{dateString}</p>
-          </div>
-        </div>
 
-        {/* Row 1: 3 summary stat cards */}
-        <div className="grid grid-cols-12 gap-4">
-          <div className="col-span-12 md:col-span-4">
+
+        <Grid>
+          <GridItem5>
             <SummaryCard
               icon={IndianRupee}
-              color="emerald"
+              color="primary"
               title="Finance"
               loading={loadingFinance}
               onClick={() => navigate('/areas/finance')}
@@ -235,11 +468,11 @@ export function DashboardPage() {
                 { label: 'Take-home', value: animatedTakeHome != null ? formatCurrency(animatedTakeHome) : '—' },
               ]}
             />
-          </div>
-          <div className="col-span-12 md:col-span-4">
+          </GridItem5>
+          <GridItem4>
             <SummaryCard
               icon={Heart}
-              color="red"
+              color="accent"
               title="Health"
               loading={loadingHealth || loadingStreak}
               onClick={() => navigate('/areas/health')}
@@ -249,11 +482,11 @@ export function DashboardPage() {
                 { label: 'Last workout', value: formatRelativeTime(streak?.last_workout_at ?? null) },
               ]}
             />
-          </div>
-          <div className="col-span-12 md:col-span-4">
+          </GridItem4>
+          <GridItem3>
             <SummaryCard
               icon={Zap}
-              color="blue"
+              color="muted"
               title="Agents"
               loading={loadingAgents}
               onClick={() => navigate('/agents')}
@@ -263,14 +496,12 @@ export function DashboardPage() {
                 { label: 'Total', value: animatedAgents != null ? String(Math.round(animatedAgents)) : '0' },
               ]}
             />
-          </div>
-        </div>
+          </GridItem3>
+        </Grid>
 
-        {/* Row 2: Area tiles + Quick Log */}
-        <div className="grid grid-cols-12 gap-4">
-          {/* Left: 5 area overview tiles */}
-          <div className="col-span-12 xl:col-span-8">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <Grid>
+          <GridItem8>
+            <InnerGrid>
               <AreaTile
                 icon={Briefcase}
                 color="primary"
@@ -284,7 +515,7 @@ export function DashboardPage() {
               />
               <AreaTile
                 icon={Rocket}
-                color="purple"
+                color="accent"
                 title="Business"
                 loading={loadingBusiness}
                 onClick={() => navigate('/areas/business')}
@@ -295,7 +526,7 @@ export function DashboardPage() {
               />
               <AreaTile
                 icon={PenLine}
-                color="amber"
+                color="muted"
                 title="Content"
                 loading={loadingContent}
                 onClick={() => navigate('/areas/content')}
@@ -304,19 +535,18 @@ export function DashboardPage() {
                   { label: 'This month', value: animatedContentMonth != null ? String(Math.round(animatedContentMonth)) : '—' },
                 ]}
               />
-            </div>
-          </div>
+            </InnerGrid>
+          </GridItem8>
 
-          {/* Right: Quick Log */}
-          <div className="col-span-12 xl:col-span-4">
+          <GridItem4Xl>
             <GlassCard title="Quick Capture" hoverable fadeIn="up" delay={100}>
               <QuickLogInput />
             </GlassCard>
-          </div>
-        </div>
+          </GridItem4Xl>
+        </Grid>
 
-      </div>
-    </div>
+      </ContentWrapper>
+    </Container>
   )
 }
 
@@ -345,43 +575,53 @@ function QuickLogInput() {
   }
 
   return (
-    <div className="space-y-3">
-      <textarea
+    <Stack direction="column" gap={3}>
+      <Textarea
         ref={inputRef}
         rows={3}
         placeholder="Log something… (gym done, ₹500 food, learned X)"
         disabled={isPending}
-        className="w-full px-3 py-2 text-[13px] rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60 resize-none"
+        style={{ resize: 'none' }}
         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
       />
-      <button
+      <Button
         aria-label="Save quick capture"
         onClick={handleSubmit}
         disabled={isPending}
-        className="w-full px-3 py-1.5 text-[12px] font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        variant="primary"
+        style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
       >
-        {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" /> : 'Capture'}
-      </button>
+        {isPending ? <SpinningLoader style={{ width: '14px', height: '14px' }} /> : 'Capture'}
+      </Button>
       {confirmed && (
-        <p className="text-[10px] text-kpi-emerald flex items-center gap-1 font-medium">
-          <CheckCircle2 className="w-3 h-3" /> Captured: {confirmed.length > 60 ? confirmed.slice(0, 60) + '…' : confirmed}
-        </p>
+        <QuickLogConfirmed>
+          <CheckCircle2 style={{ width: '12px', height: '12px' }} /> Captured: {confirmed.length > 60 ? confirmed.slice(0, 60) + '…' : confirmed}
+        </QuickLogConfirmed>
       )}
-      {recentCaptures && recentCaptures.length > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Recent</p>
-          <div className="flex flex-col gap-1">
+      {(!recentCaptures || recentCaptures.length === 0) ? (
+        <EmptyState
+          icon={PenLine}
+          title="No recent captures"
+          description="Your quick captures will appear here."
+          action={{
+            label: "Add Entry",
+            onClick: () => {
+              if (inputRef.current) inputRef.current.focus()
+            }
+          }}
+        />
+      ) : (
+        <Stack direction="column" gap={2}>
+          <QuickLogRecentTitle>Recent</QuickLogRecentTitle>
+          <Stack direction="column" gap={1}>
             {recentCaptures.slice(0, 3).map((c: { id: string; text: string }) => (
-              <span
-                key={c.id}
-                className="text-[11px] text-muted-foreground bg-muted/50 rounded-md px-2 py-1 truncate"
-              >
+              <QuickLogRecentItem key={c.id}>
                 {c.text}
-              </span>
+              </QuickLogRecentItem>
             ))}
-          </div>
-        </div>
+          </Stack>
+        </Stack>
       )}
-    </div>
+    </Stack>
   )
 }

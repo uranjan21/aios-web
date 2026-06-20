@@ -1,60 +1,70 @@
-import { useState } from 'react'
-import { Plus } from 'lucide-react'
-import { Button } from 'antd'
+import { useState, useEffect } from 'react'
 import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
 import { BudgetsTab } from './BudgetsTab'
 import { GoalsTab } from './GoalsTab'
 import { BillsTab } from './BillsTab'
 import { SubscriptionManagement } from './AdvancedWidgets'
 import { BudgetTabModal } from './QuickAddBudget'
+import { TextTabs } from '@/components/ui/TextTabs'
+import styled from 'styled-components'
+
+const GridContainer = styled.div`
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 1rem;
+`
+
+const GridItem = styled.div`
+  grid-column: span 12 / span 12;
+`
 
 export function BudgetTab() {
   const [modalOpen, setModalOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'Budget' | 'Goal' | 'Bill'>('Budget')
+  const [activeTab, setActiveTab] = useState<'Budget' | 'Goal' | 'Bill' | 'Subscription'>('Budget')
 
-  const openModal = (tab: 'Budget' | 'Goal' | 'Bill') => {
+  const openModal = (tab: 'Budget' | 'Goal' | 'Bill' | 'Subscription') => {
     setActiveTab(tab)
     setModalOpen(true)
   }
 
-  const toolbar = (
-    <div className="sticky top-0 z-20 bg-card/75 backdrop-blur-md px-4 py-3 mb-4 rounded-2xl flex items-center justify-between gap-3 shadow-premium-sm border-0">
-      <div className="text-[13px] font-semibold text-foreground">Budgets & Planning</div>
-      <div className="flex items-center gap-1.5 ml-auto">
-        <Button 
-          size="small" 
-          type="primary"
-          onClick={() => openModal('Budget')} 
-          className="text-[12px] font-medium flex items-center gap-1"
-        >
-          <Plus size={12} />
-          <span>Add Budget Item</span>
-        </Button>
-      </div>
-    </div>
-  )
+  useEffect(() => {
+    const handleOpenModal = () => openModal('Budget')
+    window.addEventListener('open-new-budget', handleOpenModal)
+    return () => window.removeEventListener('open-new-budget', handleOpenModal)
+  }, [])
 
   return (
     <>
       <WorkspaceLayout rail={undefined}>
-        {toolbar}
-        <div className="grid grid-cols-12 gap-4">
-          {/* Row 1: Budgets & Active Bills */}
-          <div className="col-span-12">
-            <BudgetsTab />
-          </div>
-          <div className="col-span-12">
-            <BillsTab />
-          </div>
-
-          {/* Row 2: Savings Goals & Subscriptions */}
-          <div className="col-span-12">
-            <GoalsTab />
-          </div>
-          <div className="col-span-12">
-            <SubscriptionManagement />
-          </div>
+        <div style={{ paddingBottom: '16px' }}>
+          <TextTabs
+            options={['Budget', 'Goal', 'Bill', 'Subscription']}
+            value={activeTab}
+            onChange={(val) => setActiveTab(val as any)}
+          />
         </div>
+        <GridContainer>
+          {activeTab === 'Budget' && (
+            <GridItem>
+              <BudgetsTab />
+            </GridItem>
+          )}
+          {activeTab === 'Bill' && (
+            <GridItem>
+              <BillsTab />
+            </GridItem>
+          )}
+          {activeTab === 'Goal' && (
+            <GridItem>
+              <GoalsTab />
+            </GridItem>
+          )}
+          {activeTab === 'Subscription' && (
+            <GridItem>
+              <SubscriptionManagement />
+            </GridItem>
+          )}
+        </GridContainer>
       </WorkspaceLayout>
 
       <BudgetTabModal open={modalOpen} onClose={() => setModalOpen(false)} defaultTab={activeTab} />

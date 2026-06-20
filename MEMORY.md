@@ -12,6 +12,12 @@ Before making *any* code changes in any session, all Agents MUST adhere to these
 12. **Navigation & Area Tabs**: The Sidebar must ONLY contain top-level links (e.g., Finance, Health). **NEVER use sub-menus or accordions in the Sidebar**. All sub-navigation within an Area MUST be handled by the shared `<AreaTabs>` component placed at the top of the Area page (e.g., Dashboard, Log Transaction, Budgets).
 13. **Flat Tabs Only**: Do NOT use nested tabs (e.g., an outer `<Tabs>` wrapping an inner `<Tabs>`). Flatten all sections into a single, top-level `<AreaTabs>` list to avoid UI stacking and clutter.
 14. **AreaTabs Styling**: Always import `<AreaTabs>` from `@/components/ui/AreaTabs`. It ensures semantic coloring for light/dark modes (`hsl(var(--foreground))`), tight spacing (`margin-right: 20px`), and left padding to prevent sidebar clipping.
+15. **Logging Forms & Toolbars**: For any data logging or quick-add actions, use generic buttons placed in a Toolbar just below the `AreaTabs`. Clicking these buttons should open a Modal Dialog containing the logging forms (using a Segmented control for tabs inside the modal if there are multiple related forms to switch between). Do not render logging forms directly inline on the page grid.
+16. **Strict Page Layout**: Every page MUST adhere exactly to this structural hierarchy:
+    1. **Top Level Title + Global Buttons**: Page title on the top left, global action buttons on the top right.
+    2. **Tabs**: Sub-navigation via `<AreaTabs>`.
+    3. **Toolbar**: Filter controls and specific context actions directly below the tabs.
+    4. **Main Content**: Grids, lists, and content below the toolbar.
 
 ## Architecture & Tech Stack
 - **Backend**: Python, FastAPI, SQLModel (SQLAlchemy/asyncpg), PostgreSQL (with pgvector), Alembic.

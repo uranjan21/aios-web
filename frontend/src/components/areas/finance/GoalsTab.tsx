@@ -1,13 +1,143 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button, Form, Input, Popconfirm, Modal, Table } from 'antd'
+import { Popconfirm } from '@/components/ui/Popconfirm'
+import { Button, Dialog, Input, DataTable } from '@ledgr/ui'
 import { Trash2, PencilLine, CalendarDays } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { FinancialGoal } from '@/types'
 import { differenceInDays } from 'date-fns'
-import { TableContainer, TableHeader } from './TableStyles'
+import { Card } from '@/components/ui/Card'
+import styled from 'styled-components'
+
+const GoalCell = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+`
+
+const GoalIcon = styled.span`
+  font-size: 1.25rem;
+  line-height: 1;
+`
+
+const GoalNameText = styled.div`
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const GoalCategoryText = styled.div`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  text-transform: capitalize;
+`
+
+const ProgressContainer = styled.div`
+  width: 180px;
+`
+
+const ProgressTextRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 0.375rem;
+`
+
+const CurrentAmountText = styled.span`
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const TargetAmountText = styled.span`
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const ProgressBarBg = styled.div`
+  height: 0.375rem;
+  background-color: ${({ theme }) => theme.color.muted};
+  border-radius: 9999px;
+  overflow: hidden;
+`
+
+const ProgressBarFill = styled.div<{ $pct: number, $color: string }>`
+  height: 100%;
+  border-radius: 9999px;
+  transition: all 0.5s;
+  width: ${({ $pct }) => $pct}%;
+  background-color: ${({ $color }) => $color};
+`
+
+const StatusContainer = styled.div``
+
+const StatusText = styled.div<{ $color: string }>`
+  font-weight: 500;
+  color: ${({ $color }) => $color};
+`
+
+const DueText = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 10px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-top: 0.125rem;
+`
+
+const ActionContainer = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  opacity: 1;
+  transition: opacity 0.2s;
+
+  @media (min-width: 768px) {
+    opacity: 0;
+    tr:hover & {
+      opacity: 1;
+    }
+  }
+`
+
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`
+
+const LoadingHeader = styled(Skeleton)`
+  height: 40px;
+`
+
+const LoadingBody = styled(Skeleton)`
+  height: 200px;
+`
+
+const ModalTitle = styled.span`
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const FormContainer = styled.form`
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`
+
+const FormGroup = styled.div``
+
+const Label = styled.label`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-bottom: 0.25rem;
+  display: block;
+`
+
+const ActionsContainer = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+`
 
 function daysLeft(deadline: string | null): number | null {
   if (!deadline) return null
@@ -15,9 +145,9 @@ function daysLeft(deadline: string | null): number | null {
 }
 
 export function GoalsTab() {
-  const [updateForm] = Form.useForm()
   const queryClient = useQueryClient()
   const [updatingGoal, setUpdatingGoal] = useState<FinancialGoal | null>(null)
+  const [currentAmount, setCurrentAmount] = useState<string>('')
 
   const { data: goals, isLoading } = useQuery({
     queryKey: ['finance', 'goals'],
@@ -31,7 +161,7 @@ export function GoalsTab() {
       queryClient.invalidateQueries({ queryKey: ['finance', 'goals'] })
       toast.success('Goal updated')
       setUpdatingGoal(null)
-      updateForm.resetFields()
+      setCurrentAmount('')
     },
     onError: () => toast.error('Failed to update goal'),
   })
@@ -47,113 +177,118 @@ export function GoalsTab() {
 
   const openUpdate = (goal: FinancialGoal) => {
     setUpdatingGoal(goal)
-    updateForm.setFieldsValue({ current_amount: String(goal.current_amount) })
+    setCurrentAmount(String(goal.current_amount))
   }
 
   const columns = [
     {
-      title: 'Goal',
-      key: 'name',
-      render: (_: any, record: FinancialGoal) => (
-        <div className="flex items-center gap-3">
-          <span className="text-xl leading-none">{record.icon || '🎯'}</span>
-          <div>
-            <div className="font-medium text-foreground">{record.name}</div>
-            <div className="text-[10px] text-muted-foreground capitalize">{record.category}</div>
-          </div>
-        </div>
-      )
-    },
-    {
-      title: 'Progress',
-      key: 'progress',
-      render: (_: any, record: FinancialGoal) => {
-        const pct = Math.min(100, record.target_amount > 0 ? Math.round((record.current_amount / record.target_amount) * 100) : 0)
+      id: 'name',
+      header: 'Goal',
+      cell: (row: any) => {
+        const record = row as FinancialGoal;
         return (
-          <div className="w-[180px]">
-            <div className="flex items-center justify-between text-[11px] mb-1.5">
-              <span className="font-medium text-foreground">₹{record.current_amount.toLocaleString('en-IN')}</span>
-              <span className="text-muted-foreground">/ ₹{record.target_amount.toLocaleString('en-IN')}</span>
+          <GoalCell>
+            <GoalIcon>{record.icon || '🎯'}</GoalIcon>
+            <div>
+              <GoalNameText>{record.name}</GoalNameText>
+              <GoalCategoryText>{record.category}</GoalCategoryText>
             </div>
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${pct}%`, background: record.color || '#0D9488' }}
-              />
-            </div>
-          </div>
+          </GoalCell>
         )
       }
     },
     {
-      title: 'Status',
-      key: 'status',
-      render: (_: any, record: FinancialGoal) => {
+      id: 'progress',
+      header: 'Progress',
+      cell: (row: any) => {
+        const record = row as FinancialGoal;
+        const pct = Math.min(100, record.target_amount > 0 ? Math.round((record.current_amount / record.target_amount) * 100) : 0)
+        return (
+          <ProgressContainer>
+            <ProgressTextRow>
+              <CurrentAmountText>₹{record.current_amount.toLocaleString('en-IN')}</CurrentAmountText>
+              <TargetAmountText>/ ₹{record.target_amount.toLocaleString('en-IN')}</TargetAmountText>
+            </ProgressTextRow>
+            <ProgressBarBg>
+              <ProgressBarFill
+                $pct={pct}
+                $color={record.color || '#0D9488'}
+              />
+            </ProgressBarBg>
+          </ProgressContainer>
+        )
+      }
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      cell: (row: any) => {
+        const record = row as FinancialGoal;
         const pct = Math.min(100, record.target_amount > 0 ? Math.round((record.current_amount / record.target_amount) * 100) : 0)
         const days = daysLeft(record.deadline)
         return (
-          <div>
-            <div className="font-medium" style={{ color: record.color || '#0D9488' }}>{pct}% complete</div>
+          <StatusContainer>
+            <StatusText $color={record.color || '#0D9488'}>{pct}% complete</StatusText>
             {days !== null && (
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
-                <CalendarDays className="w-3 h-3" />
+              <DueText>
+                <CalendarDays size={12} />
                 {days > 0 ? `${days} days left` : days === 0 ? 'Due today' : 'Overdue'}
-              </div>
+              </DueText>
             )}
-          </div>
+          </StatusContainer>
         )
       }
     },
     {
-      title: 'Action',
-      key: 'action',
-      render: (_: any, record: FinancialGoal) => (
-        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button type="text" size="small" icon={<PencilLine size={14} />} onClick={() => openUpdate(record)} />
-          <Popconfirm title="Delete this goal?" onConfirm={() => deleteMutation.mutate(record.id)} okText="Delete" cancelText="Cancel" okButtonProps={{ danger: true }}>
-            <Button type="text" danger size="small" icon={<Trash2 size={14} />} />
-          </Popconfirm>
-        </div>
-      )
+      id: 'action',
+      header: 'Action',
+      cell: (row: any) => {
+        const record = row as FinancialGoal;
+        return (
+          <ActionContainer>
+            <Button variant="ghost" size="icon" onClick={() => openUpdate(record)}>
+              <PencilLine size={14} />
+            </Button>
+            <Popconfirm title="Delete this goal?" onConfirm={() => deleteMutation.mutate(record.id)} okText="Delete" cancelText="Cancel" okButtonProps={{ danger: true }}>
+              <Button variant="destructive" size="icon">
+                <Trash2 size={14} />
+              </Button>
+            </Popconfirm>
+          </ActionContainer>
+        )
+      }
     }
   ]
 
-  if (isLoading) return <div className="space-y-4"><Skeleton className="h-10" /><Skeleton className="h-[200px]" /></div>;
+  if (isLoading) return <LoadingContainer><LoadingHeader /><LoadingBody /></LoadingContainer>;
 
   return (
     <div>
-      <TableContainer>
-        <TableHeader>
-          <h3>Savings Goals</h3>
-        </TableHeader>
-
-        <Table
-          dataSource={goals}
+      <Card title="Savings Goals">
+        <DataTable
+          rows={goals ?? []}
           columns={columns}
-          rowKey="id"
-          pagination={false}
-          size="middle"
-          rowClassName={() => 'group'}
+          getRowKey={row => row.id}
         />
 
-        <Modal
+        <Dialog
           open={!!updatingGoal}
-          title={<span className="text-foreground">Update saved amount — {updatingGoal?.name}</span>}
-          onCancel={() => { setUpdatingGoal(null); updateForm.resetFields() }}
-          footer={null}
-          width={360}
+          title={<ModalTitle>Update saved amount — {updatingGoal?.name}</ModalTitle>}
+          onOpenChange={(open) => { if (!open) { setUpdatingGoal(null); setCurrentAmount('') } }}
+          size="sm"
         >
-          <Form form={updateForm} layout="vertical" onFinish={updateMutation.mutate} requiredMark={false} className="mt-4">
-            <Form.Item name="current_amount" label={<span className="text-[11px] text-muted-foreground">Current amount saved (₹)</span>} rules={[{ required: true }]}>
-              <Input type="number" prefix="₹" placeholder="0" min="0" size="large" />
-            </Form.Item>
-            <div className="flex gap-2">
-              <Button type="primary" htmlType="submit" loading={updateMutation.isPending}>Save</Button>
-              <Button type="text" onClick={() => { setUpdatingGoal(null); updateForm.resetFields() }}>Cancel</Button>
-            </div>
-          </Form>
-        </Modal>
-      </TableContainer>
+          <FormContainer onSubmit={e => { e.preventDefault(); updateMutation.mutate({ current_amount: currentAmount }) }}>
+            <FormGroup>
+              <Label>Current amount saved (₹)</Label>
+              <Input type="number" startAdornment="₹" placeholder="0" min="0" size="lg" value={currentAmount} onChange={(e) => setCurrentAmount(e.target.value)} required />
+            </FormGroup>
+            <ActionsContainer>
+              <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save</Button>
+              <Button variant="ghost" onClick={() => { setUpdatingGoal(null); setCurrentAmount('') }} type="button">Cancel</Button>
+            </ActionsContainer>
+          </FormContainer>
+        </Dialog>
+      </Card>
     </div>
   )
 }

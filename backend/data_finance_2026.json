@@ -1,0 +1,1253 @@
+[
+  {
+    "period": "2026-06-14T20:44:24",
+    "account": "Saving AC (HDFC)",
+    "category": "Subscriptions & Digital",
+    "subcategory": "Apple",
+    "note": "Apple I cloud",
+    "type": "Exp.",
+    "amount": 75.0
+  },
+  {
+    "period": "2026-06-03T00:36:55",
+    "account": "Spending AC (PNB)",
+    "category": "Bills & Household",
+    "subcategory": "Rent - Flat / House",
+    "note": "Last month Rent - House / Flat",
+    "type": "Exp.",
+    "amount": 16500.0
+  },
+  {
+    "period": "2026-06-03T00:36:55",
+    "account": "Spending AC (PNB)",
+    "category": "Bills & Household",
+    "subcategory": "Rent - Flat / House",
+    "note": "Rent - House / Flat (Last month)",
+    "type": "Exp.",
+    "amount": 16500.0
+  },
+  {
+    "period": "2026-05-29T16:09:55",
+    "account": "Saving AC (HDFC)",
+    "category": "Bills & Household",
+    "subcategory": "Bill - Aquaguard",
+    "note": "Aquaguard recharge",
+    "type": "Exp.",
+    "amount": 398.0
+  },
+  {
+    "period": "2026-05-29T16:08:53",
+    "account": "Spending AC (PNB)",
+    "category": "Splitwise",
+    "subcategory": null,
+    "note": "Sachi returned",
+    "type": "Transfer-In",
+    "amount": 429.0
+  },
+  {
+    "period": "2026-05-29T16:08:53",
+    "account": "Splitwise",
+    "category": "Spending AC (PNB)",
+    "subcategory": null,
+    "note": "Sachi returned",
+    "type": "Transfer-Out",
+    "amount": 429.0
+  },
+  {
+    "period": "2026-05-28T23:36:54",
+    "account": "Spending AC (PNB)",
+    "category": "Salary AC (ICICI)",
+    "subcategory": null,
+    "note": "For expenses in June",
+    "type": "Transfer-In",
+    "amount": 3400.0
+  },
+  {
+    "period": "2026-05-28T23:36:54",
+    "account": "Salary AC (ICICI)",
+    "category": "Spending AC (PNB)",
+    "subcategory": null,
+    "note": "For expenses in June",
+    "type": "Transfer-Out",
+    "amount": 3400.0
+  },
+  {
+    "period": "2026-05-28T23:33:23",
+    "account": "Saving AC (HDFC)",
+    "category": "Salary AC (ICICI)",
+    "subcategory": null,
+    "note": "Rent k liye bheja h bss",
+    "type": "Transfer-In",
+    "amount": 17000.0
+  },
+  {
+    "period": "2026-05-28T23:33:23",
+    "account": "Salary AC (ICICI)",
+    "category": "Saving AC (HDFC)",
+    "subcategory": null,
+    "note": "Rent k liye bheja h bss",
+    "type": "Transfer-Out",
+    "amount": 17000.0
+  },
+  {
+    "period": "2026-05-28T23:28:41",
+    "account": "ICICI - Rubics",
+    "category": "Salary AC (ICICI)",
+    "subcategory": null,
+    "note": "Payment",
+    "type": "Transfer-In",
+    "amount": 2420.86
+  },
+  {
+    "period": "2026-05-28T23:28:41",
+    "account": "Salary AC (ICICI)",
+    "category": "ICICI - Rubics",
+    "subcategory": null,
+    "note": "Payment",
+    "type": "Transfer-Out",
+    "amount": 2420.86
+  },
+  {
+    "period": "2026-05-28T23:28:31",
+    "account": "Axis - Flipkart",
+    "category": "Salary AC (ICICI)",
+    "subcategory": null,
+    "note": "Payment",
+    "type": "Transfer-In",
+    "amount": 18498.92
+  },
+  {
+    "period": "2026-05-28T23:28:31",
+    "account": "Salary AC (ICICI)",
+    "category": "Axis - Flipkart",
+    "subcategory": null,
+    "note": "Payment",
+    "type": "Transfer-Out",
+    "amount": 18498.92
+  },
+  {
+    "period": "2026-05-28T23:28:22",
+    "account": "ICICI - Amazon Pay",
+    "category": "Salary AC (ICICI)",
+    "subcategory": null,
+    "note": "Payment",
+    "type": "Transfer-In",
+    "amount": 7795.62
+  },
+  {
+    "period": "2026-05-28T23:28:22",
+    "account": "Salary AC (ICICI)",
+    "category": "ICICI - Amazon Pay",
+    "subcategory": null,
+    "note": "Payment",
+    "type": "Transfer-Out",
+    "amount": 7795.62
+  },
+  {
+    "period": "2026-05-28T23:27:39",
+    "account": "Axis - Horizon",
+    "category": "Salary AC (ICICI)",
+    "subcategory": null,
+    "note": "Payment",
+    "type": "Transfer-In",
+    "amount": 6074.77
+  },
+  {
+    "period": "2026-05-28T23:27:39",
+    "account": "Salary AC (ICICI)",
+    "category": "Axis - Horizon",
+    "subcategory": null,
+    "note": "Payment",
+    "type": "Transfer-Out",
+    "amount": 6074.77
+  },
+  {
+    "period": "2026-05-28T23:27:31",
+    "account": "HDFC - Swiggy",
+    "category": "Salary AC (ICICI)",
+    "subcategory": null,
+    "note": "Payment",
+    "type": "Transfer-In",
+    "amount": 4458.0
+  },
+  {
+    "period": "2026-05-28T23:27:31",
+    "account": "Salary AC (ICICI)",
+    "category": "HDFC - Swiggy",
+    "subcategory": null,
+    "note": "Payment",
+    "type": "Transfer-Out",
+    "amount": 4458.0
+  },
+  {
+    "period": "2026-05-28T23:26:25",
+    "account": "HDFC - Tata Neu",
+    "category": "Salary AC (ICICI)",
+    "subcategory": null,
+    "note": "Payment",
+    "type": "Transfer-In",
+    "amount": 21822.0
+  },
+  {
+    "period": "2026-05-28T23:26:25",
+    "account": "Salary AC (ICICI)",
+    "category": "HDFC - Tata Neu",
+    "subcategory": null,
+    "note": "Payment",
+    "type": "Transfer-Out",
+    "amount": 21822.0
+  },
+  {
+    "period": "2026-05-28T23:18:55",
+    "account": "Salary AC (ICICI)",
+    "category": "Loan & EMIs",
+    "subcategory": "Other",
+    "note": "Niku - last emi",
+    "type": "Exp.",
+    "amount": 12871.0
+  },
+  {
+    "period": "2026-05-28T23:18:28",
+    "account": "Salary AC (ICICI)",
+    "category": "Loan & EMIs",
+    "subcategory": "Other",
+    "note": "Last tl",
+    "type": "Exp.",
+    "amount": 20000.0
+  },
+  {
+    "period": "2026-05-28T23:06:47",
+    "account": "Salary AC (ICICI)",
+    "category": "Unknown",
+    "subcategory": null,
+    "note": "Unknown - to balance",
+    "type": "Exp.",
+    "amount": 666.8
+  },
+  {
+    "period": "2026-05-28T23:00:16",
+    "account": "Salary AC (ICICI)",
+    "category": "Investments",
+    "subcategory": null,
+    "note": "LIC 915 - Quarterly",
+    "type": "Exp.",
+    "amount": 10837.0
+  },
+  {
+    "period": "2026-05-28T22:34:28",
+    "account": "Spending AC (PNB)",
+    "category": "Health & Fitness",
+    "subcategory": "Sports",
+    "note": "Cricket",
+    "type": "Exp.",
+    "amount": 508.0
+  },
+  {
+    "period": "2026-05-28T22:29:07",
+    "account": "Spending AC (PNB)",
+    "category": "Miscellaneous",
+    "subcategory": "Unexpected Expenses",
+    "note": "Nishant - medicene order",
+    "type": "Exp.",
+    "amount": 738.0
+  },
+  {
+    "period": "2026-05-28T21:37:47",
+    "account": "Salary AC (ICICI)",
+    "category": "💰 Salary",
+    "subcategory": null,
+    "note": "May end Salary",
+    "type": "Income",
+    "amount": 154292.0
+  },
+  {
+    "period": "2026-05-28T21:20:41",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Eating Out",
+    "note": "Dinner outside",
+    "type": "Exp.",
+    "amount": 240.0
+  },
+  {
+    "period": "2026-05-28T21:20:20",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Grocery / Blinkit / Zepto",
+    "note": "Fruits",
+    "type": "Exp.",
+    "amount": 70.0
+  },
+  {
+    "period": "2026-05-28T21:19:58",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Grocery / Blinkit / Zepto",
+    "note": "Sabji",
+    "type": "Exp.",
+    "amount": 303.0
+  },
+  {
+    "period": "2026-05-28T21:19:30",
+    "account": "HDFC - Tata Neu",
+    "category": "Shopping & Lifestyle",
+    "subcategory": "Movies & Shows",
+    "note": "Gaming",
+    "type": "Exp.",
+    "amount": 120.0
+  },
+  {
+    "period": "2026-05-27T21:16:27",
+    "account": "Salary AC (ICICI)",
+    "category": "Shopping & Lifestyle",
+    "subcategory": "Clothes",
+    "note": "Team tshirt",
+    "type": "Exp.",
+    "amount": 670.0
+  },
+  {
+    "period": "2026-05-27T21:16:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Travel",
+    "subcategory": "Train / Bus Tickets",
+    "note": "Train ticket from patna to bangalore",
+    "type": "Exp.",
+    "amount": 7342.0
+  },
+  {
+    "period": "2026-05-27T21:16:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Unknown",
+    "subcategory": null,
+    "note": "Unknown",
+    "type": "Exp.",
+    "amount": 269.0
+  },
+  {
+    "period": "2026-05-27T21:16:00",
+    "account": "ICICI - Amazon Pay",
+    "category": "Family Support",
+    "subcategory": "Home Expenses",
+    "note": "Ghar k liye saman",
+    "type": "Exp.",
+    "amount": 1476.03
+  },
+  {
+    "period": "2026-05-27T21:16:00",
+    "account": "Salary AC (ICICI)",
+    "category": "Food & Grocery",
+    "subcategory": "Snacks & Bevrages",
+    "note": "Tea with friends",
+    "type": "Exp.",
+    "amount": 56.0
+  },
+  {
+    "period": "2026-05-27T21:16:00",
+    "account": "Spending AC (PNB)",
+    "category": "Other",
+    "subcategory": null,
+    "note": "echo",
+    "type": "Income",
+    "amount": 8000.0
+  },
+  {
+    "period": "2026-05-27T21:16:00",
+    "account": "Salary AC (ICICI)",
+    "category": "Miscellaneous",
+    "subcategory": "Donations",
+    "note": "Furniture labour tip",
+    "type": "Exp.",
+    "amount": 300.0
+  },
+  {
+    "period": "2026-05-27T21:16:00",
+    "account": "Salary AC (ICICI)",
+    "category": "Saving AC (HDFC)",
+    "subcategory": null,
+    "note": "For tshirt",
+    "type": "Transfer-In",
+    "amount": 860.0
+  },
+  {
+    "period": "2026-05-27T21:16:00",
+    "account": "Saving AC (HDFC)",
+    "category": "Salary AC (ICICI)",
+    "subcategory": null,
+    "note": "For tshirt",
+    "type": "Transfer-Out",
+    "amount": 860.0
+  },
+  {
+    "period": "2026-05-27T21:16:00",
+    "account": "Salary AC (ICICI)",
+    "category": "Shopping & Lifestyle",
+    "subcategory": "Clothes",
+    "note": "Team tshirt",
+    "type": "Exp.",
+    "amount": 620.0
+  },
+  {
+    "period": "2026-05-26T00:58:41",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Eating Out",
+    "note": "Lunch - Office",
+    "type": "Exp.",
+    "amount": 184.0
+  },
+  {
+    "period": "2026-05-26T00:57:47",
+    "account": "Saving AC (HDFC)",
+    "category": "Transportation",
+    "subcategory": "Cab / Auto",
+    "note": "Cab to sachi house",
+    "type": "Exp.",
+    "amount": 342.0
+  },
+  {
+    "period": "2026-05-25T22:27:07",
+    "account": "Spending AC (PNB)",
+    "category": "Health & Fitness",
+    "subcategory": "Protein & Supplement",
+    "note": "Protein powder - sachi",
+    "type": "Exp.",
+    "amount": 5400.0
+  },
+  {
+    "period": "2026-05-25T00:59:52",
+    "account": "Saving AC (HDFC)",
+    "category": "Transportation",
+    "subcategory": "Cab / Auto",
+    "note": "Cab",
+    "type": "Exp.",
+    "amount": 1214.0
+  },
+  {
+    "period": "2026-05-25T00:59:00",
+    "account": "Spending AC (PNB)",
+    "category": "Miscellaneous",
+    "subcategory": "Gifts",
+    "note": "Fl",
+    "type": "Exp.",
+    "amount": 100.0
+  },
+  {
+    "period": "2026-05-25T00:59:00",
+    "account": "Saving AC (HDFC)",
+    "category": "Spending AC (PNB)",
+    "subcategory": null,
+    "note": "Earned for working",
+    "type": "Transfer-In",
+    "amount": 400.0
+  },
+  {
+    "period": "2026-05-25T00:59:00",
+    "account": "Spending AC (PNB)",
+    "category": "Saving AC (HDFC)",
+    "subcategory": null,
+    "note": "Earned for working",
+    "type": "Transfer-Out",
+    "amount": 400.0
+  },
+  {
+    "period": "2026-05-25T00:59:00",
+    "account": "Salary AC (ICICI)",
+    "category": "Spending AC (PNB)",
+    "subcategory": null,
+    "note": "For maintenance",
+    "type": "Transfer-In",
+    "amount": 1000.0
+  },
+  {
+    "period": "2026-05-25T00:59:00",
+    "account": "Spending AC (PNB)",
+    "category": "Salary AC (ICICI)",
+    "subcategory": null,
+    "note": "For maintenance",
+    "type": "Transfer-Out",
+    "amount": 1000.0
+  },
+  {
+    "period": "2026-05-25T00:59:00",
+    "account": "Cash",
+    "category": "Spending AC (PNB)",
+    "subcategory": null,
+    "note": "Cash",
+    "type": "Transfer-In",
+    "amount": 700.0
+  },
+  {
+    "period": "2026-05-25T00:59:00",
+    "account": "Spending AC (PNB)",
+    "category": "Cash",
+    "subcategory": null,
+    "note": "Cash",
+    "type": "Transfer-Out",
+    "amount": 700.0
+  },
+  {
+    "period": "2026-05-25T00:59:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Eating Out",
+    "note": "Mac D",
+    "type": "Exp.",
+    "amount": 299.84
+  },
+  {
+    "period": "2026-05-25T00:59:00",
+    "account": "Spending AC (PNB)",
+    "category": "Transportation",
+    "subcategory": "Cab / Auto",
+    "note": "Cab",
+    "type": "Exp.",
+    "amount": 369.0
+  },
+  {
+    "period": "2026-05-25T00:59:00",
+    "account": "Saving AC (HDFC)",
+    "category": "Miscellaneous",
+    "subcategory": "Donations",
+    "note": "Donated to kinnar",
+    "type": "Exp.",
+    "amount": 51.0
+  },
+  {
+    "period": "2026-05-25T00:59:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Bills & Household",
+    "subcategory": "Bill - renticle wardrobe",
+    "note": "Renticle",
+    "type": "Exp.",
+    "amount": 638.82
+  },
+  {
+    "period": "2026-05-24T00:59:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Snacks & Bevrages",
+    "note": "Coffee",
+    "type": "Exp.",
+    "amount": 20.0
+  },
+  {
+    "period": "2026-05-23T22:53:06",
+    "account": "Axis - Flipkart",
+    "category": "Subscriptions & Digital",
+    "subcategory": "AI Tools",
+    "note": "Anthropic AI",
+    "type": "Exp.",
+    "amount": 587.32
+  },
+  {
+    "period": "2026-05-23T00:59:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Grocery / Blinkit / Zepto",
+    "note": "Chicken raw",
+    "type": "Exp.",
+    "amount": 202.0
+  },
+  {
+    "period": "2026-05-22T22:52:18",
+    "account": "Axis - Flipkart",
+    "category": "Unknown",
+    "subcategory": null,
+    "note": "Unknown",
+    "type": "Exp.",
+    "amount": 282.0
+  },
+  {
+    "period": "2026-05-22T22:52:00",
+    "account": "Friends/Others",
+    "category": "Axis - Flipkart",
+    "subcategory": null,
+    "note": "Tl - ticket",
+    "type": "Transfer-In",
+    "amount": 6860.0
+  },
+  {
+    "period": "2026-05-22T22:52:00",
+    "account": "Axis - Flipkart",
+    "category": "Friends/Others",
+    "subcategory": null,
+    "note": "Tl - ticket",
+    "type": "Transfer-Out",
+    "amount": 6860.0
+  },
+  {
+    "period": "2026-05-22T00:59:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Online food (Swiggy / Zomato)",
+    "note": "Zomato",
+    "type": "Exp.",
+    "amount": 1036.08
+  },
+  {
+    "period": "2026-05-22T00:59:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Miscellaneous",
+    "subcategory": "Unexpected Expenses",
+    "note": "Forex charge",
+    "type": "Exp.",
+    "amount": 56.56
+  },
+  {
+    "period": "2026-05-22T00:59:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Snacks & Bevrages",
+    "note": "Tea",
+    "type": "Exp.",
+    "amount": 66.0
+  },
+  {
+    "period": "2026-05-21T00:59:00",
+    "account": "Spending AC (PNB)",
+    "category": "Travel",
+    "subcategory": "Train / Bus Tickets",
+    "note": "Bus",
+    "type": "Exp.",
+    "amount": 20.0
+  },
+  {
+    "period": "2026-05-20T21:43:55",
+    "account": "HDFC - Swiggy",
+    "category": "Modified Bal.",
+    "subcategory": null,
+    "note": "Difference",
+    "type": "Exp.",
+    "amount": 17.54
+  },
+  {
+    "period": "2026-05-19T22:15:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Miscellaneous",
+    "subcategory": "Unexpected Expenses",
+    "note": "Gst charge",
+    "type": "Exp.",
+    "amount": 8.0
+  },
+  {
+    "period": "2026-05-19T21:58:38",
+    "account": "ICICI - Amazon Pay",
+    "category": "Bills & Household",
+    "subcategory": "Bill - Mobile Recharge",
+    "note": "Recharge",
+    "type": "Exp.",
+    "amount": 70.0
+  },
+  {
+    "period": "2026-05-18T22:51:21",
+    "account": "Axis - Flipkart",
+    "category": "Loan & EMIs",
+    "subcategory": "Other",
+    "note": "Last emi for airpods",
+    "type": "Exp.",
+    "amount": 5329.6
+  },
+  {
+    "period": "2026-05-18T22:40:34",
+    "account": "HDFC - Tata Neu",
+    "category": "Unknown",
+    "subcategory": null,
+    "note": "Unknown",
+    "type": "Exp.",
+    "amount": 150.13
+  },
+  {
+    "period": "2026-05-18T21:57:52",
+    "account": "ICICI - Amazon Pay",
+    "category": "Shopping & Lifestyle",
+    "subcategory": "Accessories",
+    "note": "Emergency Light and other",
+    "type": "Exp.",
+    "amount": 2117.0
+  },
+  {
+    "period": "2026-05-17T21:34:56",
+    "account": "HDFC - Tata Neu",
+    "category": "Shopping & Lifestyle",
+    "subcategory": "friends",
+    "note": "Khasin meet",
+    "type": "Exp.",
+    "amount": 1000.0
+  },
+  {
+    "period": "2026-05-17T21:34:00",
+    "account": "Axis - Horizon",
+    "category": "Transportation",
+    "subcategory": "Vehicle Service & Maintenance",
+    "note": "Chain change",
+    "type": "Exp.",
+    "amount": 3177.0
+  },
+  {
+    "period": "2026-05-17T21:34:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Grocery / Blinkit / Zepto",
+    "note": "Blinkit",
+    "type": "Exp.",
+    "amount": 242.0
+  },
+  {
+    "period": "2026-05-17T21:34:00",
+    "account": "Spending AC (PNB)",
+    "category": "Unknown",
+    "subcategory": null,
+    "note": "Unknown",
+    "type": "Exp.",
+    "amount": 120.0
+  },
+  {
+    "period": "2026-05-16T21:59:26",
+    "account": "Friends/Others",
+    "category": "ICICI - Amazon Pay",
+    "subcategory": null,
+    "note": "Tl - ticket",
+    "type": "Transfer-In",
+    "amount": 7964.0
+  },
+  {
+    "period": "2026-05-16T21:59:26",
+    "account": "ICICI - Amazon Pay",
+    "category": "Friends/Others",
+    "subcategory": null,
+    "note": "Tl - ticket",
+    "type": "Transfer-Out",
+    "amount": 7964.0
+  },
+  {
+    "period": "2026-05-16T21:59:00",
+    "account": "Axis - Horizon",
+    "category": "Transportation",
+    "subcategory": "Vehicle Service & Maintenance",
+    "note": "Bike service",
+    "type": "Exp.",
+    "amount": 2802.0
+  },
+  {
+    "period": "2026-05-16T21:59:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Shopping & Lifestyle",
+    "subcategory": "friends",
+    "note": "Pizza",
+    "type": "Exp.",
+    "amount": 1154.73
+  },
+  {
+    "period": "2026-05-16T20:44:00",
+    "account": "Spending AC (PNB)",
+    "category": "Unknown",
+    "subcategory": null,
+    "note": "Unknown",
+    "type": "Exp.",
+    "amount": 50.0
+  },
+  {
+    "period": "2026-05-16T20:44:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Unknown",
+    "subcategory": null,
+    "note": "Unknown",
+    "type": "Exp.",
+    "amount": 150.0
+  },
+  {
+    "period": "2026-05-16T20:44:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Unknown",
+    "subcategory": null,
+    "note": "Unknown",
+    "type": "Exp.",
+    "amount": 20.0
+  },
+  {
+    "period": "2026-05-15T22:50:34",
+    "account": "Axis - Flipkart",
+    "category": "Subscriptions & Digital",
+    "subcategory": "AI Tools",
+    "note": "Open AI",
+    "type": "Exp.",
+    "amount": 589.12
+  },
+  {
+    "period": "2026-05-15T20:44:00",
+    "account": "Spending AC (PNB)",
+    "category": "Shopping & Lifestyle",
+    "subcategory": "Others",
+    "note": "Unknown",
+    "type": "Exp.",
+    "amount": 10.0
+  },
+  {
+    "period": "2026-05-15T20:44:00",
+    "account": "Spending AC (PNB)",
+    "category": "Food & Grocery",
+    "subcategory": "Snacks & Bevrages",
+    "note": "Red bull",
+    "type": "Exp.",
+    "amount": 150.0
+  },
+  {
+    "period": "2026-05-15T20:44:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Grocery / Blinkit / Zepto",
+    "note": "Chicken raw",
+    "type": "Exp.",
+    "amount": 208.0
+  },
+  {
+    "period": "2026-05-15T01:22:11",
+    "account": "Spending AC (PNB)",
+    "category": "Other",
+    "subcategory": null,
+    "note": "Rima aunty returned",
+    "type": "Income",
+    "amount": 500.0
+  },
+  {
+    "period": "2026-05-14T22:04:42",
+    "account": "ICICI - Amazon Pay",
+    "category": "Unknown",
+    "subcategory": null,
+    "note": "Unknown",
+    "type": "Exp.",
+    "amount": 1187.9
+  },
+  {
+    "period": "2026-05-14T22:04:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Subscriptions & Digital",
+    "subcategory": "AI Tools",
+    "note": "Anthropic AI",
+    "type": "Exp.",
+    "amount": 570.77
+  },
+  {
+    "period": "2026-05-14T20:44:24",
+    "account": "Saving AC (HDFC)",
+    "category": "Subscriptions & Digital",
+    "subcategory": "Apple",
+    "note": "Apple I cloud",
+    "type": "Exp.",
+    "amount": 75.0
+  },
+  {
+    "period": "2026-05-14T20:43:51",
+    "account": "Spending AC (PNB)",
+    "category": "Transportation",
+    "subcategory": "Cab / Auto",
+    "note": "Rapido",
+    "type": "Exp.",
+    "amount": 120.0
+  },
+  {
+    "period": "2026-05-14T20:43:31",
+    "account": "HDFC - Tata Neu",
+    "category": "Credit Cards",
+    "subcategory": null,
+    "note": "Cold drinks",
+    "type": "Exp.",
+    "amount": 70.0
+  },
+  {
+    "period": "2026-05-14T20:42:47",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Eating Out",
+    "note": "Dinner",
+    "type": "Exp.",
+    "amount": 452.0
+  },
+  {
+    "period": "2026-05-14T17:39:41",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Snacks & Bevrages",
+    "note": "Coffee",
+    "type": "Exp.",
+    "amount": 25.0
+  },
+  {
+    "period": "2026-05-14T17:02:38",
+    "account": "Spending AC (PNB)",
+    "category": "Transportation",
+    "subcategory": "Cab / Auto",
+    "note": "Cab",
+    "type": "Exp.",
+    "amount": 415.0
+  },
+  {
+    "period": "2026-05-13T21:49:36",
+    "account": "ICICI - Rubics",
+    "category": "Loan & EMIs",
+    "subcategory": "EMI - Fridge",
+    "note": "Fridge emi",
+    "type": "Exp.",
+    "amount": 2420.86
+  },
+  {
+    "period": "2026-05-13T11:31:31",
+    "account": "Axis - Horizon",
+    "category": "Food & Grocery",
+    "subcategory": "Grocery / Blinkit / Zepto",
+    "note": "Dmart - grocery and utensils",
+    "type": "Exp.",
+    "amount": 3807.58
+  },
+  {
+    "period": "2026-05-13T11:31:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Online food (Swiggy / Zomato)",
+    "note": "Zomato",
+    "type": "Exp.",
+    "amount": 552.5
+  },
+  {
+    "period": "2026-05-13T11:29:05",
+    "account": "HDFC - Tata Neu",
+    "category": "Transportation",
+    "subcategory": "Petrol",
+    "note": "Petrol",
+    "type": "Exp.",
+    "amount": 968.85
+  },
+  {
+    "period": "2026-05-13T11:01:50",
+    "account": "Spending AC (PNB)",
+    "category": "Health & Fitness",
+    "subcategory": "Sports",
+    "note": "Cricket",
+    "type": "Exp.",
+    "amount": 200.0
+  },
+  {
+    "period": "2026-05-13T11:00:37",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Eating Out",
+    "note": "Lunch - Office",
+    "type": "Exp.",
+    "amount": 142.0
+  },
+  {
+    "period": "2026-05-13T10:59:52",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Eating Out",
+    "note": "Samosa",
+    "type": "Exp.",
+    "amount": 15.0
+  },
+  {
+    "period": "2026-05-13T10:59:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Grocery / Blinkit / Zepto",
+    "note": "Mango",
+    "type": "Exp.",
+    "amount": 400.0
+  },
+  {
+    "period": "2026-05-12T11:32:46",
+    "account": "HDFC - Swiggy",
+    "category": "Cashback",
+    "subcategory": null,
+    "note": "Cashback",
+    "type": "Income",
+    "amount": 26.4
+  },
+  {
+    "period": "2026-05-12T11:32:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Miscellaneous",
+    "subcategory": "Unexpected Expenses",
+    "note": "Gst charge",
+    "type": "Exp.",
+    "amount": 8.0
+  },
+  {
+    "period": "2026-05-12T11:32:00",
+    "account": "Spending AC (PNB)",
+    "category": "Bills & Household",
+    "subcategory": "Bill - Water & Electricity",
+    "note": "Electricity bill",
+    "type": "Exp.",
+    "amount": 137.0
+  },
+  {
+    "period": "2026-05-12T11:32:00",
+    "account": "Spending AC (PNB)",
+    "category": "Shopping & Lifestyle",
+    "subcategory": "Grooming",
+    "note": "Hair cut & Beard",
+    "type": "Exp.",
+    "amount": 367.0
+  },
+  {
+    "period": "2026-05-12T11:01:00",
+    "account": "HDFC - Swiggy",
+    "category": "Food & Grocery",
+    "subcategory": "Grocery / Blinkit / Zepto",
+    "note": "Swiggy instamart grocery",
+    "type": "Exp.",
+    "amount": 599.0
+  },
+  {
+    "period": "2026-05-12T11:01:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Eating Out",
+    "note": "Kathal",
+    "type": "Exp.",
+    "amount": 60.0
+  },
+  {
+    "period": "2026-05-12T10:58:29",
+    "account": "HDFC - Swiggy",
+    "category": "Food & Grocery",
+    "subcategory": "Online food (Swiggy / Zomato)",
+    "note": "Mushroom Biryani",
+    "type": "Exp.",
+    "amount": 480.0
+  },
+  {
+    "period": "2026-05-11T11:16:30",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Eating Out",
+    "note": "Lunch - Office",
+    "type": "Exp.",
+    "amount": 126.0
+  },
+  {
+    "period": "2026-05-10T11:33:00",
+    "account": "HDFC - Swiggy",
+    "category": "Food & Grocery",
+    "subcategory": "Eating Out",
+    "note": "Reservation- Golden circle",
+    "type": "Exp.",
+    "amount": 25.0
+  },
+  {
+    "period": "2026-05-10T11:33:00",
+    "account": "Spending AC (PNB)",
+    "category": "Transportation",
+    "subcategory": "Cab / Auto",
+    "note": "Cab",
+    "type": "Exp.",
+    "amount": 290.0
+  },
+  {
+    "period": "2026-05-10T11:18:27",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Snacks & Bevrages",
+    "note": "Tea snd snacks",
+    "type": "Exp.",
+    "amount": 60.0
+  },
+  {
+    "period": "2026-05-10T11:18:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Transportation",
+    "subcategory": "Vehicle Service & Maintenance",
+    "note": "Car maintenance",
+    "type": "Exp.",
+    "amount": 240.0
+  },
+  {
+    "period": "2026-05-10T11:10:30",
+    "account": "HDFC - Swiggy",
+    "category": "Food & Grocery",
+    "subcategory": "Grocery / Blinkit / Zepto",
+    "note": "Swiggy instamart grocery",
+    "type": "Exp.",
+    "amount": 264.0
+  },
+  {
+    "period": "2026-05-10T11:10:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Eating Out",
+    "note": "Lunch outside",
+    "type": "Exp.",
+    "amount": 331.0
+  },
+  {
+    "period": "2026-05-09T22:57:15",
+    "account": "Axis - Flipkart",
+    "category": "Cashback",
+    "subcategory": null,
+    "note": "Cashback",
+    "type": "Income",
+    "amount": 595.0
+  },
+  {
+    "period": "2026-05-09T12:37:07",
+    "account": "Spending AC (PNB)",
+    "category": "Transportation",
+    "subcategory": "Vehicle Service & Maintenance",
+    "note": "Bike chain cleaning",
+    "type": "Exp.",
+    "amount": 100.0
+  },
+  {
+    "period": "2026-05-09T12:37:00",
+    "account": "Spending AC (PNB)",
+    "category": "Transportation",
+    "subcategory": "Cab / Auto",
+    "note": "Auto to shivoham",
+    "type": "Exp.",
+    "amount": 178.0
+  },
+  {
+    "period": "2026-05-09T11:56:29",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Snacks & Bevrages",
+    "note": "Ice cream - all",
+    "type": "Exp.",
+    "amount": 90.0
+  },
+  {
+    "period": "2026-05-09T11:54:16",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Eating Out",
+    "note": "Mc Donald’s",
+    "type": "Exp.",
+    "amount": 478.02
+  },
+  {
+    "period": "2026-05-09T11:46:33",
+    "account": "Spending AC (PNB)",
+    "category": "Other",
+    "subcategory": null,
+    "note": "Amit Bhaiya wife - returned money",
+    "type": "Income",
+    "amount": 1500.0
+  },
+  {
+    "period": "2026-05-09T11:40:33",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Eating Out",
+    "note": "Subway",
+    "type": "Exp.",
+    "amount": 328.0
+  },
+  {
+    "period": "2026-05-09T11:40:00",
+    "account": "HDFC - Tata Neu",
+    "category": "Food & Grocery",
+    "subcategory": "Snacks & Bevrages",
+    "note": "Water bottle",
+    "type": "Exp.",
+    "amount": 65.0
+  },
+  {
+    "period": "2026-05-09T11:14:54",
+    "account": "HDFC - Tata Neu",
+    "category": "Transportation",
+    "subcategory": "Vehicle Service & Maintenance",
+    "note": "Chain lube",
+    "type": "Exp.",
+    "amount": 494.0
+  },
+  {
+    "period": "2026-05-09T00:15:06",
+    "account": "Spending AC (PNB)",
+    "category": "Modified Bal.",
+    "subcategory": null,
+    "note": "Current Balance",
+    "type": "Income Balance",
+    "amount": 3042.41
+  },
+  {
+    "period": "2026-05-09T00:13:59",
+    "account": "Emergency AC (SBI)",
+    "category": "Modified Bal.",
+    "subcategory": null,
+    "note": "Current Balance",
+    "type": "Income Balance",
+    "amount": 81.92
+  },
+  {
+    "period": "2026-05-09T00:12:41",
+    "account": "Salary AC (ICICI)",
+    "category": "Modified Bal.",
+    "subcategory": null,
+    "note": "Current Balance",
+    "type": "Income Balance",
+    "amount": 168.32
+  },
+  {
+    "period": "2026-05-09T00:11:17",
+    "account": "Saving AC (HDFC)",
+    "category": "Modified Bal.",
+    "subcategory": null,
+    "note": "Current Balance",
+    "type": "Income Balance",
+    "amount": 2145.66
+  },
+  {
+    "period": "2026-05-09T00:09:31",
+    "account": "Axis - Flipkart",
+    "category": "Credit Cards",
+    "subcategory": null,
+    "note": "Current due",
+    "type": "Exp.",
+    "amount": 19093.92
+  },
+  {
+    "period": "2026-05-09T00:06:34",
+    "account": "Axis - Horizon",
+    "category": "Credit Cards",
+    "subcategory": null,
+    "note": "Current due",
+    "type": "Exp.",
+    "amount": 6074.77
+  },
+  {
+    "period": "2026-05-09T00:05:21",
+    "account": "HDFC - Tata Neu",
+    "category": "Credit Cards",
+    "subcategory": null,
+    "note": "Current due",
+    "type": "Exp.",
+    "amount": 13413.0
+  },
+  {
+    "period": "2026-05-09T00:04:32",
+    "account": "ICICI - Amazon Pay",
+    "category": "Credit Cards",
+    "subcategory": null,
+    "note": "Current due",
+    "type": "Exp.",
+    "amount": 7795.62
+  },
+  {
+    "period": "2026-05-09T00:01:31",
+    "account": "HDFC - Swiggy",
+    "category": "Food & Grocery",
+    "subcategory": "Grocery / Blinkit / Zepto",
+    "note": "Current due",
+    "type": "Exp.",
+    "amount": 3098.86
+  },
+  {
+    "period": "2026-05-08T23:40:17",
+    "account": "ICICI - Personal Loan",
+    "category": "Modified Bal.",
+    "subcategory": null,
+    "note": "Difference",
+    "type": "Expense Balance",
+    "amount": 1159160.0
+  }
+]

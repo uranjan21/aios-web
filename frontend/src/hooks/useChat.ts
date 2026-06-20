@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { ChatEvent } from '@/types'
+import { chatApi } from '@/api/chat'
 
 export interface LocalMessage {
   id: string
@@ -20,6 +21,7 @@ interface UseChatResult {
   sendMessage: (content: string) => void
   newSession: () => void
   connected: boolean
+  loadingMessages: boolean
 }
 
 let msgId = 0
@@ -28,6 +30,7 @@ const nextId = () => String(++msgId)
 export function useChat(initialSessionId?: string): UseChatResult {
   const [messages, setMessages] = useState<LocalMessage[]>([])
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId ?? null)
+  const [loadingMessages, setLoadingMessages] = useState(false)
   const [isStreaming, setIsStreaming] = useState(false)
   const [tokenInfo, setTokenInfo] = useState<UseChatResult['tokenInfo']>(null)
   const [affectedPaths, setAffectedPaths] = useState<string[]>([])
@@ -129,6 +132,35 @@ export function useChat(initialSessionId?: string): UseChatResult {
     }
   }, [connect])
 
+  useEffect(() => {
+    if (initialSessionId) {
+      setSessionId(initialSessionId)
+      setLoadingMessages(true)
+      chatApi.session(initialSessionId)
+        .then(data => {
+          if (data && Array.isArray(data.messages)) {
+            const mapped: LocalMessage[] = data.messages.map((m: any) => ({
+              id: m.id,
+              role: m.role,
+              content: m.content,
+              toolCalls: m.tool_calls || undefined,
+              toolResults: m.tool_results || undefined,
+            }))
+            setMessages(mapped)
+          }
+        })
+        .catch(err => {
+          console.error("Failed to load session messages:", err)
+        })
+        .finally(() => {
+          setLoadingMessages(false)
+        })
+    } else {
+      setSessionId(null)
+      setMessages([])
+    }
+  }, [initialSessionId])
+
   const sendMessage = useCallback((content: string) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
 
@@ -155,5 +187,5 @@ export function useChat(initialSessionId?: string): UseChatResult {
     setTokenInfo(null)
   }, [])
 
-  return { messages, sessionId, isStreaming, tokenInfo, affectedPaths, sendMessage, newSession, connected }
+  return { messages, sessionId, isStreaming, tokenInfo, affectedPaths, sendMessage, newSession, connected, loadingMessages }
 }

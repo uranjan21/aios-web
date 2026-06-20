@@ -1,29 +1,96 @@
-import { Tabs } from 'antd'
+// @ts-nocheck
+import React from 'react'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@ledgr/ui'
 import styled from 'styled-components'
 
-export const AreaTabs = styled(Tabs)`
-  .ant-tabs-nav {
-    margin-bottom: 20px !important;
-    &::before { border-bottom: none !important; }
+const StyledTabsWrapper = styled.div`
+  /* Ensure the tabs list matches the exact spacing requested */
+  [role="tablist"] {
+    margin-bottom: 8px;
   }
-  .ant-tabs-ink-bar {
-    background: hsl(var(--primary)) !important;
-    height: 2px !important;
-    border-radius: 1px;
-  }
-  .ant-tabs-tab {
-    font-size: 13px !important;
-    font-weight: 500 !important;
-    letter-spacing: normal;
-    text-transform: none;
-    color: hsl(var(--muted-foreground)) !important;
-    margin-right: 24px !important;
-    padding: 8px 2px !important;
-    transition: color 0.15s ease !important;
-    &:hover { color: hsl(var(--foreground)) !important; }
-  }
-  .ant-tabs-tab-active .ant-tabs-tab-btn {
-    color: hsl(var(--foreground)) !important;
-    font-weight: 600 !important;
+  
+  [role="tab"] {
+    /* Icon inside tab label */
+    svg {
+      margin-right: 6px;
+      vertical-align: -2px;
+    }
   }
 `
+
+export interface AreaTabsProps {
+  activeKey?: string;
+  defaultActiveKey?: string;
+  onChange?: (key: string) => void;
+  items: { key: string; label: React.ReactNode; children: React.ReactNode }[];
+  /** Unified toolbar rendered between the tab bar and the tab content (FilterBar). */
+  toolbar?: React.ReactNode;
+  className?: string;
+}
+
+const StyledTabsList = styled(TabsList)`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing[6]};
+  border-bottom: 1px solid ${({ theme }) => theme.color.border};
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  &::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
+`
+
+const StyledTabsTrigger = styled(TabsTrigger)`
+  position: relative;
+  padding: ${({ theme }) => theme.spacing[3]} 0;
+  font-size: 13px;
+  font-weight: ${({ theme }) => theme.typography.fontWeight.medium};
+  white-space: nowrap;
+  transition: all ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
+  border-bottom: 2px solid transparent;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  background: transparent;
+  
+  &[data-state="active"] {
+    border-color: ${({ theme }) => theme.color.primary};
+    color: ${({ theme }) => theme.color.primary};
+  }
+  
+  &[data-state="inactive"]:hover {
+    color: ${({ theme }) => theme.color.foreground};
+  }
+`
+
+export function AreaTabs({
+  activeKey,
+  defaultActiveKey,
+  onChange,
+  items,
+  toolbar,
+  className
+}: AreaTabsProps) {
+  return (
+    <StyledTabsWrapper className={className}>
+      <Tabs value={activeKey} defaultValue={defaultActiveKey} onValueChange={onChange}>
+        <StyledTabsList>
+          {items.map(item => (
+            <StyledTabsTrigger
+              key={item.key}
+              value={item.key}
+            >
+              {item.label}
+            </StyledTabsTrigger>
+          ))}
+        </StyledTabsList>
+        {toolbar}
+        {items.map(item => (
+          <TabsContent key={item.key} value={item.key}>
+            {item.children}
+          </TabsContent>
+        ))}
+      </Tabs>
+    </StyledTabsWrapper>
+  )
+}

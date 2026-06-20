@@ -1,175 +1,264 @@
 import { useRef, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import type { LucideIcon } from 'lucide-react'
 import { Bell, X, AlertTriangle, CheckCircle, Zap, Info, AlertCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { cn } from '@/lib/utils'
+import styled from 'styled-components'
 import { useNotificationStore, type Notification } from '@/stores/notificationStore'
 import { useNotifications } from '@/hooks/useNotifications'
 import { formatRelativeTime } from '@/lib/utils'
 
-const TYPE_CONFIG: Record<Notification['type'], { icon: React.FC<{ className?: string }>; color: string }> = {
-  conflict:       { icon: AlertTriangle, color: 'text-kpi-amber' },
-  agent_error:    { icon: AlertCircle,   color: 'text-destructive' },
-  agent_success:  { icon: CheckCircle,   color: 'text-kpi-emerald' },
-  budget_warning: { icon: Zap,           color: 'text-kpi-purple' },
-  info:           { icon: Info,          color: 'text-kpi-blue' },
+const TYPE_COLORS: Record<Notification['type'], string> = {
+  conflict:       '#d97706',
+  agent_error:    '#dc2626',
+  agent_success:  '#16a34a',
+  budget_warning: '#7c3aed',
+  info:           '#0284c7',
 }
 
-function NotifItem({ n, onClose }: { n: Notification; onClose: () => void }) {
-  const navigate = useNavigate()
-  const { icon: Icon, color } = TYPE_CONFIG[n.type]
-  const markRead = useNotificationStore((s) => s.markRead)
-  const dismiss = useNotificationStore((s) => s.dismiss)
+const TYPE_ICONS: Record<Notification['type'], LucideIcon> = {
+  conflict:       AlertTriangle,
+  agent_error:    AlertCircle,
+  agent_success:  CheckCircle,
+  budget_warning: Zap,
+  info:           Info,
+}
 
-  function handleClick() {
-    markRead(n.id)
-    if (n.href) navigate(n.href)
-    onClose()
-  }
+/* ── Styled ─────────────────────────────────────────────────────────── */
+const Root = styled.div`position: relative;`
+
+const BellBtn = styled.button`
+  position: relative;
+  padding: 6px;
+  border-radius: 10px;
+  background: transparent;
+  border: none;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background 120ms, color 120ms;
+  &:hover { background: ${({ theme }) => theme.color.muted}; color: ${({ theme }) => theme.color.foreground}; }
+  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 2px; }
+`
+
+const BadgeMotion = styled(motion.span)`
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 9999px;
+  background: ${({ theme }) => theme.color.primary};
+  color: ${({ theme }) => theme.color.primaryForeground};
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`
+
+const Panel = styled(motion.div)`
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 320px;
+  background: ${({ theme }) => theme.color.card};
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radii['2xl']};
+  box-shadow: ${({ theme }) => theme.shadow.xl};
+  z-index: ${({ theme }) => theme.zIndex.dropdown};
+  overflow: hidden;
+`
+
+const PanelHead = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid ${({ theme }) => theme.color.border};
+`
+
+const PanelTitle = styled.span`
+  font-size: 14px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const ClearAllBtn = styled.button`
+  font-size: 12px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  background: none;
+  border: none;
+  cursor: pointer;
+  &:hover { color: ${({ theme }) => theme.color.foreground}; }
+`
+
+const ListScroll = styled.div`max-height: 320px; overflow-y: auto;`
+
+const EmptyWrap = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  gap: 8px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  text-align: center;
+`
+
+const NotifRow = styled(motion.div)<{ $unread: boolean }>`
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid ${({ theme }) => theme.color.border};
+  cursor: pointer;
+  background: ${({ theme, $unread }) => $unread ? `${theme.color.primary}06` : 'transparent'};
+  transition: background 100ms;
+  &:last-child { border-bottom: none; }
+  &:hover { background: ${({ theme }) => theme.color.muted}50; }
+`
+
+const NotifContent = styled.div`flex: 1; min-width: 0;`
+
+const NotifTitle2 = styled.p<{ $unread: boolean }>`
+  font-size: 14px;
+  font-weight: ${({ $unread }) => $unread ? 500 : 400};
+  color: ${({ theme, $unread }) => $unread ? theme.color.foreground : theme.color.mutedForeground};
+  margin: 0 0 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+`
+
+const NotifBody2 = styled.p`
+  font-size: 12px; color: ${({ theme }) => theme.color.mutedForeground};
+  margin: 0 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+`
+
+const NotifTime = styled.p`
+  font-size: 10px; color: ${({ theme }) => theme.color.mutedForeground}80; margin: 0;
+`
+
+const UnreadDot = styled.span`
+  position: absolute; right: 40px; top: 14px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: ${({ theme }) => theme.color.primary};
+`
+
+const DismissBtn = styled.button`
+  padding: 2px; border-radius: 6px; background: none; border: none; cursor: pointer;
+  color: ${({ theme }) => theme.color.mutedForeground}; flex-shrink: 0;
+  display: flex; align-items: center;
+  &:hover { color: ${({ theme }) => theme.color.foreground}; }
+`
+
+function NotifItemRow({ n, onClose }: { n: Notification; onClose: () => void }) {
+  const navigate = useNavigate()
+  const Icon = TYPE_ICONS[n.type]
+  const color = TYPE_COLORS[n.type]
+  const markRead = useNotificationStore(s => s.markRead)
+  const dismiss = useNotificationStore(s => s.dismiss)
 
   return (
-    <motion.div
+    <NotifRow
       layout
-      initial={{ opacity: 0, x: 12 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 12 }}
-      className={cn(
-        'relative flex gap-3 px-4 py-3 border-b border-border last:border-0',
-        'hover:bg-muted/30 cursor-pointer transition-colors',
-        !n.read && 'bg-primary/5',
-      )}
-      onClick={handleClick}
+      initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 12 }}
+      $unread={!n.read}
+      onClick={() => { markRead(n.id); if (n.href) navigate(n.href); onClose() }}
     >
-      <Icon className={cn('w-4 h-4 mt-0.5 shrink-0', color)} aria-hidden="true" />
-      <div className="flex-1 min-w-0">
-        <p className={cn('text-sm font-medium', !n.read && 'text-foreground', n.read && 'text-muted-foreground')}>
-          {n.title}
-        </p>
-        {n.body && <p className="text-xs text-muted-foreground mt-0.5 truncate">{n.body}</p>}
-        <p className="text-[10px] text-muted-foreground/60 mt-1">{formatRelativeTime(n.timestamp)}</p>
-      </div>
-      {!n.read && (
-        <span className="absolute right-10 top-3.5 w-1.5 h-1.5 rounded-full bg-primary" aria-hidden="true" />
-      )}
-      <button
-        onClick={(e) => { e.stopPropagation(); dismiss(n.id) }}
-        aria-label="Dismiss notification"
-        className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-      >
-        <X className="w-3 h-3" />
-      </button>
-    </motion.div>
+      <Icon size={16} style={{ flexShrink: 0, marginTop: 2, color }} />
+      <NotifContent>
+        <NotifTitle2 $unread={!n.read}>{n.title}</NotifTitle2>
+        {n.body && <NotifBody2>{n.body}</NotifBody2>}
+        <NotifTime>{formatRelativeTime(n.timestamp)}</NotifTime>
+      </NotifContent>
+      {!n.read && <UnreadDot aria-hidden />}
+      <DismissBtn onClick={e => { e.stopPropagation(); dismiss(n.id) }} aria-label="Dismiss">
+        <X size={12} />
+      </DismissBtn>
+    </NotifRow>
   )
 }
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
-  const buttonRef = useRef<HTMLButtonElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
   const { notifications, unread } = useNotifications()
   const { markAllRead, clear } = useNotificationStore()
 
-  // Close on outside click
   useEffect(() => {
     if (!open) return
-    function handleClick(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node) &&
-          buttonRef.current && !buttonRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+    const onClick = (e: MouseEvent) => {
+      if (panelRef.current?.contains(e.target as Node)) return
+      if (btnRef.current?.contains(e.target as Node)) return
+      setOpen(false)
     }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
   }, [open])
 
-  // Close on Escape
   useEffect(() => {
     if (!open) return
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
   }, [open])
 
-  function handleOpen() {
-    setOpen((o) => !o)
-    if (!open && unread > 0) {
-      // Mark all read when panel opens
-      setTimeout(markAllRead, 600)
-    }
+  const handleOpen = () => {
+    setOpen(o => !o)
+    if (!open && unread > 0) setTimeout(markAllRead, 600)
   }
 
   return (
-    <div className="relative">
-      <button
-        ref={buttonRef}
+    <Root>
+      <BellBtn
+        ref={btnRef}
         onClick={handleOpen}
         aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ''}`}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="relative p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
-        <Bell className="w-4 h-4" aria-hidden="true" />
+        <Bell size={16} aria-hidden />
         <AnimatePresence>
           {unread > 0 && (
-            <motion.span
-              key="badge"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0 }}
-              className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center"
-              aria-hidden="true"
-            >
+            <BadgeMotion key="badge" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} aria-hidden>
               {unread > 99 ? '99+' : unread}
-            </motion.span>
+            </BadgeMotion>
           )}
         </AnimatePresence>
-      </button>
+      </BellBtn>
 
       <AnimatePresence>
         {open && (
-          <motion.div
+          <Panel
             ref={panelRef}
-            role="dialog"
-            aria-label="Notifications"
+            role="dialog" aria-label="Notifications"
             initial={{ opacity: 0, y: -8, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-80 bg-card border-0 rounded-2xl shadow-2xl z-50 overflow-hidden"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <span className="text-sm font-semibold text-foreground">Notifications</span>
-              {notifications.length > 0 && (
-                <button
-                  onClick={clear}
-                  className="text-xs text-muted-foreground hover:text-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
-                >
-                  Clear all
-                </button>
-              )}
-            </div>
-
-            {/* List */}
-            <div className="max-h-80 overflow-y-auto">
+            <PanelHead>
+              <PanelTitle>Notifications</PanelTitle>
+              {notifications.length > 0 && <ClearAllBtn onClick={clear}>Clear all</ClearAllBtn>}
+            </PanelHead>
+            <ListScroll>
               {notifications.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <Bell className="w-7 h-7 text-muted-foreground/40 mb-2" aria-hidden="true" />
-                  <p className="text-sm text-muted-foreground">All caught up</p>
-                </div>
+                <EmptyWrap>
+                  <Bell size={28} style={{ opacity: 0.4 }} aria-hidden />
+                  <p style={{ fontSize: 14, margin: 0 }}>All caught up</p>
+                </EmptyWrap>
               ) : (
                 <AnimatePresence initial={false}>
-                  {notifications.map((n) => (
-                    <NotifItem key={n.id} n={n} onClose={() => setOpen(false)} />
-                  ))}
+                  {notifications.map(n => <NotifItemRow key={n.id} n={n} onClose={() => setOpen(false)} />)}
                 </AnimatePresence>
               )}
-            </div>
-          </motion.div>
+            </ListScroll>
+          </Panel>
         )}
       </AnimatePresence>
-    </div>
+    </Root>
   )
 }

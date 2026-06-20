@@ -25,7 +25,7 @@ interface UIState {
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
-      sidebarOpen: true,
+      sidebarOpen: false,  // starts closed — desktop CSS always shows it; mobile starts hidden
       setSidebarOpen: (v) => set({ sidebarOpen: v }),
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
 
@@ -45,6 +45,6 @@ export const useUIStore = create<UIState>()(
         return { recentPages: [path, ...filtered].slice(0, 5) }
       }),
     }),
-    { name: 'aios-ui', partialize: (s) => ({ sidebarOpen: s.sidebarOpen, theme: s.theme }) }
+    { name: 'aios-ui', partialize: (s) => ({ theme: s.theme }) }  // don't persist sidebarOpen — desktop always shows; mobile always starts closed
   )
 )

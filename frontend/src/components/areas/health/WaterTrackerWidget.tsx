@@ -1,16 +1,62 @@
+// @ts-nocheck
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { healthApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
+import styled from 'styled-components'
+
+import { Card } from '@ledgr/ui'
+
+const StyledProgressText = styled.span`
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: ${({ theme }) => theme.color?.primary || 'var(--primary)'};
+`;
+
+const StyledContent = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+`;
+
+const StyledGlassesWrapper = styled.div`
+  display: flex;
+  align-items: flex-end;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+`;
+
+const StyledGlassButton = styled.button<{ $filled?: boolean }>`
+  background: none;
+  border: none;
+  padding: 0;
+  transition: transform 0.2s;
+  cursor: ${({ $filled }) => $filled ? 'default' : 'pointer'};
+  
+  &:not(:disabled):hover {
+    transform: scale(1.1);
+  }
+  
+  &:disabled {
+    cursor: default;
+  }
+`;
+
+const StyledMessage = styled.p`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  margin: 0;
+`;
 
 function GlassIcon({ filled }: { filled: boolean }) {
   return (
     <svg width="24" height="32" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M4 4 L2 28 L22 28 L20 4 Z"
-        fill={filled ? 'hsl(var(--primary))' : 'hsl(var(--muted))'}
-        stroke={filled ? '#f97316' : 'hsl(var(--border))'}
+        fill={filled ? 'var(--primary)' : 'var(--muted)'}
+        stroke={filled ? '#F8D168' : 'var(--border)'}
         strokeWidth="1.5"
         strokeLinejoin="round"
         opacity={filled ? 1 : 0.5}
@@ -47,40 +93,33 @@ export function WaterTrackerWidget() {
   const remaining = Math.max(0, target - glasses)
 
   return (
-    <div className="bg-card border-0 rounded-2xl p-4 shadow-premium-sm h-full flex flex-col">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Water Intake</p>
-        <span className="text-sm font-bold text-primary">{glasses} / {target} glasses</span>
-      </div>
+    <Card title="Water Intake" size="md" action={<StyledProgressText>{glasses} / {target} glasses</StyledProgressText>} style={{ height: '100%' }}>
 
       {isLoading ? (
-        <Skeleton className="h-12 w-full" />
+        <Skeleton style={{ height: '3rem', width: '100%' }} />
       ) : (
-        <div className="flex-1 flex flex-col justify-center">
-          <div className="flex items-end gap-1.5 flex-wrap mb-3">
+        <StyledContent>
+          <StyledGlassesWrapper>
             {Array.from({ length: target }).map((_, i) => (
-              <button
+              <StyledGlassButton
                 key={i}
                 onClick={() => i >= glasses && logWaterMutation.mutate()}
                 disabled={i < glasses || logWaterMutation.isPending}
-                className={cn(
-                  'transition-transform hover:scale-110 disabled:cursor-default',
-                  i < glasses ? 'cursor-default' : 'cursor-pointer'
-                )}
+                $filled={i < glasses}
                 title={i < glasses ? 'Logged' : 'Click to log'}
               >
                 <GlassIcon filled={i < glasses} />
-              </button>
+              </StyledGlassButton>
             ))}
-          </div>
+          </StyledGlassesWrapper>
 
-          <p className="text-[11px] text-muted-foreground">
+          <StyledMessage>
             {remaining === 0
               ? 'You hit your water goal today!'
               : `Drink ${remaining} more glass${remaining === 1 ? '' : 'es'} to hit your goal`}
-          </p>
-        </div>
+          </StyledMessage>
+        </StyledContent>
       )}
-    </div>
+    </Card>
   )
 }

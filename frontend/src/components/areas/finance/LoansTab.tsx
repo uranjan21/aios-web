@@ -1,13 +1,111 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button, Form, Input, Switch, Popconfirm, Modal, Tag, Table } from 'antd'
+import { Popconfirm } from '@/components/ui/Popconfirm'
+import { Button, Switch, Dialog, Badge, Input, DataTable } from '@ledgr/ui'
 import { Trash2, PencilLine } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { FinanceLoan } from '@/types'
-import { TableContainer, TableHeader } from './TableStyles'
+import { Card } from '@/components/ui/Card'
 import { PayoffPlanner } from './PayoffPlanner'
+import styled from 'styled-components'
+
+const RootContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`
+
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`
+
+const LoadHead = styled(Skeleton)`
+  height: 2.5rem;
+`
+
+const LoadBody = styled(Skeleton)`
+  height: 12.5rem;
+`
+
+const LoanCell = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+`
+
+const IconWrap = styled.span`
+  font-size: 1.25rem;
+  line-height: 1;
+`
+
+const NameText = styled.div`
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const SubText = styled.div`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const NumberWrap = styled.div`
+  display: flex;
+  flex-direction: column;
+`
+
+const MainNum = styled.div`
+  font-weight: 500;
+`
+
+const ActionWrap = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  opacity: 1;
+  transition: opacity 0.2s;
+  
+  @media (min-width: 768px) {
+    opacity: 0;
+    tr:hover & {
+      opacity: 1;
+    }
+  }
+`
+
+
+const SummaryRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background-color: ${({ theme }) => theme.color.muted}33;
+  border-top: 1px solid ${({ theme }) => theme.color.border};
+  font-weight: 500;
+  font-size: 0.875rem;
+`
+
+const UpdateForm = styled.form`
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`
+
+const FieldLabel = styled.label`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-bottom: 0.25rem;
+  display: block;
+`
+
+const FormActions = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+`
 
 const LOAN_TYPE_META: Record<string, { label: string; icon: string }> = {
   home: { label: 'Home Loan', icon: '🏠' },
@@ -26,8 +124,8 @@ function getDaysUntilDue(dueDay: number): number {
   return daysInMonth - currentDay + dueDay
 }
 
-function urgencyColor(days: number): 'error' | 'warning' | 'success' {
-  if (days <= 3) return 'error'
+function urgencyColor(days: number): 'destructive' | 'warning' | 'success' {
+  if (days <= 3) return 'destructive'
   if (days <= 7) return 'warning'
   return 'success'
 }
@@ -39,9 +137,9 @@ function ordinal(n: number) {
 }
 
 export function LoansTab() {
-  const [updateForm] = Form.useForm()
   const queryClient = useQueryClient()
   const [updatingLoan, setUpdatingLoan] = useState<FinanceLoan | null>(null)
+  const [outstandingAmount, setOutstandingAmount] = useState<string>('')
 
   const { data: loans, isLoading } = useQuery({
     queryKey: ['finance', 'loans'],
@@ -60,7 +158,7 @@ export function LoansTab() {
       queryClient.invalidateQueries({ queryKey: ['finance', 'loans'] })
       toast.success('Loan updated')
       setUpdatingLoan(null)
-      updateForm.resetFields()
+      setOutstandingAmount('')
     },
     onError: () => toast.error('Failed to update loan'),
   })
@@ -85,144 +183,147 @@ export function LoansTab() {
 
   const openUpdate = (loan: FinanceLoan) => {
     setUpdatingLoan(loan)
-    updateForm.setFieldsValue({ outstanding_amount: String(loan.outstanding_amount) })
+    setOutstandingAmount(String(loan.outstanding_amount))
   }
 
   const columns = [
     {
-      title: 'Loan',
-      key: 'loan',
-      render: (_: any, record: FinanceLoan) => {
+      id: 'loan',
+      header: 'Loan',
+      cell: (row: any) => {
+        const record = row as FinanceLoan;
         const meta = LOAN_TYPE_META[record.loan_type] ?? LOAN_TYPE_META.other
         return (
-          <div className="flex items-center gap-3">
-            <span className="text-xl leading-none">{meta.icon}</span>
+          <LoanCell>
+            <IconWrap>{meta.icon}</IconWrap>
             <div>
-              <div className="font-medium text-foreground">{record.name}</div>
-              <div className="text-[10px] text-muted-foreground">{meta.label} {record.lender ? `· ${record.lender}` : ''}</div>
+              <NameText>{record.name}</NameText>
+              <SubText>{meta.label} {record.lender ? `· ${record.lender}` : ''}</SubText>
             </div>
-          </div>
+          </LoanCell>
         )
       }
     },
     {
-      title: 'Principal',
-      dataIndex: 'principal_amount',
-      key: 'principal_amount',
-      render: (amount: string | number) => `₹${Number(amount).toLocaleString('en-IN')}`
+      id: 'principal_amount',
+      header: 'Principal',
+      cell: (row: any) => `₹${Number(row.principal_amount).toLocaleString('en-IN')}`
     },
     {
-      title: 'Outstanding',
-      key: 'outstanding_amount',
-      render: (_: any, record: FinanceLoan) => {
+      id: 'outstanding_amount',
+      header: 'Outstanding',
+      cell: (row: any) => {
+        const record = row as FinanceLoan;
         const principal = Number(record.principal_amount)
         const outstanding = Number(record.outstanding_amount)
         const paidPct = principal > 0 ? Math.min(100, Math.round(((principal - outstanding) / principal) * 100)) : 0
         return (
-          <div>
-            <div className="font-medium">₹{outstanding.toLocaleString('en-IN')}</div>
-            <div className="text-[10px] text-muted-foreground">{paidPct}% paid</div>
-          </div>
+          <NumberWrap>
+            <MainNum>₹{outstanding.toLocaleString('en-IN')}</MainNum>
+            <SubText>{paidPct}% paid</SubText>
+          </NumberWrap>
         )
       }
     },
     {
-      title: 'EMI Details',
-      key: 'emi',
-      render: (_: any, record: FinanceLoan) => {
+      id: 'emi',
+      header: 'EMI Details',
+      cell: (row: any) => {
+        const record = row as FinanceLoan;
         const days = getDaysUntilDue(record.emi_day)
         return (
-          <div>
-            <div className="font-medium">₹{Number(record.emi_amount).toLocaleString('en-IN')}/mo</div>
+          <NumberWrap>
+            <MainNum>₹{Number(record.emi_amount).toLocaleString('en-IN')}/mo</MainNum>
             {record.is_active && (
-              <Tag color={urgencyColor(days)} className="text-[10px] leading-tight py-0 mt-0.5" bordered={false}>
-                Due {days === 0 ? 'Today' : `${days}d`} ({ordinal(record.emi_day)})
-              </Tag>
+              <div style={{ marginTop: '4px' }}>
+                <Badge tone={urgencyColor(days)} size="sm">
+                  Due {days === 0 ? 'Today' : `${days}d`} ({ordinal(record.emi_day)})
+                </Badge>
+              </div>
             )}
-          </div>
+          </NumberWrap>
         )
       }
     },
     {
-      title: 'Rate',
-      dataIndex: 'interest_rate',
-      key: 'interest_rate',
-      render: (rate: string | number) => `${Number(rate).toFixed(2)}%`
+      id: 'interest_rate',
+      header: 'Rate',
+      cell: (row: any) => `${Number(row.interest_rate).toFixed(2)}%`
     },
     {
-      title: 'Status',
-      key: 'status',
-      render: (_: any, record: FinanceLoan) => (
-        <Switch
-          size="small"
-          checked={record.is_active}
-          onChange={v => toggleMutation.mutate({ id: record.id, active: v })}
-        />
-      )
+      id: 'status',
+      header: 'Status',
+      cell: (row: any) => {
+        const record = row as FinanceLoan;
+        return (
+          <Switch
+            size="sm"
+            checked={record.is_active}
+            onChange={e => toggleMutation.mutate({ id: record.id, active: e.target.checked })}
+            disabled={toggleMutation.isPending}
+          />
+        )
+      }
     },
     {
-      title: 'Action',
-      key: 'action',
-      render: (_: any, record: FinanceLoan) => (
-        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button type="text" size="small" icon={<PencilLine size={14} />} onClick={() => openUpdate(record)} />
-          <Popconfirm title="Delete this loan?" onConfirm={() => deleteMutation.mutate(record.id)} okText="Delete" cancelText="Cancel" okButtonProps={{ danger: true }}>
-            <Button type="text" danger size="small" icon={<Trash2 size={14} />} />
-          </Popconfirm>
-        </div>
-      ),
+      id: 'action',
+      header: 'Action',
+      cell: (row: any) => {
+        const record = row as FinanceLoan;
+        return (
+          <ActionWrap>
+            <Button variant="ghost" size="icon" onClick={() => openUpdate(record)}>
+              <PencilLine size={14} />
+            </Button>
+            <Popconfirm title="Delete this loan?" onConfirm={() => deleteMutation.mutate(record.id)} okText="Delete" cancelText="Cancel" okButtonProps={{ danger: true }}>
+              <Button variant="destructive" size="icon">
+                <Trash2 size={14} />
+              </Button>
+            </Popconfirm>
+          </ActionWrap>
+        )
+      },
     }
   ]
 
-  if (isLoading) return <div className="space-y-4"><Skeleton className="h-10" /><Skeleton className="h-[200px]" /></div>;
+  if (isLoading) return <LoadingContainer><LoadHead /><LoadBody /></LoadingContainer>;
 
   return (
-    <div className="space-y-4">
-      <TableContainer>
-        <TableHeader>
-          <h3>Loans & EMIs</h3>
-        </TableHeader>
-
-        <Table
-          dataSource={loans}
+    <RootContainer>
+      <Card title="Loans & EMIs">
+        <DataTable
+          rows={loans ?? []}
           columns={columns}
-          rowKey="id"
-          pagination={false}
-          size="middle"
-          rowClassName={(record) => record.is_active ? 'group' : 'group opacity-60'}
-          summary={() => {
-            if (!summary) return null;
-            return (
-              <Table.Summary.Row>
-                <Table.Summary.Cell index={0} colSpan={2}>Active Total</Table.Summary.Cell>
-                <Table.Summary.Cell index={1}>₹{summary.total_outstanding.toLocaleString('en-IN')}</Table.Summary.Cell>
-                <Table.Summary.Cell index={2}>₹{summary.total_emi.toLocaleString('en-IN')}/mo</Table.Summary.Cell>
-                <Table.Summary.Cell index={3} colSpan={3}></Table.Summary.Cell>
-              </Table.Summary.Row>
-            );
-          }}
+          getRowKey={(row: any) => row.id}
         />
+        {summary && (
+          <SummaryRow>
+            <div>Active Total</div>
+            <div>Outstanding: ₹{summary.total_outstanding.toLocaleString('en-IN')}</div>
+            <div>EMI: ₹{summary.total_emi.toLocaleString('en-IN')}/mo</div>
+          </SummaryRow>
+        )}
 
-        <Modal
+        <Dialog
           open={!!updatingLoan}
-          title={<span className="text-foreground">Update outstanding — {updatingLoan?.name}</span>}
-          onCancel={() => { setUpdatingLoan(null); updateForm.resetFields() }}
-          footer={null}
-          width={360}
+          title={<span style={{ color: 'var(--foreground)' }}>Update outstanding — {updatingLoan?.name}</span>}
+          onOpenChange={(open) => { if (!open) { setUpdatingLoan(null); setOutstandingAmount('') } }}
+          size="sm"
         >
-          <Form form={updateForm} layout="vertical" onFinish={updateMutation.mutate} requiredMark={false} className="mt-4">
-            <Form.Item name="outstanding_amount" label={<span className="text-[11px] text-muted-foreground">Outstanding amount (₹)</span>} rules={[{ required: true }]}>
-              <Input type="number" prefix="₹" placeholder="0" min="0" size="large" />
-            </Form.Item>
-            <div className="flex gap-2">
-              <Button type="primary" htmlType="submit" loading={updateMutation.isPending}>Save</Button>
-              <Button type="text" onClick={() => { setUpdatingLoan(null); updateForm.resetFields() }}>Cancel</Button>
+          <UpdateForm onSubmit={e => { e.preventDefault(); updateMutation.mutate({ outstanding_amount: outstandingAmount }) }}>
+            <div>
+              <FieldLabel>Outstanding amount (₹)</FieldLabel>
+              <Input type="number" startAdornment="₹" placeholder="0" min="0" size="lg" value={outstandingAmount} onChange={(e) => setOutstandingAmount(e.target.value)} required />
             </div>
-          </Form>
-        </Modal>
-      </TableContainer>
+            <FormActions>
+              <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save</Button>
+              <Button variant="ghost" onClick={() => { setUpdatingLoan(null); setOutstandingAmount('') }}>Cancel</Button>
+            </FormActions>
+          </UpdateForm>
+        </Dialog>
+      </Card>
 
       {loans && loans.some(l => l.is_active) && <PayoffPlanner loans={loans} />}
-    </div>
+    </RootContainer>
   )
 }

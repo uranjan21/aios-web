@@ -1,9 +1,98 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Form, Input, Select, Switch, Button, Modal, Segmented } from 'antd'
+import { Button, Input, Select, Dialog, SegmentedControl } from '@ledgr/ui'
 import { financeApi } from '@/api/areas'
-import { cn } from '@/lib/utils'
+import styled from 'styled-components'
+
+const FormStack = styled.form`
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`
+
+const LabelText = styled.div`
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const LabelMuted = styled.div`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-bottom: 0.25rem;
+`
+
+const Grid2Col = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+`
+
+const SubmitButton = styled(Button)`
+  width: 100%;
+  margin-top: 0.5rem;
+`
+
+const OptionsContainer = styled.div`
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+`
+
+const IconButton = styled.button<{ $active: boolean }>`
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid ${({ $active, theme }) => $active ? theme.color.primary : theme.color.border};
+  background-color: ${({ $active, theme }) => $active ? `${theme.color.primary}1a` : 'transparent'};
+  transition: all 0.2s;
+  cursor: pointer;
+
+  &:hover {
+    border-color: ${({ $active, theme }) => $active ? theme.color.primary : `${theme.color.primary}80`};
+  }
+`
+
+const ColorButton = styled.button<{ $active: boolean, $color: string }>`
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  border: 2px solid ${({ $active, theme }) => $active ? theme.color.foreground : 'transparent'};
+  background-color: ${({ $color }) => $color};
+  transition: all 0.2s;
+  cursor: pointer;
+  transform: ${({ $active }) => $active ? 'scale(1.1)' : 'scale(1)'};
+`
+
+const CheckboxGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`
+
+const CheckboxInput = styled.input`
+  width: 1rem;
+  height: 1rem;
+`
+
+const CheckboxLabel = styled.label`
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const DialogTitle = styled.span`
+  color: ${({ theme }) => theme.color.foreground};
+`
 
 const CATEGORIES = [
   'Food', 'Transport', 'Rent', 'Health', 'Subscriptions',
@@ -25,9 +114,10 @@ const COLORS = [
 ]
 
 function AddBudgetForm({ onSuccess }: { onSuccess?: () => void }) {
-  const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const { data: budgets } = useQuery({ queryKey: ['finance', 'budgets'], queryFn: financeApi.budgets })
+  
+  const [values, setValues] = useState({ category: '', monthly_limit: '' })
 
   const { mutate, isPending } = useMutation({
     mutationFn: (v: { category: string; monthly_limit: string }) =>
@@ -35,7 +125,7 @@ function AddBudgetForm({ onSuccess }: { onSuccess?: () => void }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'budgets'] })
       toast.success('Budget added')
-      form.resetFields()
+      setValues({ category: '', monthly_limit: '' })
       onSuccess?.()
     },
     onError: () => toast.error('Failed to save budget'),
@@ -44,25 +134,26 @@ function AddBudgetForm({ onSuccess }: { onSuccess?: () => void }) {
   const available = CATEGORIES.filter(c => !budgets?.some(b => b.category === c))
 
   return (
-    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false} className="mt-3">
-      <Form.Item name="category" label="Category" rules={[{ required: true }]}>
-        <Select placeholder="Category" showSearch>
-          {available.map(c => <Select.Option key={c} value={c}>{c}</Select.Option>)}
-        </Select>
-      </Form.Item>
-      <Form.Item name="monthly_limit" label="Monthly Limit (₹)" rules={[{ required: true }]}>
-        <Input type="number" min="1" />
-      </Form.Item>
-      <Button type="primary" htmlType="submit" loading={isPending} size="small" block>Add Budget</Button>
-    </Form>
+    <FormStack onSubmit={e => { e.preventDefault(); mutate(values) }}>
+      <div>
+        <LabelText>Category</LabelText>
+        <Select value={values.category} onChange={v => setValues({ ...values, category: String(v) })} options={[{label: 'Select category', value: ''}, ...available.map(c => ({ label: c, value: c }))]} />
+      </div>
+      <div>
+        <LabelText>Monthly Limit (₹)</LabelText>
+        <Input required type="number" min="1" value={values.monthly_limit} onChange={e => setValues({ ...values, monthly_limit: e.target.value })} />
+      </div>
+      <SubmitButton type="submit" variant="primary" loading={isPending}>Add Budget</SubmitButton>
+    </FormStack>
   )
 }
 
 function AddGoalForm({ onSuccess }: { onSuccess?: () => void }) {
-  const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const [icon, setIcon] = useState('🎯')
   const [color, setColor] = useState('#0D9488')
+  
+  const [values, setValues] = useState({ name: '', category: 'savings', target_amount: '', current_amount: '', deadline: '' })
 
   const { mutate, isPending } = useMutation({
     mutationFn: (v: Record<string, string>) =>
@@ -78,7 +169,7 @@ function AddGoalForm({ onSuccess }: { onSuccess?: () => void }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'goals'] })
       toast.success('Goal created')
-      form.resetFields()
+      setValues({ name: '', category: 'savings', target_amount: '', current_amount: '', deadline: '' })
       setIcon('🎯')
       setColor('#0D9488')
       onSuccess?.()
@@ -87,64 +178,70 @@ function AddGoalForm({ onSuccess }: { onSuccess?: () => void }) {
   })
 
   return (
-    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false} className="mt-3">
-      <div className="text-[11px] text-muted-foreground mb-1">Icon</div>
-      <div className="flex gap-1.5 flex-wrap mb-2">
-        {ICONS.map(ic => (
-          <button
-            key={ic}
-            type="button"
-            onClick={() => setIcon(ic)}
-            className={cn(
-              'w-7 h-7 rounded-lg text-base flex items-center justify-center border transition',
-              icon === ic ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
-            )}
-          >
-            {ic}
-          </button>
-        ))}
+    <FormStack onSubmit={e => { e.preventDefault(); mutate(values) }}>
+      <div>
+        <LabelMuted>Icon</LabelMuted>
+        <OptionsContainer>
+          {ICONS.map(ic => (
+            <IconButton
+              key={ic}
+              type="button"
+              onClick={() => setIcon(ic)}
+              $active={icon === ic}
+            >
+              {ic}
+            </IconButton>
+          ))}
+        </OptionsContainer>
       </div>
-      <div className="text-[11px] text-muted-foreground mb-1">Color</div>
-      <div className="flex gap-1.5 mb-2">
-        {COLORS.map(c => (
-          <button
-            key={c.value}
-            type="button"
-            onClick={() => setColor(c.value)}
-            className={cn('w-6 h-6 rounded-full border-2 transition', color === c.value ? 'border-foreground scale-110' : 'border-transparent')}
-            style={{ background: c.value }}
-            title={c.label}
-          />
-        ))}
+      <div>
+        <LabelMuted>Color</LabelMuted>
+        <OptionsContainer style={{ gap: '0.375rem' }}>
+          {COLORS.map(c => (
+            <ColorButton
+              key={c.value}
+              type="button"
+              onClick={() => setColor(c.value)}
+              $active={color === c.value}
+              $color={c.value}
+              title={c.label}
+            />
+          ))}
+        </OptionsContainer>
       </div>
-      <Form.Item name="name" label="Goal Name" rules={[{ required: true }]}>
-        <Input placeholder="e.g. Europe Trip" />
-      </Form.Item>
-      <Form.Item name="category" label="Category" initialValue="savings">
-        <Select>
-          {GOAL_CATEGORIES.map(c => <Select.Option key={c} value={c}>{c}</Select.Option>)}
-        </Select>
-      </Form.Item>
-      <div className="grid grid-cols-2 gap-2">
-        <Form.Item name="target_amount" label="Target (₹)" rules={[{ required: true }]}>
-          <Input type="number" min="1" />
-        </Form.Item>
-        <Form.Item name="current_amount" label="Saved (₹)">
-          <Input type="number" min="0" />
-        </Form.Item>
+      <div>
+        <LabelText>Goal Name</LabelText>
+        <Input required placeholder="e.g. Europe Trip" value={values.name} onChange={e => setValues({ ...values, name: e.target.value })} />
       </div>
-      <Form.Item name="deadline" label="Deadline">
-        <Input type="date" />
-      </Form.Item>
-      <Button type="primary" htmlType="submit" loading={isPending} size="small" block>Create Goal</Button>
-    </Form>
+      <div>
+        <LabelText>Category</LabelText>
+        <Select value={values.category} onChange={v => setValues({ ...values, category: String(v) })} options={GOAL_CATEGORIES.map(c => ({ label: c, value: c }))} />
+      </div>
+      <Grid2Col>
+        <div>
+          <LabelText>Target (₹)</LabelText>
+          <Input required type="number" min="1" value={values.target_amount} onChange={e => setValues({ ...values, target_amount: e.target.value })} />
+        </div>
+        <div>
+          <LabelText>Saved (₹)</LabelText>
+          <Input type="number" min="0" value={values.current_amount} onChange={e => setValues({ ...values, current_amount: e.target.value })} />
+        </div>
+      </Grid2Col>
+      <div>
+        <LabelText>Deadline</LabelText>
+        <Input type="date" value={values.deadline} onChange={e => setValues({ ...values, deadline: e.target.value })} />
+      </div>
+      <SubmitButton type="submit" variant="primary" loading={isPending}>Create Goal</SubmitButton>
+    </FormStack>
   )
 }
 
 function AddBillForm({ onSuccess }: { onSuccess?: () => void }) {
-  const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const { data: accounts } = useQuery({ queryKey: ['finance', 'accounts'], queryFn: financeApi.accounts })
+  
+  const [values, setValues] = useState({ name: '', amount: '', due_day: '', category: 'other', account_id: '', notes: '' })
+  const [isAutoDebit, setIsAutoDebit] = useState(false)
 
   const { mutate, isPending } = useMutation({
     mutationFn: (v: Record<string, any>) =>
@@ -153,74 +250,68 @@ function AddBillForm({ onSuccess }: { onSuccess?: () => void }) {
         amount: parseFloat(String(v.amount)),
         due_day: parseInt(String(v.due_day), 10),
         category: v.category ? String(v.category) : undefined,
-        is_auto_debit: Boolean(v.is_auto_debit),
+        is_auto_debit: Boolean(isAutoDebit),
         notes: v.notes ? String(v.notes) : undefined,
         account_id: v.account_id ? String(v.account_id) : undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'bills'] })
       toast.success('Bill added')
-      form.resetFields()
+      setValues({ name: '', amount: '', due_day: '', category: 'other', account_id: '', notes: '' })
+      setIsAutoDebit(false)
       onSuccess?.()
     },
     onError: () => toast.error('Failed to add bill'),
   })
 
   return (
-    <Form form={form} layout="vertical" size="small" onFinish={mutate} requiredMark={false} className="mt-3">
-      <Form.Item name="name" label="Bill Name" rules={[{ required: true }]}>
-        <Input placeholder="Netflix, Electricity…" />
-      </Form.Item>
-      <div className="grid grid-cols-2 gap-2">
-        <Form.Item name="amount" label="Amount (₹)" rules={[{ required: true }]}>
-          <Input type="number" min="0" />
-        </Form.Item>
-        <Form.Item name="due_day" label="Due Day (1-31)" rules={[{ required: true }]}>
-          <Input type="number" min="1" max="31" />
-        </Form.Item>
+    <FormStack onSubmit={e => { e.preventDefault(); mutate(values) }}>
+      <div>
+        <LabelText>Bill Name</LabelText>
+        <Input required placeholder="Netflix, Electricity…" value={values.name} onChange={e => setValues({ ...values, name: e.target.value })} />
       </div>
-      <Form.Item name="category" label="Category" initialValue="other">
-        <Select>
-          {BILL_CATEGORIES.map(c => <Select.Option key={c} value={c} className="capitalize">{c}</Select.Option>)}
-        </Select>
-      </Form.Item>
-      <Form.Item name="account_id" label="Pay From Account">
-        <Select placeholder="Select account (optional)" allowClear>
-          {(accounts ?? []).map((a: any) => <Select.Option key={a.id} value={a.id}>{a.name}</Select.Option>)}
-        </Select>
-      </Form.Item>
-      <Form.Item name="is_auto_debit" label="Auto-debit" valuePropName="checked">
-        <Switch size="small" />
-      </Form.Item>
-      <Form.Item name="notes" label="Notes">
-        <Input placeholder="Optional note" />
-      </Form.Item>
-      <Button type="primary" htmlType="submit" loading={isPending} size="small" block>Add Bill</Button>
-    </Form>
+      <Grid2Col>
+        <div>
+          <LabelText>Amount (₹)</LabelText>
+          <Input required type="number" min="0" value={values.amount} onChange={e => setValues({ ...values, amount: e.target.value })} />
+        </div>
+        <div>
+          <LabelText>Due Day (1-31)</LabelText>
+          <Input required type="number" min="1" max="31" value={values.due_day} onChange={e => setValues({ ...values, due_day: e.target.value })} />
+        </div>
+      </Grid2Col>
+      <div>
+        <LabelText>Category</LabelText>
+        <Select value={values.category} onChange={v => setValues({ ...values, category: String(v) })} options={BILL_CATEGORIES.map(c => ({ label: c.charAt(0).toUpperCase() + c.slice(1), value: c }))} />
+      </div>
+      <div>
+        <LabelText>Pay From Account</LabelText>
+        <Select value={values.account_id} onChange={v => setValues({ ...values, account_id: String(v) })} options={[{label: 'Select account (optional)', value: ''}, ...(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))]} />
+      </div>
+      <CheckboxGroup>
+        <CheckboxInput type="checkbox" id="auto_debit" checked={isAutoDebit} onChange={e => setIsAutoDebit(e.target.checked)} />
+        <CheckboxLabel htmlFor="auto_debit">Auto-debit</CheckboxLabel>
+      </CheckboxGroup>
+      <div>
+        <LabelText>Notes</LabelText>
+        <Input placeholder="Optional note" value={values.notes} onChange={e => setValues({ ...values, notes: e.target.value })} />
+      </div>
+      <SubmitButton type="submit" variant="primary" loading={isPending}>Add Bill</SubmitButton>
+    </FormStack>
   )
 }
 
-export function BudgetTabModal({ open, onClose, defaultTab = 'Budget' }: { open: boolean; onClose: () => void; defaultTab?: 'Budget' | 'Goal' | 'Bill' }) {
-  const [activeTab, setActiveTab] = useState<'Budget' | 'Goal' | 'Bill'>(defaultTab)
-
-  const handleOpenChange = (visible: boolean) => {
-    if (visible) {
-      setActiveTab(defaultTab)
-    }
-  }
+export function BudgetTabModal({ open, onClose, defaultTab = 'Budget' }: { open: boolean; onClose: () => void; defaultTab?: 'Budget' | 'Goal' | 'Bill' | 'Subscription' }) {
+  const [activeTab, setActiveTab] = useState<'Budget' | 'Goal' | 'Bill' | 'Subscription'>(defaultTab || 'Budget')
 
   return (
-    <Modal
-      title="Add Budget / Saving Item"
+    <Dialog
+      title={<DialogTitle>Add Budget / Saving Item</DialogTitle>}
       open={open}
-      onCancel={onClose}
-      footer={null}
-      width={420}
-      destroyOnClose
-      afterOpenChange={handleOpenChange}
+      onOpenChange={(v) => { if (!v) onClose() }}
+      size="sm"
     >
-      <Segmented
-        block
+      <SegmentedControl
         options={[
           { label: 'Budget Limit', value: 'Budget' },
           { label: 'Savings Goal', value: 'Goal' },
@@ -228,11 +319,11 @@ export function BudgetTabModal({ open, onClose, defaultTab = 'Budget' }: { open:
         ]}
         value={activeTab}
         onChange={v => setActiveTab(v as any)}
-        className="mb-3"
+        style={{ marginBottom: '0.75rem' }}
       />
       {activeTab === 'Budget' && <AddBudgetForm onSuccess={onClose} />}
       {activeTab === 'Goal' && <AddGoalForm onSuccess={onClose} />}
       {activeTab === 'Bill' && <AddBillForm onSuccess={onClose} />}
-    </Modal>
+    </Dialog>
   )
 }

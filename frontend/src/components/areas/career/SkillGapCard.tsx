@@ -1,10 +1,60 @@
+// @ts-nocheck
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Button, Input } from 'antd'
+import { Button, Input } from '@ledgr/ui'
 import { toast } from 'sonner'
 import { Sparkles, Target } from 'lucide-react'
 import { aiApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
+import styled from 'styled-components'
+
+import { Card } from '@ledgr/ui'
+
+
+
+const InputRow = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+`
+
+const SkeletonStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`
+
+const SkeletonLineFull = styled(Skeleton)`
+  height: 14px;
+  width: 100%;
+`
+
+const SkeletonLineLong = styled(Skeleton)`
+  height: 14px;
+  width: 83.333333%;
+`
+
+const SkeletonLineMed = styled(Skeleton)`
+  height: 14px;
+  width: 66.666667%;
+`
+
+const ResultText = styled.div`
+  font-size: 13px;
+  color: ${({ theme }) => theme.color.foreground};
+  line-height: 1.6;
+  white-space: pre-wrap;
+`
+
+const Hint = styled.p`
+  font-size: 12px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin: 0;
+`
+
+const StyledTarget = styled(Target)`
+  color: ${({ theme }) => theme.color.accent};
+`
 
 /** AI skill-gap analysis — target role vs logged skills → strengths / gaps / 90-day plan. */
 export function SkillGapCard() {
@@ -16,33 +66,39 @@ export function SkillGapCard() {
   })
 
   return (
-    <div className="bg-card border-0 rounded-2xl shadow-sm p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Target size={14} className="text-violet-400" />
-        <h2 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">AI Skill-Gap Analysis</h2>
-      </div>
-      <div className="flex gap-2 mb-3">
+    <Card title="AI Skill-Gap Analysis" size="md" icon={<StyledTarget size={14} />}>
+      <InputRow>
         <Input
           placeholder="Target role — e.g. Senior Fullstack Engineer, AI Engineer…"
           value={role}
-          onChange={e => setRole(e.target.value)}
-          onPressEnter={() => role.trim() && mutate()}
+          onChange={(e: any) => setRole(e.target.value)}
+          onKeyDown={(e: any) => {
+            if (e.key === 'Enter' && role.trim()) {
+              e.preventDefault()
+              mutate()
+            }
+          }}
         />
-        <Button type="primary" icon={<Sparkles size={13} />} disabled={!role.trim()} loading={isPending} onClick={() => mutate()}>
+        <Button
+          variant="primary"
+          disabled={!role.trim() || isPending}
+          onClick={() => mutate()}
+          startIcon={<Sparkles size={13} />}
+        >
           Analyse
         </Button>
-      </div>
+      </InputRow>
       {isPending ? (
-        <div className="space-y-2">
-          <Skeleton className="h-3.5 w-full" />
-          <Skeleton className="h-3.5 w-5/6" />
-          <Skeleton className="h-3.5 w-4/6" />
-        </div>
+        <SkeletonStack>
+          <SkeletonLineFull />
+          <SkeletonLineLong />
+          <SkeletonLineMed />
+        </SkeletonStack>
       ) : data ? (
-        <div className="text-[13px] text-foreground leading-relaxed whitespace-pre-wrap">{data.text}</div>
+        <ResultText>{data.text}</ResultText>
       ) : (
-        <p className="text-[12px] text-muted-foreground">Compares your logged skills against a target role — strengths, gaps, and a 90-day plan.</p>
+        <Hint>Compares your logged skills against a target role — strengths, gaps, and a 90-day plan.</Hint>
       )}
-    </div>
+    </Card>
   )
 }

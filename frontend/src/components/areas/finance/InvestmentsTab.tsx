@@ -1,13 +1,120 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button, Form, Input, Popconfirm, Modal, Table } from 'antd'
+import { Popconfirm } from '@/components/ui/Popconfirm'
+import { Button, Dialog, Input, DataTable } from '@ledgr/ui'
 import { Trash2, PencilLine } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
 import type { FinanceInvestment } from '@/types'
-import { TableContainer, TableHeader } from './TableStyles'
+import { Card } from '@/components/ui/Card'
+import styled from 'styled-components'
+
+const AssetCell = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+`
+
+const AssetIcon = styled.span`
+  font-size: 1.25rem;
+  line-height: 1;
+`
+
+const AssetName = styled.div`
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const AssetLabel = styled.div`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const ReturnAmount = styled.div<{ $positive: boolean }>`
+  font-weight: 500;
+  color: ${({ $positive, theme }) => $positive ? theme.color.success : theme.color.destructive};
+`
+
+const ReturnPct = styled.div<{ $positive: boolean }>`
+  font-size: 10px;
+  color: ${({ $positive, theme }) => $positive ? theme.color.success : theme.color.destructive};
+  opacity: 0.8;
+`
+
+const ActionContainer = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  opacity: 1;
+  transition: opacity 0.2s;
+
+  @media (min-width: 768px) {
+    opacity: 0;
+    tr:hover & {
+      opacity: 1;
+    }
+  }
+`
+
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`
+
+const LoadingHeader = styled(Skeleton)`
+  height: 40px;
+`
+
+const LoadingBody = styled(Skeleton)`
+  height: 200px;
+`
+
+const SummaryGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 0.75rem;
+  background-color: ${({ theme }) => theme.color.muted}33;
+  border-top: 1px solid ${({ theme }) => theme.color.border};
+  font-weight: 500;
+  font-size: 14px;
+`
+
+const SummaryReturnText = styled.span<{ $positive: boolean }>`
+  color: ${({ $positive, theme }) => $positive ? theme.color.success : theme.color.destructive};
+`
+
+const SummaryReturnPctText = styled.span`
+  font-size: 12px;
+  margin-left: 0.25rem;
+`
+
+const ModalTitle = styled.span`
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const FormContainer = styled.form`
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`
+
+const FormGroup = styled.div``
+
+const Label = styled.label`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-bottom: 0.25rem;
+  display: block;
+`
+
+const ActionsContainer = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+`
 
 const TYPE_META: Record<string, { label: string; icon: string; color: string }> = {
   stock: { label: 'Stocks', icon: '📈', color: '#3b82f6' },
@@ -21,9 +128,9 @@ const TYPE_META: Record<string, { label: string; icon: string; color: string }> 
 }
 
 export function InvestmentsTab() {
-  const [updateForm] = Form.useForm()
   const queryClient = useQueryClient()
   const [updatingHolding, setUpdatingHolding] = useState<FinanceInvestment | null>(null)
+  const [currentValue, setCurrentValue] = useState<string>('')
 
   const { data: holdings, isLoading } = useQuery({
     queryKey: ['finance', 'investments'],
@@ -42,7 +149,7 @@ export function InvestmentsTab() {
       queryClient.invalidateQueries({ queryKey: ['finance', 'investments'] })
       toast.success('Holding updated')
       setUpdatingHolding(null)
-      updateForm.resetFields()
+      setCurrentValue('')
     },
     onError: () => toast.error('Failed to update holding'),
   })
@@ -58,128 +165,123 @@ export function InvestmentsTab() {
 
   const openUpdate = (holding: FinanceInvestment) => {
     setUpdatingHolding(holding)
-    updateForm.setFieldsValue({ current_value: String(holding.current_value) })
+    setCurrentValue(String(holding.current_value))
   }
 
   const columns = [
     {
-      title: 'Asset',
-      key: 'asset',
-      render: (_: any, record: FinanceInvestment) => {
+      id: 'asset',
+      header: 'Asset',
+      cell: (row: any) => {
+        const record = row as FinanceInvestment;
         const meta = TYPE_META[record.type] ?? TYPE_META.other;
         return (
-          <div className="flex items-center gap-3">
-            <span className="text-xl leading-none">{meta.icon}</span>
+          <AssetCell>
+            <AssetIcon>{meta.icon}</AssetIcon>
             <div>
-              <div className="font-medium text-foreground">{record.name}</div>
-              <div className="text-[10px] text-muted-foreground">{meta.label}</div>
+              <AssetName>{record.name}</AssetName>
+              <AssetLabel>{meta.label}</AssetLabel>
             </div>
-          </div>
+          </AssetCell>
         );
       }
     },
     {
-      title: 'Units',
-      dataIndex: 'units',
-      key: 'units',
-      render: (units: string | number) => units ? Number(units).toLocaleString('en-IN') : '-'
+      id: 'units',
+      header: 'Units',
+      cell: (row: any) => row.units ? Number(row.units).toLocaleString('en-IN') : '-'
     },
     {
-      title: 'Invested',
-      dataIndex: 'invested_amount',
-      key: 'invested_amount',
-      render: (amount: string | number) => `₹${Number(amount).toLocaleString('en-IN')}`
+      id: 'invested_amount',
+      header: 'Invested',
+      cell: (row: any) => `₹${Number(row.invested_amount).toLocaleString('en-IN')}`
     },
     {
-      title: 'Current Value',
-      dataIndex: 'current_value',
-      key: 'current_value',
-      render: (amount: string | number) => `₹${Number(amount).toLocaleString('en-IN')}`
+      id: 'current_value',
+      header: 'Current Value',
+      cell: (row: any) => `₹${Number(row.current_value).toLocaleString('en-IN')}`
     },
     {
-      title: 'Returns',
-      key: 'returns',
-      render: (_: any, record: FinanceInvestment) => {
+      id: 'returns',
+      header: 'Returns',
+      cell: (row: any) => {
+        const record = row as FinanceInvestment;
         const returns = Number(record.current_value) - Number(record.invested_amount);
         const returnsPct = Number(record.invested_amount) > 0 ? (returns / Number(record.invested_amount)) * 100 : 0;
         const positive = returns >= 0;
         return (
           <div>
-            <div className={cn('font-medium', positive ? 'text-emerald-500' : 'text-rose-500')}>
+            <ReturnAmount $positive={positive}>
               {positive ? '+' : ''}₹{Math.abs(returns).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-            </div>
-            <div className={cn('text-[10px]', positive ? 'text-emerald-500/80' : 'text-rose-500/80')}>
+            </ReturnAmount>
+            <ReturnPct $positive={positive}>
               {positive ? '+' : ''}{returnsPct.toFixed(1)}%
-            </div>
+            </ReturnPct>
           </div>
         );
       }
     },
     {
-      title: 'Action',
-      key: 'action',
-      render: (_: any, record: FinanceInvestment) => (
-        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button type="text" size="small" icon={<PencilLine size={14} />} onClick={() => openUpdate(record)} />
-          <Popconfirm title="Delete this holding?" onConfirm={() => deleteMutation.mutate(record.id)} okText="Delete" cancelText="Cancel" okButtonProps={{ danger: true }}>
-            <Button type="text" danger size="small" icon={<Trash2 size={14} />} />
-          </Popconfirm>
-        </div>
-      ),
+      id: 'action',
+      header: 'Action',
+      cell: (row: any) => {
+        const record = row as FinanceInvestment;
+        return (
+          <ActionContainer>
+            <Button variant="ghost" size="icon" onClick={() => openUpdate(record)}>
+              <PencilLine size={14} />
+            </Button>
+            <Popconfirm title="Delete this holding?" onConfirm={() => deleteMutation.mutate(record.id)} okText="Delete" cancelText="Cancel" okButtonProps={{ danger: true }}>
+              <Button variant="destructive" size="icon">
+                <Trash2 size={14} />
+              </Button>
+            </Popconfirm>
+          </ActionContainer>
+        )
+      },
     }
   ];
 
-  if (isLoading) return <div className="space-y-4"><Skeleton className="h-10" /><Skeleton className="h-[200px]" /></div>;
+  if (isLoading) return <LoadingContainer><LoadingHeader /><LoadingBody /></LoadingContainer>;
 
   return (
-    <TableContainer>
-      <TableHeader>
-        <h3>Portfolio Holdings</h3>
-      </TableHeader>
-
-      <Table
-        dataSource={holdings}
+    <Card title="Portfolio Holdings">
+      <DataTable
+        rows={holdings ?? []}
         columns={columns}
-        rowKey="id"
-        pagination={false}
-        size="middle"
-        rowClassName={() => 'group'}
-        summary={() => {
-          if (!summary) return null;
-          const returnsPositive = summary.returns_amount >= 0;
-          return (
-            <Table.Summary.Row>
-              <Table.Summary.Cell index={0} colSpan={2}>Total</Table.Summary.Cell>
-              <Table.Summary.Cell index={1}>₹{summary.total_invested.toLocaleString('en-IN')}</Table.Summary.Cell>
-              <Table.Summary.Cell index={2}>₹{summary.current_value.toLocaleString('en-IN')}</Table.Summary.Cell>
-              <Table.Summary.Cell index={3} colSpan={2}>
-                <span className={returnsPositive ? 'text-emerald-500' : 'text-rose-500'}>
-                  {returnsPositive ? '+' : ''}₹{Math.abs(summary.returns_amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                  <span className="text-xs ml-1">({returnsPositive ? '+' : ''}{summary.returns_pct.toFixed(1)}%)</span>
-                </span>
-              </Table.Summary.Cell>
-            </Table.Summary.Row>
-          );
-        }}
+        getRowKey={row => row.id}
       />
-
-      <Modal
-        open={!!updatingHolding}
-        title={<span className="text-foreground">Update value — {updatingHolding?.name}</span>}
-        onCancel={() => { setUpdatingHolding(null); updateForm.resetFields() }}
-        footer={null}
-        width={360}
-      >
-        <Form form={updateForm} layout="vertical" onFinish={updateMutation.mutate} requiredMark={false} className="mt-4">
-          <Form.Item name="current_value" label={<span className="text-[11px] text-muted-foreground">Current value (₹)</span>} rules={[{ required: true }]}>
-            <Input type="number" prefix="₹" placeholder="0" min="0" size="large" />
-          </Form.Item>
-          <div className="flex gap-2">
-            <Button type="primary" htmlType="submit" loading={updateMutation.isPending}>Save</Button>
-            <Button type="text" onClick={() => { setUpdatingHolding(null); updateForm.resetFields() }}>Cancel</Button>
+      {summary && (
+        <SummaryGrid>
+          <div>Total</div>
+          <div>Invested: ₹{summary.total_invested.toLocaleString('en-IN')}</div>
+          <div>Current: ₹{summary.current_value.toLocaleString('en-IN')}</div>
+          <div>
+            Returns: <SummaryReturnText $positive={summary.returns_amount >= 0}>
+              {summary.returns_amount >= 0 ? '+' : ''}₹{Math.abs(summary.returns_amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+              <SummaryReturnPctText>({summary.returns_amount >= 0 ? '+' : ''}{summary.returns_pct.toFixed(1)}%)</SummaryReturnPctText>
+            </SummaryReturnText>
           </div>
-        </Form>
-      </Modal>
-    </TableContainer>
+        </SummaryGrid>
+      )}
+
+      <Dialog
+        open={!!updatingHolding}
+        title={<ModalTitle>Update value — {updatingHolding?.name}</ModalTitle>}
+        onOpenChange={(open) => { if (!open) { setUpdatingHolding(null); setCurrentValue('') } }}
+        size="sm"
+      >
+        <FormContainer onSubmit={e => { e.preventDefault(); updateMutation.mutate({ current_value: currentValue }) }}>
+          <FormGroup>
+            <Label>Current value (₹)</Label>
+            <Input type="number" startAdornment="₹" placeholder="0" min="0" size="lg" value={currentValue} onChange={(e) => setCurrentValue(e.target.value)} required />
+          </FormGroup>
+          <ActionsContainer>
+            <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save</Button>
+            <Button variant="ghost" onClick={() => { setUpdatingHolding(null); setCurrentValue('') }} type="button">Cancel</Button>
+          </ActionsContainer>
+        </FormContainer>
+      </Dialog>
+    </Card>
   )
 }

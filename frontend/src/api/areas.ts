@@ -70,6 +70,8 @@ export const financeApi = {
   categories: () => api.get<any[]>('/areas/finance/categories').then(r => r.data),
   createCategory: (data: { name: string; parent_id?: string | null; icon?: string | null }) =>
     api.post<any>('/areas/finance/categories', data).then(r => r.data),
+  updateCategory: (id: string, data: Partial<{ name: string; parent_id: string | null; icon: string | null }>) =>
+    api.patch<any>(`/areas/finance/categories/${id}`, data).then(r => r.data),
   deleteCategory: (id: string) => api.delete(`/areas/finance/categories/${id}`).then(r => r.data),
   // Investments (portfolio)
   investments: () => api.get<FinanceInvestment[]>('/areas/finance/investments').then(r => r.data),

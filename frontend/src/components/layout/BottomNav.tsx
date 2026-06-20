@@ -1,6 +1,44 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { LayoutDashboard, MessageSquare, Bot, Grid3X3, MoreHorizontal } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import styled from 'styled-components'
+
+const Nav = styled.nav`
+  display: flex;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: ${({ theme }) => theme.color.card};
+  border-top: 1px solid ${({ theme }) => theme.color.border};
+  box-shadow: ${({ theme }) => theme.shadow.lg};
+  z-index: ${({ theme }) => theme.zIndex.sticky};
+
+  @media (min-width: 768px) {
+    display: none;
+  }
+`
+
+const TabLink = styled(NavLink)<{ $active: boolean }>`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 10px;
+  font-weight: 500;
+  text-decoration: none;
+  color: ${({ theme, $active }) => $active ? theme.color.primary : theme.color.mutedForeground};
+  transition: color 120ms;
+`
+
+const IconWrap = styled.div<{ $active: boolean }>`
+  padding: 6px;
+  border-radius: 10px;
+  background: ${({ theme, $active }) => $active ? `${theme.color.primary}12` : 'transparent'};
+  transition: background 120ms;
+`
 
 const TABS = [
   { to: '/', icon: LayoutDashboard, label: 'Home' },
@@ -14,31 +52,24 @@ export function BottomNav() {
   const location = useLocation()
 
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 bg-card shadow-premium-md z-50">
-      <div className="grid grid-cols-5 h-16">
-        {TABS.map(({ to, icon: Icon, label }) => {
-          const isActive = to === '/'
-            ? location.pathname === '/'
-            : location.pathname.startsWith(to)
+    <Nav>
+      {TABS.map(({ to, icon: Icon, label }) => {
+        const active = to === '/'
+          ? location.pathname === '/'
+          : location.pathname.startsWith(to)
 
-          return (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={() => { if (navigator.vibrate) navigator.vibrate(8) }}
-              className={cn(
-                'flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors',
-                isActive ? 'text-primary' : 'text-muted-foreground'
-              )}
-            >
-              <div className={cn('p-1.5 rounded-xl transition-colors', isActive && 'bg-primary/10 shadow-glow')}>
-                <Icon className="w-5 h-5" />
-              </div>
-              {label}
-            </NavLink>
-          )
-        })}
-      </div>
-    </nav>
+        return (
+          <TabLink
+            key={to}
+            to={to}
+            $active={active}
+            onClick={() => { if (navigator.vibrate) navigator.vibrate(8) }}
+          >
+            <IconWrap $active={active}><Icon size={20} /></IconWrap>
+            {label}
+          </TabLink>
+        )
+      })}
+    </Nav>
   )
 }

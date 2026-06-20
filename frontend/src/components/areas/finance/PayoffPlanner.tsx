@@ -1,15 +1,114 @@
 import { useMemo, useState } from 'react'
-import { Segmented, InputNumber, Tag } from 'antd'
+import { Badge, SegmentedControl, Input, Card } from '@ledgr/ui'
 import dayjs from 'dayjs'
 import { Landmark } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import type { FinanceLoan } from '@/types'
+import styled from 'styled-components'
+
+const HeaderSection = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+`
+
+const TitleGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`
+
+const TitleText = styled.h2`
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin: 0;
+`
+
+const ControlsGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+`
+
+const ExtraInputGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+`
+
+const ExtraLabel = styled.span`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const StatsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  background-color: ${({ theme }) => theme.color.background}40;
+  border-radius: 0.5rem;
+`
+
+const StatLabel = styled.div`
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-bottom: 0.25rem;
+`
+
+const StatValue = styled.div<{ $positive?: boolean }>`
+  font-size: 18px;
+  font-weight: 700;
+  color: ${({ theme, $positive }) => $positive ? theme.color.success : theme.color.foreground};
+  font-variant-numeric: tabular-nums;
+`
+
+const StatSubtext = styled.div`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-top: 0.125rem;
+`
+
+const OrderSection = styled.div`
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed ${({ theme }) => theme.color.border};
+`
+
+const OrderTitle = styled.div`
+  font-size: 11px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-bottom: 0.5rem;
+`
+
+const OrderBadges = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+`
 
 type Strategy = 'avalanche' | 'snowball'
 
-type SimLoan = { id: string; name: string; balance: number; rate: number; emi: number; paidOffMonth?: number }
+interface SimLoan {
+  id: string
+  name: string
+  balance: number
+  rate: number
+  emi: number
+  paidOffMonth?: number
+}
 
-type SimResult = {
+interface SimResult {
   months: number
   totalInterest: number
   payoffOrder: { name: string; month: number }[]
@@ -88,70 +187,70 @@ export function PayoffPlanner({ loans }: { loans: FinanceLoan[] }) {
   const monthsSaved = baseline.months - result.months
 
   return (
-    <div className="bg-card border-0 rounded-2xl shadow-sm p-4 mt-4">
-      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <Landmark size={14} className="text-muted-foreground" />
-          <h2 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Debt Payoff Planner</h2>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <Segmented
-            size="small"
+    <Card style={{ marginTop: '1rem' }}>
+      <HeaderSection>
+        <TitleGroup>
+          <Landmark size={14} color="var(--muted-foreground)" />
+          <TitleText>Debt Payoff Planner</TitleText>
+        </TitleGroup>
+        <ControlsGroup>
+          <SegmentedControl
+            size="sm"
             value={strategy}
             onChange={v => setStrategy(v as Strategy)}
             options={[
-              { label: 'Avalanche (highest rate)', value: 'avalanche' },
-              { label: 'Snowball (smallest first)', value: 'snowball' },
+              { label: 'Avalanche', value: 'avalanche' },
+              { label: 'Snowball', value: 'snowball' },
             ]}
           />
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-muted-foreground">Extra / month</span>
-            <InputNumber size="small" prefix="₹" min={0} step={1000} className="w-28" value={extra} onChange={v => setExtra(v ?? 0)} />
-          </div>
-        </div>
-      </div>
+          <ExtraInputGroup>
+            <ExtraLabel>Extra / month</ExtraLabel>
+            <Input size="sm" type="number" startAdornment="₹" min="0" step="1000" style={{ width: '7rem' }} value={String(extra)} onChange={e => setExtra(Number(e.target.value) || 0)} />
+          </ExtraInputGroup>
+        </ControlsGroup>
+      </HeaderSection>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+      <StatsGrid>
         <div>
-          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Debt-free</div>
-          <div className="text-[12px] font-medium text-foreground tracking-tight">
+          <StatLabel>Debt-free</StatLabel>
+          <StatValue>
             {result.capped ? '50y+' : debtFreeDate.format('MMM YYYY')}
-          </div>
-          <div className="text-[10px] text-muted-foreground">{result.capped ? 'EMIs too low to close' : `${Math.floor(result.months / 12)}y ${result.months % 12}m away`}</div>
+          </StatValue>
+          <StatSubtext>{result.capped ? 'EMIs too low to close' : `${Math.floor(result.months / 12)}y ${result.months % 12}m away`}</StatSubtext>
         </div>
         <div>
-          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Total Interest</div>
-          <div className="text-[12px] font-medium text-foreground tracking-tight">{formatCurrency(Math.round(result.totalInterest))}</div>
-          <div className="text-[10px] text-muted-foreground">over the payoff period</div>
+          <StatLabel>Total Interest</StatLabel>
+          <StatValue>{formatCurrency(Math.round(result.totalInterest))}</StatValue>
+          <StatSubtext>over the payoff period</StatSubtext>
         </div>
         <div>
-          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Interest Saved</div>
-          <div className={`text-[12px] font-medium tracking-tight ${interestSaved > 0 ? 'text-emerald-500' : 'text-foreground'}`}>
+          <StatLabel>Interest Saved</StatLabel>
+          <StatValue $positive={interestSaved > 0}>
             {formatCurrency(Math.round(Math.max(interestSaved, 0)))}
-          </div>
-          <div className="text-[10px] text-muted-foreground">vs no extra payment</div>
+          </StatValue>
+          <StatSubtext>vs no extra payment</StatSubtext>
         </div>
         <div>
-          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">Time Saved</div>
-          <div className={`text-[12px] font-medium tracking-tight ${monthsSaved > 0 ? 'text-emerald-500' : 'text-foreground'}`}>
+          <StatLabel>Time Saved</StatLabel>
+          <StatValue $positive={monthsSaved > 0}>
             {monthsSaved > 0 ? `${Math.floor(monthsSaved / 12)}y ${monthsSaved % 12}m` : '—'}
-          </div>
-          <div className="text-[10px] text-muted-foreground">earlier debt-free</div>
+          </StatValue>
+          <StatSubtext>earlier debt-free</StatSubtext>
         </div>
-      </div>
+      </StatsGrid>
 
       {result.payoffOrder.length > 0 && (
-        <div>
-          <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5">Payoff Order</div>
-          <div className="flex flex-wrap gap-2">
+        <OrderSection>
+          <OrderTitle>Payoff Order</OrderTitle>
+          <OrderBadges>
             {result.payoffOrder.map((p, i) => (
-              <Tag key={p.name} color={i === 0 ? 'processing' : 'default'}>
-                {i + 1}. {p.name} — {dayjs().add(p.month, 'month').format('MMM YYYY')}
-              </Tag>
+              <Badge key={p.name} tone="neutral">
+                <span style={{ opacity: 0.5, marginRight: 4 }}>{i + 1}.</span> {p.name}
+              </Badge>
             ))}
-          </div>
-        </div>
+          </OrderBadges>
+        </OrderSection>
       )}
-    </div>
+    </Card>
   )
 }

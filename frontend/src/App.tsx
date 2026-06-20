@@ -21,10 +21,17 @@ export function App() {
       <Toaster
         position="bottom-right"
         toastOptions={{
+          style: {
+            background: 'var(--color-card, #ffffff)',
+            color: 'var(--color-cardForeground, #0f172a)',
+            border: 'none',
+            borderRadius: '16px',
+            boxShadow: '0 4px 12px rgba(45, 49, 58, 0.08), 0 2px 4px rgba(45, 49, 58, 0.04)',
+            fontSize: '14px',
+          },
           classNames: {
-            toast: 'bg-card border-0 rounded-2xl shadow-premium-md text-foreground text-sm',
-            description: 'text-muted-foreground',
-            actionButton: 'bg-primary text-primary-foreground',
+            description: 'toast-description',
+            actionButton: 'toast-action',
           },
         }}
       />

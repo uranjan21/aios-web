@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, BellOff } from 'lucide-react'
+import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, BellOff, Settings } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { chatApi } from '@/api/chat'
@@ -9,55 +9,205 @@ import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useVaultSync } from '@/hooks/useVaultSync'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
-import { GlassCard, ProgressBar } from '@/components/lumina'
+import { ProgressBar } from '@/components/lumina';
+import { Card as GlassCard } from '@ledgr/ui';
+import { PageHeader } from '@/components/layout/PageLayout'
+import { Button } from '@/components/ui/button'
+import styled, { useTheme } from 'styled-components'
+
+// ── Layout ─────────────────────────────────────────────────────────────────────
+
+const PageRoot = styled.div`
+  min-height: 100vh;
+  background: ${({ theme }) => theme.color.background};
+  padding: 16px;
+  @media (min-width: 768px) { padding: 24px; }
+`
+
+const PageContent = styled.div`
+  margin: 0 auto;
+  max-width: 680px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+`
+
+// ── Row ───────────────────────────────────────────────────────────────────────
+
+const RowRoot = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+`
+
+const RowLabel = styled.span`
+  font-size: 13px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const RowActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <RowRoot>
+      <RowLabel>{label}</RowLabel>
+      <RowActions>{children}</RowActions>
+    </RowRoot>
+  )
+}
 
 function Section({ title, children, delay }: { title: string; children: React.ReactNode; delay?: 0 | 100 | 200 | 300 }) {
   return (
-    <GlassCard title={title} noPadding contentClassName="divide-y divide-border" fadeIn="up" delay={delay}>
+    <GlassCard title={title} noPadding fadeIn="up" delay={delay}>
       {children}
     </GlassCard>
   )
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4 px-5 py-3.5">
-      <span className="text-[13px] font-medium text-foreground">{label}</span>
-      <div className="flex items-center gap-2">{children}</div>
-    </div>
-  )
-}
+// ── Theme toggle ──────────────────────────────────────────────────────────────
+
+const ThemeSwitcher = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: ${({ theme }) => theme.color.muted};
+  border-radius: 8px;
+  padding: 4px;
+`
+
+const ThemeBtn = styled.button<{ $active: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 120ms;
+  ${({ theme, $active }) => $active ? `
+    background: ${theme.color.card};
+    color: ${theme.color.foreground};
+    border-color: ${theme.color.border}80;
+    box-shadow: ${theme.shadow.xs};
+  ` : `
+    background: transparent;
+    color: ${theme.color.mutedForeground};
+    &:hover { color: ${theme.color.foreground}; }
+  `}
+  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 2px; }
+`
+
+// ── Kbd ───────────────────────────────────────────────────────────────────────
+
+const KbdEl = styled.kbd`
+  font-size: 12px;
+  background: ${({ theme }) => theme.color.muted};
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-family: ${({ theme }) => theme.typography.fontFamily.mono ?? 'ui-monospace, monospace'};
+`
+
+// ── Backend status ────────────────────────────────────────────────────────────
+
+const StatusText = styled.span<{ $variant: 'success' | 'warning' }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: ${({ theme, $variant }) => $variant === 'success' ? theme.color.success : theme.color.warning};
+`
+
+const RetryBtn = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  &:hover { color: ${({ theme }) => theme.color.foreground}; }
+  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 2px; }
+`
 
 function BackendStatus() {
+  const theme = useTheme()
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['health'],
     queryFn: () => api.get<{ status: string; db: boolean }>('/health').then(r => r.data),
     refetchInterval: 30_000,
   })
 
-  if (isLoading) return <Skeleton className="h-5 w-20" />
+  if (isLoading) return <SkelStatus />
   if (isError || !data) return (
-    <button onClick={() => refetch()} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition">
-      <XCircle className="w-4 h-4 text-destructive" aria-hidden="true" />
-      <span className="text-destructive">Offline</span>
-      <RefreshCw className="w-3 h-3" aria-hidden="true" />
-    </button>
+    <RetryBtn onClick={() => refetch()}>
+      <XCircle size={16} style={{ color: theme.color.mutedForeground }} />
+      <span style={{ color: theme.color.mutedForeground }}>Offline</span>
+      <RefreshCw size={12} />
+    </RetryBtn>
   )
 
   const ok = data.status === 'ok' && data.db !== false
   return (
-    <span className={cn('flex items-center gap-1.5 text-xs font-medium', ok ? 'text-kpi-emerald' : 'text-kpi-amber')}>
-      {ok
-        ? <CheckCircle className="w-4 h-4" aria-hidden="true" />
-        : <AlertCircle className="w-4 h-4" aria-hidden="true" />
-      }
+    <StatusText $variant={ok ? 'success' : 'warning'}>
+      {ok ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
       {ok ? 'Online' : 'DB unreachable'}
-    </span>
+    </StatusText>
   )
 }
 
+// ── Token gauge ───────────────────────────────────────────────────────────────
+
+const GaugeWrap = styled.div`
+  padding: 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`
+
+const GaugeMeta = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+`
+
+const GaugeNote = styled.p`
+  font-size: 12px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin: 0;
+`
+
+// ── Styled Skeletons ──────────────────────────────────────────────────────────
+
+const SkelStatus = styled(Skeleton)`
+  height: 1.25rem;
+  width: 5rem;
+`
+
+const SkelGaugeTitle = styled(Skeleton)`
+  height: 0.75rem;
+  width: 10rem;
+`
+
+const SkelGaugeBar = styled(Skeleton)`
+  height: 0.5rem;
+  width: 100%;
+`
+
 function TokenGauge() {
+  const theme = useTheme()
   const { data, isLoading } = useQuery({
     queryKey: ['token-budget'],
     queryFn: chatApi.tokenBudget,
@@ -65,35 +215,61 @@ function TokenGauge() {
   })
 
   if (isLoading) return (
-    <div className="px-5 py-3.5 space-y-2">
-      <Skeleton className="h-3 w-40" />
-      <Skeleton className="h-2 w-full rounded-full" />
-    </div>
+    <GaugeWrap>
+      <SkelGaugeTitle />
+      <SkelGaugeBar />
+    </GaugeWrap>
   )
-
   if (!data) return null
 
   const pct = data.percent
-  const color = pct >= 90 ? 'bg-destructive' : pct >= 70 ? 'bg-kpi-amber' : 'bg-primary'
+  const barColor = pct >= 90 ? theme.color.mutedForeground : pct >= 70 ? theme.color.accent : theme.color.primary
+  const metaColor = pct >= 90 ? theme.color.mutedForeground : pct >= 70 ? theme.color.accent : undefined
+
   const resetH = Math.floor(data.reset_in_seconds / 3600)
   const resetM = Math.floor((data.reset_in_seconds % 3600) / 60)
 
   return (
-    <div className="px-5 py-3.5 space-y-2">
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-foreground">Claude Token Budget</span>
-        <span className={cn('text-xs font-mono font-medium tabular-nums', pct >= 90 ? 'text-destructive' : pct >= 70 ? 'text-kpi-amber' : 'text-muted-foreground')}>
+    <GaugeWrap>
+      <GaugeMeta>
+        <span style={{ color: theme.color.foreground }}>Claude Token Budget</span>
+        <span style={{ fontSize: 12, fontWeight: 500, fontVariantNumeric: 'tabular-nums', color: metaColor ?? theme.color.mutedForeground }}>
           {data.used_today.toLocaleString()} / {data.daily_limit.toLocaleString()}
         </span>
-      </div>
-      <ProgressBar value={pct} colorClassName={color} glow={pct >= 90} size="sm" />
-      <p className="text-xs text-muted-foreground">
+      </GaugeMeta>
+      <ProgressBar value={pct} color={barColor} glow={pct >= 90} size="sm" />
+      <GaugeNote>
         {pct.toFixed(1)}% used · resets in {resetH}h {resetM}m
-        {pct >= 80 && <span className="text-kpi-amber ml-1">· approaching limit</span>}
-      </p>
-    </div>
+        {pct >= 80 && <span style={{ color: theme.color.accent, marginLeft: 4 }}>· approaching limit</span>}
+      </GaugeNote>
+    </GaugeWrap>
   )
 }
+
+// ── Push notifications ────────────────────────────────────────────────────────
+
+const PushBtn = styled.button<{ $active: boolean; $busy: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 120ms;
+  opacity: ${({ $busy }) => $busy ? 0.6 : 1};
+  ${({ theme, $active }) => $active ? `
+    border: 1px solid ${theme.color.accent};
+    background: color-mix(in srgb, ${theme.color.accent} 10%, transparent);
+    color: ${theme.color.accent};
+  ` : `
+    border: 1px solid ${theme.color.border};
+    background: transparent;
+    color: ${theme.color.mutedForeground};
+    &:hover { color: ${theme.color.foreground}; }
+  `}
+  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 2px; }
+`
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -130,10 +306,7 @@ function PushNotificationsRow() {
         toast.success('Push notifications disabled')
       } else {
         const perm = await Notification.requestPermission()
-        if (perm !== 'granted') {
-          toast.error('Notification permission denied by browser')
-          return
-        }
+        if (perm !== 'granted') { toast.error('Notification permission denied by browser'); return }
         const reg = await navigator.serviceWorker.register('/sw.js')
         const { data } = await api.get<{ public_key: string }>('/push/public-key')
         const sub = await reg.pushManager.subscribe({
@@ -155,53 +328,61 @@ function PushNotificationsRow() {
   return (
     <Row label="Push Notifications">
       {!supported ? (
-        <span className="text-xs text-muted-foreground">Not supported in this browser</span>
+        <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Not supported in this browser</span>
       ) : (
-        <button
-          onClick={toggle}
-          disabled={busy}
-          aria-pressed={enabled}
-          className={cn(
-            'flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-            enabled
-              ? 'border-primary/40 bg-primary/10 text-primary'
-              : 'border-border text-muted-foreground hover:text-foreground',
-            busy && 'opacity-60',
-          )}
-        >
-          {enabled ? <Bell className="w-3.5 h-3.5" aria-hidden="true" /> : <BellOff className="w-3.5 h-3.5" aria-hidden="true" />}
+        <PushBtn onClick={toggle} disabled={busy} aria-pressed={enabled} $active={enabled} $busy={busy}>
+          {enabled ? <Bell size={14} /> : <BellOff size={14} />}
           {enabled ? 'Enabled' : 'Disabled'}
-        </button>
+        </PushBtn>
       )}
     </Row>
   )
 }
 
-function VaultSyncRow() {
-  const { state, lastSynced, conflicts } = useVaultSync()
-  const stateLabel = {
-    synced: 'Synced',
-    syncing: 'Syncing…',
-    conflict: `${conflicts.length} conflict(s)`,
-    error: 'Sync error',
-    disconnected: 'Disconnected',
-  }[state]
+// ── Vault sync row ────────────────────────────────────────────────────────────
 
-  const stateColor = {
-    synced: 'text-kpi-emerald',
-    syncing: 'text-primary',
-    conflict: 'text-kpi-amber',
-    error: 'text-destructive',
-    disconnected: 'text-muted-foreground',
-  }[state]
+const SyncStatusText = styled.span<{ $state: string }>`
+  font-size: 12px;
+  font-weight: 500;
+  color: ${({ theme, $state }) => {
+    switch ($state) {
+      case 'synced':
+        return theme.color.success
+      case 'syncing':
+        return theme.color.accent
+      case 'conflict':
+        return theme.color.warning
+      case 'error':
+        return theme.color.destructive
+      case 'disconnected':
+      default:
+        return theme.color.mutedForeground
+    }
+  }};
+`
+
+function VaultSyncRow() {
+  const { state, lastSynced } = useVaultSync()
+  const stateLabel = {
+    synced: 'Synced', syncing: 'Syncing…', conflict: 'Conflict',
+    error: 'Sync error', disconnected: 'Disconnected',
+  }[state] ?? state
 
   return (
     <Row label="Vault Sync">
-      <span className={cn('text-xs font-medium', stateColor)}>{stateLabel}</span>
-      {lastSynced && <span className="text-xs text-muted-foreground">{new Date(lastSynced).toLocaleTimeString()}</span>}
+      <SyncStatusText $state={state}>
+        {stateLabel}
+      </SyncStatusText>
+      {lastSynced && (
+        <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>
+          {new Date(lastSynced).toLocaleTimeString()}
+        </span>
+      )}
     </Row>
   )
 }
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
   const logout = useAuthStore(s => s.logout)
@@ -209,107 +390,62 @@ export function SettingsPage() {
   const { theme, setTheme } = useUIStore()
 
   const handleLogout = async () => {
-    try {
-      await api.post('/auth/logout')
-    } catch (e) {
-      console.error("Logout failed:", e)
-    } finally {
-      logout()
-      navigate('/login')
-    }
+    try { await api.post('/auth/logout') } catch (e) { console.error('Logout failed:', e) }
+    finally { logout(); navigate('/login') }
   }
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
-    <div className="mx-auto max-w-[680px] space-y-6">
-      <div>
-        <p className="text-muted-foreground text-[13px] mt-0.5">Configure your AIOS instance</p>
-      </div>
+    <PageRoot>
+      <PageContent>
+        <PageHeader title="Settings" description="Preferences, integrations and account management." icon={Settings} category="SYSTEM" />
 
-      {/* Appearance */}
-      <Section title="Appearance">
-        <Row label="Theme">
-          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-            <button
-              onClick={() => setTheme('dark')}
-              aria-pressed={theme === 'dark'}
-              aria-label="Dark mode"
-              className={cn(
-                'flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                theme === 'dark' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Moon className="w-3.5 h-3.5" aria-hidden="true" /> Dark
-            </button>
-            <button
-              onClick={() => setTheme('light')}
-              aria-pressed={theme === 'light'}
-              aria-label="Light mode"
-              className={cn(
-                'flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                theme === 'light' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Sun className="w-3.5 h-3.5" aria-hidden="true" /> Light
-            </button>
-          </div>
-        </Row>
-      </Section>
-
-      {/* System status */}
-      <Section title="System Status" delay={100}>
-        <Row label="Backend">
-          <BackendStatus />
-        </Row>
-        <VaultSyncRow />
-        <PushNotificationsRow />
-        <Row label="Rate limits">
-          <span className="text-xs text-muted-foreground">Chat 20/min · Agents 5/min · Auth 10/min</span>
-        </Row>
-      </Section>
-
-      {/* AI Budget */}
-      <Section title="AI Usage" delay={200}>
-        <TokenGauge />
-        <Row label="Model">
-          <span className="text-xs font-mono text-muted-foreground">claude-sonnet-4-5</span>
-        </Row>
-        <Row label="Session limit">
-          <span className="text-xs font-mono text-muted-foreground">50,000 tokens</span>
-        </Row>
-      </Section>
-
-      {/* Keyboard shortcuts */}
-      <Section title="Keyboard Shortcuts" delay={300}>
-        {[
-          ['⌘K', 'Command palette'],
-          ['⌘L', 'Quick capture'],
-          ['?', 'Command palette (alt)'],
-          ['⌘⇧T', 'Toggle theme'],
-          ['G then D', 'Go to Dashboard'],
-          ['G then C', 'Go to Chat'],
-          ['G then F', 'Go to Finance'],
-          ['G then H', 'Go to Health'],
-          ['G then R', 'Go to Career'],
-          ['G then B', 'Go to Business'],
-          ['G then N', 'Go to Content'],
-        ].map(([key, label]) => (
-          <Row key={key} label={label}>
-            <kbd className="text-xs font-mono bg-muted border border-border rounded px-2 py-0.5">{key}</kbd>
+        <Section title="Appearance">
+          <Row label="Theme">
+            <ThemeSwitcher>
+              <ThemeBtn onClick={() => setTheme('dark')} aria-pressed={theme === 'dark'} aria-label="Dark mode" $active={theme === 'dark'}>
+                <Moon size={14} /> Dark
+              </ThemeBtn>
+              <ThemeBtn onClick={() => setTheme('light')} aria-pressed={theme === 'light'} aria-label="Light mode" $active={theme === 'light'}>
+                <Sun size={14} /> Light
+              </ThemeBtn>
+            </ThemeSwitcher>
           </Row>
-        ))}
-      </Section>
+        </Section>
 
-      {/* Danger zone */}
-      <GlassCard title="Account" fadeIn="up" delay={300}>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
-        >
-          <LogOut className="w-4 h-4" aria-hidden="true" /> Sign out
-        </button>
-      </GlassCard>
-    </div>
-    </div>
+        <Section title="System Status" delay={100}>
+          <Row label="Backend"><BackendStatus /></Row>
+          <VaultSyncRow />
+          <PushNotificationsRow />
+          <Row label="Rate limits">
+            <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Chat 20/min · Agents 5/min · Auth 10/min</span>
+          </Row>
+        </Section>
+
+        <Section title="AI Usage" delay={200}>
+          <TokenGauge />
+          <Row label="Model"><span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>claude-sonnet-4-5</span></Row>
+          <Row label="Session limit"><span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>50,000 tokens</span></Row>
+        </Section>
+
+        <Section title="Keyboard Shortcuts" delay={300}>
+          {[
+            ['⌘K', 'Command palette'], ['⌘L', 'Quick capture'], ['?', 'Command palette (alt)'],
+            ['⌘⇧T', 'Toggle theme'], ['G then D', 'Go to Dashboard'], ['G then C', 'Go to Chat'],
+            ['G then F', 'Go to Finance'], ['G then H', 'Go to Health'], ['G then R', 'Go to Career'],
+            ['G then B', 'Go to Business'], ['G then N', 'Go to Content'],
+          ].map(([key, label]) => (
+            <Row key={key} label={label}>
+              <KbdEl>{key}</KbdEl>
+            </Row>
+          ))}
+        </Section>
+
+        <GlassCard title="Account" fadeIn="up" delay={300}>
+          <Button variant="destructive" onClick={handleLogout}>
+            <LogOut size={16} /> Sign out
+          </Button>
+        </GlassCard>
+      </PageContent>
+    </PageRoot>
   )
 }

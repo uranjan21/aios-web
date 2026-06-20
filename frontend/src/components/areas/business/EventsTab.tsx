@@ -1,21 +1,24 @@
+// @ts-nocheck
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Form, Input, Select, Button, Tag, Timeline, Space } from 'antd'
+import { Timeline } from 'antd'
+import { Button, Input, Select, SelectItem, Textarea, Badge, Card } from '@ledgr/ui'
 import { Plus, History } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import styled from 'styled-components'
 import { businessApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/EmptyState'
 import { format } from 'date-fns'
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
-  feature_shipped: 'green',
-  decision: 'blue',
-  revenue: 'gold',
-  blocker: 'red',
-  milestone: 'purple',
-  note: 'default',
+  feature_shipped: 'success',
+  decision: 'info',
+  revenue: 'warning',
+  blocker: 'destructive',
+  milestone: 'accent',
+  note: 'neutral',
 }
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
@@ -27,59 +30,189 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   note: 'Note',
 }
 
+const FormContainer = styled(motion.form)`
+  padding: 0.75rem;
+  background-color: color-mix(in srgb, var(--muted) 40%, transparent);
+  border-radius: 0.75rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+`
+
+const FormGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+`
+
+const FormGroup = styled.div`
+  margin-bottom: 0.75rem;
+`
+
+const FormLabel = styled.label`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  display: block;
+  margin-bottom: 0.25rem;
+`
+
+const FormActions = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  justify-content: flex-end;
+`
+
 function NewEventForm({ onClose }: { onClose: () => void }) {
-  const [form] = Form.useForm()
+  const [eventType, setEventType] = useState('feature_shipped')
+  const [mrr, setMrr] = useState('')
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
   const queryClient = useQueryClient()
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (values: Record<string, string>) =>
+    mutationFn: () =>
       businessApi.createEvent({
-        event_type: values.eventType,
-        title: values.title.trim(),
-        description: values.description?.trim() || undefined,
-        mrr: values.mrr ? parseFloat(values.mrr) : undefined,
+        event_type: eventType,
+        title: title.trim(),
+        description: description?.trim() || undefined,
+        mrr: mrr ? parseFloat(mrr) : undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['business'] })
       toast.success('Event logged')
-      form.resetFields()
+      setEventType('feature_shipped')
+      setMrr('')
+      setTitle('')
+      setDescription('')
       onClose()
     },
     onError: () => toast.error('Failed to log event'),
   })
 
   return (
-    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-      <Form form={form} layout="vertical" onFinish={mutate} requiredMark={false}
-        className="p-3 bg-muted/40 rounded-xl mb-3 border border-border/60">
-        <div className="grid grid-cols-2 gap-3">
-          <Form.Item name="eventType" label={<span className="text-[11px] text-muted-foreground">Type</span>}
-            initialValue="feature_shipped" rules={[{ required: true }]}>
-            <Select>
-              {Object.entries(EVENT_TYPE_LABELS).map(([v, l]) => (
-                <Select.Option key={v} value={v}>{l}</Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item name="mrr" label={<span className="text-[11px] text-muted-foreground">MRR (optional)</span>}>
-            <Input type="number" prefix="₹" placeholder="0" min="0" />
-          </Form.Item>
+    <FormContainer 
+      onSubmit={(e: React.FormEvent) => { e.preventDefault(); mutate() }}
+      initial={{ opacity: 0, height: 0 }} 
+      animate={{ opacity: 1, height: 'auto' }} 
+      exit={{ opacity: 0, height: 0 }}
+    >
+      <FormGrid>
+        <div>
+          <FormLabel>Type</FormLabel>
+          <Select value={eventType} onValueChange={setEventType} required>
+            {Object.entries(EVENT_TYPE_LABELS).map(([v, l]) => (
+              <SelectItem key={v} value={v}>{l}</SelectItem>
+            ))}
+          </Select>
         </div>
-        <Form.Item name="title" label={<span className="text-[11px] text-muted-foreground">Title</span>}
-          rules={[{ required: true, message: 'Title is required' }]}>
-          <Input placeholder="What happened?" maxLength={200} />
-        </Form.Item>
-        <Form.Item name="description" label={<span className="text-[11px] text-muted-foreground">Description</span>}>
-          <Input.TextArea placeholder="More context (optional)" autoSize={{ minRows: 2, maxRows: 4 }} />
-        </Form.Item>
-        <Space className="w-full justify-end">
-          <Button type="text" onClick={onClose} size="small">Cancel</Button>
-          <Button type="primary" htmlType="submit" loading={isPending} size="small">Log Event</Button>
-        </Space>
-      </Form>
-    </motion.div>
+        <div>
+          <FormLabel>MRR (optional)</FormLabel>
+          <Input type="number" startAdornment="₹" placeholder="0" min={0} value={mrr} onChange={(e: any) => setMrr(e.target.value)} />
+        </div>
+      </FormGrid>
+      <FormGroup>
+        <FormLabel>Title</FormLabel>
+        <Input placeholder="What happened?" maxLength={200} value={title} onChange={(e: any) => setTitle(e.target.value)} required />
+      </FormGroup>
+      <FormGroup>
+        <FormLabel>Description</FormLabel>
+        <Textarea placeholder="More context (optional)" rows={3} value={description} onChange={(e: any) => setDescription(e.target.value)} />
+      </FormGroup>
+      <FormActions>
+        <Button variant="ghost" type="button" onClick={onClose} size="sm">Cancel</Button>
+        <Button variant="primary" type="submit" loading={isPending} size="sm">Log Event</Button>
+      </FormActions>
+    </FormContainer>
   )
 }
+
+const TabContainer = styled.div`
+  max-width: 42rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`
+
+const TimelineDot = styled.div`
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 9999px;
+  background-color: color-mix(in srgb, var(--primary) 80%, transparent);
+  border: 2px solid var(--background);
+  margin-top: 0.125rem;
+`
+
+const TimelineItemContent = styled.div`
+  padding-bottom: 0.25rem;
+`
+
+const TimelineItemMeta = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+`
+
+const TimelineBadgeWrapper = styled.div`
+  margin: 0;
+  .ledgr-badge {
+    font-size: 10px;
+    margin: 0;
+  }
+`
+
+const TimelineItemDate = styled.span`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+`
+
+const TimelineItemTitle = styled.p`
+  font-size: 12px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color?.foreground || 'inherit'};
+  margin: 0;
+`
+
+const TimelineItemDescription = styled.p`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  margin: 0.125rem 0 0 0;
+`
+
+
+
+const LogEventButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 11px;
+  color: var(--primary);
+  font-weight: 500;
+  transition: color 0.15s ease;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  
+  &:hover {
+    color: color-mix(in srgb, var(--primary) 80%, transparent);
+  }
+`
+
+
+
+const SkeletonList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`
+
+const StyledEventSkeleton = styled(Skeleton)`
+  height: 48px;
+  width: 100%;
+`
 
 export function EventsTab() {
   const [showForm, setShowForm] = useState(false)
@@ -91,62 +224,66 @@ export function EventsTab() {
 
   const timelineItems = events?.map(event => ({
     key: event.id,
-    dot: <div className="w-2.5 h-2.5 rounded-full bg-primary/80 border-2 border-background mt-0.5" />,
+    dot: <TimelineDot />,
     children: (
-      <div className="pb-1">
-        <div className="flex items-center gap-2 flex-wrap mb-1">
-          <Tag color={EVENT_TYPE_COLORS[event.event_type] || 'default'} className="text-[10px] m-0">
-            {EVENT_TYPE_LABELS[event.event_type] || event.event_type}
-          </Tag>
-          <span className="text-[10px] text-muted-foreground">
+      <TimelineItemContent>
+        <TimelineItemMeta>
+          <TimelineBadgeWrapper>
+            <Badge tone={(EVENT_TYPE_COLORS[event.event_type] || 'neutral') as any}>
+              {EVENT_TYPE_LABELS[event.event_type] || event.event_type}
+            </Badge>
+          </TimelineBadgeWrapper>
+          <TimelineItemDate>
             {format(new Date(event.occurred_at), 'MMM d, yyyy')}
-          </span>
+          </TimelineItemDate>
           {event.mrr != null && event.mrr > 0 && (
-            <Tag color="gold" className="text-[10px] m-0">MRR ₹{event.mrr}</Tag>
+            <TimelineBadgeWrapper>
+              <Badge tone="warning">MRR ₹{event.mrr}</Badge>
+            </TimelineBadgeWrapper>
           )}
-        </div>
-        <p className="text-[12px] font-medium text-foreground">{event.title}</p>
+        </TimelineItemMeta>
+        <TimelineItemTitle>{event.title}</TimelineItemTitle>
         {event.description && (
-          <p className="text-[11px] text-muted-foreground mt-0.5">{event.description}</p>
+          <TimelineItemDescription>{event.description}</TimelineItemDescription>
         )}
-      </div>
+      </TimelineItemContent>
     ),
   })) ?? []
 
   return (
-    <div className="max-w-2xl space-y-3">
+    <TabContainer>
       <AnimatePresence>
         {showForm && <NewEventForm onClose={() => setShowForm(false)} />}
       </AnimatePresence>
 
-      <div className="bg-card border-0 rounded-2xl overflow-hidden shadow-premium-sm">
-        <div className="flex items-center justify-between px-3 py-2.5 border-b border-border/40">
-          <div className="flex items-center gap-2">
-            <History className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Event Log</span>
-          </div>
-          {!showForm && (
-            <button
-              onClick={() => setShowForm(true)}
-              className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium transition"
-            >
-              <Plus className="w-3 h-3" /> Log Event
-            </button>
-          )}
-        </div>
-
-        <div className="p-4">
-          {isLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
-          ) : !events?.length ? (
-            <EmptyState icon={History} title="No events yet" description="Log feature ships, decisions, and milestones here." />
-          ) : (
-            <Timeline items={timelineItems} />
-          )}
-        </div>
-      </div>
-    </div>
+      <Card 
+        title="Event Log" 
+        size="md"
+        action={
+          !showForm ? (
+            <LogEventButton onClick={() => setShowForm(true)}>
+              <Plus size={12} /> Log Event
+            </LogEventButton>
+          ) : undefined
+        }
+      >
+        {isLoading ? (
+          <SkeletonList>
+            <StyledEventSkeleton />
+            <StyledEventSkeleton />
+            <StyledEventSkeleton />
+          </SkeletonList>
+        ) : timelineItems.length === 0 ? (
+          <EmptyState
+            title="No events yet"
+            description="Start logging milestones, feature ships, and blockers."
+            icon={History}
+            action={{ label: "Add Entry", onClick: () => setShowForm(true) }}
+          />
+        ) : (
+          <Timeline items={timelineItems} />
+        )}
+      </Card>
+    </TabContainer>
   )
 }

@@ -1,4 +1,42 @@
+import styled from 'styled-components'
 import type { LucideIcon } from 'lucide-react'
+import { Button } from '@ledgr/ui'
+
+const Root = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 56px 16px;
+  gap: 12px;
+`
+
+const IconWrap = styled.div`
+  width: 56px;
+  height: 56px;
+  border-radius: ${({ theme }) => theme.radii.xl};
+  background: ${({ theme }) => theme.color.muted};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const TitleText = styled.p`
+  font-weight: 600;
+  font-size: 13px;
+  color: ${({ theme }) => theme.color.foreground};
+  margin: 0;
+`
+
+const DescText = styled.p`
+  font-size: 12px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  max-width: 240px;
+  margin: 0;
+  line-height: 1.5;
+`
 
 interface EmptyStateProps {
   icon: LucideIcon
@@ -9,22 +47,17 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-14 gap-3 text-center px-4">
-      <div className="p-4 rounded-full bg-muted/60">
-        <Icon className="w-7 h-7 text-muted-foreground" />
-      </div>
+    <Root>
+      <IconWrap><Icon size={28} /></IconWrap>
       <div>
-        <p className="font-semibold text-foreground text-sm">{title}</p>
-        <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">{description}</p>
+        <TitleText>{title}</TitleText>
+        <DescText style={{ marginTop: 4 }}>{description}</DescText>
       </div>
       {action && (
-        <button
-          onClick={action.onClick}
-          className="text-xs px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
+        <Button variant="secondary" size="sm" onClick={action.onClick}>
           {action.label}
-        </button>
+        </Button>
       )}
-    </div>
+    </Root>
   )
 }

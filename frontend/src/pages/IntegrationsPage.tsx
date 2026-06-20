@@ -1,23 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { CheckCircle, XCircle, AlertCircle, ExternalLink, Trash2 } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle, ExternalLink, Trash2, Puzzle } from 'lucide-react'
 import { integrationsApi } from '@/api/integrations'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorCard } from '@/components/ErrorCard'
 import {
-  AlertDialog,
-  AlertDialogTrigger,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
+  AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogCancel, AlertDialogAction,
 } from '@/components/ui/alert-dialog'
-import { GlassCard, IconBadge, StatusPill } from '@/components/lumina'
+import { IconBadge, StatusPill } from '@/components/lumina';
+import { Card as GlassCard } from '@ledgr/ui';
+import { PageHeader } from '@/components/layout/PageLayout'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/EmptyState'
 import type { Integration } from '@/types'
+import styled, { useTheme } from 'styled-components'
 
 const PROVIDER_INFO: Record<string, { label: string; desc: string }> = {
   notion: { label: 'Notion', desc: 'Read pages and databases from your Notion workspace' },
@@ -25,32 +24,123 @@ const PROVIDER_INFO: Record<string, { label: string; desc: string }> = {
   github: { label: 'GitHub', desc: 'Track commits and activity on your repos' },
 }
 
+// ── Layout ─────────────────────────────────────────────────────────────────────
+
+const PageRoot = styled.div`
+  min-height: 100vh;
+  background: ${({ theme }) => theme.color.background};
+  padding: 16px;
+  @media (min-width: 768px) { padding: 24px; }
+`
+
+const PageContent = styled.div`
+  margin: 0 auto;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`
+
+const IntGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  @media (min-width: 768px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (min-width: 1280px) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+`
+
+// ── Card header row ───────────────────────────────────────────────────────────
+
+const CardTop = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+`
+
+const ProviderInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`
+
+const ProviderText = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`
+
+const CardActions = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+`
+
+const SkeletonGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`
+
+// ── Styled Skeletons ──────────────────────────────────────────────────────────
+
+const SkelIcon = styled(Skeleton)`
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.75rem;
+`
+
+const SkelTitle = styled(Skeleton)`
+  height: 1rem;
+  width: 8rem;
+`
+
+const SkelDesc = styled(Skeleton)`
+  height: 0.75rem;
+  width: 12rem;
+`
+
+const SkelStatus = styled(Skeleton)`
+  height: 1.25rem;
+  width: 5rem;
+  border-radius: 9999px;
+`
+
+const SkelButton = styled(Skeleton)`
+  height: 2rem;
+  width: 6rem;
+  border-radius: 0.5rem;
+`
+
+// ── Components ────────────────────────────────────────────────────────────────
+
 function StatusIcon({ status }: { status: Integration['status'] }) {
   if (status === 'connected') return <IconBadge icon={CheckCircle} color="primary" size="md" />
-  if (status === 'expired') return <IconBadge icon={AlertCircle} color="amber" size="md" />
-  if (status === 'error') return <IconBadge icon={XCircle} color="red" size="md" />
+  if (status === 'expired') return <IconBadge icon={AlertCircle} color="accent" size="md" />
+  if (status === 'error') return <IconBadge icon={XCircle} color="muted" size="md" />
   return <IconBadge icon={XCircle} color="muted" size="md" />
 }
 
 function IntegrationCardSkeleton() {
   return (
-    <div className="bg-card border-0 shadow-premium-sm rounded-2xl p-4 space-y-3">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <Skeleton className="w-8 h-8 rounded-xl" />
-          <div className="space-y-1.5">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-3 w-48" />
-          </div>
+    <GlassCard style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <SkelIcon />
+          <SkeletonGroup>
+            <SkelTitle />
+            <SkelDesc />
+          </SkeletonGroup>
         </div>
-        <Skeleton className="h-5 w-20 rounded-full" />
+        <SkelStatus />
       </div>
-      <Skeleton className="h-8 w-24 rounded-lg" />
-    </div>
+      <SkelButton />
+    </GlassCard>
   )
 }
 
 function IntegrationCard({ integration }: { integration: Integration }) {
+  const theme = useTheme()
   const queryClient = useQueryClient()
   const info = PROVIDER_INFO[integration.provider] ?? { label: integration.provider, desc: '' }
 
@@ -73,70 +163,60 @@ function IntegrationCard({ integration }: { integration: Integration }) {
 
   return (
     <GlassCard hoverable fadeIn="up">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
+      <CardTop>
+        <ProviderInfo>
           <StatusIcon status={integration.status} />
-          <div>
-            <h3 className="text-sm font-medium text-foreground">{info.label}</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">{info.desc}</p>
-          </div>
-        </div>
+          <ProviderText>
+            <h3 style={{ fontSize: 14, fontWeight: 500, color: theme.color.foreground, margin: 0 }}>{info.label}</h3>
+            <p style={{ fontSize: 12, color: theme.color.mutedForeground, margin: 0 }}>{info.desc}</p>
+          </ProviderText>
+        </ProviderInfo>
         <StatusPill
           label={integration.status}
-          tone={integration.status === 'connected' ? 'primary' : integration.status === 'expired' ? 'amber' : 'neutral'}
-          className="capitalize"
+          tone={integration.status === 'connected' ? 'primary' : integration.status === 'expired' ? 'accent' : 'muted'}
         />
-      </div>
+      </CardTop>
 
-      <div className="flex gap-2 mt-4">
+      <CardActions>
         {integration.status !== 'connected' ? (
-          <button
-            onClick={() => connectMutation.mutate()}
-            disabled={connectMutation.isPending}
-            className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+          <Button onClick={() => connectMutation.mutate()} disabled={connectMutation.isPending}>
+            <ExternalLink size={14} />
             {connectMutation.isPending ? 'Redirecting…' : 'Connect'}
-          </button>
+          </Button>
         ) : (
           <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <AlertDialogTrigger asChild>
-              <button
-                aria-label={`Disconnect ${info.label}`}
-                className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-destructive disabled:opacity-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
-              >
-                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Disconnect
-              </button>
+              <Button variant="destructive" aria-label={`Disconnect ${info.label}`}>
+                <Trash2 size={14} /> Disconnect
+              </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle className="text-base font-semibold text-foreground">
+                <AlertDialogTitle style={{ fontSize: 16, fontWeight: 600, color: theme.color.foreground }}>
                   Disconnect {info.label}?
                 </AlertDialogTitle>
-                <AlertDialogDescription className="text-sm text-muted-foreground">
+                <AlertDialogDescription style={{ fontSize: 14, color: theme.color.mutedForeground }}>
                   The agent will no longer be able to read data from {info.label}. You can reconnect at any time.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel asChild>
-                  <button className="px-3 py-2 text-sm rounded-lg bg-muted hover:bg-accent text-muted-foreground hover:text-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                    Cancel
-                  </button>
+                  <Button variant="secondary">Cancel</Button>
                 </AlertDialogCancel>
                 <AlertDialogAction asChild>
-                  <button
+                  <Button
+                    variant="destructive"
                     onClick={() => { setDialogOpen(false); disconnectMutation.mutate() }}
                     disabled={disconnectMutation.isPending}
-                    className="px-3 py-2 text-sm rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
                   >
                     {disconnectMutation.isPending ? 'Disconnecting…' : 'Disconnect'}
-                  </button>
+                  </Button>
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         )}
-      </div>
+      </CardActions>
     </GlassCard>
   )
 }
@@ -148,32 +228,39 @@ export function IntegrationsPage() {
   })
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
-      <div className="mx-auto max-w-[1200px] space-y-4">
-        <div>
-          <h1 className="text-lg font-semibold text-foreground">Integrations</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Connect external services to enrich your AI OS context</p>
-        </div>
-
+    <PageRoot>
+      <PageContent>
+        <PageHeader title="Integrations" description="Connect your favorite tools and services." icon={Puzzle} />
         {isError ? (
           <ErrorCard message="Could not load integrations" onRetry={() => refetch()} />
         ) : (
-          <div className="grid grid-cols-12 gap-4">
+          <IntGrid>
             {isLoading
-              ? Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="col-span-12 md:col-span-6 xl:col-span-4">
-                    <IntegrationCardSkeleton />
+              ? Array.from({ length: 3 }).map((_, i) => <IntegrationCardSkeleton key={i} />)
+              : integrations && integrations.length > 0
+              ? integrations.map(i => <IntegrationCard key={i.provider} integration={i} />)
+              : (
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <EmptyState
+                      icon={ExternalLink}
+                      title="No integrations configured yet"
+                      description="Connect Notion, Google Calendar, or GitHub to enrich your AI OS"
+                      action={{
+                        label: "Connect Integration",
+                        onClick: () => {
+                          toast.info("Connecting Notion integration...");
+                          integrationsApi.authUrl('notion')
+                            .then(({ url }) => { window.location.href = url })
+                            .catch(() => toast.error("Failed to initiate Notion connection"));
+                        }
+                      }}
+                    />
                   </div>
-                ))
-              : integrations?.map(i => (
-                  <div key={i.provider} className="col-span-12 md:col-span-6 xl:col-span-4">
-                    <IntegrationCard integration={i} />
-                  </div>
-                ))
+                )
             }
-          </div>
+          </IntGrid>
         )}
-      </div>
-    </div>
+      </PageContent>
+    </PageRoot>
   )
 }

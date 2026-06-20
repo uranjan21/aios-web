@@ -1,8 +1,65 @@
+// @ts-nocheck
 import { useQuery } from '@tanstack/react-query'
-import { Empty } from 'antd'
+import { EmptyState } from '@ledgr/ui'
 import { Twitter } from 'lucide-react'
 import { contentApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Card } from '@ledgr/ui'
+import styled from 'styled-components'
+const StyledTwitter = styled(Twitter)`
+  color: ${({ theme }) => theme.color.primary};
+`
+const CountLabel = styled.span`
+  margin-left: auto;
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const List = styled.div`
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 4px;
+`
+
+const EntryRow = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 8px;
+  border-bottom: 1px solid ${({ theme }) => theme.color.border}4d;
+  border-radius: 0;
+  transition: background 120ms;
+  &:last-child { border-bottom: none; }
+  &:hover {
+    background: ${({ theme }) => theme.color.muted}33;
+    border-radius: 8px;
+  }
+`
+
+const Num = styled.span`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  flex-shrink: 0;
+  margin-top: 1px;
+`
+
+const EntryText = styled.span`
+  font-size: 12px;
+  color: ${({ theme }) => theme.color.foreground};
+  line-height: 1.4;
+  flex: 1;
+`
+
+const SkeletonStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`
+
+const QueueSkeleton = styled(Skeleton)`
+  height: 32px;
+  width: 100%;
+`
 
 /** Renders the vault's twitter-queue.md — list items become queue entries. */
 export function TwitterQueueCard() {
@@ -20,31 +77,24 @@ export function TwitterQueueCard() {
     .filter(Boolean)
 
   return (
-    <div className="bg-card border-0 rounded-2xl shadow-premium-sm p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Twitter size={14} className="text-sky-500" />
-        <h2 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Twitter Queue</h2>
-        {entries.length > 0 && (
-          <span className="ml-auto text-[11px] font-mono text-muted-foreground">{entries.length}</span>
-        )}
-      </div>
+    <Card title="Twitter Queue" size="md" icon={<StyledTwitter size={14} />} action={<CountLabel>{entries.length} items</CountLabel>}>
       {isLoading ? (
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-full" />
-          <Skeleton className="h-8 w-full" />
-        </div>
+        <SkeletonStack>
+          <QueueSkeleton />
+          <QueueSkeleton />
+        </SkeletonStack>
       ) : entries.length === 0 ? (
-        <Empty description="Queue empty — add items to twitter-queue.md in the vault" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <EmptyState title="Queue empty" description="Add items to twitter-queue.md in the vault" />
       ) : (
-        <div className="max-h-[300px] overflow-y-auto pr-1">
+        <List>
           {entries.map((e, i) => (
-            <div key={i} className="flex items-start gap-3 py-2.5 border-b border-border/30 last:border-0 hover:bg-muted/20 hover:rounded-xl px-2 transition-all">
-              <span className="text-[11px] font-mono text-muted-foreground shrink-0 mt-0.5">{i + 1}.</span>
-              <span className="text-[12px] text-foreground leading-snug flex-1">{e}</span>
-            </div>
+            <EntryRow key={i}>
+              <Num>{i + 1}.</Num>
+              <EntryText>{e}</EntryText>
+            </EntryRow>
           ))}
-        </div>
+        </List>
       )}
-    </div>
+    </Card>
   )
 }

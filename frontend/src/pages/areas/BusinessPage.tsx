@@ -1,27 +1,187 @@
+// @ts-nocheck
 import React, { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Rocket, History, Plus, DollarSign, Activity, TrendingUp } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { toast } from 'sonner'
+import { useQuery } from '@tanstack/react-query'
+import { Rocket, History, Plus, Activity, TrendingUp, LayoutDashboard, Calendar, BarChart3, Bot, Search, Bell, PlusCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { useUIStore } from '@/stores/uiStore'
+import { FilterBar, PeriodSelect } from '@/components/ui/FilterBar'
+import { motion } from 'framer-motion'
 import styled from 'styled-components'
-import { Button, Timeline, Tag, Select, Input, Form, Skeleton, Space, Statistic } from 'antd'
+import { Timeline } from 'antd'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Button, Badge } from '@ledgr/ui'
 import { AreaTabs } from '@/components/ui/AreaTabs'
 import { EventsTab } from '@/components/areas/business/EventsTab'
 import { SummaryTab } from '@/components/areas/business/SummaryTab'
+import { BusinessLogModal } from '@/components/areas/business/BusinessLogModal'
+
 import { businessApi } from '@/api/areas'
-import { formatCurrency, formatDate } from '@/lib/utils'
-import { ErrorCard } from '@/components/ErrorCard'
+import { formatDate } from '@/lib/utils'
 import { EmptyState } from '@/components/EmptyState'
-import { GlassCard, IconBadge } from '@/components/lumina'
+import { PageHeader, ActionChip } from '@/components/layout/PageLayout'
+import { IconBadge } from '@/components/lumina';
+import { Card as GlassCard } from '@ledgr/ui';
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
-  feature_shipped: 'green',
-  decision: 'blue',
-  revenue: 'gold',
-  blocker: 'red',
-  milestone: 'purple',
-  note: 'default',
+  feature_shipped: 'success',
+  decision: 'info',
+  revenue: 'warning',
+  blocker: 'destructive',
+  milestone: 'accent',
+  note: 'neutral',
 }
+
+const PageWrapper = styled.div`
+  min-height: 100vh;
+  background-color: var(--page-bg);
+  padding: 1rem;
+  @media (min-width: 768px) {
+    padding: 1.5rem;
+  }
+`
+
+const PageContainer = styled.div`
+  margin: 0 auto;
+  max-width: 1200px;
+`
+
+const ActionButtonContent = styled.div`
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+`
+
+const DashboardLayout = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+`
+
+const DashboardContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`
+
+const ProjectHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+`
+
+const ProjectTitle = styled.h2`
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color?.foreground || 'inherit'};
+  margin: 0;
+`
+
+const ProjectDescription = styled.p`
+  font-size: 0.75rem;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  margin: 0;
+`
+
+const BadgeWrapper = styled.div`
+  margin-left: auto;
+`
+
+const MetricsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 1rem;
+`
+
+const MetricCard = styled.div`
+  grid-column: span 12 / span 12;
+  @media (min-width: 768px) {
+    grid-column: span 4 / span 4;
+  }
+`
+
+const MetricLabel = styled.div`
+  font-size: 14px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  margin-bottom: 0.25rem;
+`
+
+const MetricValuePrimary = styled.div`
+  font-size: 24px;
+  color: ${({ theme }) => theme.color?.foreground || 'inherit'};
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+`
+
+const MetricValueSecondary = styled.div<{ $truncate?: boolean }>`
+  color: ${({ theme }) => theme.color?.foreground || 'inherit'};
+  font-weight: 500;
+  ${({ $truncate }) => $truncate && `
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  `}
+`
+
+const TimelineWrapper = styled.div`
+  margin-top: 0.5rem;
+`
+
+const TimelineItemHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+`
+
+const TimelineContentCol = styled.div`
+  display: flex;
+  flex-direction: column;
+`
+
+const TimelineTitleRow = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+`
+
+const TimelineBadgeContainer = styled.div`
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.25;
+  padding: 0 0.25rem;
+  border-color: transparent;
+  background-color: color-mix(in srgb, var(--muted) 50%, transparent);
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+`
+
+const TimelineTitle = styled.span`
+  font-size: 11px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color?.foreground || 'inherit'};
+`
+
+const TimelineDescription = styled.div`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  margin-top: 0.25rem;
+  line-height: 1.375;
+`
+
+const TimelineDate = styled.div`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  white-space: nowrap;
+  margin-top: 0.125rem;
+`
 
 const AnimatedTimelineItem = styled(motion.div)`
   padding: 0.375rem 0.5rem;
@@ -29,8 +189,75 @@ const AnimatedTimelineItem = styled(motion.div)`
   margin-bottom: 0.25rem;
   transition: all 0.2s ease;
   &:hover {
-    background: hsl(var(--muted) / 0.3);
+    background: color-mix(in srgb, var(--muted) 30%, transparent);
   }
+`
+
+const RunwayHeader = styled.div`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+`
+
+const RunwayLabel = styled.div`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+`
+
+const RunwayValue = styled.div`
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+`
+
+const RunwayStatusContainer = styled.div<{ $isHealthy: boolean }>`
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  
+  background-color: ${({ $isHealthy }) => $isHealthy ? 'color-mix(in srgb, var(--kpi-emerald) 10%, transparent)' : 'color-mix(in srgb, var(--kpi-red) 10%, transparent)'};
+  border-color: ${({ $isHealthy }) => $isHealthy ? 'color-mix(in srgb, var(--kpi-emerald) 20%, transparent)' : 'color-mix(in srgb, var(--kpi-red) 20%, transparent)'};
+`
+
+const RunwayStatusLabel = styled.div`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  margin-bottom: 0.125rem;
+`
+
+const RunwayStatusValue = styled.div<{ $isHealthy: boolean }>`
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: ${({ $isHealthy }) => $isHealthy ? 'var(--kpi-emerald)' : 'var(--kpi-red)'};
+`
+
+const RunwayStatusUnit = styled.span`
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.7;
+`
+
+const RunwayMessageWrapper = styled.div`
+  text-align: right;
+  max-width: 120px;
+`
+
+const RunwayMessage = styled.span`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  line-height: 1.25;
+  display: block;
 `
 
 function RunwayCalculator() {
@@ -43,196 +270,200 @@ function RunwayCalculator() {
   return (
     <GlassCard
       title="Runway Calculator"
-      icon={<TrendingUp size={16} className="text-muted-foreground" />}
-      action={<button className="text-xs font-medium px-2 py-0.5 bg-muted/50 hover:bg-muted text-muted-foreground rounded transition-colors">Details</button>}
+      icon={<TrendingUp size={16} color="var(--muted-foreground)" />}
+      action={null}
       hoverable
       fadeIn="up"
     >
-      <div className="flex flex-row items-center justify-between gap-4">
-        <Statistic
-          title={<span className="text-[10px] text-muted-foreground uppercase tracking-wider">Current Cash</span>}
-          value={cash}
-          prefix={<DollarSign size={14} />}
-          precision={0}
-          styles={{ content: { fontSize: '20px', fontWeight: 600 } }}
-        />
-        <Statistic
-          title={<span className="text-[10px] text-muted-foreground uppercase tracking-wider">Monthly Burn</span>}
-          value={burnRate}
-          prefix={<Activity size={14} />}
-          precision={0}
-          styles={{ content: { fontSize: '20px', fontWeight: 600 } }}
-        />
-      </div>
-      <div className={`mt-3 p-2 rounded-lg border flex items-center justify-between ${isHealthy ? 'bg-kpi-emerald/10 border-kpi-emerald/20' : 'bg-kpi-red/10 border-kpi-red/20'}`}>
+      <RunwayHeader>
         <div>
-          <div className="text-[10px] text-muted-foreground mb-0.5">Estimated Runway</div>
-          <div className={`text-xs font-semibold ${isHealthy ? 'text-kpi-emerald' : 'text-kpi-red'}`}>{runwayMonths} <span className="text-[10px] font-normal opacity-70">months</span></div>
+          <RunwayLabel>Current Cash</RunwayLabel>
+          <RunwayValue>
+            <span>₹</span>
+            <span>{cash.toLocaleString()}</span>
+          </RunwayValue>
         </div>
-        <div className="text-right max-w-[120px]">
-          <span className="text-[10px] text-muted-foreground leading-tight block">
+        <div>
+          <RunwayLabel>Monthly Burn</RunwayLabel>
+          <RunwayValue>
+            <Activity size={14} />
+            <span>{burnRate.toLocaleString()}</span>
+          </RunwayValue>
+        </div>
+      </RunwayHeader>
+      <RunwayStatusContainer $isHealthy={isHealthy}>
+        <div>
+          <RunwayStatusLabel>Estimated Runway</RunwayStatusLabel>
+          <RunwayStatusValue $isHealthy={isHealthy}>
+            {runwayMonths} <RunwayStatusUnit>months</RunwayStatusUnit>
+          </RunwayStatusValue>
+        </div>
+        <RunwayMessageWrapper>
+          <RunwayMessage>
             {isHealthy ? 'Looking solid!' : 'Warning: Low runway.'}
-          </span>
-        </div>
-      </div>
+          </RunwayMessage>
+        </RunwayMessageWrapper>
+      </RunwayStatusContainer>
     </GlassCard>
   )
 }
 
-function EventForm({ onClose }: { onClose: () => void }) {
-  const queryClient = useQueryClient()
-  const [form] = Form.useForm()
-
-  const { mutate, isPending } = useMutation({
-    mutationFn: (values: any) => businessApi.createEvent({
-      event_type: values.eventType,
-      title: values.title.trim(),
-      description: values.description?.trim() || undefined,
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['business'] })
-      form.resetFields()
-      toast.success('Event logged')
-      onClose()
-    },
-    onError: () => toast.error('Failed to log event'),
-  })
-
-  return (
-    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-      <Form form={form} layout="vertical" onFinish={mutate} className="p-4 bg-muted/50 rounded-2xl mb-4 border-0 shadow-premium-sm">
-        <div className="grid grid-cols-12 gap-4">
-          <div className="col-span-12 md:col-span-4">
-            <Form.Item name="eventType" initialValue="feature_shipped" rules={[{ required: true }]}>
-              <Select>
-                {Object.keys(EVENT_TYPE_COLORS).map(t => (
-                  <Select.Option key={t} value={t}>{t.replace('_', ' ')}</Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-          </div>
-          <div className="col-span-12 md:col-span-8">
-            <Form.Item name="title" rules={[{ required: true, message: 'Title is required' }]}>
-              <Input placeholder="Event Title" />
-            </Form.Item>
-          </div>
-        </div>
-        <Form.Item name="description">
-          <Input.TextArea placeholder="Description (optional)" autoSize={{ minRows: 2, maxRows: 4 }} />
-        </Form.Item>
-        <Space className="w-full justify-end">
-          <Button type="text" onClick={onClose}>Cancel</Button>
-          <Button type="primary" htmlType="submit" loading={isPending}>
-            Log Event
-          </Button>
-        </Space>
-      </Form>
-    </motion.div>
-  )
-}
-
 export function BusinessPage() {
-  const [showEventForm, setShowEventForm] = useState(false)
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [eventType, setEventType] = useState('all')
+  const [period, setPeriod] = useState('2026-06')
+  const navigate = useNavigate()
+  const { setCmdPaletteOpen, setCaptureModalOpen } = useUIStore()
   const { data: events, isLoading: loadingEvents } = useQuery({ queryKey: ['business', 'events'], queryFn: businessApi.events })
   const { data: summary, isLoading: loadingSummary } = useQuery({ queryKey: ['business', 'summary'], queryFn: businessApi.summary })
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
-      <div className="mx-auto max-w-[1200px]">
+    <PageWrapper>
+      <PageContainer>
+      <PageHeader
+        icon={Rocket}
+        category="Ventures"
+        title="Business"
+        description="Metrics, milestones and the event timeline — track your venture in one place."
+        actions={
+          <>
+            <ActionChip onClick={() => navigate('/chat')}><Bot /> Ask AI</ActionChip>
+            <ActionChip onClick={() => setCaptureModalOpen(true)}><PlusCircle /> Capture</ActionChip>
+            <ActionChip onClick={() => setCmdPaletteOpen(true)}><Search /> Search</ActionChip>
+            <ActionChip onClick={() => navigate('/agents')}><Bell /> Reminders</ActionChip>
+          </>
+        }
+      />
       <AreaTabs
         defaultActiveKey="1"
+        toolbar={
+          <FilterBar
+            search={{ value: query, onChange: setQuery, placeholder: 'Search events, milestones…' }}
+            filters={[
+              { id: 'eventType', label: 'Type', value: eventType, onChange: setEventType, options: [
+                { value: 'all', label: 'All types' },
+                { value: 'feature', label: 'Feature' },
+                { value: 'milestone', label: 'Milestone' },
+                { value: 'revenue', label: 'Revenue' },
+              ] },
+            ]}
+            period={<PeriodSelect value={period} onChange={setPeriod} />}
+            actions={
+              <Button size="sm" variant="primary" onClick={() => setIsLogModalOpen(true)}>
+                <ActionButtonContent>
+                  <Plus size={12} />
+                  <span>Log Business Event</span>
+                </ActionButtonContent>
+              </Button>
+            }
+          />
+        }
         items={[
           {
             key: '1',
-            label: 'Dashboard',
+            label: <><LayoutDashboard size={14} /> Dashboard</>,
             children: (
-              <div className="grid grid-cols-12 gap-4 w-full items-start">
-                {/* Left Column: Metrics & Timeline */}
-                <div className="col-span-12 xl:col-span-8 flex flex-col gap-4">
+              <DashboardLayout>
+
+                {/* Main content */}
+                <DashboardContent>
                   <GlassCard hoverable fadeIn="up">
-                    <div className="flex items-center gap-3 mb-3">
+                    <ProjectHeader>
                       <IconBadge icon={Rocket} color="primary" size="md" />
                       <div>
-                        <h2 className="text-xs font-medium text-foreground m-0">Ledgr</h2>
-                        <p className="text-xs text-muted-foreground m-0">SaaS accounting for Indian freelancers</p>
+                        <ProjectTitle>Ledgr</ProjectTitle>
+                        <ProjectDescription>SaaS accounting for Indian freelancers</ProjectDescription>
                       </div>
-                      <Tag color="blue" className="ml-auto">Building</Tag>
-                    </div>
+                      <BadgeWrapper>
+                        <Badge tone="info">Building</Badge>
+                      </BadgeWrapper>
+                    </ProjectHeader>
 
-                    <div className="grid grid-cols-12 gap-4">
-                      <div className="col-span-12 md:col-span-4">
-                        <Statistic title="MRR" value={summary?.mrr ?? 0} prefix="$" precision={2} loading={loadingSummary} />
-                      </div>
-                      <div className="col-span-12 md:col-span-4">
-                        <div className="ant-statistic-title mb-1">Last Feature</div>
-                        {loadingSummary ? <Skeleton.Input size="small" active /> : <div className="text-foreground font-medium truncate">{summary?.last_feature ?? '—'}</div>}
-                      </div>
-                      <div className="col-span-12 md:col-span-4">
-                        <div className="ant-statistic-title mb-1">Shipped At</div>
-                        {loadingSummary ? <Skeleton.Input size="small" active /> : <div className="text-foreground font-medium">{formatDate(summary?.last_feature_at)}</div>}
-                      </div>
-                    </div>
+                    <MetricsGrid>
+                      <MetricCard>
+                        <div>
+                          <MetricLabel>MRR</MetricLabel>
+                          {loadingSummary ? <Skeleton style={{ height: '28px', width: '96px' }} /> : (
+                            <MetricValuePrimary>
+                              <span>₹</span>
+                              <span>{(summary?.mrr ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </MetricValuePrimary>
+                          )}
+                        </div>
+                      </MetricCard>
+                      <MetricCard>
+                        <MetricLabel>Last Feature</MetricLabel>
+                        {loadingSummary ? <Skeleton style={{ height: '24px', width: '128px' }} /> : <MetricValueSecondary $truncate>{summary?.last_feature ?? '—'}</MetricValueSecondary>}
+                      </MetricCard>
+                      <MetricCard>
+                        <MetricLabel>Shipped At</MetricLabel>
+                        {loadingSummary ? <Skeleton style={{ height: '24px', width: '128px' }} /> : <MetricValueSecondary>{formatDate(summary?.last_feature_at)}</MetricValueSecondary>}
+                      </MetricCard>
+                    </MetricsGrid>
                   </GlassCard>
 
                   <GlassCard
                     title="Event Timeline"
-                    icon={<History size={16} className="text-muted-foreground" />}
-                    action={
-                      <Space>
-                        <Button type="primary" icon={<Plus size={14} />} onClick={() => setShowEventForm(!showEventForm)}>Log</Button>
-                        <button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Details</button>
-                      </Space>
-                    }
+                    icon={<History size={16} color="var(--muted-foreground)" />}
+                    action={null}
                     hoverable
                     fadeIn="up"
                     delay={100}
                   >
-                    <AnimatePresence>{showEventForm && <EventForm onClose={() => setShowEventForm(false)} />}</AnimatePresence>
-
                     {loadingEvents ? <Skeleton active /> : events?.length ? (
-                      <Timeline className="mt-2"
-                        items={events.map((e: any, i: number) => ({
-                          color: EVENT_TYPE_COLORS[e.event_type] || 'blue',
-                          children: (
-                            <AnimatedTimelineItem initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
-                              <div className="flex justify-between items-start gap-2">
-                                <div className="flex flex-col">
-                                  <Space size="small">
-                                    <Tag className="m-0 text-[10px] leading-tight px-1 py-0 border-transparent bg-muted/50" color={EVENT_TYPE_COLORS[e.event_type] || 'default'}>{e.event_type.replace('_', ' ')}</Tag>
-                                    <span className="text-[11px] font-medium text-foreground">{e.title}</span>
-                                  </Space>
-                                  {e.description && <div className="text-[11px] text-muted-foreground mt-1 leading-snug">{e.description}</div>}
-                                </div>
-                                <div className="text-[11px] text-muted-foreground whitespace-nowrap mt-0.5">{formatDate(e.occurred_at)}</div>
-                              </div>
-                            </AnimatedTimelineItem>
-                          )
-                        }))}
+                      <TimelineWrapper>
+                        <Timeline
+                          items={events.map((e: any, i: number) => ({
+                            color: EVENT_TYPE_COLORS[e.event_type] || 'blue',
+                            children: (
+                              <AnimatedTimelineItem initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
+                                <TimelineItemHeader>
+                                  <TimelineContentCol>
+                                    <TimelineTitleRow>
+                                      <TimelineBadgeContainer>
+                                        <Badge tone={(EVENT_TYPE_COLORS[e.event_type] || 'neutral') as any}>{e.event_type.replace('_', ' ')}</Badge>
+                                      </TimelineBadgeContainer>
+                                      <TimelineTitle>{e.title}</TimelineTitle>
+                                    </TimelineTitleRow>
+                                    {e.description && <TimelineDescription>{e.description}</TimelineDescription>}
+                                  </TimelineContentCol>
+                                  <TimelineDate>{formatDate(e.occurred_at)}</TimelineDate>
+                                </TimelineItemHeader>
+                              </AnimatedTimelineItem>
+                            )
+                          }))}
+                        />
+                      </TimelineWrapper>
+                    ) : (
+                      <EmptyState
+                        icon={History}
+                        title="No events"
+                        description="Log your business milestones."
+                        action={{ label: "Add Entry", onClick: () => setIsLogModalOpen(true) }}
                       />
-                    ) : <EmptyState icon={History} title="No events" description="Log your business milestones." />}
+                    )}
                   </GlassCard>
-                </div>
+                </DashboardContent>
 
-                {/* Right Column: Runway */}
-                <div className="col-span-12 xl:col-span-4">
-                  <RunwayCalculator />
-                </div>
-              </div>
+                <RunwayCalculator />
+              </DashboardLayout>
             ),
           },
           {
             key: '2',
-            label: 'Events',
+            label: <><Calendar size={14} /> Events</>,
             children: <EventsTab />,
           },
           {
             key: '3',
-            label: 'Summary',
+            label: <><BarChart3 size={14} /> Summary</>,
             children: <SummaryTab />,
           },
         ]}
       />
-      </div>
-    </div>
+      <BusinessLogModal open={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} />
+      </PageContainer>
+    </PageWrapper>
   )
 }

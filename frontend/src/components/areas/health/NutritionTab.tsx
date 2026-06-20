@@ -1,14 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button, Form, Input, Select, AutoComplete, InputNumber } from 'antd'
+import styled from 'styled-components'
+
 import { Utensils, Clock, Search } from 'lucide-react'
 import { healthApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import { format } from 'date-fns'
 import type { FoodDbItem } from '@/types'
-import { GlassCard } from '@/components/lumina'
+import { Card as GlassCard } from '@ledgr/ui';
 import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
+import { TabToolbar } from '@/components/ui/TabToolbar'
+import { Dialog, Button, Input, Select, SelectItem, Card } from '@ledgr/ui'
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack']
 
@@ -27,18 +30,54 @@ interface MacroBarProps {
   color: string
 }
 
+const StyledMacroBarWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`;
+
+const StyledMacroBarHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+`;
+
+const StyledMacroBarLabel = styled.span`
+  font-weight: 500;
+  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
+`;
+
+const StyledMacroBarValues = styled.span`
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+`;
+
+const StyledMacroBarTrack = styled.div`
+  height: 0.5rem;
+  background-color: ${({ theme }) => theme.color?.muted || 'var(--muted)'};
+  border-radius: 9999px;
+  overflow: hidden;
+`;
+
+const StyledMacroBarFill = styled.div<{ $pct: number; $color: string }>`
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.5s ease;
+  width: ${({ $pct }) => `${$pct}%`};
+  background-color: ${({ $color }) => $color};
+`;
+
 function MacroBar({ label, current, target, unit = 'g', color }: MacroBarProps) {
   const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
   return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-[11px]">
-        <span className="font-medium text-foreground">{label}</span>
-        <span className="text-muted-foreground">{current}{unit} / {target}{unit}</span>
-      </div>
-      <div className="h-2 bg-muted rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
-      </div>
-    </div>
+    <StyledMacroBarWrapper>
+      <StyledMacroBarHeader>
+        <StyledMacroBarLabel>{label}</StyledMacroBarLabel>
+        <StyledMacroBarValues>{current}{unit} / {target}{unit}</StyledMacroBarValues>
+      </StyledMacroBarHeader>
+      <StyledMacroBarTrack>
+        <StyledMacroBarFill $pct={pct} $color={color} />
+      </StyledMacroBarTrack>
+    </StyledMacroBarWrapper>
   )
 }
 
@@ -46,6 +85,47 @@ interface CalorieRingProps {
   calories: number
   target: number
 }
+
+const StyledCalorieRingWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
+const StyledCalorieRingSvgWrapper = styled.div`
+  position: relative;
+`;
+
+const StyledCalorieRingSvg = styled.svg`
+  transform: rotate(-90deg);
+`;
+
+const StyledCalorieRingTextWrapper = styled.div`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+`;
+
+const StyledCalorieRingValue = styled.span`
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
+`;
+
+const StyledCalorieRingUnit = styled.span`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+`;
+
+const StyledCalorieRingSubtitle = styled.p`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  margin: 0;
+`;
 
 function CalorieRing({ calories, target }: CalorieRingProps) {
   const pct = target > 0 ? Math.min(100, (calories / target) * 100) : 0
@@ -56,25 +136,25 @@ function CalorieRing({ calories, target }: CalorieRingProps) {
   const offset = circ - (pct / 100) * circ
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90">
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth={stroke} />
+    <StyledCalorieRingWrapper>
+      <StyledCalorieRingSvgWrapper style={{ width: size, height: size }}>
+        <StyledCalorieRingSvg width={size} height={size}>
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--muted)" strokeWidth={stroke} />
           <circle
             cx={size / 2} cy={size / 2} r={r} fill="none"
-            stroke="#f97316" strokeWidth={stroke}
+            stroke="#F8D168" strokeWidth={stroke}
             strokeDasharray={circ} strokeDashoffset={offset}
             strokeLinecap="round"
             style={{ transition: 'stroke-dashoffset 0.5s ease' }}
           />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-xl font-bold text-foreground">{calories}</span>
-          <span className="text-[10px] text-muted-foreground">kcal</span>
-        </div>
-      </div>
-      <p className="text-[11px] text-muted-foreground">Target: {target} kcal · {Math.round(pct)}% reached</p>
-    </div>
+        </StyledCalorieRingSvg>
+        <StyledCalorieRingTextWrapper>
+          <StyledCalorieRingValue>{calories}</StyledCalorieRingValue>
+          <StyledCalorieRingUnit>kcal</StyledCalorieRingUnit>
+        </StyledCalorieRingTextWrapper>
+      </StyledCalorieRingSvgWrapper>
+      <StyledCalorieRingSubtitle>Target: {target} kcal · {Math.round(pct)}% reached</StyledCalorieRingSubtitle>
+    </StyledCalorieRingWrapper>
   )
 }
 
@@ -95,8 +175,198 @@ function parseMealNotes(notes: string | null): ParsedMeal {
   }
 }
 
+const StyledContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const StyledMacrosWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  align-items: center;
+
+  @media (min-width: 640px) {
+    flex-direction: row;
+  }
+`;
+
+const StyledMacroBarsContainer = styled.div`
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`;
+const StyledEmptyState = styled.div`
+  padding: 2rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+`;
+
+const StyledMealsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  
+  & > div {
+    border-bottom: 1px solid rgba(45, 49, 58, 0.15);
+  }
+  
+  & > div:last-child {
+    border-bottom: none;
+  }
+`;
+
+const StyledMealItem = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  transition: background-color 0.2s;
+  
+  &:hover {
+    background-color: rgba(45, 49, 58, 0.02);
+  }
+`;
+
+const StyledMealInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+`;
+
+const StyledMealIconWrapper = styled.div`
+  padding: 0.375rem;
+  border-radius: 0.5rem;
+  background-color: rgba(248, 209, 104, 0.1);
+`;
+
+const StyledMealName = styled.p`
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
+  margin: 0;
+`;
+
+const StyledMealTime = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 10px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  margin-top: 0.125rem;
+`;
+
+const StyledMealType = styled.span`
+  text-transform: capitalize;
+`;
+
+const StyledMealStats = styled.div`
+  text-align: right;
+`;
+
+const StyledMealCalories = styled.p`
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
+  margin: 0;
+`;
+
+const StyledMealMacros = styled.p`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  margin: 0;
+`;
+
+const StyledModalContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const StyledQuickAddSection = styled.div`
+  margin-bottom: 0.5rem;
+`;
+
+const StyledQuickAddTitle = styled.p`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  margin: 0 0 0.375rem 0;
+`;
+
+const StyledQuickAddButtons = styled.div`
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+`;
+
+const StyledQuickAddButton = styled.button`
+  font-size: 11px;
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  background-color: ${({ theme }) => theme.color?.muted || 'var(--muted)'};
+  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
+  border: 1px solid rgba(45, 49, 58, 0.15);
+  transition: background-color 0.2s;
+  cursor: pointer;
+  
+  &:hover {
+    background-color: rgba(45, 49, 58, 0.2);
+  }
+`;
+
+const StyledSearchSection = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+`;
+
+const StyledSearchInputWrapper = styled.div`
+  flex: 1;
+  position: relative;
+`;
+
+const StyledSearchFeedback = styled.div`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  margin-bottom: 0.5rem;
+`;
+
+const StyledForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const StyledFormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`;
+
+const StyledLabel = styled.label`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  display: block;
+`;
+
+const StyledFormGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+`;
+
+const StyledButtonContent = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+`;
+
 export function NutritionTab() {
-  const [form] = Form.useForm()
+  const [formState, setFormState] = useState({ food_name: '', calories: '', protein: '', carbs: '', fat: '', meal_type: 'Snack' })
   const queryClient = useQueryClient()
   const [foodQuery, setFoodQuery] = useState('')
   const [selectedFood, setSelectedFood] = useState<FoodDbItem | null>(null)
@@ -110,13 +380,14 @@ export function NutritionTab() {
   // Scale per-100g macros to the chosen quantity and fill the form
   const applyFood = (food: FoodDbItem, qty: number) => {
     const f = qty / 100
-    form.setFieldsValue({
+    setFormState(prev => ({
+      ...prev,
       food_name: food.name,
       calories: String(Math.round(food.calories * f)),
       protein: String(Math.round(food.protein * f * 10) / 10),
       carbs: String(Math.round(food.carbs * f * 10) / 10),
       fat: String(Math.round(food.fat * f * 10) / 10),
-    })
+    }))
   }
 
   const handleFoodSelect = (name: string) => {
@@ -155,7 +426,7 @@ export function NutritionTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['health', 'nutrition'] })
       toast.success('Meal logged')
-      form.resetFields()
+      setFormState({ food_name: '', calories: '', protein: '', carbs: '', fat: '', meal_type: 'Snack' })
       setSelectedFood(null)
       setGrams(null)
     },
@@ -163,7 +434,7 @@ export function NutritionTab() {
   })
 
   const handleQuickAdd = (item: typeof QUICK_ADDS[0]) => {
-    form.setFieldsValue({
+    setFormState({
       food_name: item.label.replace(/^[^\s]+ /, ''),
       calories: String(item.kcal),
       protein: String(item.protein),
@@ -178,150 +449,163 @@ export function NutritionTab() {
   const carbTarget = goals?.carb_target ?? 250
   const fatTarget = goals?.fat_target ?? 65
 
-  const rail = (
-    <>
-      <RailHeading>Log Meal</RailHeading>
-      <GlassCard hoverable fadeIn="up">
-        <div className="mb-2">
-          <p className="text-[11px] text-muted-foreground mb-1.5">Quick Add</p>
-          <div className="flex gap-1.5 flex-wrap">
-            {QUICK_ADDS.map(item => (
-              <button
-                key={item.label}
-                onClick={() => handleQuickAdd(item)}
-                className="text-[11px] font-medium px-2 py-1 rounded-lg bg-muted hover:bg-muted/70 text-foreground border border-border/60 transition"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
+  const [logModalOpen, setLogModalOpen] = useState(false)
 
-        <div className="flex gap-2 mb-2">
-          <AutoComplete
-            className="flex-1"
-            placeholder="Search food — Roti, Dal…"
-            onSearch={setFoodQuery}
-            onSelect={handleFoodSelect}
-            options={(foods ?? []).map(f => ({
-              value: f.name,
-              label: (
-                <div className="flex justify-between gap-2">
-                  <span>{f.name}</span>
-                  <span className="text-muted-foreground text-[11px]">{f.calories} kcal/100g{f.serving_desc ? ` · ${f.serving_desc}` : ''}</span>
-                </div>
-              ),
-            }))}
-            suffixIcon={<Search size={12} />}
-            allowClear
-            size="small"
-            onClear={() => { setSelectedFood(null); setGrams(null) }}
-          />
-          <InputNumber
-            placeholder="g"
-            min={1}
-            className="w-16"
-            size="small"
-            value={grams}
-            onChange={handleGramsChange}
-            disabled={!selectedFood}
-          />
-        </div>
-        {selectedFood && grams && (
-          <div className="text-[11px] text-muted-foreground mb-2">
-            {selectedFood.name} × {grams}g — macros auto-filled
-          </div>
-        )}
-        <Form form={form} layout="vertical" onFinish={logMealMutation.mutate} requiredMark={false}>
-          <Form.Item name="food_name" label={<span className="text-[11px] text-muted-foreground">Food Name</span>} rules={[{ required: true }]}>
-            <Input placeholder="e.g. Chicken Rice Bowl" size="small" />
-          </Form.Item>
-          <Form.Item name="meal_type" label={<span className="text-[11px] text-muted-foreground">Meal Type</span>} initialValue="Snack">
-            <Select size="small">
-              {MEAL_TYPES.map(m => <Select.Option key={m} value={m}>{m}</Select.Option>)}
-            </Select>
-          </Form.Item>
-          <div className="grid grid-cols-2 gap-2">
-            <Form.Item name="calories" label={<span className="text-[11px] text-muted-foreground">Calories</span>} rules={[{ required: true }]}>
-              <Input type="number" suffix="kcal" placeholder="0" min="0" size="small" />
-            </Form.Item>
-            <Form.Item name="protein" label={<span className="text-[11px] text-muted-foreground">Protein (g)</span>}>
-              <Input type="number" suffix="g" placeholder="0" min="0" size="small" />
-            </Form.Item>
-            <Form.Item name="carbs" label={<span className="text-[11px] text-muted-foreground">Carbs (g)</span>}>
-              <Input type="number" suffix="g" placeholder="0" min="0" size="small" />
-            </Form.Item>
-            <Form.Item name="fat" label={<span className="text-[11px] text-muted-foreground">Fat (g)</span>}>
-              <Input type="number" suffix="g" placeholder="0" min="0" size="small" />
-            </Form.Item>
-          </div>
-          <Button type="primary" htmlType="submit" loading={logMealMutation.isPending} size="small" block>Log Meal</Button>
-        </Form>
-      </GlassCard>
-    </>
-  )
+  useEffect(() => {
+    const handleOpen = () => setLogModalOpen(true)
+    window.addEventListener('open-new-nutrition', handleOpen)
+    return () => window.removeEventListener('open-new-nutrition', handleOpen)
+  }, [])
+
+
 
   return (
-    <WorkspaceLayout rail={rail}>
-      <div className="space-y-4">
+    <>
+    <WorkspaceLayout rail={undefined}>
+      <StyledContainer>
         {/* Calorie ring + macros */}
-        <div className="bg-card border-0 rounded-2xl p-4 shadow-premium-sm">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Today's Nutrition</p>
+        <Card title="Today's Nutrition" size="md">
           {loadingNutrition || loadingGoals ? (
-            <Skeleton className="h-40 w-full" />
+            <Skeleton style={{ height: '10rem', width: '100%' }} />
           ) : (
-            <div className="flex flex-col sm:flex-row items-center gap-6">
+            <StyledMacrosWrapper>
               <CalorieRing calories={nutrition?.calories ?? 0} target={calorieTarget} />
-              <div className="flex-1 w-full space-y-3">
-                <MacroBar label="Protein" current={nutrition?.protein ?? 0} target={proteinTarget} color="#10b981" />
-                <MacroBar label="Carbs" current={nutrition?.carbs ?? 0} target={carbTarget} color="#f59e0b" />
-                <MacroBar label="Fat" current={nutrition?.fat ?? 0} target={fatTarget} color="#f43f5e" />
-              </div>
-            </div>
+              <StyledMacroBarsContainer>
+                <MacroBar label="Protein" current={nutrition?.protein ?? 0} target={proteinTarget} color="#F8D168" />
+                <MacroBar label="Carbs" current={nutrition?.carbs ?? 0} target={carbTarget} color="#F8D168" />
+                <MacroBar label="Fat" current={nutrition?.fat ?? 0} target={fatTarget} color="#F4A261" />
+              </StyledMacroBarsContainer>
+            </StyledMacrosWrapper>
           )}
-        </div>
+        </Card>
 
         {/* Today's meals */}
-        <div className="bg-card border-0 rounded-2xl overflow-hidden shadow-premium-sm">
-          <div className="px-4 py-2.5 border-b border-border/40">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Today's Meals</p>
-          </div>
+        <Card title="Today's Meals" size="none">
           {loadingNutrition ? (
-            <div className="p-3 space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+            <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>{[1, 2, 3].map(i => <Skeleton key={i} style={{ height: '3rem', width: '100%' }} />)}</div>
           ) : !nutrition?.meals.length ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">No meals logged today. Use the rail to log one.</div>
+            <StyledEmptyState>No meals logged today. Use the rail to log one.</StyledEmptyState>
           ) : (
-            <div className="divide-y divide-border/40">
+            <StyledMealsList>
               {nutrition.meals.map(meal => {
                 const parsed = parseMealNotes(meal.notes)
                 return (
-                  <div key={meal.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/20 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="p-1.5 bg-primary/10 rounded-lg">
-                        <Utensils className="w-3.5 h-3.5 text-primary" />
-                      </div>
+                  <StyledMealItem key={meal.id}>
+                    <StyledMealInfo>
+                      <StyledMealIconWrapper>
+                        <Utensils style={{ width: '14px', height: '14px', color: 'var(--primary)' }} />
+                      </StyledMealIconWrapper>
                       <div>
-                        <p className="text-sm font-medium text-foreground">{parsed.food_name}</p>
-                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                          <Clock className="w-3 h-3" />
+                        <StyledMealName>{parsed.food_name}</StyledMealName>
+                        <StyledMealTime>
+                          <Clock style={{ width: '12px', height: '12px' }} />
                           {format(new Date(meal.logged_at), 'h:mm a')}
-                          <span className="capitalize">· {parsed.meal_type}</span>
-                        </div>
+                          <StyledMealType>· {parsed.meal_type}</StyledMealType>
+                        </StyledMealTime>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-foreground">{parsed.protein + parsed.carbs + parsed.fat > 0 ? `${Math.round((parsed.protein * 4 + parsed.carbs * 4 + parsed.fat * 9))} kcal` : ''}</p>
-                      <p className="text-[10px] text-muted-foreground">
+                    </StyledMealInfo>
+                    <StyledMealStats>
+                      <StyledMealCalories>{parsed.protein + parsed.carbs + parsed.fat > 0 ? `${Math.round((parsed.protein * 4 + parsed.carbs * 4 + parsed.fat * 9))} kcal` : ''}</StyledMealCalories>
+                      <StyledMealMacros>
                         P:{parsed.protein}g C:{parsed.carbs}g F:{parsed.fat}g
-                      </p>
-                    </div>
-                  </div>
+                      </StyledMealMacros>
+                    </StyledMealStats>
+                  </StyledMealItem>
                 )
               })}
-            </div>
+            </StyledMealsList>
           )}
-        </div>
-      </div>
+        </Card>
+      </StyledContainer>
     </WorkspaceLayout>
+
+    <Dialog open={logModalOpen} onOpenChange={setLogModalOpen} title="Log Meal">
+      <StyledModalContent>
+        <StyledQuickAddSection>
+          <StyledQuickAddTitle>Quick Add</StyledQuickAddTitle>
+          <StyledQuickAddButtons>
+            {QUICK_ADDS.map(item => (
+              <StyledQuickAddButton key={item.label} onClick={() => handleQuickAdd(item)}>
+                {item.label}
+              </StyledQuickAddButton>
+            ))}
+          </StyledQuickAddButtons>
+        </StyledQuickAddSection>
+
+        <StyledSearchSection>
+          <StyledSearchInputWrapper>
+            <Input
+              style={{ width: '100%' }}
+              placeholder="Search food — Roti, Dal…"
+              list="food-search"
+              value={foodQuery}
+              onChange={(e: any) => {
+                setFoodQuery(e.target.value)
+                const match = foods?.find(f => f.name === e.target.value)
+                if (match) handleFoodSelect(match.name)
+                else if (!e.target.value) { setSelectedFood(null); setGrams(null) }
+              }}
+              size="sm"
+            />
+            <datalist id="food-search">
+              {(foods ?? []).map(f => (
+                <option key={f.name} value={f.name}>
+                  {f.name} ({f.calories} kcal/100g)
+                </option>
+              ))}
+            </datalist>
+          </StyledSearchInputWrapper>
+          <Input
+            type="number"
+            placeholder="g"
+            min={1}
+            style={{ width: '4rem' }}
+            size="sm"
+            value={grams ?? ''}
+            onChange={(e: any) => handleGramsChange(e.target.value ? Number(e.target.value) : null)}
+            disabled={!selectedFood}
+          />
+        </StyledSearchSection>
+        
+        {selectedFood && grams && (
+          <StyledSearchFeedback>
+            {selectedFood.name} × {grams}g — macros auto-filled
+          </StyledSearchFeedback>
+        )}
+        
+        <StyledForm onSubmit={e => { e.preventDefault(); logMealMutation.mutate(formState); }}>
+          <StyledFormGroup>
+            <StyledLabel>Food Name</StyledLabel>
+            <Input required placeholder="e.g. Chicken Rice Bowl" size="sm" value={formState.food_name} onChange={(e: any) => setFormState(p => ({ ...p, food_name: e.target.value }))} />
+          </StyledFormGroup>
+          <StyledFormGroup>
+            <StyledLabel>Meal Type</StyledLabel>
+            <Select size="sm" value={formState.meal_type} onChange={(v: any) => setFormState(p => ({ ...p, meal_type: v }))}>
+              {MEAL_TYPES.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+            </Select>
+          </StyledFormGroup>
+          <StyledFormGrid>
+            <StyledFormGroup>
+              <StyledLabel>Calories</StyledLabel>
+              <Input type="number" required placeholder="0" min={0} size="sm" value={formState.calories} onChange={(e: any) => setFormState(p => ({ ...p, calories: e.target.value }))} />
+            </StyledFormGroup>
+            <StyledFormGroup>
+              <StyledLabel>Protein (g)</StyledLabel>
+              <Input type="number" placeholder="0" min={0} size="sm" value={formState.protein} onChange={(e: any) => setFormState(p => ({ ...p, protein: e.target.value }))} />
+            </StyledFormGroup>
+            <StyledFormGroup>
+              <StyledLabel>Carbs (g)</StyledLabel>
+              <Input type="number" placeholder="0" min={0} size="sm" value={formState.carbs} onChange={(e: any) => setFormState(p => ({ ...p, carbs: e.target.value }))} />
+            </StyledFormGroup>
+            <StyledFormGroup>
+              <StyledLabel>Fat (g)</StyledLabel>
+              <Input type="number" placeholder="0" min={0} size="sm" value={formState.fat} onChange={(e: any) => setFormState(p => ({ ...p, fat: e.target.value }))} />
+            </StyledFormGroup>
+          </StyledFormGrid>
+          <Button variant="primary" type="submit" disabled={logMealMutation.isPending} size="sm" style={{ width: '100%' }}>Log Meal</Button>
+        </StyledForm>
+      </StyledModalContent>
+    </Dialog>
+    </>
   )
 }

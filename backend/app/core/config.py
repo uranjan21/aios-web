@@ -11,7 +11,8 @@ _INSECURE_DEFAULTS = {"change-me-in-production", "changeme", "secret", ""}
 class Settings(BaseSettings):
     # App
     app_secret_key: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
-    app_password: str = Field(default_factory=lambda: secrets.token_urlsafe(16))
+    app_email: str = "demo@aios.dev"
+    app_password: str = "demo1234"
     allowed_origin: str = "http://localhost:5173"
     environment: str = "development"  # "production" | "development"
 

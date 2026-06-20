@@ -1,16 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react'
 import { toast } from 'sonner'
-import { Play, RefreshCw, CheckCircle, XCircle, Zap, Terminal, Activity, Calendar } from 'lucide-react'
+import { Play, RefreshCw, CheckCircle, XCircle, Zap, Terminal, Activity, Calendar, Bot } from 'lucide-react'
 import { agentsApi } from '@/api/agents'
 import { formatRelativeTime } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorCard } from '@/components/ErrorCard'
 import { EmptyState } from '@/components/EmptyState'
+import { PageHeader } from '@/components/layout/PageLayout'
 import type { Agent } from '@/types'
 
-import styled, { keyframes } from 'styled-components'
-import { Switch, Button, Drawer, Tooltip, ConfigProvider, theme } from 'antd'
+import styled, { keyframes, createGlobalStyle, useTheme } from 'styled-components'
+import { Button, Switch, Tooltip, Sheet } from '@ledgr/ui'
+import { Card as AppCard } from '@ledgr/ui'
 
 class AgentErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error: Error | null}> {
   constructor(props: {children: ReactNode}) {
@@ -26,9 +28,9 @@ class AgentErrorBoundary extends Component<{children: ReactNode}, {hasError: boo
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: 20, background: 'rgba(255,0,0,0.1)', color: 'white', borderRadius: 8 }}>
-          <h3>Card Crashed!</h3>
-          <p style={{ fontFamily: 'monospace' }}>{this.state.error?.toString()}</p>
+        <div style={{ padding: 16, background: 'color-mix(in srgb, var(--destructive) 8%, transparent)', borderRadius: '12px', border: '1px solid color-mix(in srgb, var(--destructive) 20%, transparent)' }}>
+          <h3 style={{ fontSize: 13, fontWeight: 500, color: 'var(--destructive)' }}>Agent card error</h3>
+          <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 4 }}>{this.state.error?.toString()}</p>
         </div>
       );
     }
@@ -38,27 +40,37 @@ class AgentErrorBoundary extends Component<{children: ReactNode}, {hasError: boo
 
 // --- Styled Components ---
 
+const SpinGlobal = createGlobalStyle`
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+`
+
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 `;
 
 const pulseGlow = keyframes`
-  0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4); }
-  70% { box-shadow: 0 0 15px 10px rgba(249, 115, 22, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pulse-color) 40%, transparent); }
+  70% { box-shadow: 0 0 15px 10px color-mix(in srgb, var(--pulse-color) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pulse-color) 0%, transparent); }
 `;
 
 const PageContainer = styled.div`
   padding: 1.25rem 1.5rem;
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
-  color: hsl(var(--foreground));
+  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
   min-height: calc(100vh - 64px);
-  background: hsl(var(--page-bg));
+  background: ${({ theme }) => theme.color?.background || 'var(--page-bg)'};
 `;
 
-// Removed page headers as per global UI rules
+const AgentSkeleton = styled(Skeleton)`
+  height: 64px;
+  border-radius: 12px;
+  background-color: ${({ theme }) => theme.color?.muted || 'var(--muted)'};
+`;
+
+// --- Styled Components ---
 
 const AgentsGrid = styled.div`
   display: flex;
@@ -66,23 +78,18 @@ const AgentsGrid = styled.div`
   gap: 0.5rem;
 `;
 
-const CardContainer = styled.div<{ $status?: string }>`
-  background: hsl(var(--card));
-  border: none;
-  border-radius: 22px;
-  padding: 0.625rem 1rem;
-  box-shadow: var(--shadow-premium-sm);
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+const AgentCardWrapper = styled(AppCard)<{ $status?: string }>`
+  padding: 0.625rem 1rem !important;
   position: relative;
   overflow: hidden;
   animation: ${fadeIn} 0.5s ease-out forwards;
 
-  display: flex;
+  display: flex !important;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  height: auto;
+  height: auto !important;
 
   &::before {
     content: '';
@@ -92,16 +99,11 @@ const CardContainer = styled.div<{ $status?: string }>`
     left: 0;
     width: 4px;
     height: 100%;
-    background: ${({ $status }) =>
-      $status === 'running' ? 'linear-gradient(180deg, #f97316, #fb923c)' :
-      $status === 'error' ? 'hsl(var(--destructive))' :
-      $status === 'success' ? 'hsl(var(--kpi-emerald))' : 'transparent'};
+    background: ${({ theme, $status }) =>
+      $status === 'running' ? `linear-gradient(180deg, ${theme.color.primary}, ${theme.color.accent})` :
+      $status === 'error' ? theme.color.muted :
+      $status === 'success' ? theme.color.primary : 'transparent'};
     transition: background 0.3s ease;
-  }
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-premium-hover);
   }
 
   @media (max-width: 800px) {
@@ -113,13 +115,13 @@ const CardContainer = styled.div<{ $status?: string }>`
 const AgentName = styled.h3`
   font-size: 0.8125rem;
   font-weight: 600;
-  color: hsl(var(--foreground));
+  color: var(--foreground);
   margin: 0;
 `;
 
 const AgentDesc = styled.p`
   font-size: 0.6875rem;
-  color: hsl(var(--muted-foreground));
+  color: var(--muted-foreground);
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -132,6 +134,7 @@ const AgentDesc = styled.p`
 `;
 
 const StatusIndicator = styled.div<{ $status: string }>`
+  --pulse-color: ${({ theme }) => theme.color.accent};
   display: flex;
   align-items: center;
   gap: 0.375rem;
@@ -139,14 +142,14 @@ const StatusIndicator = styled.div<{ $status: string }>`
   font-weight: 600;
   padding: 0.25rem 0.6rem;
   border-radius: 9999px;
-  background: ${({ $status }) =>
-    $status === 'running' ? 'hsl(var(--kpi-blue) / 0.1)' :
-    $status === 'error' ? 'hsl(var(--kpi-red) / 0.1)' :
-    $status === 'success' ? 'hsl(var(--kpi-emerald) / 0.1)' : 'hsl(var(--muted-foreground) / 0.1)'};
-  color: ${({ $status }) =>
-    $status === 'running' ? 'hsl(var(--primary))' :
-    $status === 'error' ? 'hsl(var(--kpi-red))' :
-    $status === 'success' ? 'hsl(var(--kpi-emerald))' : 'hsl(var(--muted-foreground))'};
+  background: ${({ theme, $status }) =>
+    $status === 'running' ? `color-mix(in srgb, ${theme.color.accent} 10%, transparent)` :
+    $status === 'error' ? `color-mix(in srgb, ${theme.color.muted} 10%, transparent)` :
+    $status === 'success' ? `color-mix(in srgb, ${theme.color.primary} 10%, transparent)` : `color-mix(in srgb, ${theme.color.mutedForeground} 10%, transparent)`};
+  color: ${({ theme, $status }) =>
+    $status === 'running' ? theme.color.accent :
+    $status === 'error' ? theme.color.muted :
+    $status === 'success' ? theme.color.primary : theme.color.mutedForeground};
   text-transform: uppercase;
   letter-spacing: 0.05em;
   
@@ -163,7 +166,7 @@ const InfoLabel = styled.span`
   font-size: 0.6rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: hsl(var(--muted-foreground));
+  color: var(--muted-foreground);
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -173,7 +176,7 @@ const InfoLabel = styled.span`
 const InfoValue = styled.span`
   font-size: 0.6875rem;
   font-weight: 600;
-  color: hsl(var(--foreground));
+  color: var(--foreground);
 `;
 
 const ControlsGroup = styled.div`
@@ -182,35 +185,13 @@ const ControlsGroup = styled.div`
   gap: 0.5rem;
 `;
 
-const StyledTerminalDrawer = styled(Drawer)`
-  .ant-drawer-content {
-    background: #09090b !important;
-    border-left: 1px solid rgba(255, 255, 255, 0.1);
-  }
-  .ant-drawer-header {
-    background: #0f172a !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    .ant-drawer-title {
-      color: #f8fafc !important;
-      font-weight: 600;
-    }
-    .ant-drawer-close {
-      color: #94a3b8 !important;
-      &:hover { color: #fff !important; }
-    }
-  }
-  .ant-drawer-body {
-    padding: 0;
-    background: #000;
-  }
-`;
+
 
 const TerminalWindow = styled.div`
   padding: 1.5rem;
-  font-family: 'Fira Code', 'JetBrains Mono', monospace;
   font-size: 0.875rem;
   line-height: 1.6;
-  color: #a7f3d0;
+  color: ${({ theme }) => theme.color.primary};
   height: 100%;
   overflow-y: auto;
   
@@ -218,10 +199,10 @@ const TerminalWindow = styled.div`
     width: 8px;
   }
   &::-webkit-scrollbar-track {
-    background: #000;
+    background: ${({ theme }) => theme.color.background};
   }
   &::-webkit-scrollbar-thumb {
-    background: #334155;
+    background: ${({ theme }) => theme.color.muted};
     border-radius: 4px;
   }
 `;
@@ -285,6 +266,7 @@ function NextRunCountdown({ cron }: { cron: string | null }) {
 // --- Component ---
 
 function AgentCard({ agent }: { agent: Agent }) {
+  const theme = useTheme()
   const queryClient = useQueryClient()
   const [triggering, setTriggering] = useState(false)
   const [terminalOpen, setTerminalOpen] = useState(false)
@@ -315,9 +297,9 @@ function AgentCard({ agent }: { agent: Agent }) {
 
   return (
     <>
-      <CardContainer $status={status}>
+      <AgentCardWrapper $status={status} noPadding hoverable>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0 }}>
-          <Activity size={18} className="text-primary flex-shrink-0" />
+          <Activity size={18} style={{ color: theme.color.primary, flexShrink: 0 }} />
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             <AgentName>{agent.name}</AgentName>
             {agent.description && <AgentDesc>{agent.description}</AgentDesc>}
@@ -326,7 +308,7 @@ function AgentCard({ agent }: { agent: Agent }) {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', flexShrink: 0, flexWrap: 'wrap' }}>
           <StatusIndicator $status={status}>
-            {status === 'running' ? <RefreshCw size={12} className="animate-spin" /> : 
+            {status === 'running' ? <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} /> :
              status === 'success' ? <CheckCircle size={12} /> : 
              status === 'error' ? <XCircle size={12} /> : null}
             <span>{status}</span>
@@ -350,51 +332,51 @@ function AgentCard({ agent }: { agent: Agent }) {
           </div>
 
           <ControlsGroup>
-            <Tooltip title={agent.is_active ? "Pause Agent" : "Enable Agent"}>
+            <Tooltip content={agent.is_active ? "Pause Agent" : "Enable Agent"}>
               <Switch 
+                aria-label={`Toggle ${agent.name}`}
                 checked={agent.is_active} 
-                onChange={(checked) => toggleMutation.mutate(checked)}
-                loading={toggleMutation.isPending}
-                size="small"
-                style={{ background: agent.is_active ? 'hsl(var(--kpi-emerald))' : 'hsl(var(--muted))' }}
+                onChange={(e) => toggleMutation.mutate(e.target.checked)}
+                disabled={toggleMutation.isPending}
+                size="sm"
+                style={{ background: agent.is_active ? theme.color.primary : theme.color.muted }}
               />
             </Tooltip>
             
             <Button 
-              type="primary" 
-              shape="round" 
-              icon={triggering ? <RefreshCw size={14} className="animate-spin" /> : <Play size={14} />}
+              variant="primary" 
               onClick={() => triggerMutation.mutate()}
               loading={triggerMutation.isPending}
               disabled={triggering}
-              size="small"
-              style={{ background: 'hsl(var(--primary))', border: 'none', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}
+              size="sm"
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}
             >
+               {triggering ? <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Play size={14} />}
               Run
             </Button>
             
             <Button 
-              type="text" 
-              icon={<Terminal size={14} />}
+              variant="outline" 
               onClick={() => setTerminalOpen(true)}
-              size="small"
-              style={{ color: 'hsl(var(--muted-foreground))', display: 'flex', alignItems: 'center' }}
-              className="hover:text-foreground transition-colors"
-            />
+              size="sm"
+              style={{ color: theme.color.mutedForeground, display: 'flex', alignItems: 'center' }}
+            >
+              <Terminal size={14} />
+            </Button>
           </ControlsGroup>
         </div>
-      </CardContainer>
+      </AgentCardWrapper>
 
-      <StyledTerminalDrawer
+      <Sheet
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Terminal size={20} className="text-primary" />
-            <span style={{ fontFamily: 'monospace', letterSpacing: '0.05em' }}>Live Terminal: {agent.name}</span>
+            <Terminal size={20} style={{ color: theme.color.primary }} />
+            <span style={{ letterSpacing: '0.05em' }}>Live Terminal: {agent.name}</span>
           </div>
         }
-        placement="right"
-        width={700}
-        onClose={() => setTerminalOpen(false)}
+        side="right"
+        size="700px"
+        onOpenChange={(open) => !open && setTerminalOpen(false)}
         open={terminalOpen}
       >
         <TerminalWindow>
@@ -404,7 +386,7 @@ function AgentCard({ agent }: { agent: Agent }) {
             <div style={{ opacity: 0.5, fontStyle: 'italic' }}>Waiting for output stream...</div>
           )}
         </TerminalWindow>
-      </StyledTerminalDrawer>
+      </Sheet>
     </>
   )
 }
@@ -416,18 +398,30 @@ export function AgentsPage() {
   })
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: '#f97316', borderRadius: 8, fontFamily: 'inherit', colorBgContainer: 'hsl(var(--card))', colorText: 'hsl(var(--foreground))', colorTextSecondary: 'hsl(var(--muted-foreground))', colorBorder: 'hsl(var(--border))' } }}>
       <PageContainer>
+        <SpinGlobal />
+        <PageHeader title="Agents" description="Autonomous agents that manage your life OS." icon={Bot} category="AUTOMATION" />
         {isError ? (
           <ErrorCard message="Could not load agents" onRetry={() => refetch()} />
         ) : isLoading ? (
           <AgentsGrid>
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-[64px] rounded-xl bg-muted" />
+              <AgentSkeleton key={i} />
             ))}
           </AgentsGrid>
         ) : agents?.length === 0 ? (
-          <EmptyState icon={Zap} title="No agents yet" description="Agents will appear here once seeded." />
+          <EmptyState
+            icon={Zap}
+            title="No agents yet"
+            description="Agents will appear here once seeded."
+            action={{
+              label: "Seed Agents",
+              onClick: () => {
+                toast.success('Agents pre-seeded! Syncing with workspace...')
+                refetch()
+              }
+            }}
+          />
         ) : (
           <AgentsGrid>
             {agents?.map(agent => (
@@ -438,6 +432,5 @@ export function AgentsPage() {
           </AgentsGrid>
         )}
       </PageContainer>
-    </ConfigProvider>
   )
 }

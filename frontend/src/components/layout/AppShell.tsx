@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
-import { ConfigProvider } from 'antd'
+import styled from 'styled-components'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { BottomNav } from './BottomNav'
@@ -11,55 +11,97 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useUIStore } from '@/stores/uiStore'
 
+const MobileBackdrop = styled.div<{ $show: boolean }>`
+  display: none;
+  @media (max-width: 768px) {
+    display: ${({ $show }) => $show ? 'block' : 'none'};
+    position: fixed;
+    inset: 0;
+    background: rgba(45, 49, 58, 0.5);
+    z-index: 199;
+    backdrop-filter: blur(2px);
+  }
+`
+
+const Root = styled.div`
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+  background: 
+    radial-gradient(ellipse 80% 60% at 90% -10%, ${({ theme }) => theme.color.accent}12, transparent 58%),
+    radial-gradient(ellipse 70% 50% at -10% 105%, ${({ theme }) => theme.color.primary}12, transparent 55%),
+    ${({ theme }) => theme.color.background};
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const MainColumn = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+`
+
+const ContentArea = styled.main`
+  flex: 1;
+  overflow-y: auto;
+  outline: none;
+  position: relative;
+  
+  @media (max-width: 768px) {
+    padding-bottom: 72px; /* Prevent the 64px BottomNav from obscuring scrollable content */
+  }
+`
+
+const SkipLink = styled.a`
+  position: absolute;
+  top: -1000px;
+  left: 12px;
+  z-index: 200;
+  background: ${({ theme }) => theme.color.primary};
+  color: ${({ theme }) => theme.color.primaryForeground};
+  padding: 8px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(45, 49, 58, 0.2);
+  outline: 2px solid ${({ theme }) => theme.color.accent};
+  
+  &:focus {
+    top: 12px;
+  }
+`
+
 export function AppShell() {
   useKeyboardShortcuts()
   useNotifications()
   const location = useLocation()
-  const { theme, pushRecentPage } = useUIStore()
+  const { pushRecentPage, sidebarOpen, setSidebarOpen } = useUIStore()
 
   useEffect(() => {
     pushRecentPage(location.pathname)
+    // Close mobile sidebar on navigation
+    setSidebarOpen(false)
   }, [location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <ConfigProvider theme={{
-      token: {
-        colorPrimary: theme === 'dark' ? '#fb8b24' : '#dd5912',
-        colorLink: theme === 'dark' ? '#fb8b24' : '#dd5912',
-        borderRadius: 16,
-        fontFamily: 'inherit',
-        colorBgContainer: theme === 'dark' ? 'hsl(26 16% 10%)' : 'hsl(42 45% 99%)',
-        colorBgElevated: theme === 'dark' ? 'hsl(26 16% 12%)' : 'hsl(42 45% 99%)',
-        colorText: theme === 'dark' ? 'hsl(38 32% 90%)' : 'hsl(26 32% 12%)',
-        colorTextSecondary: theme === 'dark' ? 'hsl(33 14% 62%)' : 'hsl(28 14% 38%)',
-        colorBorder: theme === 'dark' ? 'hsl(27 14% 17%)' : 'hsl(36 20% 85%)',
-        colorBorderSecondary: theme === 'dark' ? 'hsl(27 14% 17%)' : 'hsl(36 20% 85%)',
-      }
-    }}>
-    <div className="flex h-[100dvh] overflow-hidden bg-[hsl(var(--page-bg))]">
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-3 focus:py-1.5 focus:rounded-md focus:bg-primary focus:text-primary-foreground focus:text-sm focus:font-medium"
-      >
-        Skip to content
-      </a>
+    <Root>
+      <SkipLink href="#main-content">Skip to content</SkipLink>
+
+      <MobileBackdrop $show={sidebarOpen} onClick={() => setSidebarOpen(false)} />
       <Sidebar />
-      <div className="flex flex-col flex-1 min-w-0 min-h-0">
+      
+      <MainColumn>
         <TopBar />
-        <main
-          id="main-content"
-          className="flex-1 overflow-y-auto pb-16 md:pb-0 relative"
-          tabIndex={-1}
-        >
+        
+        <ContentArea id="main-content" tabIndex={-1}>
           <AnimatePresence mode="wait">
             <Outlet key={location.pathname} />
           </AnimatePresence>
-        </main>
-      </div>
-      <BottomNav />
+        </ContentArea>
+      </MainColumn>
+
       <CommandPalette />
       <GlobalCapture />
-    </div>
-    </ConfigProvider>
+      <BottomNav />
+    </Root>
   )
 }

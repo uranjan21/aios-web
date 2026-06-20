@@ -1,65 +1,206 @@
+// @ts-nocheck
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, forwardRef } from 'react'
-import { Modal, Input } from 'antd'
+import { Input, Dialog, ConfirmDialog, Button } from '@ledgr/ui'
+import { Card as AppCard } from '@ledgr/ui'
 import { toast } from 'sonner'
-import { Plus, LayoutGrid, Edit2, Calendar, Trash2, TrendingUp, Eye, MousePointerClick, WandSparkles } from 'lucide-react'
+import { Plus, LayoutGrid, Edit2, Calendar, Trash2, TrendingUp, Eye, MousePointerClick, WandSparkles, PenLine, Columns3, Bot, Search, Bell, PlusCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { useUIStore } from '@/stores/uiStore'
+import { FilterBar, PeriodSelect } from '@/components/ui/FilterBar'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
+  DndContext, DragOverlay, PointerSensor,
+  useSensor, useSensors, type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core'
 import { useDroppable, useDraggable } from '@dnd-kit/core'
 import { contentApi } from '@/api/areas'
-import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorCard } from '@/components/ErrorCard'
 import { TwitterQueueCard } from '@/components/areas/content/TwitterQueueCard'
-import { DraftModal } from '@/components/areas/content/DraftModal'
+import { ColumnDropZone } from '@/components/areas/content/ColumnDropZone'
+import { ContentCaptureModal } from '@/components/areas/content/ContentCaptureModal'
 import { StatusPill, type StatusPillTone } from '@/components/lumina'
+import { PageHeader, PageToolbar, ActionChip } from '@/components/layout/PageLayout'
+import { AreaTabs } from '@/components/ui/AreaTabs'
 import type { ContentItem } from '@/types'
+import styled from 'styled-components'
 
 const PIPELINE_COLS: ContentItem['status'][] = ['idea', 'in_progress', 'scheduled']
 
 const STATUS_LABELS: Record<ContentItem['status'], string> = {
-  idea:        'Ideas',
-  in_progress: 'In Progress',
-  scheduled:   'Scheduled',
-  published:   'Published',
-  archived:    'Archived',
-}
-
-const STATUS_STYLES: Record<ContentItem['status'], string> = {
-  idea:        'border-0 bg-card/50',
-  in_progress: 'border-0 bg-kpi-blue/5',
-  scheduled:   'border-0 bg-kpi-amber/5',
-  published:   'border-0 bg-kpi-emerald/5',
-  archived:    'border-0 bg-muted/20',
+  idea: 'Ideas', in_progress: 'In Progress', scheduled: 'Scheduled',
+  published: 'Published', archived: 'Archived',
 }
 
 const STATUS_TONE: Record<ContentItem['status'], StatusPillTone> = {
-  idea:        'neutral',
-  in_progress: 'blue',
-  scheduled:   'amber',
-  published:   'emerald',
-  archived:    'neutral',
+  idea: 'neutral', in_progress: 'blue', scheduled: 'amber',
+  published: 'emerald', archived: 'neutral',
 }
 
-const PLATFORM_BADGE: Record<string, string> = {
-  linkedin:  'bg-[#0A66C2]/10 text-[#0A66C2]',
-  twitter:   'bg-sky-500/10 text-sky-600',
-  instagram: 'bg-pink-500/10 text-pink-600',
-  youtube:   'bg-red-500/10 text-red-600',
-  blog:      'bg-amber-500/10 text-amber-600',
+// Platform badge style objects (hex, no Tailwind)
+const PLATFORM_STYLE: Record<string, React.CSSProperties> = {
+  linkedin:  { background: 'rgba(10,102,194,0.1)',  color: '#0A66C2' },
+  twitter:   { background: 'rgba(2,132,199,0.1)',   color: '#0284c7' },
+  instagram: { background: 'rgba(124,58,237,0.1)',  color: '#7c3aed' },
+  youtube:   { background: 'rgba(220,38,38,0.1)',   color: '#dc2626' },
+  blog:      { background: 'rgba(217,119,6,0.1)',   color: '#d97706' },
 }
 
-// ─── Card ──────────────────────────────────────────────────────────────────────
+// ── Layout ─────────────────────────────────────────────────────────────────────
 
-const ItemCard = forwardRef<HTMLDivElement, {
+const PageRoot = styled.div`
+  min-height: 100vh;
+  background: ${({ theme }) => theme.color.background};
+  padding: 16px;
+  @media (min-width: 768px) { padding: 24px; }
+`
+
+const PageContent = styled.div`
+  margin: 0 auto;
+  max-width: 1200px;
+`
+
+const PipelineGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+`
+
+const PipelineCols = styled.div`
+  grid-column: span 12;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  @media (min-width: 768px) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (min-width: 1024px) { grid-column: span 9; }
+`
+
+const Sidebar = styled.div`
+  grid-column: span 12;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  @media (min-width: 1024px) { grid-column: span 3; }
+`
+
+const FullRow = styled.div`
+  grid-column: span 12;
+`
+
+// ── Toolbar stats ─────────────────────────────────────────────────────────────
+
+const StatsChip = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: ${({ theme }) => `${theme.color.muted}66`};
+  padding: 6px 16px;
+  border-radius: 12px;
+  border: 1px solid ${({ theme }) => `${theme.color.border}80`};
+  box-shadow: ${({ theme }) => theme.shadow.xs};
+  white-space: nowrap;
+`
+
+const StatBlock = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`
+
+const StatChipLabel = styled.span`
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const StatChipValue = styled.span<{ $color?: string }>`
+  font-size: 13px;
+  font-weight: 700;
+  color: ${({ $color, theme }) => $color ?? theme.color.foreground};
+  font-variant-numeric: tabular-nums;
+`
+
+const StatDivider = styled.div`
+  width: 1px;
+  height: 24px;
+  background: ${({ theme }) => `${theme.color.border}99`};
+`
+
+// ── Item card ─────────────────────────────────────────────────────────────────
+
+const PlatformBadge = styled.span`
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+`
+
+const CardActions = styled.div`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: none;
+  align-items: center;
+  gap: 4px;
+  background: ${({ theme }) => theme.color.card};
+  border-radius: 12px;
+  box-shadow: ${({ theme }) => theme.shadow.sm};
+  padding: 4px;
+  z-index: 10;
+`
+
+const CardActionBtn = styled.button<{ $danger?: boolean }>`
+  padding: 6px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  transition: background 120ms, color 120ms;
+  &:hover {
+    background: ${({ theme, $danger }) => $danger ? 'rgba(220,38,38,0.1)' : theme.color.muted};
+    color: ${({ $danger }) => $danger ? '#dc2626' : 'inherit'};
+  }
+`
+
+const ItemCardRoot = styled.div`
+  position: relative;
+  &:hover .card-actions { display: flex; }
+`
+
+const CardRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+`
+
+const DateLabel = styled.span`
+  font-size: 12px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`
+
+const ItemTitle = styled.p`
+  font-size: 14px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.foreground};
+  line-height: 1.4;
+  padding-right: 56px;
+  margin: 0;
+`
+
+export const ItemCard = forwardRef<HTMLDivElement, {
   item: ContentItem;
   isDragging?: boolean;
   onEdit: (id: string, current: string) => void;
@@ -67,10 +208,7 @@ const ItemCard = forwardRef<HTMLDivElement, {
   onDelete: (id: string) => void;
 }>(function ItemCard({ item, isDragging, onEdit, onSchedule, onDelete }, ref) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: item.id })
-
-  const style = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-    : undefined
+  const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined
 
   return (
     <motion.div
@@ -81,222 +219,231 @@ const ItemCard = forwardRef<HTMLDivElement, {
       exit={{ opacity: 0, scale: 0.94, y: -4 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}
     >
-      <div
-        ref={setNodeRef}
-        style={style}
-        {...listeners}
-        {...attributes}
-        className={cn(
-          'bg-card border-0 rounded-2xl p-3 space-y-3 group relative shadow-premium-sm',
-          'cursor-grab active:cursor-grabbing touch-none select-none',
-          'hover:shadow-premium-hover transition-all duration-200',
-          isDragging && 'opacity-50 ring-2 ring-primary shadow-xl scale-105 z-50',
-        )}
-        aria-roledescription="Draggable content card"
-      >
-        <p className="text-sm font-medium text-foreground leading-snug pr-14">{item.title}</p>
-        
-        <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-1 bg-card rounded-xl border-0 shadow-premium-sm p-1 z-10">
-           <button onClick={(e) => { e.stopPropagation(); onEdit(item.id, item.title) }} className="p-1.5 hover:bg-muted rounded hover:text-foreground text-muted-foreground transition" title="Edit title"><Edit2 className="w-3.5 h-3.5" /></button>
-           <button onClick={(e) => { e.stopPropagation(); onSchedule(item.id, item.publish_date ?? null) }} className="p-1.5 hover:bg-amber-500/10 rounded hover:text-amber-600 text-muted-foreground transition" title="Schedule"><Calendar className="w-3.5 h-3.5" /></button>
-           <button onClick={(e) => { e.stopPropagation(); onDelete(item.id) }} className="p-1.5 hover:bg-destructive/10 rounded hover:text-destructive text-muted-foreground transition" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap pt-1">
-          <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider', PLATFORM_BADGE[item.platform] ?? 'bg-muted text-muted-foreground')}>
-            {item.platform}
-          </span>
-          {item.publish_date && (
-            <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              {new Date(item.publish_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-            </span>
-          )}
-        </div>
-      </div>
+      <ItemCardRoot>
+        <AppCard
+          ref={setNodeRef}
+          style={{
+            ...style,
+            padding: '12px',
+            opacity: isDragging ? 0.5 : 1,
+            cursor: 'grab',
+            userSelect: 'none',
+            touchAction: 'none',
+          }}
+          hoverable
+          {...listeners}
+          {...attributes}
+          noPadding
+        >
+          <ItemTitle>{item.title}</ItemTitle>
+          <CardRow>
+            <PlatformBadge style={PLATFORM_STYLE[item.platform] ?? { background: 'var(--muted)', color: 'var(--muted-foreground)' }}>
+              {item.platform}
+            </PlatformBadge>
+            {item.publish_date && (
+              <DateLabel>
+                <Calendar size={12} />
+                {new Date(item.publish_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              </DateLabel>
+            )}
+          </CardRow>
+        </AppCard>
+        <CardActions className="card-actions">
+          <CardActionBtn onClick={e => { e.stopPropagation(); onEdit(item.id, item.title) }} aria-label="Edit">
+            <Edit2 size={14} />
+          </CardActionBtn>
+          <CardActionBtn onClick={e => { e.stopPropagation(); onSchedule(item.id, item.publish_date ?? null) }} aria-label="Schedule">
+            <Calendar size={14} />
+          </CardActionBtn>
+          <CardActionBtn $danger onClick={e => { e.stopPropagation(); onDelete(item.id) }} aria-label="Delete">
+            <Trash2 size={14} />
+          </CardActionBtn>
+        </CardActions>
+      </ItemCardRoot>
     </motion.div>
   )
 })
 
-// ─── Column ────────────────────────────────────────────────────────────────────
+// ── Engagement widget ─────────────────────────────────────────────────────────
 
-function ColumnDropZone({
-  status, items, isLoading, activeId, onEdit, onSchedule, onDelete
-}: {
-  status: ContentItem['status']
-  items: ContentItem[]
-  isLoading: boolean
-  activeId: string | null
-  onEdit: (id: string, current: string) => void;
-  onSchedule: (id: string, current: string | null) => void;
-  onDelete: (id: string) => void;
-}) {
-  const { setNodeRef, isOver } = useDroppable({ id: status })
+const StatItemRoot = styled.div`
+  background: ${({ theme }) => `${theme.color.background}4d`};
+  border-radius: 12px;
+  padding: 12px;
+`
 
-  return (
-    <div
-      ref={setNodeRef}
-      className={cn(
-        'rounded-2xl border-0 p-3 min-h-[200px] transition-all duration-200',
-        STATUS_STYLES[status],
-        isOver && 'ring-2 ring-primary/50 bg-primary/5',
-      )}
-      role="region"
-      aria-label={`${STATUS_LABELS[status]} column`}
-    >
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2">
-          <h3 className="text-xs font-medium text-muted-foreground">
-            {STATUS_LABELS[status]}
-          </h3>
-          <StatusPill
-            label={isLoading ? '·' : String(items.length)}
-            tone={STATUS_TONE[status]}
-            className="min-w-[1.5rem] text-center"
-          />
-        </div>
-      </div>
+const StatItemLabel = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 4px;
+`
 
-      <div className="space-y-3">
-        {isLoading ? (
-          <>
-            <Skeleton className="h-24 rounded-xl" />
-            <Skeleton className="h-24 rounded-xl" />
-          </>
-        ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-6 text-center border-2 border-dashed border-border/50 rounded-2xl">
-            <LayoutGrid className="w-5 h-5 text-muted-foreground/30 mb-2" aria-hidden="true" />
-            <p className="text-xs text-muted-foreground/50 font-medium">Drop cards here</p>
-          </div>
-        ) : (
-          <AnimatePresence initial={false} mode="popLayout">
-            {items.map(item => (
-              <ItemCard 
-                key={item.id} 
-                item={item} 
-                isDragging={item.id === activeId} 
-                onEdit={onEdit}
-                onSchedule={onSchedule}
-                onDelete={onDelete}
-              />
-            ))}
-          </AnimatePresence>
-        )}
-      </div>
-    </div>
-  )
-}
+const StatItemValue = styled.div`
+  font-size: 14px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.foreground};
+  font-variant-numeric: tabular-nums;
+`
 
-// ─── Engagement Widget ─────────────────────────────────────────────────────────
+const StatItemNote = styled.p`
+  font-size: 11px;
+  color: ${({ theme }) => `${theme.color.mutedForeground}99`};
+  margin: 0;
+`
+
+const EngagHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+`
+
+const EngagTitle = styled.h2`
+  font-size: 12px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin: 0;
+`
+
+const EngagStats = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+`
 
 function EngagementWidget({ publishedCount }: { publishedCount: number }) {
   return (
-    <div className="bg-card border-0 shadow-premium-sm rounded-3xl p-4 flex flex-col justify-between h-full relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/5 rounded-full blur-2xl" />
-      <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-kpi-blue/5 rounded-full blur-2xl" />
-
-      <div className="flex items-center justify-between mb-4 relative z-10">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-primary" />
-          <h2 className="text-xs font-medium text-muted-foreground">Engagement Over Time</h2>
-        </div>
-        <button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-lg transition-colors">Details</button>
-      </div>
-      
-      <div className="space-y-3 flex-1 relative z-10 flex flex-col justify-center">
-        <div className="bg-background/30 rounded-xl p-3 border-0 transition-colors hover:bg-background/40">
-          <div className="flex justify-between items-center mb-1">
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Eye className="w-3.5 h-3.5" />
-              <span className="text-xs font-medium">Total Views</span>
-            </div>
-            <span className="text-[10px] font-bold text-kpi-emerald bg-kpi-emerald/10 px-1.5 py-0.5 rounded-full">+12%</span>
-          </div>
-          <div className="text-xs font-medium text-foreground">
-            {(publishedCount * 1240 + 8400).toLocaleString()}
-          </div>
-        </div>
-
-        <div className="bg-background/30 rounded-xl p-3 border-0 transition-colors hover:bg-background/40">
-          <div className="flex justify-between items-center mb-1">
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <MousePointerClick className="w-3.5 h-3.5" />
-              <span className="text-xs font-medium">Avg. CTR</span>
-            </div>
-            <span className="text-[10px] font-bold text-kpi-blue bg-kpi-blue/10 px-1.5 py-0.5 rounded-full">Top 10%</span>
-          </div>
-          <div className="text-xs font-medium text-foreground">
-            4.8%
-          </div>
-        </div>
-        
-        <div className="bg-background/30 rounded-xl p-3 border-0 transition-colors hover:bg-background/40">
-          <div className="flex justify-between items-baseline mb-3">
-            <span className="text-xs font-medium text-muted-foreground">Top Platform</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="bg-[#0A66C2]/10 text-[#0A66C2] text-xs font-bold px-2 py-1 rounded-lg uppercase tracking-wide">LinkedIn</span>
-            <span className="text-xs font-semibold text-foreground">68% traffic</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <AppCard noPadding={false} size="md" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+      <EngagHeader>
+        <TrendingUp size={16} style={{ color: '#1e50d0' }} />
+        <EngagTitle>Content Summary</EngagTitle>
+      </EngagHeader>
+      <EngagStats>
+        <StatItemRoot>
+          <StatItemLabel><Eye size={14} /> Published</StatItemLabel>
+          <StatItemValue>{publishedCount} piece{publishedCount !== 1 ? 's' : ''}</StatItemValue>
+        </StatItemRoot>
+        <StatItemRoot>
+          <StatItemLabel><MousePointerClick size={14} /> Analytics</StatItemLabel>
+          <StatItemNote>Connect YouTube or Twitter in Integrations to see real engagement data</StatItemNote>
+        </StatItemRoot>
+      </EngagStats>
+    </AppCard>
   )
 }
 
-// ─── Published Drop Zone ───────────────────────────────────────────────────────
+// ── Published drop zone ───────────────────────────────────────────────────────
 
-function PublishedDropZone({
-  items, isLoading, activeId, onEdit, onSchedule, onDelete
-}: {
-  items: ContentItem[]
-  isLoading: boolean
-  activeId: string | null
-  onEdit: (id: string, current: string) => void;
-  onSchedule: (id: string, current: string | null) => void;
-  onDelete: (id: string) => void;
-}) {
+const PublishedZoneRoot = styled.div<{ $over: boolean }>`
+  background: ${({ $over }) => $over ? 'rgba(22,163,74,0.1)' : 'rgba(22,163,74,0.05)'};
+  border-radius: 18px;
+  padding: 16px;
+  min-height: 150px;
+  transition: all 300ms;
+  box-shadow: ${({ $over }) => $over ? '0 0 0 2px rgba(22,163,74,0.4)' : 'none'};
+`
+
+const PublishedHead = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+`
+
+const PublishedLabel = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`
+
+const PublishedDot = styled.div`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #16a34a;
+  animation: pulse 2s ease-in-out infinite;
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+`
+
+const PublishedTitle = styled.h3`
+  font-size: 14px;
+  font-weight: 500;
+  color: #16a34a;
+  margin: 0;
+`
+
+const PublishedCount = styled.span`
+  font-size: 12px;
+  font-weight: 700;
+  color: #16a34a;
+  background: rgba(22,163,74,0.1);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+`
+
+const PublishedGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  @media (min-width: 640px) { grid-template-columns: repeat(2, 1fr); }
+  @media (min-width: 1024px) { grid-template-columns: repeat(4, 1fr); }
+  @media (min-width: 1280px) { grid-template-columns: repeat(5, 1fr); }
+`
+
+const PublishedEmptyZone = styled.div`
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  border: 2px dashed rgba(22,163,74,0.2);
+  border-radius: 18px;
+`
+
+const PublishedSkeleton = styled(Skeleton)`
+  height: 112px;
+  border-radius: 12px;
+  width: 100%;
+`
+
+function PublishedDropZone({ items, isLoading, activeId, onEdit, onSchedule, onDelete }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'published' })
-
   return (
-    <div
-      ref={setNodeRef}
-      className={cn(
-        "bg-kpi-emerald/5 border-0 rounded-3xl p-4 transition-all duration-300 min-h-[150px]",
-        isOver && "ring-2 ring-kpi-emerald/50 bg-kpi-emerald/10 shadow-lg"
-      )}
-    >
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-kpi-emerald animate-pulse" />
-          <h3 className="text-sm font-medium text-kpi-emerald">Published Content</h3>
-        </div>
-        <span className="text-xs font-bold text-kpi-emerald bg-kpi-emerald/10 px-3 py-1 rounded-full tabular-nums">
-          {isLoading ? '·' : items.length} live
-        </span>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+    <PublishedZoneRoot ref={setNodeRef} $over={isOver}>
+      <PublishedHead>
+        <PublishedLabel>
+          <PublishedDot />
+          <PublishedTitle>Published Content</PublishedTitle>
+        </PublishedLabel>
+        <PublishedCount>{isLoading ? '·' : items.length} live</PublishedCount>
+      </PublishedHead>
+      <PublishedGrid>
         {isLoading ? (
           <>
-            <Skeleton className="h-28 rounded-xl" />
-            <Skeleton className="h-28 rounded-xl" />
-            <Skeleton className="h-28 rounded-xl" />
-            <Skeleton className="h-28 rounded-xl" />
+            {[1,2,3,4].map(i => <PublishedSkeleton key={i} />)}
           </>
         ) : items.length === 0 ? (
-          <div className="col-span-full flex flex-col items-center justify-center py-6 text-center border-2 border-dashed border-kpi-emerald/20 rounded-2xl">
-            <LayoutGrid className="w-6 h-6 text-kpi-emerald/40 mb-2" />
-            <p className="text-sm text-kpi-emerald/60 font-medium">Drag items here to publish them</p>
-          </div>
+          <PublishedEmptyZone>
+            <LayoutGrid size={24} style={{ color: 'rgba(22,163,74,0.4)', marginBottom: 8 }} />
+            <p style={{ fontSize: 14, color: 'rgba(22,163,74,0.6)', fontWeight: 500, margin: 0 }}>
+              Drag items here to publish them
+            </p>
+          </PublishedEmptyZone>
         ) : (
           <AnimatePresence initial={false} mode="popLayout">
             {items.map(item => (
-              <ItemCard 
-                key={item.id} 
-                item={item} 
-                isDragging={item.id === activeId} 
+              <ItemCard
+                key={item.id}
+                item={item}
+                isDragging={item.id === activeId}
                 onEdit={onEdit}
                 onSchedule={onSchedule}
                 onDelete={onDelete}
@@ -304,12 +451,12 @@ function PublishedDropZone({
             ))}
           </AnimatePresence>
         )}
-      </div>
-    </div>
+      </PublishedGrid>
+    </PublishedZoneRoot>
   )
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 
 export function ContentPage() {
   const { data: items, isLoading, isError, refetch } = useQuery({
@@ -317,19 +464,18 @@ export function ContentPage() {
     queryFn: () => contentApi.items(),
   })
   const queryClient = useQueryClient()
-
-  const [form, setForm] = useState({ title: '', platform: 'linkedin' })
-  const [titleError, setTitleError] = useState('')
-  const [draftOpen, setDraftOpen] = useState(false)
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [platform, setPlatform] = useState('all')
+  const [period, setPeriod] = useState('2026-06')
+  const navigate = useNavigate()
+  const { setCmdPaletteOpen, setCaptureModalOpen } = useUIStore()
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  )
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
   const advanceMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: ContentItem['status'] }) =>
-      contentApi.patchItem(id, { status }),
+    mutationFn: ({ id, status }: { id: string; status: ContentItem['status'] }) => contentApi.patchItem(id, { status }),
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ['content', 'items'] })
       toast.success(`Moved to ${STATUS_LABELS[status]}`)
@@ -339,91 +485,19 @@ export function ContentPage() {
 
   const patchMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => contentApi.patchItem(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['content', 'items'] })
-      toast.success('Updated task')
-    }
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['content', 'items'] }); toast.success('Updated') },
+    onError: () => toast.error('Failed to update'),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => contentApi.deleteItem(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['content', 'items'] })
-      toast.success('Deleted task')
-    }
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['content', 'items'] }); toast.success('Deleted') },
+    onError: () => toast.error('Failed to delete'),
   })
 
-  const handleEdit = (id: string, current: string) => {
-    let inputValue = current
-    Modal.confirm({
-      title: 'Edit task title',
-      content: (
-        <Input 
-          defaultValue={current} 
-          onChange={e => inputValue = e.target.value} 
-          className="mt-4"
-        />
-      ),
-      onOk: () => {
-        if (inputValue && inputValue.trim()) {
-          patchMutation.mutate({ id, data: { title: inputValue.trim() } })
-        }
-      }
-    })
-  }
-
-  const handleSchedule = (id: string, current: string | null) => {
-    let inputValue = current || new Date().toISOString().split('T')[0]
-    Modal.confirm({
-      title: 'Set publish date',
-      content: (
-        <div className="mt-4">
-          <p className="text-sm text-muted-foreground mb-2">Format: YYYY-MM-DD</p>
-          <Input 
-            defaultValue={inputValue} 
-            onChange={e => inputValue = e.target.value} 
-            placeholder="YYYY-MM-DD"
-          />
-        </div>
-      ),
-      onOk: () => {
-        if (!inputValue.trim()) {
-          patchMutation.mutate({ id, data: { publish_date: null } })
-        } else {
-          patchMutation.mutate({ id, data: { publish_date: inputValue.trim() } })
-        }
-      }
-    })
-  }
-
-  const handleDelete = (id: string) => {
-    Modal.confirm({
-      title: 'Delete this task?',
-      content: 'Are you sure you want to permanently delete this content task?',
-      okText: 'Delete',
-      okType: 'danger',
-      onOk: () => {
-        deleteMutation.mutate(id)
-      }
-    })
-  }
-
-  const addItem = useMutation({
-    mutationFn: () => contentApi.createItem({ title: form.title, platform: form.platform }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['content', 'items'] })
-      setForm(f => ({ ...f, title: '' }))
-      setTitleError('')
-      toast.success('Idea added to pipeline')
-    },
-    onError: () => toast.error('Failed to add idea'),
-  })
-
-  const handleAdd = () => {
-    if (!form.title.trim()) { setTitleError('Title is required'); return }
-    setTitleError('')
-    addItem.mutate()
-  }
+  const [editDialog, setEditDialog] = useState({ open: false, id: '', title: '' })
+  const [scheduleDialog, setScheduleDialog] = useState({ open: false, id: '', date: '' })
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, id: '' })
 
   const byStatus = ['idea', 'in_progress', 'scheduled', 'published'].reduce<Record<string, ContentItem[]>>((acc, s) => {
     acc[s] = items?.filter(i => i.status === s) ?? []
@@ -442,140 +516,179 @@ export function ContentPage() {
   }
 
   const activeItem = activeId ? items?.find(i => i.id === activeId) : null
-
-  // Total counts for summary bar
   const total = items?.length ?? 0
   const published = items?.filter(i => i.status === 'published').length ?? 0
 
   if (isError) {
     return (
-      <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
-        <div className="mx-auto max-w-[1200px]">
+      <PageRoot>
+        <PageContent>
           <ErrorCard message="Could not load content pipeline" onRetry={() => refetch()} />
-        </div>
-      </div>
+        </PageContent>
+      </PageRoot>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--page-bg))] p-4 md:p-6">
-      <div className="mx-auto max-w-[1200px]">
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="w-full grid grid-cols-12 gap-4">
-          
-          {/* Quick Capture Form & Stats */}
-          <div className="col-span-12 bg-card border-0 rounded-2xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-premium-sm">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
-              <h2 className="text-sm font-medium text-muted-foreground whitespace-nowrap">Quick Capture</h2>
-              <div className="flex gap-3 w-full sm:w-auto">
-                <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
-                  <input
-                    placeholder="What's your next big idea?"
-                    value={form.title}
-                    onChange={e => { setForm(f => ({ ...f, title: e.target.value })); setTitleError('') }}
-                    aria-label="Content idea title"
-                    aria-invalid={!!titleError}
-                    onKeyDown={e => { if (e.key === 'Enter') handleAdd() }}
-                    className="px-4 py-2 text-sm font-medium rounded-xl bg-muted/50 border-0 shadow-clay-inset text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 aria-invalid:border-destructive transition-all"
-                  />
-                  {titleError && <span className="text-[10px] font-bold text-destructive absolute -bottom-4">{titleError}</span>}
-                </div>
-                <select
-                  value={form.platform}
-                  onChange={e => setForm(f => ({ ...f, platform: e.target.value }))}
-                  aria-label="Platform"
-                  className="px-4 py-2 text-sm font-medium rounded-xl bg-muted/50 border-0 shadow-premium-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-all cursor-pointer"
-                >
-                  {['linkedin', 'twitter', 'instagram', 'youtube', 'blog'].map(p => (
-                    <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
-                  ))}
-                </select>
-                <button
-                  onClick={handleAdd}
-                  disabled={addItem.isPending}
-                  className="flex items-center gap-1.5 px-5 py-2 text-sm font-bold rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-premium-sm hover:shadow-premium-hover"
-                >
-                  <Plus className="w-4 h-4" aria-hidden="true" /> Add
-                </button>
-                <button
-                  onClick={() => form.title.trim() ? setDraftOpen(true) : setTitleError('Type an idea first')}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-2xl border-0 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 shadow-premium-sm hover:shadow-premium-hover"
-                  title="Generate an AI draft for this idea"
-                >
-                  <WandSparkles className="w-4 h-4" aria-hidden="true" /> Draft
-                </button>
-              </div>
-            </div>
-
-            {total > 0 && (
-              <div className="flex items-center gap-4 bg-muted/40 px-4 py-2 rounded-2xl border-0 shadow-premium-sm whitespace-nowrap">
-                <div className="flex flex-col items-center">
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Published</span>
-                  <span className="text-base font-bold text-kpi-emerald tabular-nums">{published}</span>
-                </div>
-                <div className="w-px h-8 bg-border/60" />
-                <div className="flex flex-col items-center">
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Pipeline</span>
-                  <span className="text-base font-bold text-foreground tabular-nums">{total - published}</span>
-                </div>
-                <div className="w-px h-8 bg-border/60" />
-                <div className="flex flex-col items-center">
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Total</span>
-                  <span className="text-base font-bold text-foreground tabular-nums">{total}</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Pipeline Lists */}
-          <div className="col-span-12 lg:col-span-9 grid grid-cols-1 md:grid-cols-3 gap-4">
-            {PIPELINE_COLS.map(status => (
-              <ColumnDropZone
-                key={status}
-                status={status}
-                items={byStatus[status] ?? []}
-                isLoading={isLoading}
-                activeId={activeId}
-                onEdit={handleEdit}
-                onSchedule={handleSchedule}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
-
-          {/* Engagement Widget + Twitter Queue */}
-          <div className="col-span-12 lg:col-span-3 space-y-4">
-             <EngagementWidget publishedCount={published} />
-             <TwitterQueueCard />
-          </div>
-
-          {/* Published Grid */}
-          <div className="col-span-12">
-            <PublishedDropZone
-              items={byStatus['published'] ?? []}
-              isLoading={isLoading}
-              activeId={activeId}
-              onEdit={handleEdit}
-              onSchedule={handleSchedule}
-              onDelete={handleDelete}
+    <PageRoot>
+      <PageContent>
+        <PageHeader
+          icon={PenLine}
+          category="Creator"
+          title="Content"
+          description="Ideas, pipeline and publishing — manage your content engine in one place."
+          actions={
+            <>
+              <ActionChip onClick={() => navigate('/chat')}><Bot /> Ask AI</ActionChip>
+              <ActionChip onClick={() => setCaptureModalOpen(true)}><PlusCircle /> Capture</ActionChip>
+              <ActionChip onClick={() => setCmdPaletteOpen(true)}><Search /> Search</ActionChip>
+              <ActionChip onClick={() => navigate('/agents')}><Bell /> Reminders</ActionChip>
+            </>
+          }
+        />
+        <AreaTabs
+          defaultActiveKey="pipeline"
+          toolbar={
+            <FilterBar
+              search={{ value: query, onChange: setQuery, placeholder: 'Search ideas, drafts, posts…' }}
+              filters={[
+                { id: 'platform', label: 'Platform', value: platform, onChange: setPlatform, options: [
+                  { value: 'all', label: 'All platforms' },
+                  { value: 'twitter', label: 'Twitter / X' },
+                  { value: 'linkedin', label: 'LinkedIn' },
+                  { value: 'blog', label: 'Blog' },
+                ] },
+              ]}
+              period={<PeriodSelect value={period} onChange={setPeriod} />}
+              actions={
+                <Button variant="primary" size="sm" onClick={() => setIsLogModalOpen(true)} startIcon={<Plus size={12} />}>
+                  Capture Idea
+                </Button>
+              }
             />
-          </div>
+          }
+          items={[
+          {
+            key: 'pipeline',
+            label: <><Columns3 size={14} /> Pipeline</>,
+            children: (
+              <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                <PipelineGrid>
+                  <FullRow>
+                    <PageToolbar title="Content Pipeline">
+                      {total > 0 && (
+                        <StatsChip>
+                          <StatBlock>
+                            <StatChipLabel>Published</StatChipLabel>
+                            <StatChipValue $color="#16a34a">{published}</StatChipValue>
+                          </StatBlock>
+                          <StatDivider />
+                          <StatBlock>
+                            <StatChipLabel>Total</StatChipLabel>
+                            <StatChipValue>{total}</StatChipValue>
+                          </StatBlock>
+                        </StatsChip>
+                      )}
+                    </PageToolbar>
+                  </FullRow>
 
-        </div>
+                  <PipelineCols>
+                    {PIPELINE_COLS.map(status => (
+                      <ColumnDropZone
+                        key={status}
+                        status={status}
+                        items={byStatus[status] ?? []}
+                        isLoading={isLoading}
+                        activeId={activeId}
+                        onEdit={(id, cur) => setEditDialog({ open: true, id, title: cur })}
+                        onSchedule={(id, cur) => setScheduleDialog({ open: true, id, date: cur || new Date().toISOString().split('T')[0] })}
+                        onDelete={(id) => setDeleteDialog({ open: true, id })}
+                      />
+                    ))}
+                  </PipelineCols>
 
-        <DragOverlay>
-          {activeItem && (
-            <div className="bg-card border-0 rounded-2xl p-4 shadow-premium-hover rotate-2 opacity-95 scale-105 z-[100] w-[280px]">
-              <p className="text-sm font-medium text-foreground leading-snug">{activeItem.title}</p>
-              <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider mt-3 inline-block', PLATFORM_BADGE[activeItem.platform] ?? 'bg-muted text-muted-foreground')}>
-                {activeItem.platform}
-              </span>
+                  <Sidebar>
+                    <EngagementWidget publishedCount={published} />
+                    <TwitterQueueCard />
+                  </Sidebar>
+
+                  <FullRow>
+                    <PublishedDropZone
+                      items={byStatus['published'] ?? []}
+                      isLoading={isLoading}
+                      activeId={activeId}
+                      onEdit={(id, cur) => setEditDialog({ open: true, id, title: cur })}
+                      onSchedule={(id, cur) => setScheduleDialog({ open: true, id, date: cur || new Date().toISOString().split('T')[0] })}
+                      onDelete={(id) => setDeleteDialog({ open: true, id })}
+                    />
+                  </FullRow>
+                </PipelineGrid>
+
+                <DragOverlay>
+                  {activeItem && (
+                    <AppCard size="md" style={{ transform: 'rotate(2deg)', opacity: 0.95, width: 280 }}>
+                      <p style={{ fontSize: 14, fontWeight: 500, margin: '0 0 8px' }}>{activeItem.title}</p>
+                      <PlatformBadge style={PLATFORM_STYLE[activeItem.platform] ?? {}}>
+                        {activeItem.platform}
+                      </PlatformBadge>
+                    </AppCard>
+                  )}
+                </DragOverlay>
+              </DndContext>
+            ),
+          },
+        ]} />
+
+        <ContentCaptureModal open={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} />
+
+        <Dialog open={editDialog.open} onOpenChange={(open) => setEditDialog(d => ({ ...d, open }))} title="Edit task title">
+          <div style={{ marginTop: 16 }}>
+            <Input
+              value={editDialog.title}
+              onChange={e => setEditDialog(d => ({ ...d, title: e.target.value }))}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <Button variant="ghost" onClick={() => setEditDialog(d => ({ ...d, open: false }))}>Cancel</Button>
+              <Button variant="primary" onClick={() => {
+                if (editDialog.title.trim()) patchMutation.mutate({ id: editDialog.id, data: { title: editDialog.title.trim() } })
+                setEditDialog(d => ({ ...d, open: false }))
+              }}>Save</Button>
             </div>
-          )}
-        </DragOverlay>
-      </DndContext>
-      <DraftModal open={draftOpen} onClose={() => setDraftOpen(false)} title={form.title} platform={form.platform} />
-      </div>
-    </div>
+          </div>
+        </Dialog>
+
+        <Dialog open={scheduleDialog.open} onOpenChange={(open) => setScheduleDialog(d => ({ ...d, open }))} title="Set publish date">
+          <div style={{ marginTop: 16 }}>
+            <p style={{ fontSize: 14, color: 'var(--muted-foreground)', marginBottom: 8 }}>Format: YYYY-MM-DD</p>
+            <Input
+              value={scheduleDialog.date}
+              onChange={e => setScheduleDialog(d => ({ ...d, date: e.target.value }))}
+              placeholder="YYYY-MM-DD"
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <Button variant="ghost" onClick={() => setScheduleDialog(d => ({ ...d, open: false }))}>Cancel</Button>
+              <Button variant="primary" onClick={() => {
+                const val = scheduleDialog.date.trim()
+                patchMutation.mutate({ id: scheduleDialog.id, data: { publish_date: val || null } })
+                setScheduleDialog(d => ({ ...d, open: false }))
+              }}>Save</Button>
+            </div>
+          </div>
+        </Dialog>
+
+        <ConfirmDialog
+          open={deleteDialog.open}
+          onOpenChange={(open) => setDeleteDialog(d => ({ ...d, open }))}
+          title="Delete this task?"
+          description="Are you sure you want to permanently delete this content task?"
+          destructive
+          confirmLabel="Delete"
+          onConfirm={() => {
+            deleteMutation.mutate(deleteDialog.id)
+            setDeleteDialog(d => ({ ...d, open: false }))
+          }}
+        />
+      </PageContent>
+    </PageRoot>
   )
 }

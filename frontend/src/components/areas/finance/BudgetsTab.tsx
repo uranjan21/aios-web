@@ -1,13 +1,122 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Form, Input, Select, Button, Space, Popconfirm, Table } from 'antd'
+import { Popconfirm } from '@/components/ui/Popconfirm'
+import { Button, Select, SelectItem, Input, DataTable } from '@ledgr/ui'
 import { Trash2, PencilLine } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { formatCurrency } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { BudgetLimit } from '@/types'
-import { TableContainer, TableHeader } from './TableStyles'
+import { Card } from '@/components/ui/Card'
+import { TableFooter } from '@/components/ui/Table'
+import styled from 'styled-components'
+
+const CategoryCell = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+`
+
+const CategoryDot = styled.div`
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: ${({ theme }) => theme.color.primary}99;
+  flex-shrink: 0;
+`
+
+const CategoryName = styled.span`
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const AmountText = styled.span<{ $over?: boolean }>`
+  font-weight: 500;
+  color: ${({ $over, theme }) => $over ? theme.color.destructive : theme.color.foreground};
+`
+
+const UtilContainer = styled.div`
+  width: 120px;
+  @media (min-width: 1024px) {
+    width: 150px;
+  }
+`
+
+const ProgressBarBg = styled.div`
+  height: 0.375rem;
+  border-radius: 9999px;
+  background-color: ${({ theme }) => theme.color.muted};
+  overflow: hidden;
+  margin-top: 0.25rem;
+`
+
+const ProgressBarFill = styled.div<{ $color: string, $width: number }>`
+  height: 100%;
+  border-radius: 9999px;
+  transition: all 0.2s;
+  background-color: ${({ $color }) => $color};
+  width: ${({ $width }) => $width}%;
+`
+
+const ActionContainer = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  opacity: 1;
+  transition: opacity 0.2s;
+
+  @media (min-width: 768px) {
+    opacity: 0;
+    tr:hover & {
+      opacity: 1;
+    }
+  }
+`
+
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`
+
+const LoadingHeader = styled(Skeleton)`
+  height: 40px;
+`
+
+const LoadingBody = styled(Skeleton)`
+  height: 200px;
+`
+
+const FormContainer = styled.div`
+  background-color: ${({ theme }) => theme.color.muted}66;
+  border-radius: 1rem;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+`
+
+const FormLayout = styled.form`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+`
+
+const SelectWrapper = styled.div`
+  flex: 1;
+  min-width: 130px;
+  margin-bottom: 0.5rem;
+`
+
+const InputWrapper = styled.div`
+  width: 7rem;
+  margin-bottom: 0.5rem;
+`
+
+const ButtonsWrapper = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+`
 
 const CATEGORIES = [
   'Food', 'Transport', 'Rent', 'Health', 'Subscriptions',
@@ -16,10 +125,11 @@ const CATEGORIES = [
 ]
 
 export function BudgetsTab() {
-  const [form] = Form.useForm()
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<BudgetLimit | null>(null)
+  const [formCategory, setFormCategory] = useState<string>('')
+  const [formLimit, setFormLimit] = useState<string>('')
 
   const { data: budgets, isLoading } = useQuery({
     queryKey: ['finance', 'budgets'],
@@ -38,7 +148,8 @@ export function BudgetsTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'budgets'] })
       toast.success(editing ? 'Budget updated' : 'Budget added')
-      form.resetFields()
+      setFormCategory('')
+      setFormLimit('')
       setShowForm(false)
       setEditing(null)
     },
@@ -56,7 +167,8 @@ export function BudgetsTab() {
 
   const handleEdit = (budget: BudgetLimit) => {
     setEditing(budget)
-    form.setFieldsValue({ category: budget.category, monthly_limit: String(budget.monthly_limit) })
+    setFormCategory(budget.category)
+    setFormLimit(String(budget.monthly_limit))
     setShowForm(true)
   }
 
@@ -64,113 +176,109 @@ export function BudgetsTab() {
 
   const columns = [
     {
-      title: 'Category',
-      dataIndex: 'category',
-      key: 'category',
-      render: (category: string) => (
-        <div className="flex items-center gap-2.5">
-          <div className="w-2 h-2 rounded-full bg-primary/60 shrink-0" />
-          <span className="font-medium text-foreground">{category}</span>
-        </div>
+      id: 'category',
+      header: 'Category',
+      cell: (row: any) => (
+        <CategoryCell>
+          <CategoryDot />
+          <CategoryName>{row.category}</CategoryName>
+        </CategoryCell>
       )
     },
     {
-      title: 'Limit',
-      dataIndex: 'monthly_limit',
-      key: 'limit',
-      render: (limit: string | number) => <span className="font-medium">{formatCurrency(Number(limit))}</span>
+      id: 'limit',
+      header: 'Limit',
+      cell: (row: any) => <AmountText>{formatCurrency(Number(row.monthly_limit))}</AmountText>
     },
     {
-      title: 'Spent',
-      key: 'spent',
-      render: (_: any, record: BudgetLimit) => {
+      id: 'spent',
+      header: 'Spent',
+      cell: (row: any) => {
+        const record = row as BudgetLimit;
         const limit = Number(record.monthly_limit)
         const spent = spentByCategory.get(record.category) ?? 0
         const over = spent > limit
-        return <span className={over ? 'text-red-500 font-medium' : 'text-foreground'}>{formatCurrency(spent)}</span>
+        return <AmountText $over={over}>{formatCurrency(spent)}</AmountText>
       }
     },
     {
-      title: 'Utilization',
-      key: 'utilization',
-      render: (_: any, record: BudgetLimit) => {
+      id: 'utilization',
+      header: 'Utilization',
+      cell: (row: any) => {
+        const record = row as BudgetLimit;
         const limit = Number(record.monthly_limit)
         const spent = spentByCategory.get(record.category) ?? 0
         const pct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0
         const over = spent > limit
-        const barColor = over ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
+        const barColor = over ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#10b981'
         return (
-          <div className="w-[120px] lg:w-[150px]">
-            <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-1">
-              <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
-            </div>
-          </div>
+          <UtilContainer>
+            <ProgressBarBg>
+              <ProgressBarFill $color={barColor} $width={pct} />
+            </ProgressBarBg>
+          </UtilContainer>
         )
       }
     },
     {
-      title: 'Action',
-      key: 'action',
-      render: (_: any, record: BudgetLimit) => (
-        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button type="text" size="small" icon={<PencilLine size={14} />} onClick={() => handleEdit(record)} />
-          <Popconfirm title="Delete this budget?" onConfirm={() => deleteMutation.mutate(record.category)} okText="Delete" cancelText="Cancel" okButtonProps={{ danger: true }}>
-            <Button type="text" danger size="small" icon={<Trash2 size={14} />} />
-          </Popconfirm>
-        </div>
-      )
+      id: 'action',
+      header: 'Action',
+      cell: (row: any) => {
+        const record = row as BudgetLimit;
+        return (
+          <ActionContainer>
+            <Button variant="ghost" size="icon" onClick={() => handleEdit(record)}>
+              <PencilLine size={14} />
+            </Button>
+            <Popconfirm title="Delete this budget?" onConfirm={() => deleteMutation.mutate(record.category)} okText="Delete" cancelText="Cancel" okButtonProps={{ danger: true }}>
+              <Button variant="destructive" size="icon">
+                <Trash2 size={14} />
+              </Button>
+            </Popconfirm>
+          </ActionContainer>
+        )
+      }
     }
   ]
 
-  if (isLoading) return <div className="space-y-4"><Skeleton className="h-10" /><Skeleton className="h-[200px]" /></div>;
+  if (isLoading) return <LoadingContainer><LoadingHeader /><LoadingBody /></LoadingContainer>;
 
   return (
-    <TableContainer>
-      <TableHeader>
-        <h3>Limits by Category</h3>
-      </TableHeader>
-
+    <Card title="Limits by Category">
       {/* Add/Edit form */}
       {showForm && (
-        <div className="bg-muted/40 border-0 rounded-2xl p-3 mb-4">
-          <Form form={form} layout="inline" onFinish={upsertMutation.mutate} requiredMark={false} className="gap-2 flex flex-wrap">
-            <Form.Item name="category" rules={[{ required: true }]} className="flex-1 min-w-[130px] mb-2">
-              <Select placeholder="Category" showSearch disabled={!!editing}>
+        <FormContainer>
+          <FormLayout onSubmit={e => { e.preventDefault(); upsertMutation.mutate({ category: formCategory, monthly_limit: formLimit }) }}>
+            <SelectWrapper>
+              <Select placeholder="Category" disabled={!!editing} value={formCategory} onChange={(v) => setFormCategory(v as string)}>
                 {CATEGORIES.filter(c => !budgets?.some(b => b.category === c) || (editing && c === editing.category))
-                  .map(c => <Select.Option key={c} value={c}>{c}</Select.Option>)}
+                  .map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </Select>
-            </Form.Item>
-            <Form.Item name="monthly_limit" rules={[{ required: true }]} className="w-28 mb-2">
-              <Input type="number" prefix="₹" placeholder="Limit" min="1" />
-            </Form.Item>
-            <Space className="mb-2">
-              <Button type="primary" htmlType="submit" loading={upsertMutation.isPending} size="small">
+            </SelectWrapper>
+            <InputWrapper>
+              <Input type="number" startAdornment="₹" placeholder="Limit" min="1" value={formLimit} onChange={(e) => setFormLimit(e.target.value)} required />
+            </InputWrapper>
+            <ButtonsWrapper>
+              <Button variant="primary" type="submit" loading={upsertMutation.isPending} size="sm">
                 {editing ? 'Update' : 'Add'}
               </Button>
-              <Button type="text" size="small" onClick={() => { setShowForm(false); setEditing(null); form.resetFields() }}>
+              <Button variant="ghost" size="sm" onClick={() => { setShowForm(false); setEditing(null); setFormCategory(''); setFormLimit(''); }}>
                 Cancel
               </Button>
-            </Space>
-          </Form>
-        </div>
+            </ButtonsWrapper>
+          </FormLayout>
+        </FormContainer>
       )}
 
-      <Table
-        dataSource={budgets}
+      <DataTable
+        rows={budgets ?? []}
         columns={columns}
-        rowKey="category"
-        pagination={false}
-        size="middle"
-        rowClassName={() => 'group'}
-        summary={() => {
-          return (
-            <Table.Summary.Row>
-              <Table.Summary.Cell index={0}>Total Monthly Limit</Table.Summary.Cell>
-              <Table.Summary.Cell index={1} colSpan={4}>{formatCurrency(totalBudget)}</Table.Summary.Cell>
-            </Table.Summary.Row>
-          );
-        }}
+        getRowKey={row => row.category}
       />
-    </TableContainer>
+      <TableFooter>
+        <span>Total Monthly Limit</span>
+        <span>{formatCurrency(totalBudget)}</span>
+      </TableFooter>
+    </Card>
   )
 }

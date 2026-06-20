@@ -13,10 +13,54 @@ interface Props {
   onMonthChange: (delta: number) => void
 }
 
+const HeaderWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+`
+
+const IconButton = styled.button`
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  transition: background-color 0.2s, color 0.2s;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background-color: ${({ theme }) => theme.color.muted};
+  }
+  
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px ${({ theme }) => theme.color.primary};
+  }
+`
+
+const MonthTitle = styled.div`
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
 const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
+`
+
+const DayHeader = styled.div`
+  text-align: center;
+  font-size: 10px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  text-transform: uppercase;
+  padding-bottom: 0.25rem;
 `
 
 const DayCell = styled.div<{ $dim: boolean; $selected: boolean }>`
@@ -24,14 +68,37 @@ const DayCell = styled.div<{ $dim: boolean; $selected: boolean }>`
   border-radius: 8px;
   padding: 4px 6px;
   cursor: pointer;
-  border: 1px solid ${p => p.$selected ? 'hsl(var(--primary))' : 'hsl(var(--border) / 0.5)'};
-  background: ${p => p.$selected ? 'hsl(var(--primary) / 0.08)' : 'hsl(var(--card))'};
-  opacity: ${p => p.$dim ? 0.35 : 1};
+  border: 1px solid ${({ $selected, theme }) => $selected ? theme.color.primary : `${theme.color.border}80`};
+  background: ${({ $selected, theme }) => $selected ? `${theme.color.primary}14` : theme.color.card};
+  opacity: ${({ $dim }) => $dim ? 0.35 : 1};
   transition: border-color 0.15s, background 0.15s;
 
   &:hover {
-    border-color: hsl(var(--primary) / 0.5);
+    border-color: ${({ theme }) => theme.color.primary}80;
   }
+`
+
+const DateNumber = styled.div<{ $isToday: boolean }>`
+  font-size: 11px;
+  font-weight: 500;
+  color: ${({ $isToday, theme }) => $isToday ? theme.color.primary : theme.color.foreground};
+`
+
+const ValuesWrap = styled.div`
+  margin-top: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+`
+
+const ValueText = styled.div<{ $type: 'income' | 'expense' }>`
+  font-size: 9px;
+  line-height: 1.25;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: ${({ $type }) => $type === 'income' ? '#10b981' : '#f87171'};
 `
 
 export function TransactionCalendar({ month, byDay, selectedDate, onSelectDate, onMonthChange }: Props) {
@@ -48,18 +115,18 @@ export function TransactionCalendar({ month, byDay, selectedDate, onSelectDate, 
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <button onClick={() => onMonthChange(-1)} className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors">
+      <HeaderWrapper>
+        <IconButton onClick={() => onMonthChange(-1)} aria-label="Previous month">
           <ChevronLeft size={16} />
-        </button>
-        <div className="text-sm font-semibold text-foreground">{month.format('MMMM YYYY')}</div>
-        <button onClick={() => onMonthChange(1)} className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors">
+        </IconButton>
+        <MonthTitle>{month.format('MMMM YYYY')}</MonthTitle>
+        <IconButton onClick={() => onMonthChange(1)} aria-label="Next month">
           <ChevronRight size={16} />
-        </button>
-      </div>
+        </IconButton>
+      </HeaderWrapper>
       <Grid>
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-          <div key={d} className="text-center text-[10px] font-medium text-muted-foreground uppercase pb-1">{d}</div>
+          <DayHeader key={d}>{d}</DayHeader>
         ))}
         {cells.map(c => {
           const key = c.format('YYYY-MM-DD')
@@ -71,12 +138,12 @@ export function TransactionCalendar({ month, byDay, selectedDate, onSelectDate, 
               $selected={key === selectedDate}
               onClick={() => onSelectDate(key)}
             >
-              <div className={`text-[11px] font-medium ${key === today ? 'text-primary' : 'text-foreground'}`}>{c.date()}</div>
+              <DateNumber $isToday={key === today}>{c.date()}</DateNumber>
               {data && (data.income > 0 || data.expense > 0) && (
-                <div className="mt-1 space-y-0.5">
-                  {data.income > 0 && <div className="text-[9px] leading-tight text-emerald-500 font-medium truncate">+{formatCurrency(data.income)}</div>}
-                  {data.expense > 0 && <div className="text-[9px] leading-tight text-red-400 font-medium truncate">-{formatCurrency(data.expense)}</div>}
-                </div>
+                <ValuesWrap>
+                  {data.income > 0 && <ValueText $type="income">+{formatCurrency(data.income)}</ValueText>}
+                  {data.expense > 0 && <ValueText $type="expense">-{formatCurrency(data.expense)}</ValueText>}
+                </ValuesWrap>
               )}
             </DayCell>
           )

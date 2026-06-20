@@ -1,7 +1,4 @@
-export { GlassCard } from './GlassCard'
-export type { GlassCardProps } from './GlassCard'
-export { KpiCard } from './KpiCard'
-export type { KpiCardProps, KpiColor } from './KpiCard'
+
 export { ProgressBar } from './ProgressBar'
 export type { ProgressBarProps } from './ProgressBar'
 export { StatusPill } from './StatusPill'

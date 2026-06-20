@@ -1100,8 +1100,58 @@ async def create_category(body: CategoryCreate, current_user=Depends(get_current
     existing = await db.execute(select(Category).where(Category.name == body.name))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Category with this name already exists")
-    
+
+    if body.parent_id is not None:
+        parent_result = await db.execute(select(Category).where(Category.id == body.parent_id))
+        parent = parent_result.scalar_one_or_none()
+        if not parent:
+            raise HTTPException(status_code=404, detail="Parent category not found")
+        if parent.parent_id is not None:
+            raise HTTPException(status_code=422, detail="Parent category must be a top-level category (max 2 levels)")
+
     category = Category(name=body.name, parent_id=body.parent_id, icon=body.icon)
+    db.add(category)
+    await db.commit()
+    await db.refresh(category)
+    return category
+
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    icon: Optional[str] = None
+    parent_id: Optional[uuid.UUID] = None
+
+@router.patch("/categories/{category_id}")
+async def update_category(category_id: uuid.UUID, body: CategoryUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(Category).where(Category.id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    if body.name is not None and body.name != category.name:
+        existing = await db.execute(select(Category).where(Category.name == body.name))
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Category with this name already exists")
+        category.name = body.name
+
+    if "parent_id" in body.model_fields_set:
+        new_parent_id = body.parent_id
+        if new_parent_id is not None:
+            if new_parent_id == category.id:
+                raise HTTPException(status_code=422, detail="Category cannot be its own parent")
+            parent_result = await db.execute(select(Category).where(Category.id == new_parent_id))
+            parent = parent_result.scalar_one_or_none()
+            if not parent:
+                raise HTTPException(status_code=404, detail="Parent category not found")
+            if parent.parent_id is not None:
+                raise HTTPException(status_code=422, detail="Parent category must be a top-level category (max 2 levels)")
+            children = await db.execute(select(Category).where(Category.parent_id == category.id))
+            if children.scalars().first():
+                raise HTTPException(status_code=422, detail="Category has subcategories and cannot become a subcategory itself")
+        category.parent_id = new_parent_id
+
+    if body.icon is not None:
+        category.icon = body.icon
+
     db.add(category)
     await db.commit()
     await db.refresh(category)

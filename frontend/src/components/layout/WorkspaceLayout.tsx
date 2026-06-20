@@ -1,33 +1,90 @@
 import type { ReactNode } from 'react'
+import styled from 'styled-components'
 
-/**
- * Two-zone workspace: analytics/visualization in the center, all input/logging
- * tools docked in a sticky right rail. Below xl the rail drops under the center.
- *
- *   <WorkspaceLayout rail={<QuickActions/>}>
- *     ...analytics cards...
- *   </WorkspaceLayout>
- */
+const Root = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: flex-start;
+  width: 100%;
+
+  @media (min-width: 1024px) {
+    flex-direction: row;
+    align-items: stretch;
+  }
+`
+
+const Rail = styled.div`
+  width: 100%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-radius: ${({ theme }) => theme.radii['2xl']};
+  border: 1px solid ${({ theme }) => theme.color.border};
+  background: ${({ theme }) => theme.color.card};
+  box-shadow: ${({ theme }) => theme.shadow.xs};
+  padding: 16px;
+
+  @media (min-width: 1024px) {
+    width: 280px;
+  }
+`
+
+const Main = styled.div`
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`
+
 export function WorkspaceLayout({ children, rail }: { children: ReactNode; rail?: ReactNode }) {
   return (
-    <div className="flex flex-col xl:flex-row gap-4 xl:gap-5 items-start">
-      <div className="flex-1 min-w-0 w-full space-y-4">{children}</div>
-      {rail && (
-        <aside className="w-full xl:w-[300px] shrink-0 xl:sticky xl:top-1 space-y-4 rounded-3xl border-0 bg-card shadow-premium-sm p-3">
-          {rail}
-        </aside>
-      )}
-    </div>
+    <Root>
+      {rail && <Rail>{rail}</Rail>}
+      <Main>{children}</Main>
+    </Root>
   )
 }
 
-/** Section label for grouping rail cards — "Quick Log", "Track", etc. */
+const RailHeadingRoot = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+`
+
+const Dot = styled.span`
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: ${({ theme }) => theme.color.primary};
+  flex-shrink: 0;
+`
+
+const RailLabel = styled.span`
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const RailLine = styled.div`
+  flex: 1;
+  height: 1px;
+  background: ${({ theme }) => theme.color.border};
+  opacity: 0.6;
+`
+
 export function RailHeading({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center gap-2 px-1 first:pt-0 pt-1">
-      <span className="w-1 h-1 rounded-full bg-primary" />
-      <span className="text-[10.5px] font-semibold uppercase tracking-widest text-muted-foreground">{children}</span>
-      <div className="flex-1 h-px bg-border/60" />
-    </div>
+    <RailHeadingRoot>
+      <Dot />
+      <RailLabel>{children}</RailLabel>
+      <RailLine />
+    </RailHeadingRoot>
   )
 }

@@ -4,7 +4,8 @@ Highcharts.setOptions({ accessibility: { enabled: false } })
 import HighchartsReact from 'highcharts-react-official'
 import highchartsMore from 'highcharts/highcharts-more'
 import { SkillInventory } from '@/types'
-import styled from 'styled-components'
+import styled, { useTheme } from 'styled-components'
+import { Card as GlassCard } from '@ledgr/ui'
 
 if (typeof Highcharts === 'object') {
   try {
@@ -23,15 +24,10 @@ const levelValues: Record<string, number> = {
   expert: 5,
 }
 
-const RadarContainer = styled.div`
-  width: 100%;
-  border-radius: 20px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.05) 100%);
-  padding: 1rem;
-  box-shadow: inset 0 0 24px hsl(var(--border-subtle) / 0.06);
-`
+
 
 export function CareerRadar({ skills }: { skills: SkillInventory[] }) {
+  const theme = useTheme()
   const categories = skills.map((s) => s.skill_name)
   const data = skills.map((s) => levelValues[s.level] || 0)
 
@@ -62,7 +58,7 @@ export function CareerRadar({ skills }: { skills: SkillInventory[] }) {
       lineWidth: 0,
       labels: {
         style: {
-          color: 'hsl(var(--muted-foreground))',
+          color: theme.color.mutedForeground,
           fontSize: '12px',
           fontWeight: 'bold',
         },
@@ -74,7 +70,7 @@ export function CareerRadar({ skills }: { skills: SkillInventory[] }) {
       min: 0,
       max: 5,
       tickInterval: 1,
-      gridLineColor: 'hsl(var(--border-divider) / 0.1)',
+      gridLineColor: `color-mix(in srgb, ${theme.color.border} 40%, transparent)`,
       labels: {
         enabled: false,
       },
@@ -82,11 +78,11 @@ export function CareerRadar({ skills }: { skills: SkillInventory[] }) {
     tooltip: {
       shared: true,
       pointFormat: '<span style="color:{series.color}"><b>{point.y:,.0f}</b>/5<br/>',
-      backgroundColor: 'hsl(var(--popover))',
+      backgroundColor: theme.color.popover,
       style: {
-        color: 'hsl(var(--popover-foreground))',
+        color: theme.color.popoverForeground,
       },
-      borderColor: 'hsl(var(--border))',
+      borderColor: theme.color.border,
       borderRadius: 8,
     },
     legend: {
@@ -98,17 +94,17 @@ export function CareerRadar({ skills }: { skills: SkillInventory[] }) {
         name: 'Skill Level',
         data: data,
         pointPlacement: 'on',
-        color: '#8b5cf6', // Violet 500
+        color: theme.color.accent,
         fillColor: {
           linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
           stops: [
-            [0, 'rgba(139, 92, 246, 0.5)'],
-            [1, 'rgba(139, 92, 246, 0.1)']
+            [0, `color-mix(in srgb, ${theme.color.accent} 50%, transparent)`],
+            [1, `color-mix(in srgb, ${theme.color.accent} 10%, transparent)`]
           ]
         },
         marker: {
-          fillColor: '#8b5cf6',
-          lineColor: '#fff',
+          fillColor: theme.color.accent,
+          lineColor: theme.color.card,
           lineWidth: 2,
           symbol: 'circle'
         }
@@ -119,9 +115,13 @@ export function CareerRadar({ skills }: { skills: SkillInventory[] }) {
     },
   }
 
+const FullWidthCard = styled(GlassCard)`
+  width: 100%;
+`
+
   return (
-    <RadarContainer>
+    <FullWidthCard>
       <HighchartsReact highcharts={Highcharts} options={options} />
-    </RadarContainer>
+    </FullWidthCard>
   )
 }

@@ -1,12 +1,25 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus } from 'lucide-react'
-import { Button } from 'antd'
+import { Button } from '@ledgr/ui'
 import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
 import { AccountManager } from './AccountManager'
 import { CategoryManager } from './CategoryManager'
 import { InvestmentsTab } from './InvestmentsTab'
 import { LoansTab } from './LoansTab'
+import { PageToolbar } from '@/components/layout/PageLayout'
 import { AccountsTabModal } from './QuickAddAccounts'
+import { TextTabs } from '@/components/ui/TextTabs'
+import styled from 'styled-components'
+
+const GridContainer = styled.div`
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 1rem;
+`
+
+const GridItem = styled.div`
+  grid-column: span 12 / span 12;
+`
 
 export function AccountsTab() {
   const [modalOpen, setModalOpen] = useState(false)
@@ -17,46 +30,44 @@ export function AccountsTab() {
     setModalOpen(true)
   }
 
-  const toolbar = (
-    <div className="sticky top-0 z-20 bg-card/75 backdrop-blur-md px-4 py-3 mb-4 rounded-2xl flex items-center justify-between gap-3 shadow-premium-sm border-0">
-      <div className="text-[13px] font-semibold text-foreground">Accounts & Assets</div>
-      <div className="flex items-center gap-1.5 ml-auto">
-        <Button 
-          size="small" 
-          type="primary"
-          onClick={() => openModal('Account')} 
-          className="text-[12px] font-medium flex items-center gap-1"
-        >
-          <Plus size={12} />
-          <span>Add Financial Item</span>
-        </Button>
-      </div>
-    </div>
-  )
+  useEffect(() => {
+    const handleOpenModal = () => openModal('Account')
+    window.addEventListener('open-new-account', handleOpenModal)
+    return () => window.removeEventListener('open-new-account', handleOpenModal)
+  }, [])
 
   return (
     <>
       <WorkspaceLayout rail={undefined}>
-        {toolbar}
-        <div className="grid grid-cols-12 gap-4">
-          {/* Row 1: Accounts and Categories */}
-          <div className="col-span-12">
-            <AccountManager />
-          </div>
-          <div className="col-span-12">
-            <CategoryManager />
-          </div>
-
-          {/* Row 2: Investments */}
-          <div className="col-span-12">
-            <InvestmentsTab />
-          </div>
-
-          {/* Row 3: Loans & EMIs */}
-          <div className="col-span-12">
-            <LoansTab />
-          </div>
+        <div style={{ paddingBottom: '16px' }}>
+          <TextTabs
+            options={['Account', 'Category', 'Investment', 'Loan']}
+            value={activeTab}
+            onChange={(val) => setActiveTab(val as any)}
+          />
         </div>
+        <GridContainer>
+          {activeTab === 'Account' && (
+            <GridItem>
+              <AccountManager />
+            </GridItem>
+          )}
+          {activeTab === 'Category' && (
+            <GridItem>
+              <CategoryManager />
+            </GridItem>
+          )}
+          {activeTab === 'Investment' && (
+            <GridItem>
+              <InvestmentsTab />
+            </GridItem>
+          )}
+          {activeTab === 'Loan' && (
+            <GridItem>
+              <LoansTab />
+            </GridItem>
+          )}
+        </GridContainer>
       </WorkspaceLayout>
 
       <AccountsTabModal open={modalOpen} onClose={() => setModalOpen(false)} defaultTab={activeTab} />

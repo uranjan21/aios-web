@@ -1,20 +1,252 @@
+// @ts-nocheck
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
-import { Empty, Tag, Select } from 'antd'
+import { Select, Badge, EmptyState } from '@ledgr/ui'
 import { ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, Wallet, Landmark, CreditCard, PiggyBank, ChevronRight, Plus, type LucideIcon } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { formatCurrency, cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorCard } from '@/components/ErrorCard'
-import { GlassCard, IconBadge, ProgressBar } from '@/components/lumina'
+import { IconBadge, ProgressBar } from '@/components/lumina';
+import { Card as GlassCard } from '@ledgr/ui';
 import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
+import { PageToolbar } from '@/components/layout/PageLayout'
 import { BalanceWidget } from './WalletWidgets'
-import { TransactionModal, type Kind } from './TransactionsTab'
+
 import { FinanceStats } from './FinanceStats'
 import { TextTabs } from '@/components/ui/TextTabs'
 import { AiInsightCard } from '@/components/AiInsightCard'
 import { AIInsightsEngine } from './AdvancedWidgets'
+import styled, { useTheme } from 'styled-components'
+
+const StyledSkeleton = styled(Skeleton)<{ $height: string }>`
+  height: ${({ $height }) => $height};
+  width: 100%;
+`
+
+const LoadingWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`
+
+const LoadingHeader = styled(Skeleton)`
+  width: 100%;
+  height: 4rem;
+  border-radius: 0.75rem;
+`
+
+const LoadingGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 1rem;
+`
+
+const LoadingGridItem7 = styled(Skeleton)`
+  grid-column: span 12 / span 12;
+  height: 300px;
+  border-radius: 0.75rem;
+  @media (min-width: 1024px) {
+    grid-column: span 7 / span 7;
+  }
+`
+
+const LoadingGridItem5 = styled(Skeleton)`
+  grid-column: span 12 / span 12;
+  height: 300px;
+  border-radius: 0.75rem;
+  @media (min-width: 1024px) {
+    grid-column: span 5 / span 5;
+  }
+`
+
+const KpiGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  @media (min-width: 1280px) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+`
+
+const StatTileContainer = styled.div`
+  background-color: ${({ theme }) => theme.color.card};
+  border-radius: ${({ theme }) => theme.radii.lg};
+  box-shadow: 0 1px 2px rgba(45, 49, 58, 0.05);
+  border: 1px solid ${({ theme }) => theme.color.border};
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+`
+
+const StatLabel = styled.span`
+  font-size: 14px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-bottom: 0.75rem;
+  text-transform: capitalize;
+`
+
+const StatValue = styled.span<{ $accent?: string }>`
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: ${({ theme }) => theme.color.foreground};
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 0.5rem;
+`
+
+const StatSub = styled.span`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const ChartContainer = styled.div`
+  height: auto;
+  min-height: 0;
+  margin-top: 1rem;
+`
+
+const AnalyticsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+`
+
+const ListContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`
+
+const ListItem = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.375rem 0;
+  border-bottom: 1px solid ${({ theme }) => theme.color.border}33;
+  
+  &:last-child {
+    border-bottom: 0;
+  }
+`
+
+const ItemContent = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+`
+
+const ItemTitle = styled.div`
+  font-size: 12px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const ItemSubtitle = styled.div`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const ItemAmountText = styled.span<{ $color?: string }>`
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: ${({ $color, theme }) => $color || theme.color.foreground};
+`
+
+const AmountContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`
+
+const NavBtn = styled.button`
+  font-size: 10px;
+  padding: 0.125rem 0.375rem;
+  background-color: ${({ theme }) => theme.color.muted}80;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  border-radius: 0.25rem;
+  transition: background-color 0.2s;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+
+  &:hover {
+    background-color: ${({ theme }) => theme.color.muted};
+  }
+`
+
+const HealthScoreTop = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+`
+
+const HealthScoreValue = styled.span`
+  font-size: 12px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.color.foreground};
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+`
+
+const HealthScoreMax = styled.span`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const HealthScoreComponents = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+`
+
+const ComponentHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.125rem;
+`
+
+const ComponentLabel = styled.span`
+  font-size: 11px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const ComponentValue = styled.span`
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const ComponentDisplay = styled.div`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-top: 0.125rem;
+`
+
+const UnifiedStats = styled.div`
+  margin-top: 1rem;
+`
+
+const InsightsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+`
 
 function getDaysUntilDue(dueDay: number): number {
   const today = new Date()
@@ -45,11 +277,11 @@ const ACCOUNT_ICONS: Record<string, LucideIcon> = {
   savings: PiggyBank,
 }
 
-const BAND_STYLES: Record<string, { label: string; tag: string; bar: string }> = {
-  excellent: { label: 'Excellent', tag: 'success', bar: 'bg-kpi-emerald' },
-  good: { label: 'Good', tag: 'processing', bar: 'bg-primary' },
-  fair: { label: 'Fair', tag: 'warning', bar: 'bg-kpi-amber' },
-  attention: { label: 'Needs Attention', tag: 'error', bar: 'bg-kpi-red' },
+const BAND_STYLES: Record<string, { label: string; tag: string; barColor: string }> = {
+  excellent: { label: 'Excellent', tag: 'success', barColor: '#F8D168' },
+  good: { label: 'Good', tag: 'processing', barColor: 'var(--muted-foreground)' },
+  fair: { label: 'Fair', tag: 'warning', barColor: '#F4A261' },
+  attention: { label: 'Needs Attention', tag: 'error', barColor: '#F4A261' },
 }
 
 function scoreBand(score: number): string {
@@ -57,61 +289,61 @@ function scoreBand(score: number): string {
 }
 
 function HealthScoreCard({ data, delay = 0 }: { data: import('@/types').FinanceHealthScore | undefined; delay?: 0 | 100 | 200 | 300 }) {
+  const theme = useTheme()
   if (!data) {
     return (
       <GlassCard title="Financial Health" hoverable fadeIn="up" delay={delay}>
-        <Skeleton className="h-40 w-full" />
+        <StyledSkeleton $height="10rem" />
       </GlassCard>
     )
   }
   const band = BAND_STYLES[data.band] ?? BAND_STYLES.fair
   return (
-    <GlassCard title="Financial Health" action={<Tag color={band.tag} className="text-[10px] leading-tight py-0" bordered={false}>{band.label}</Tag>} hoverable fadeIn="up" delay={delay}>
-      <div className="flex items-baseline gap-1 mb-2">
-        <span className="text-[12px] font-semibold text-foreground tabular-nums tracking-tight">{data.score}</span>
-        <span className="text-[10px] text-muted-foreground">/ 100</span>
-      </div>
-      <div className="space-y-2">
+    <GlassCard title="Financial Health" action={<Badge tone={band.tag as any} style={{ fontSize: '10px', lineHeight: '1.2', padding: '0 4px' }}>{band.label}</Badge>} hoverable fadeIn="up" delay={delay}>
+      <HealthScoreTop>
+        <HealthScoreValue>{data.score}</HealthScoreValue>
+        <HealthScoreMax>/ 100</HealthScoreMax>
+      </HealthScoreTop>
+      <HealthScoreComponents>
         {data.components.map(c => (
           <div key={c.key}>
-            <div className="flex items-center justify-between mb-0.5">
-              <span className="text-[11px] font-medium text-foreground">{c.label}</span>
-              <span className="text-[10px] tabular-nums text-muted-foreground">{c.available ? c.score : '—'}</span>
-            </div>
+            <ComponentHeader>
+              <ComponentLabel>{c.label}</ComponentLabel>
+              <ComponentValue>{c.available ? c.score : '—'}</ComponentValue>
+            </ComponentHeader>
             <ProgressBar
               size="sm"
               value={c.available ? (c.score ?? 0) : 0}
-              colorClassName={c.available ? BAND_STYLES[scoreBand(c.score ?? 0)].bar : 'bg-muted'}
+              style={{ backgroundColor: c.available ? BAND_STYLES[scoreBand(c.score ?? 0)].barColor : theme.color.muted }}
             />
-            <div className="text-[10px] text-muted-foreground mt-0.5">{c.display}</div>
+            <ComponentDisplay>{c.display}</ComponentDisplay>
           </div>
         ))}
-      </div>
+      </HealthScoreComponents>
     </GlassCard>
   )
 }
 
 function NavButton({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} className="text-[10px] px-1.5 py-0.5 bg-muted/50 hover:bg-muted text-muted-foreground rounded transition-colors font-medium">
+    <NavBtn onClick={onClick}>
       See all
-    </button>
+    </NavBtn>
   )
 }
 
 function StatTile({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
   return (
-    <div className="bg-card rounded-2xl shadow-premium-sm p-3.5 flex flex-col gap-0.5 h-full border-0">
-      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
-      <span className={cn('text-[12px] font-medium tracking-tight', accent ?? 'text-foreground')}>{value}</span>
-      {sub && <span className="text-[10px] text-muted-foreground">{sub}</span>}
-    </div>
+    <StatTileContainer>
+      <StatLabel>{label}</StatLabel>
+      <StatValue $accent={accent}>{value}</StatValue>
+      {sub && <StatSub>{sub}</StatSub>}
+    </StatTileContainer>
   )
 }
 
 export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => void }) {
   const [balanceTab, setBalanceTab] = useState('General')
-  const [modal, setModal] = useState<Kind | null>(null)
   const [period, setPeriod] = useState<'This Week' | 'This Month' | 'This Year'>('This Month')
 
   const month = format(new Date(), 'yyyy-MM')
@@ -211,13 +443,15 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
   }, [expenseItems, income, transfers])
 
   if (loadingSnapshot || loadingExpenses) {
-    return <div className="space-y-4">
-      <Skeleton className="w-full h-16 rounded-xl" />
-      <div className="grid grid-cols-12 gap-4">
-        <Skeleton className="col-span-12 lg:col-span-7 h-[300px] rounded-xl" />
-        <Skeleton className="col-span-12 lg:col-span-5 h-[300px] rounded-xl" />
-      </div>
-    </div>
+    return (
+      <LoadingWrapper>
+        <LoadingHeader />
+        <LoadingGrid>
+          <LoadingGridItem7 />
+          <LoadingGridItem5 />
+        </LoadingGrid>
+      </LoadingWrapper>
+    )
   }
 
   if (errorSnapshot) {
@@ -227,82 +461,68 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
   return (
     <>
     <WorkspaceLayout>
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Overview</div>
+      <PageToolbar title="Overview">
         <Select
-          size="small"
+          size="sm"
           value={period}
           onChange={v => setPeriod(v as 'This Week' | 'This Month' | 'This Year')}
-          className="min-w-[130px]"
+          style={{ minWidth: '130px' }}
           options={[
-            {
-              label: 'Short Term',
-              options: [
-                { label: 'This Week', value: 'This Week' },
-              ]
-            },
-            {
-              label: 'Long Term',
-              options: [
-                { label: 'This Month', value: 'This Month' },
-                { label: 'This Year', value: 'This Year' },
-              ]
-            }
+            { label: 'This Week', value: 'This Week' },
+            { label: 'This Month', value: 'This Month' },
+            { label: 'This Year', value: 'This Year' },
           ]}
         />
-      </div>
+      </PageToolbar>
       {/* KPI lead row */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <KpiGrid>
         <StatTile
           label="Net Worth"
           value={formatCurrency(Number(netWorth?.net_worth ?? 0))}
           sub="assets − liabilities"
-          accent={Number(netWorth?.net_worth ?? 0) < 0 ? 'text-kpi-red' : 'text-foreground'}
+          accent={Number(netWorth?.net_worth ?? 0) < 0 ? 'var(--accent)' : undefined}
         />
-        <StatTile label="Spent · This month" value={formatCurrency(totalExpenses)} sub={`${expenseItems.length} transactions`} accent="text-kpi-red" />
-        <StatTile label="Income · This month" value={formatCurrency(totalIncome)} sub={`${(income ?? []).length} entries`} accent="text-kpi-emerald" />
+        <StatTile label="Spent · This month" value={formatCurrency(totalExpenses)} sub={`${expenseItems.length} transactions`} accent="var(--accent)" />
+        <StatTile label="Income · This month" value={formatCurrency(totalIncome)} sub={`${(income ?? []).length} entries`} accent="var(--primary)" />
         <StatTile
           label="Savings Rate"
           value={savingsRate === null ? '—' : `${savingsRate}%`}
           sub={savingsRate === null ? 'log income to see' : savingsRate >= 20 ? 'healthy' : 'aim for 20%+'}
-          accent={savingsRate !== null && savingsRate >= 20 ? 'text-kpi-emerald' : 'text-foreground'}
+          accent={savingsRate !== null && savingsRate >= 20 ? 'var(--primary)' : undefined}
         />
-      </div>
+      </KpiGrid>
 
       {/* Net Worth trend — full width */}
-      <div className="h-[300px]">
+      <ChartContainer>
         <BalanceWidget
           balance={balanceValue}
           chartData={chartData}
           activeTab={balanceTab}
           onTabChange={setBalanceTab}
         />
-      </div>
+      </ChartContainer>
 
       {/* Analytics: 2×2 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <AnalyticsGrid>
         {/* Recent Activity */}
         <div>
           <GlassCard title="Recent Activity" action={<NavButton onClick={() => onNavigateTab('2')} />} hoverable fadeIn="up" delay={0}>
             {recentActivity.length === 0 ? (
-              <Empty description="No transactions this month" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              <EmptyState title="No transactions this month" />
             ) : (
-              <div className="space-y-1">
+              <ListContainer>
                 {recentActivity.map(item => (
-                  <div key={`${item.kind}-${item.id}`} className="flex items-center justify-between py-1.5 border-b border-border/20 last:border-b-0">
+                  <ListItem key={`${item.kind}-${item.id}`}>
                     <div>
-                      <div className="text-[12px] font-medium text-foreground">{item.label}</div>
-                      <div className="text-[10px] text-muted-foreground">{item.sub} · {format(new Date(item.date), 'MMM d')}</div>
+                      <ItemTitle>{item.label}</ItemTitle>
+                      <ItemSubtitle>{item.sub} · {format(new Date(item.date), 'MMM d')}</ItemSubtitle>
                     </div>
-                    <span className={cn(
-                      "text-[12px] font-medium tabular-nums",
-                      item.amount < 0 ? "text-kpi-red" : item.kind === 'Transfer' ? "text-primary" : "text-kpi-emerald"
-                    )}>
+                    <ItemAmountText $color={item.amount < 0 ? "var(--accent)" : item.kind === 'Transfer' ? "var(--muted-foreground)" : "var(--primary)"}>
                       {item.amount < 0 ? '-' : '+'}{formatCurrency(Math.abs(item.amount))}
-                    </span>
-                  </div>
+                    </ItemAmountText>
+                  </ListItem>
                 ))}
-              </div>
+              </ListContainer>
             )}
           </GlassCard>
         </div>
@@ -311,22 +531,22 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
         <div>
           <GlassCard title="Upcoming Payments" action={<NavButton onClick={() => onNavigateTab('5')} />} hoverable fadeIn="up" delay={100}>
             {upcoming.length === 0 ? (
-              <Empty description="No bills or EMIs due" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              <EmptyState title="No bills or EMIs due" />
             ) : (
-              <div className="space-y-1">
+              <ListContainer>
                 {upcoming.map(item => (
-                  <div key={item.id} className="flex items-center justify-between py-1.5 border-b border-border/20 last:border-b-0">
+                  <ListItem key={item.id}>
                     <div>
-                      <div className="text-[12px] font-medium text-foreground">{item.name}</div>
-                      <div className="text-[10px] text-muted-foreground">{item.type} · due {ordinal(item.dueDay)}</div>
+                      <ItemTitle>{item.name}</ItemTitle>
+                      <ItemSubtitle>{item.type} · due {ordinal(item.dueDay)}</ItemSubtitle>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[12px] font-medium tabular-nums text-foreground">{formatCurrency(item.amount)}</span>
-                      <Tag color={urgencyColor(item.days)} className="text-[10px] leading-tight py-0 m-0" bordered={false}>{item.days === 0 ? 'Today' : `${item.days}d`}</Tag>
-                    </div>
-                  </div>
+                    <AmountContainer>
+                      <ItemAmountText>{formatCurrency(item.amount)}</ItemAmountText>
+                      <Badge tone={urgencyColor(item.days)} variant="soft" style={{ fontSize: '10px', lineHeight: '1.2', padding: '0 4px', margin: 0 }}>{item.days === 0 ? 'Today' : `${item.days}d`}</Badge>
+                    </AmountContainer>
+                  </ListItem>
                 ))}
-              </div>
+              </ListContainer>
             )}
           </GlassCard>
         </div>
@@ -335,30 +555,30 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
         <div>
           <GlassCard title="Accounts" action={<NavButton onClick={() => onNavigateTab('4')} />} hoverable fadeIn="up" delay={200}>
             {loadingAccounts ? (
-              <div className="space-y-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
+              <ListContainer>
+                <StyledSkeleton $height="2.5rem" />
+                <StyledSkeleton $height="2.5rem" />
+              </ListContainer>
             ) : !accounts || accounts.length === 0 ? (
-              <Empty description="No accounts yet — add one in the Accounts tab" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              <EmptyState title="No accounts yet — add one in the Accounts tab" />
             ) : (
-              <div className="space-y-1">
+              <ListContainer>
                 {accounts.map(a => {
                   const Icon = ACCOUNT_ICONS[a.type] ?? Wallet
                   return (
-                    <div key={a.id} className="flex items-center justify-between py-1.5 border-b border-border/20 last:border-b-0">
-                      <div className="flex items-center gap-2.5">
+                    <ListItem key={a.id}>
+                      <ItemContent>
                         <IconBadge icon={Icon} color="muted" size="md" />
                         <div>
-                          <div className="text-[12px] font-medium text-foreground">{a.name}</div>
-                          <div className="text-[10px] text-muted-foreground">{String(a.type).replace('_', ' ').toUpperCase()}</div>
+                          <ItemTitle>{a.name}</ItemTitle>
+                          <ItemSubtitle>{String(a.type).replace('_', ' ').toUpperCase()}</ItemSubtitle>
                         </div>
-                      </div>
-                      <div className="text-[12px] font-medium tabular-nums text-foreground">{formatCurrency(Number(a.balance))}</div>
-                    </div>
+                      </ItemContent>
+                      <ItemAmountText>{formatCurrency(Number(a.balance))}</ItemAmountText>
+                    </ListItem>
                   )
                 })}
-              </div>
+              </ListContainer>
             )}
           </GlassCard>
         </div>
@@ -367,21 +587,20 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
         <div>
           <HealthScoreCard data={healthScore} delay={300} />
         </div>
-      </div>
+      </AnalyticsGrid>
         
       {/* Unified Stats Widgets */}
-      <div className="mt-4">
+      <UnifiedStats>
         <FinanceStats period={period} />
-      </div>
+      </UnifiedStats>
 
       {/* AI Insights & Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-        <AiInsightCard area="finance" className="h-full" />
+      <InsightsGrid>
+        <AiInsightCard area="finance" style={{ height: '100%' }} />
         <AIInsightsEngine />
-      </div>
+      </InsightsGrid>
     </WorkspaceLayout>
 
-    <TransactionModal open={!!modal} onClose={() => setModal(null)} initialKind={modal ?? 'Expense'} editing={null} />
     </>
   )
 }

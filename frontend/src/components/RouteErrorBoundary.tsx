@@ -1,5 +1,56 @@
 import { Component, type ReactNode } from 'react'
 import { AlertCircle } from 'lucide-react'
+import styled from 'styled-components'
+
+const ErrorContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  padding: 32px;
+  text-align: center;
+`
+
+const StyledAlertIcon = styled(AlertCircle)`
+  width: 2.5rem;
+  height: 2.5rem;
+  color: ${({ theme }) => theme.color?.destructive || 'var(--destructive)'};
+`
+
+const ErrorTitle = styled.p`
+  font-weight: 600;
+  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
+  margin: 0;
+`
+
+const ErrorDescription = styled.p`
+  font-size: 0.875rem;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  margin-top: 0.25rem;
+  margin-bottom: 0;
+`
+
+const ReloadButton = styled.button`
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  background-color: ${({ theme }) => theme.color?.primary || 'var(--primary)'};
+  color: ${({ theme }) => theme.color?.primaryForeground || 'var(--primary-foreground)'};
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px ${({ theme }) => theme.color?.primary || 'var(--primary)'};
+  }
+`
 
 interface State { hasError: boolean }
 
@@ -17,19 +68,16 @@ export class RouteErrorBoundary extends Component<{ children?: ReactNode }, Stat
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
-          <AlertCircle className="w-10 h-10 text-destructive" />
+        <ErrorContainer>
+          <StyledAlertIcon />
           <div>
-            <p className="font-semibold text-foreground">Something went wrong</p>
-            <p className="text-sm text-muted-foreground mt-1">This page crashed. Reload to recover.</p>
+            <ErrorTitle>Something went wrong</ErrorTitle>
+            <ErrorDescription>This page crashed. Reload to recover.</ErrorDescription>
           </div>
-          <button
-            onClick={() => window.location.reload()}
-            className="text-sm px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
+          <ReloadButton onClick={() => window.location.reload()}>
             Reload
-          </button>
-        </div>
+          </ReloadButton>
+        </ErrorContainer>
       )
     }
     return this.props.children

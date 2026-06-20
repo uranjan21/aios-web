@@ -1,11 +1,81 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Switch, Popconfirm, Tag, Table, Button } from 'antd'
+import { Popconfirm } from '@/components/ui/Popconfirm'
+import { Button, Switch, Badge } from '@ledgr/ui'
 import { Trash2, Zap } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { FinanceBill } from '@/types'
-import { TableContainer, TableHeader } from './TableStyles'
+import { Table } from '@/components/ui/Table'
+import styled from 'styled-components'
+
+const NameText = styled.div`
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const SubtitleContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.125rem;
+`
+
+const CategoryText = styled.span`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  text-transform: capitalize;
+`
+
+const AutoText = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  font-size: 10px;
+  color: #3b82f6;
+  font-weight: 500;
+  margin-left: 0.25rem;
+`
+
+const AmountText = styled.span`
+  font-weight: 500;
+`
+
+const DueContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`
+
+const DueText = styled.span`
+  font-size: 14px;
+`
+
+const ActionContainer = styled.div`
+  opacity: 1;
+  transition: opacity 0.2s;
+  
+  @media (min-width: 768px) {
+    opacity: 0;
+    tr:hover & {
+      opacity: 1;
+    }
+  }
+`
+
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`
+
+const LoadingHeader = styled(Skeleton)`
+  height: 40px;
+`
+
+const LoadingBody = styled(Skeleton)`
+  height: 200px;
+`
 
 function getDaysUntilDue(dueDay: number): number {
   const today = new Date()
@@ -17,8 +87,8 @@ function getDaysUntilDue(dueDay: number): number {
   return daysInMonth - currentDay + dueDay
 }
 
-function urgencyColor(days: number): 'error' | 'warning' | 'success' {
-  if (days <= 3) return 'error'
+function urgencyColor(days: number): 'destructive' | 'warning' | 'success' {
+  if (days <= 3) return 'destructive'
   if (days <= 7) return 'warning'
   return 'success'
 }
@@ -51,102 +121,102 @@ export function BillsTab() {
     onError: () => toast.error('Failed to delete bill'),
   })
 
-  // Sort by days until due
   const sorted = [...(bills ?? [])].sort((a, b) => getDaysUntilDue(a.due_day) - getDaysUntilDue(b.due_day))
   const activeBills = sorted.filter(b => b.is_active)
   const totalAmount = activeBills.reduce((s, b) => s + Number(b.amount), 0)
 
   const columns = [
     {
-      title: 'Bill Name',
-      key: 'name',
-      render: (_: any, record: FinanceBill) => (
-        <div>
-          <div className="font-medium text-foreground">{record.name}</div>
-          <div className="flex items-center gap-1 mt-0.5">
-            <span className="text-[10px] text-muted-foreground capitalize">{record.category}</span>
-            {record.is_auto_debit && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] text-blue-500 font-medium ml-1">
-                <Zap className="w-2.5 h-2.5" /> Auto
-              </span>
-            )}
-          </div>
-        </div>
-      )
-    },
-    {
-      title: 'Amount',
-      dataIndex: 'amount',
-      key: 'amount',
-      render: (amount: string | number) => <span className="font-medium">₹{Number(amount).toLocaleString('en-IN')}</span>
-    },
-    {
-      title: 'Due Date',
-      key: 'due',
-      render: (_: any, record: FinanceBill) => {
-        const days = getDaysUntilDue(record.due_day)
-        const color = urgencyColor(days)
+      id: 'name',
+      header: 'Bill Name',
+      cell: (row: any) => {
+        const record = row as FinanceBill;
         return (
-          <div className="flex items-center gap-2">
-            <span className="text-sm">Due {ordinal(record.due_day)}</span>
-            {record.is_active && (
-              <Tag color={color} className="text-[10px] leading-tight py-0 m-0" bordered={false}>
-                {days === 0 ? 'Today' : `${days}d`}
-              </Tag>
-            )}
+          <div>
+            <NameText>{record.name}</NameText>
+            <SubtitleContainer>
+              <CategoryText>{record.category}</CategoryText>
+              {record.is_auto_debit && (
+                <AutoText>
+                  <Zap size={10} /> Auto
+                </AutoText>
+              )}
+            </SubtitleContainer>
           </div>
         )
       }
     },
     {
-      title: 'Status',
-      key: 'status',
-      render: (_: any, record: FinanceBill) => (
-        <Switch
-          size="small"
-          checked={record.is_active}
-          onChange={v => toggleMutation.mutate({ id: record.id, active: v })}
-          loading={toggleMutation.isPending}
-        />
-      )
+      id: 'amount',
+      header: 'Amount',
+      cell: (row: any) => <AmountText>₹{Number(row.amount).toLocaleString('en-IN')}</AmountText>
     },
     {
-      title: 'Action',
-      key: 'action',
-      render: (_: any, record: FinanceBill) => (
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-          <Popconfirm title="Delete this bill?" onConfirm={() => deleteMutation.mutate(record.id)} okText="Delete" cancelText="Cancel" okButtonProps={{ danger: true }}>
-            <Button type="text" danger size="small" icon={<Trash2 size={14} />} />
-          </Popconfirm>
-        </div>
-      )
+      id: 'due',
+      header: 'Due Date',
+      cell: (row: any) => {
+        const record = row as FinanceBill;
+        const days = getDaysUntilDue(record.due_day)
+        const color = urgencyColor(days)
+        return (
+          <DueContainer>
+            <DueText>Due {ordinal(record.due_day)}</DueText>
+            {record.is_active && (
+              <Badge tone={color} size="sm">
+                {days === 0 ? 'Today' : `${days}d`}
+              </Badge>
+            )}
+          </DueContainer>
+        )
+      }
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      cell: (row: any) => {
+        const record = row as FinanceBill;
+        return (
+          <Switch
+            size="sm"
+            checked={record.is_active}
+            onChange={e => toggleMutation.mutate({ id: record.id, active: e.target.checked })}
+            disabled={toggleMutation.isPending}
+          />
+        )
+      }
+    },
+    {
+      id: 'action',
+      header: 'Action',
+      cell: (row: any) => {
+        const record = row as FinanceBill;
+        return (
+          <ActionContainer>
+            <Popconfirm title="Delete this bill?" onConfirm={() => deleteMutation.mutate(record.id)} okText="Delete" cancelText="Cancel" okButtonProps={{ danger: true }}>
+              <Button variant="destructive" size="icon">
+                <Trash2 size={14} />
+              </Button>
+            </Popconfirm>
+          </ActionContainer>
+        )
+      }
     }
   ]
 
-  if (isLoading) return <div className="space-y-4"><Skeleton className="h-10" /><Skeleton className="h-[200px]" /></div>;
+  if (isLoading) return <LoadingContainer><LoadingHeader /><LoadingBody /></LoadingContainer>;
 
   return (
-    <TableContainer>
-      <TableHeader>
-        <h3>Recurring Bills</h3>
-      </TableHeader>
-      
-      <Table
-        dataSource={sorted}
-        columns={columns}
-        rowKey="id"
-        pagination={false}
-        size="middle"
-        rowClassName={(record) => record.is_active ? 'group' : 'group opacity-50'}
-        summary={() => {
-          return (
-            <Table.Summary.Row>
-              <Table.Summary.Cell index={0}>Monthly Total ({activeBills.length} active)</Table.Summary.Cell>
-              <Table.Summary.Cell index={1} colSpan={4}>₹{totalAmount.toLocaleString('en-IN')}</Table.Summary.Cell>
-            </Table.Summary.Row>
-          );
-        }}
-      />
-    </TableContainer>
+    <Table
+      title="Recurring Bills"
+      rows={sorted}
+      columns={columns}
+      getRowKey={row => row.id}
+      footer={
+        <>
+          <span>Monthly Total ({activeBills.length} active)</span>
+          <span>₹{totalAmount.toLocaleString('en-IN')}</span>
+        </>
+      }
+    />
   )
 }

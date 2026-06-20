@@ -1,14 +1,77 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Popconfirm, message, Drawer, Empty, Tag } from 'antd';
-import { DeleteOutlined } from '@ant-design/icons';
+import { Popconfirm } from '@/components/ui/Popconfirm';
+import { Button, Badge, EmptyState, DataTable, Dialog } from '@ledgr/ui';
+import { Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import styled from 'styled-components';
 import dayjs from 'dayjs';
 import { financeApi } from '@/api/areas';
 import { formatCurrency } from '@/lib/utils';
-import { TableContainer, TableHeader } from './TableStyles';
+import { Card } from '@/components/ui/Card';
 
-const KIND_COLOR: Record<string, string> = { expense: 'red', income: 'green', transfer: 'blue' };
+const LoadingText = styled.div`
+  font-size: 12px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const EntriesList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`
+
+const EntryRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid ${({ theme }) => theme.color.border}66;
+  
+  &:last-child {
+    border-bottom: 0;
+  }
+`
+
+const EntryInfo = styled.div`
+  min-width: 0;
+`
+
+const EntryLabel = styled.div`
+  font-size: 12px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.foreground};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`
+
+const EntryMeta = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+`
+
+const StyledBadge = styled(Badge)`
+  font-size: 10px;
+  line-height: 1.2;
+  padding: 0;
+  text-transform: capitalize;
+`
+
+const EntryDate = styled.span`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const EntryAmount = styled.span<{ $isPositive: boolean }>`
+  font-size: 12px;
+  font-weight: 500;
+  flex-shrink: 0;
+  margin-left: 8px;
+  color: ${({ $isPositive, theme }) => $isPositive ? theme.color.success : theme.color.destructive};
+`
 
 function AccountLedgerDrawer({ account, onClose }: { account: any | null; onClose: () => void }) {
   const { data, isLoading } = useQuery({
@@ -18,35 +81,35 @@ function AccountLedgerDrawer({ account, onClose }: { account: any | null; onClos
   });
 
   return (
-    <Drawer
+    <Dialog
       title={account ? `${account.name} — ${formatCurrency(Number(account.balance))}` : ''}
       open={!!account}
-      onClose={onClose}
-      size="default"
+      onOpenChange={(v) => { if (!v) onClose(); }}
+      size="md"
     >
       {isLoading ? (
-        <div className="text-xs text-muted-foreground">Loading…</div>
+        <LoadingText>Loading…</LoadingText>
       ) : !data?.entries.length ? (
-        <Empty description="No transactions linked to this account yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <EmptyState title="No transactions" description="No transactions linked to this account yet" />
       ) : (
-        <div className="space-y-0.5">
+        <EntriesList>
           {data.entries.map(e => (
-            <div key={`${e.kind}-${e.id}`} className="flex items-center justify-between py-2 border-b border-border/40 last:border-b-0">
-              <div className="min-w-0">
-                <div className="text-xs font-medium text-foreground truncate">{e.label}</div>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <Tag color={KIND_COLOR[e.kind]} bordered={false} className="text-[10px] leading-tight py-0 capitalize">{e.kind}</Tag>
-                  <span className="text-[10px] text-muted-foreground">{dayjs(e.logged_at).format('MMM D, YYYY h:mm A')}</span>
-                </div>
-              </div>
-              <span className={`text-xs font-medium shrink-0 ml-2 ${e.amount >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+            <EntryRow key={`${e.kind}-${e.id}`}>
+              <EntryInfo>
+                <EntryLabel>{e.label}</EntryLabel>
+                <EntryMeta>
+                  <StyledBadge tone={e.kind === 'expense' ? 'destructive' : e.kind === 'income' ? 'success' : 'info'}>{e.kind}</StyledBadge>
+                  <EntryDate>{dayjs(e.logged_at).format('MMM D, YYYY h:mm A')}</EntryDate>
+                </EntryMeta>
+              </EntryInfo>
+              <EntryAmount $isPositive={e.amount >= 0}>
                 {e.amount >= 0 ? '+' : '-'}{formatCurrency(Math.abs(e.amount))}
-              </span>
-            </div>
+              </EntryAmount>
+            </EntryRow>
           ))}
-        </div>
+        </EntriesList>
       )}
-    </Drawer>
+    </Dialog>
   );
 }
 
@@ -63,42 +126,38 @@ export const AccountManager: React.FC = () => {
     mutationFn: financeApi.deleteAccount,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'accounts'] });
-      message.success('Account deleted');
+      toast.success('Account deleted');
     }
   });
 
   const columns = [
-    { title: 'Name', dataIndex: 'name', key: 'name' },
-    { title: 'Type', dataIndex: 'type', key: 'type', render: (text: string) => text.replace('_', ' ').toUpperCase() },
-    { title: 'Balance', dataIndex: 'balance', key: 'balance', render: (val: number | string, record: any) => `${record.currency} ${Number(val).toFixed(2)}` },
+    { id: 'name', header: 'Name', cell: (row: any) => row.name },
+    { id: 'type', header: 'Type', cell: (row: any) => row.type.replace('_', ' ').toUpperCase() },
+    { id: 'balance', header: 'Balance', cell: (row: any) => `${row.currency} ${Number(row.balance).toFixed(2)}` },
     {
-      title: 'Action',
-      key: 'action',
-      render: (_: any, record: any) => (
-        <Popconfirm title="Delete account?" onConfirm={() => deleteMutation.mutate(record.id)}>
-          <Button type="text" danger icon={<DeleteOutlined />} onClick={e => e.stopPropagation()} />
+      id: 'action',
+      header: 'Action',
+      cell: (row: any) => (
+        <Popconfirm title="Delete account?" onConfirm={() => deleteMutation.mutate(row.id)}>
+          <Button variant="destructive" size="icon" onClick={e => e.stopPropagation()}>
+            <Trash2 size={14} />
+          </Button>
         </Popconfirm>
       ),
     },
   ];
 
   return (
-    <TableContainer>
-      <TableHeader>
-        <h3>Accounts</h3>
-      </TableHeader>
-
-      <Table
-        dataSource={accounts}
+    <Card title="Accounts">
+      <DataTable
+        rows={accounts}
         columns={columns}
-        rowKey="id"
+        getRowKey={row => row.id}
         loading={isLoading}
-        pagination={false}
-        size="middle"
-        onRow={record => ({ onClick: () => setLedgerAccount(record) })}
+        onRowClick={row => setLedgerAccount(row)}
       />
 
       <AccountLedgerDrawer account={ledgerAccount} onClose={() => setLedgerAccount(null)} />
-    </TableContainer>
+    </Card>
   );
 };

@@ -14,6 +14,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 class LoginRequest(BaseModel):
+    email: str
     password: str
 
 
@@ -26,8 +27,10 @@ class ChangePasswordRequest(BaseModel):
 @limiter.limit("10/minute")
 async def login(request: Request, body: LoginRequest, response: Response):
     settings = get_settings()
+    if not secrets.compare_digest(body.email, settings.app_email):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if not secrets.compare_digest(body.password, settings.app_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     token = create_access_token({"sub": "utsav"}, expires_delta=timedelta(days=30))
     response.set_cookie(

@@ -1,6 +1,7 @@
 import React from 'react';
-import styled from 'styled-components';
-import { Card, Button, Tag, Avatar, Typography, Empty, Popconfirm, Table } from 'antd';
+import styled, { useTheme } from 'styled-components';
+import { Popconfirm } from '@/components/ui/Popconfirm';
+import { Button, Badge, EmptyState, DataTable } from '@ledgr/ui';
 import { Sparkles, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
 import Highcharts from 'highcharts';
 Highcharts.setOptions({ accessibility: { enabled: false } });
@@ -11,29 +12,8 @@ import { format } from 'date-fns';
 import { financeApi } from '@/api/areas';
 import { formatCurrency } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { GlassCard } from '@/components/lumina';
-
-const { Text } = Typography;
-
-const PremiumCard = styled(Card)`
-  background: hsl(var(--card));
-  border: none;
-  border-radius: 22px;
-  overflow: hidden;
-  box-shadow: var(--shadow-premium-sm);
-
-  .ant-card-head {
-    border-bottom: none;
-    padding: 16px 16px 0;
-    color: hsl(var(--muted-foreground));
-    font-size: 14px;
-    font-weight: 500;
-  }
-
-  .ant-card-body {
-    padding: 16px;
-  }
-`;
+import { Card as GlassCard } from '@ledgr/ui';;
+import { TableFooter } from '@/components/ui/Table';
 
 const AIInsightWrapper = styled.div`
   display: flex;
@@ -42,7 +22,7 @@ const AIInsightWrapper = styled.div`
   padding: 12px 16px;
   background: transparent;
   border-radius: 16px;
-  border-bottom: 1px dashed hsl(var(--border) / 0.4);
+  border-bottom: 1px dashed color-mix(in srgb, var(--border) 40%, transparent);
   transition: background-color 0.2s;
 
   &:last-child {
@@ -51,8 +31,78 @@ const AIInsightWrapper = styled.div`
   }
 
   &:hover {
-    background: hsl(var(--muted) / 0.3);
+    background: color-mix(in srgb, var(--muted) 30%, transparent);
   }
+`;
+
+const InsightIconWrapper = styled.div`
+  margin-top: 0.125rem;
+`;
+
+const InsightText = styled.span`
+  color: ${({ theme }) => theme.color.foreground};
+  font-size: 0.875rem;
+  line-height: 1.625;
+`;
+
+const SubRowCell = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+`;
+
+const SubAvatar = styled.div`
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: ${({ theme }) => theme.color.muted};
+  color: ${({ theme }) => theme.color.foreground};
+  font-size: 0.875rem;
+  font-weight: 500;
+`;
+
+const SubName = styled.div`
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.foreground};
+`;
+
+const SubMeta = styled.div`
+  font-size: 10px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`;
+
+const SubAmount = styled.span`
+  font-weight: 500;
+`;
+
+
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const LoadingHeader = styled(Skeleton)`
+  height: 40px;
+`;
+
+const LoadingBody = styled(Skeleton)`
+  height: 200px;
+`;
+
+const InsightsLoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`;
+
+const InsightsLoadingSkeleton = styled(Skeleton)`
+  height: 4rem;
+  width: 100%;
 `;
 
 // Returns days from today until the given day-of-month next occurs (same logic as BillsTab).
@@ -67,6 +117,7 @@ function getDaysUntilDue(dueDay: number): number {
 }
 
 export const AIInsightsEngine = () => {
+  const theme = useTheme();
   const { data: cashflow, isLoading: loadingCashflow } = useQuery({
     queryKey: ['finance', 'cashflow'],
     queryFn: () => financeApi.cashflow(),
@@ -88,25 +139,25 @@ export const AIInsightsEngine = () => {
     if (rate < 0) {
       insights.push({
         id: 'savings',
-        icon: <AlertCircle className="text-orange-400" />,
+        icon: <AlertCircle color={theme.color.accent} />,
         text: `You spent more than you earned this month — savings rate is ${rate.toFixed(0)}%. Worth a closer look at expenses.`,
       });
     } else if (rate < 10) {
       insights.push({
         id: 'savings',
-        icon: <AlertCircle className="text-orange-400" />,
+        icon: <AlertCircle color={theme.color.accent} />,
         text: `Your savings rate is ${rate.toFixed(0)}% this month. Aim for 20% or more.`,
       });
     } else if (rate >= 20) {
       insights.push({
         id: 'savings',
-        icon: <CheckCircle className="text-green-400" />,
+        icon: <CheckCircle color={theme.color.primary} />,
         text: `Great job! You're saving ${rate.toFixed(0)}% of your income this month.`,
       });
     } else {
       insights.push({
         id: 'savings',
-        icon: <Sparkles className="text-purple-400" />,
+        icon: <Sparkles color={theme.color.accent} />,
         text: `You're saving ${rate.toFixed(0)}% of your income this month — getting close to the 20% target.`,
       });
     }
@@ -120,7 +171,7 @@ export const AIInsightsEngine = () => {
     const when = upcomingBill.days === 0 ? 'today' : upcomingBill.days === 1 ? 'tomorrow' : `in ${upcomingBill.days} days`;
     insights.push({
       id: 'bill',
-      icon: <AlertCircle className="text-orange-400" />,
+      icon: <AlertCircle color={theme.color.accent} />,
       text: `${upcomingBill.name} (${formatCurrency(upcomingBill.amount)}) is due ${when}.`,
     });
   }
@@ -132,7 +183,7 @@ export const AIInsightsEngine = () => {
   if (topGoal) {
     insights.push({
       id: 'goal',
-      icon: <CheckCircle className="text-green-400" />,
+      icon: <CheckCircle color={theme.color.primary} />,
       text: `You're ${topGoal.pct.toFixed(0)}% of the way to your "${topGoal.name}" goal (${formatCurrency(topGoal.current_amount)} of ${formatCurrency(topGoal.target_amount)}).`,
     });
   }
@@ -140,33 +191,34 @@ export const AIInsightsEngine = () => {
   if (!isLoading && insights.length === 0) {
     insights.push({
       id: 'empty',
-      icon: <Sparkles className="text-purple-400" />,
+      icon: <Sparkles color={theme.color.accent} />,
       text: 'Log income, expenses, goals and bills to start getting personalized insights here.',
     });
   }
 
   return (
-    <PremiumCard title={<div className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-purple-400" /> AI Financial Insights</div>}>
+    <GlassCard title="AI Financial Insights" icon={<Sparkles size={16} color={theme.color.accent} />}>
       {isLoading ? (
-        <div className="space-y-3">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-16 w-full" />
-        </div>
+        <InsightsLoadingContainer>
+          <InsightsLoadingSkeleton />
+          <InsightsLoadingSkeleton />
+        </InsightsLoadingContainer>
       ) : (
         insights.map(insight => (
           <AIInsightWrapper key={insight.id}>
-            <div className="mt-0.5">{insight.icon}</div>
+            <InsightIconWrapper>{insight.icon}</InsightIconWrapper>
             <div>
-              <Text className="text-foreground text-sm leading-relaxed">{insight.text}</Text>
+              <InsightText>{insight.text}</InsightText>
             </div>
           </AIInsightWrapper>
         ))
       )}
-    </PremiumCard>
+    </GlassCard>
   );
 };
 
 export const CashflowForecasting = () => {
+  const theme = useTheme();
   const { data: cashflow, isLoading } = useQuery({
     queryKey: ['finance', 'cashflow'],
     queryFn: () => financeApi.cashflow(),
@@ -184,7 +236,7 @@ export const CashflowForecasting = () => {
     title: { text: null },
     xAxis: {
       categories: byDay.map(d => format(new Date(d.date), 'MMM d')),
-      labels: { style: { color: 'hsl(var(--muted-foreground))' } },
+      labels: { style: { color: theme.color.mutedForeground } },
       lineWidth: 0,
       tickWidth: 0,
     },
@@ -194,8 +246,8 @@ export const CashflowForecasting = () => {
     legend: { enabled: false },
     credits: { enabled: false },
     tooltip: {
-      backgroundColor: 'rgba(0,0,0,0.8)',
-      style: { color: '#fff' },
+      backgroundColor: theme.color.popover,
+      style: { color: theme.color.popoverForeground },
       borderWidth: 0,
       formatter: function(this: any) {
         return `<b>${this.x}</b><br/>${formatCurrency(this.y as number)}`;
@@ -211,31 +263,29 @@ export const CashflowForecasting = () => {
     series: [{
       name: 'Net Cashflow',
       data: byDay.map(d => Math.round(d.income - d.expense)),
-      color: '#10B981',
+      color: theme.color.accent,
       fillColor: {
         linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
         stops: [
-          [0, 'rgba(16, 185, 129, 0.5)'],
-          [1, 'rgba(16, 185, 129, 0.0)']
+          [0, `color-mix(in srgb, ${theme.color.accent} 50%, transparent)`],
+          [1, `color-mix(in srgb, ${theme.color.accent} 0.0%, transparent)`]
         ]
       }
     }]
   };
 
   return (
-    <PremiumCard title={<div className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-emerald-400" /> Cashflow Trend</div>} extra={<button className="text-xs font-medium px-2.5 py-1 bg-muted/50 hover:bg-muted text-muted-foreground rounded-md transition-colors">Report</button>}>
+    <GlassCard title="Cashflow Trend" icon={<TrendingUp size={16} color={theme.color.primary} />}>
       {isLoading ? (
-        <Skeleton className="h-[250px] w-full" />
+        <Skeleton style={{ height: '250px', width: '100%' }} />
       ) : byDay.length === 0 ? (
-        <Empty description="No cashflow data yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <EmptyState title="No cashflow data yet" />
       ) : (
         <HighchartsReact highcharts={Highcharts} options={options} />
       )}
-    </PremiumCard>
+    </GlassCard>
   );
 };
-
-import { TableContainer, TableHeader } from './TableStyles';
 
 export const SubscriptionManagement = () => {
   const queryClient = useQueryClient();
@@ -260,76 +310,65 @@ export const SubscriptionManagement = () => {
 
   const columns = [
     {
-      title: 'Subscription',
-      key: 'name',
-      render: (_: any, record: any) => (
-        <div className="flex items-center gap-3">
-          <Avatar shape="square" size={32} style={{ background: 'hsl(var(--muted))', color: 'hsl(var(--foreground))' }}>
-            {record.name.charAt(0).toUpperCase()}
-          </Avatar>
+      id: 'name',
+      header: 'Subscription',
+      cell: (row: any) => (
+        <SubRowCell>
+          <SubAvatar>
+            {row.name.charAt(0).toUpperCase()}
+          </SubAvatar>
           <div>
-            <div className="font-medium text-foreground">{record.name}</div>
-            <div className="text-[10px] text-muted-foreground">{record.is_auto_debit ? 'Auto-debit' : 'Manual'}</div>
+            <SubName>{row.name}</SubName>
+            <SubMeta>{row.is_auto_debit ? 'Auto-debit' : 'Manual'}</SubMeta>
           </div>
-        </div>
+        </SubRowCell>
+      ),
+    },
+    {
+      id: 'amount',
+      header: 'Amount',
+      cell: (row: any) => <SubAmount>{formatCurrency(Number(row.amount))} / mo</SubAmount>
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      cell: (row: any) => (
+        <Badge tone={row.is_active ? 'success' : 'warning'}>
+          {row.is_active ? 'Active' : 'Paused'}
+        </Badge>
       )
     },
     {
-      title: 'Amount',
-      dataIndex: 'amount',
-      key: 'amount',
-      render: (amount: string | number) => <span className="font-medium">{formatCurrency(Number(amount))} / mo</span>
-    },
-    {
-      title: 'Status',
-      key: 'status',
-      render: (_: any, record: any) => (
-        <Tag color={record.is_active ? 'green' : 'orange'} bordered={false}>
-          {record.is_active ? 'Active' : 'Paused'}
-        </Tag>
-      )
-    },
-    {
-      title: 'Action',
-      key: 'action',
-      render: (_: any, record: any) => (
+      id: 'action',
+      header: 'Action',
+      cell: (row: any) => (
         <Popconfirm
-          title={record.is_active ? 'Pause this subscription?' : 'Resume this subscription?'}
-          onConfirm={() => togglePauseMutation.mutate({ id: record.id, is_active: !record.is_active })}
+          title={row.is_active ? 'Pause this subscription?' : 'Resume this subscription?'}
+          onConfirm={() => togglePauseMutation.mutate({ id: row.id, is_active: !row.is_active })}
           okText="Yes"
           cancelText="No"
         >
-          <Button type="text" danger={record.is_active} size="small" style={{ fontSize: '12px' }}>
-            {record.is_active ? 'Pause' : 'Resume'}
+          <Button variant={row.is_active ? 'destructive' : 'ghost'} size="sm" style={{ fontSize: '12px' }}>
+            {row.is_active ? 'Pause' : 'Resume'}
           </Button>
         </Popconfirm>
       )
     }
   ];
 
-  if (isLoading) return <div className="space-y-4"><Skeleton className="h-10" /><Skeleton className="h-[200px]" /></div>;
+  if (isLoading) return <LoadingContainer><LoadingHeader /><LoadingBody /></LoadingContainer>;
 
   return (
-    <TableContainer>
-      <TableHeader>
-        <h3>Subscriptions</h3>
-      </TableHeader>
-
-      <Table
-        dataSource={subs}
+    <GlassCard title="Subscriptions">
+      <DataTable
+        rows={subs}
         columns={columns}
-        rowKey="id"
-        pagination={false}
-        size="middle"
-        summary={() => {
-          return (
-            <Table.Summary.Row>
-              <Table.Summary.Cell index={0}>Active Total ({activeCount})</Table.Summary.Cell>
-              <Table.Summary.Cell index={1} colSpan={3}>{formatCurrency(activeTotal)} / mo</Table.Summary.Cell>
-            </Table.Summary.Row>
-          );
-        }}
+        getRowKey={row => row.id}
       />
-    </TableContainer>
+      <TableFooter>
+        <span>Active Total ({activeCount})</span>
+        <span>{formatCurrency(activeTotal)} / mo</span>
+      </TableFooter>
+    </GlassCard>
   );
 };

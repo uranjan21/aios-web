@@ -1,20 +1,33 @@
 import * as ProgressPrimitive from '@radix-ui/react-progress'
-import { cn } from '@/lib/utils'
+import styled from 'styled-components'
 
-export function Progress({ value, className, indicatorClassName }: {
+const Root = styled(ProgressPrimitive.Root)`
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: ${({ theme }) => theme.color.muted};
+`
+
+const Indicator = styled(ProgressPrimitive.Indicator)<{ $color?: string }>`
+  height: 100%;
+  border-radius: 9999px;
+  background: ${({ theme, $color }) => $color ?? theme.color.primary};
+  transition: width 500ms ease;
+`
+
+export function Progress({ value, height = 8, color, className }: {
   value: number
+  height?: number
+  color?: string
   className?: string
-  indicatorClassName?: string
 }) {
   return (
-    <ProgressPrimitive.Root
-      value={value}
-      className={cn('relative h-2.5 w-full overflow-hidden rounded-full bg-muted shadow-clay-inset', className)}
-    >
-      <ProgressPrimitive.Indicator
-        className={cn('h-full transition-all duration-500 rounded-full shadow-sm', indicatorClassName ?? 'bg-primary')}
+    <Root value={value} style={{ height }} className={className}>
+      <Indicator
+        $color={color}
         style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
       />
-    </ProgressPrimitive.Root>
+    </Root>
   )
 }
