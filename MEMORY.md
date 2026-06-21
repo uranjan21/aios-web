@@ -1,7 +1,9 @@
 # AIOS Memory
 
 ## STRICT GLOBAL UI/UX GUIDELINES
-Before making *any* code changes in any session, all Agents MUST adhere to these absolute rules:
+
+Before making _any_ code changes in any session, all Agents MUST adhere to these absolute rules:
+
 1. **No Page-Level Headers/Titles**: Page-level headers/titles should be rendered via the standard `@ledgr/ui` `<PageHeader>` component (which is what pages actually implement) rather than hardcoded within individual content cards.
 2. **Max Grid Layout & Extreme Density**: Every single page must use a max 12-column grid layout, but cards must NOT unnecessarily stretch (avoid massive `col-span-12` wrappers). Cards should **only take the space required for them**. Use strict auto-fitting grids or tightly packed columns (e.g. `col-span-3` or `col-span-4`) to ensure maximum data density.
 3. **No Chart Bloat**: NEVER use massive data visualizations (like giant Highcharts area charts, massive Radar charts, or oversized Heatmaps) that force cards to become artificially large. Cards must remain tiny and horizontally tight.
@@ -22,17 +24,20 @@ Before making *any* code changes in any session, all Agents MUST adhere to these
     4. **Main Content**: Grids, lists, and content below the toolbar.
 
 ## Architecture & Tech Stack
+
 - **Backend**: Python, FastAPI, SQLModel (SQLAlchemy/asyncpg), PostgreSQL (with pgvector), Alembic.
   - Dependencies managed via `uv`.
 
 ## Data Models
+
 - **Finance Area**: `FinanceSnapshot`, `FinanceExpense`. Recently added `Account` (Checking, Savings, Credit, Investment, Loan) and `Category` (hierarchical with `parent_id` and emoji `icon`).
 - **Health Area**: `HealthLog`, `HealthGoal, Habit, HabitCheck, WorkoutSession`.
 - **Career/Biz Area**: `CareerEvent`, `SkillInventory`, `JobOpportunity`, `BusinessEvent`.
 - **Agents Core**: `Agent` (tracks status, cron expression, output streams).
 
 ## Active Projects / Completed Work
-1. **Premium Area Redesigns (Complete)**: 
+
+1. **Premium Area Redesigns (Complete)**:
    - Finance: Tabbed layout with AI Insights, Cashflow Forecasting, Goal Rings, Subscription management.
    - Health: Balance Radar charts, Fasting solid gauges, Muscle Heatmaps, and PR celebration widgets.
    - Career & Business: Career Radar and Business Runway Calculators using Antd Sliders and Timelines.
@@ -41,5 +46,6 @@ Before making *any* code changes in any session, all Agents MUST adhere to these
 3. **Multi-Agent Orchestration**: We heavily utilize an "Agent Swarm" architecture where a Principal Engineer Orchestrator spins up specialized subagents (FinanceAgent, HealthAgent, UIUXAgent) to build features concurrently. Future sessions should continue this pattern for massive overhauls.
 
 ## Known Issues / Backlog
+
 - Replace default secure keys in backend `get_settings`.
 - Continue rolling out the Ant Design + Styled Components system to the Chat and Settings pages, which may still be using older Tailwind/Radix components.

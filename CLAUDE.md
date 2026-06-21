@@ -1,9 +1,11 @@
 # Project: AIOS Web
 
 ## What this is
+
 A full-stack personal command center / AI OS web application for managing multiple life domains (Finance, Health, Career, Business, Content) with real-time AI-powered agents, vault file sync, and multi-LLM integration (Anthropic + OpenAI).
 
 ## Stack
+
 - **Frontend**: React 18 + TypeScript + Vite + styled-components + Radix UI (via @ledgr/ui) + Ant Design
 - **Backend**: Python 3.11+ + FastAPI + SQLModel (async SQLAlchemy ORM) + asyncpg
 - **Database**: PostgreSQL + pgvector (for vector embeddings)
@@ -18,6 +20,7 @@ A full-stack personal command center / AI OS web application for managing multip
 ## Architecture
 
 ### Frontend Architecture
+
 - **SPA Router**: React Router v6 for client-side navigation
 - **Feature Areas**: Finance, Health, Career, Business, Content — each with dedicated pages and shared AreaTabs sub-navigation
 - **API Client**: Centralized axios-based API client in `frontend/src/api`
@@ -27,6 +30,7 @@ A full-stack personal command center / AI OS web application for managing multip
 - **Validation**: Zod schemas for form data and API responses
 
 ### Backend Architecture
+
 - **Framework**: FastAPI with lifespan management for startup/shutdown hooks
 - **Router-Based Modules**: Domain-specific routers (auth, sync, chat, agents, finance, health, career, business, content, captures, integrations)
 - **Service Layer**: `backend/app/services` contains business logic (agents orchestration, AI calls, chat, RAG, vault sync)
@@ -38,6 +42,7 @@ A full-stack personal command center / AI OS web application for managing multip
 - **File Watcher**: VaultWatcher monitors vault directory for file changes and syncs to database
 
 ### Data Flow
+
 1. **Frontend** makes REST/WebSocket calls to **Backend**
 2. **Backend** validates requests, queries **PostgreSQL** (with pgvector for embeddings)
 3. **Services** layer handles AI calls (Anthropic/OpenAI), RAG queries, agent orchestration
@@ -47,6 +52,7 @@ A full-stack personal command center / AI OS web application for managing multip
 ## Commands
 
 ### Frontend (Development)
+
 ```bash
 cd frontend
 pnpm dev              # Start Vite dev server (port 5173)
@@ -56,6 +62,7 @@ pnpm preview          # Preview production build
 ```
 
 ### Backend (Development)
+
 ```bash
 cd backend
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -64,12 +71,14 @@ pytest -v             # Verbose test output
 ```
 
 ### Docker Compose (Full Stack Local)
+
 ```bash
 docker-compose up     # Start all services (db, backend, frontend)
 docker-compose down   # Stop all services
 ```
 
 ### Database Migrations
+
 ```bash
 cd backend
 alembic revision --autogenerate -m "description"
@@ -134,6 +143,7 @@ aios-web/
 ## Conventions (Follow These)
 
 ### Backend Conventions
+
 - **Async First**: All I/O is async (database, HTTP, file operations)
 - **Router Naming**: `backend/app/api/areas/<domain>.py` defines routers for a domain (e.g., `finance.py`, `health.py`)
 - **Service Layer**: `backend/app/services/` (only `finance`, `insights`, and `notifications` have dedicated service sub-folders; others query database models directly in routers); routers call services and return JSON
@@ -143,6 +153,7 @@ aios-web/
 - **Settings**: Environment vars via `get_settings()` from `app.core.config`; never hardcode secrets
 
 ### Frontend Conventions
+
 - **API Client**: Use `frontend/src/api` functions for all HTTP calls; handle loading/error states with React Query
 - **Components**: Functional components with hooks; use Zustand for global state, React Query for server state
 - **Forms**: Use React Hook Form + Zod; validation happens at submit time
@@ -151,6 +162,7 @@ aios-web/
 - **AreaTabs**: Sub-navigation within domains uses shared `<AreaTabs>` component; never nest `<Tabs>`
 
 ### UI/UX (from MEMORY.md)
+
 - **No page-level titles**: Breadcrumbs only in global header
 - **12-column grid**: Cards must NOT stretch unnecessarily; use auto-fit grids or tight col-spans (e.g., `col-span-3`)
 - **Card Aesthetics**: `bg-card` on soft gray background; faint borders (`border-border/60`); compact `10px` radius; tight padding (`p-2` or `p-3`)
@@ -160,6 +172,7 @@ aios-web/
 - **Sidebar**: Top-level links only; NO accordions or sub-menus
 
 ### Project Conventions
+
 - **Naming**: snake_case for Python, camelCase for TypeScript
 - **Imports**: Absolute imports using path aliases (`@/` for frontend, relative for backend)
 - **Commits**: Conventional commits (feat:, fix:, refactor:, docs:, test:)
@@ -168,6 +181,7 @@ aios-web/
 ## Don't Touch / Gotchas
 
 ### Critical Gotchas
+
 - **Vault Watcher**: Requires `VAULT_PATH` env var pointing to local vault directory. If path doesn't exist, watcher won't start (non-fatal warning). Ensure path exists before deploying.
 - **Default Secrets**: Backend config uses weak defaults (e.g., `change-me-in-production`). Replace `APP_SECRET_KEY` and `APP_PASSWORD` in `.env` before production.
 - **WebSocket Auth**: Must call `ws_auth(websocket)` BEFORE accepting frames. Missing auth can leak data.
@@ -176,17 +190,20 @@ aios-web/
 - **Environment Variables**: Copy `.env.example` to `.env` and fill in API keys (Anthropic, OpenAI), vault path, database URL, etc.
 
 ### Performance Considerations
+
 - **Real-time Overload**: WebSocket handlers broadcast to all connected clients. For many users, consider message filtering or rooms.
 - **Vector Embeddings**: pgvector queries with `<->` operator can be slow on large tables; add indexes on embedding columns.
 - **RAG Performance**: Embedding + retrieval in `chat_service` blocks the WebSocket. Consider async task queue (Celery/RQ) for large documents.
 - **Rate Limiting**: Backend uses `slowapi` for rate limits. Adjust thresholds in `app.core.rate_limit` for production.
 
 ### Known Issues (from MEMORY.md)
+
 - Chat and Settings pages may still use older Tailwind/Radix components; consider migrating to Ant Design + Styled Components system
 - Secrets in backend config need hardening
 - Vault sync watcher may not handle rapid file changes well (debounce needed)
 
 ## Key Entry Points
+
 - **Frontend**: `frontend/src/main.tsx` → App.tsx → Router → Pages
 - **Backend**: `backend/app/main.py` → `create_app()` → FastAPI instance → Routers
 - **Database**: `backend/alembic/` for migrations; `backend/app/db/session.py` for engine setup
