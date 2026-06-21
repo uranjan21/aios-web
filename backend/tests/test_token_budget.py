@@ -20,7 +20,8 @@ async def test_get_token_budget_status_structure():
         mock_session_cls.return_value = mock_session
 
         from app.services.chat.memory import get_token_budget_status
-        status = await get_token_budget_status()
+        import uuid
+        status = await get_token_budget_status(uuid.uuid4())
 
     assert "used_today" in status
     assert "daily_limit" in status

@@ -10,6 +10,7 @@ class VaultFile(SQLModel, table=True):
     __tablename__ = "vault_files"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     path: str = Field(unique=True, nullable=False)
     area: Optional[str] = None
     file_type: str = Field(nullable=False)
@@ -26,6 +27,7 @@ class VaultConflict(SQLModel, table=True):
     __tablename__ = "vault_conflicts"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     file_id: uuid.UUID = Field(foreign_key="vault_files.id", nullable=False)
     app_content: str = Field(sa_column=Column(Text, nullable=False))
     vault_content: str = Field(sa_column=Column(Text, nullable=False))
@@ -38,6 +40,7 @@ class VaultChunk(SQLModel, table=True):
     __tablename__ = "vault_chunks"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     file_id: uuid.UUID = Field(foreign_key="vault_files.id", nullable=False)
     chunk_index: int = Field(nullable=False)
     content: str = Field(sa_column=Column(Text, nullable=False))

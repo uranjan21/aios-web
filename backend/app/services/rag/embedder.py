@@ -1,5 +1,6 @@
 """Chunk vault files and embed via text-embedding-3-small (OpenAI)."""
 import logging
+import uuid
 from datetime import datetime
 
 import tiktoken
@@ -48,7 +49,7 @@ async def _embed_texts(texts: list[str]) -> list[list[float]]:
     return [item.embedding for item in response.data]
 
 
-async def embed_vault_file(rel_path: str, content: str) -> None:
+async def embed_vault_file(user_id: uuid.UUID, rel_path: str, content: str) -> None:
     if not content.strip():
         return
 
@@ -75,7 +76,7 @@ async def embed_vault_file(rel_path: str, content: str) -> None:
         return
 
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(VaultFile).where(VaultFile.path == rel_path))
+        result = await session.execute(select(VaultFile).where(VaultFile.user_id == user_id).where(VaultFile.path == rel_path))
         vault_file = result.scalar_one_or_none()
         if not vault_file:
             return
@@ -85,6 +86,7 @@ async def embed_vault_file(rel_path: str, content: str) -> None:
 
         for i, (chunk_text, embedding) in enumerate(zip(chunks, embeddings)):
             session.add(VaultChunk(
+                user_id=user_id,
                 file_id=vault_file.id,
                 chunk_index=i,
                 content=chunk_text,

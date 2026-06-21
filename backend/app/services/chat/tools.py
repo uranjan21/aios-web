@@ -178,8 +178,18 @@ async def execute_tool(tool_name: str, tool_input: dict) -> tuple[str, list[str]
         return "\n\n---\n".join(lines), []
 
     elif tool_name == "get_calendar_events":
-        # Requires GCal integration — return placeholder if not connected
-        return "(Google Calendar integration not connected)", []
+        from app.services.integrations.google_calendar import get_stored_events
+        from app.db.session import AsyncSessionLocal
+        async with AsyncSessionLocal() as db:
+            events = await get_stored_events(
+                db,
+                date_from=tool_input.get("date_from"),
+                date_to=tool_input.get("date_to"),
+            )
+        if not events:
+            return "(No calendar events found — is Google Calendar connected?)", []
+        lines = [f"• {e['start_time'][:16]} — {e['title']}" for e in events[:20]]
+        return f"Calendar events ({len(events)} total):\n" + "\n".join(lines), []
 
     elif tool_name == "get_github_activity":
         return "(GitHub integration not connected)", []

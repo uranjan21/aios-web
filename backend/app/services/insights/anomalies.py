@@ -11,6 +11,7 @@ from app.db.session import AsyncSessionLocal
 from app.models.finance import FinanceExpense
 from app.models.health import HealthLog
 from app.services.notifications.push import send_push_to_all
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ GYM_GAP_DAYS = 4         # alert when a regular lifter goes quiet this long
 GYM_REGULAR_MIN = 3      # "regular" = ≥3 sessions in the prior 14 days
 
 
-async def detect_anomalies() -> int:
+async def detect_anomalies(user_id: uuid.UUID) -> int:
     from app.api.agents import _broadcast_agent
 
     now = datetime.utcnow()
@@ -33,7 +34,7 @@ async def detect_anomalies() -> int:
         prior_start = now - timedelta(days=35)
 
         recent = (await session.execute(
-            select(FinanceExpense).where(FinanceExpense.logged_at >= prior_start)
+            select(FinanceExpense).where(FinanceExpense.user_id == user_id, FinanceExpense.logged_at >= prior_start)
         )).scalars().all()
 
         this_week: dict = {}
@@ -56,7 +57,7 @@ async def detect_anomalies() -> int:
         # ── Rule 2: gym streak gone quiet ──
         gym = (await session.execute(
             select(HealthLog)
-            .where(HealthLog.entry_type == "gym", HealthLog.logged_at >= now - timedelta(days=18))
+            .where(HealthLog.user_id == user_id, HealthLog.entry_type == "gym", HealthLog.logged_at >= now - timedelta(days=18))
             .order_by(HealthLog.logged_at)
         )).scalars().all()
         if gym:
@@ -70,8 +71,8 @@ async def detect_anomalies() -> int:
                 ))
 
     for title, body in alerts:
-        await _broadcast_agent({"type": "anomaly", "title": title, "body": body})
-        await send_push_to_all(title, body, "/")
+        await _broadcast_agent(user_id, {"type": "anomaly", "title": title, "body": body})
+        await send_push_to_all(user_id, title, body, "/")
         fired += 1
 
     if fired:

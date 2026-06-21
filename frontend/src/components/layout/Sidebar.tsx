@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
+import { useAuthStore } from '@/stores/authStore'
 import {
   LayoutDashboard, MessageSquare, Bot, IndianRupee,
   Heart, Briefcase, Rocket, PenLine, Plug, Settings,
@@ -298,27 +299,27 @@ const NAV_GROUPS = [
   {
     category: 'Main',
     items: [
-      { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-      { to: '/chat', icon: MessageSquare, label: 'Chat' },
-      { to: '/agents', icon: Bot, label: 'Agents' },
+      { to: '/app', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/app/chat', icon: MessageSquare, label: 'Chat' },
+      { to: '/app/agents', icon: Bot, label: 'Agents' },
     ]
   },
   {
     category: 'Areas',
     items: [
-      { to: '/areas/finance', icon: IndianRupee, label: 'Finance' },
-      { to: '/areas/health', icon: Heart, label: 'Health' },
-      // { to: '/areas/career', icon: Briefcase, label: 'Career' },
-      // { to: '/areas/business', icon: Rocket, label: 'Business' },
-      // { to: '/areas/content', icon: PenLine, label: 'Content' },
+      { to: '/app/areas/finance', icon: IndianRupee, label: 'Finance' },
+      { to: '/app/areas/health', icon: Heart, label: 'Health' },
+      { to: '/app/areas/career', icon: Briefcase, label: 'Career' },
+      { to: '/app/areas/business', icon: Rocket, label: 'Business' },
+      { to: '/app/areas/content', icon: PenLine, label: 'Content' },
     ]
   },
   {
     category: 'System',
     items: [
-      { to: '/guide', icon: BookOpen, label: 'Guide' },
-      { to: '/integrations', icon: Plug, label: 'Integrations' },
-      { to: '/settings', icon: Settings, label: 'Settings' },
+      { to: '/app/guide', icon: BookOpen, label: 'Guide' },
+      { to: '/app/integrations', icon: Plug, label: 'Integrations' },
+      { to: '/app/settings', icon: Settings, label: 'Settings' },
     ]
   }
 ]
@@ -326,6 +327,7 @@ const NAV_GROUPS = [
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const { sidebarOpen, setSidebarOpen } = useUIStore()
+  const user = useAuthStore(s => s.user)
 
   return (
     <SidebarRoot $collapsed={collapsed} $mobileOpen={sidebarOpen}>
@@ -364,9 +366,13 @@ export function Sidebar() {
       </NavList>
 
       <UserBlock $collapsed={collapsed}>
-        <Avatar>U</Avatar>
+        {user?.picture_url ? (
+          <img src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+        ) : (
+          <Avatar>{(user?.name || 'U')[0].toUpperCase()}</Avatar>
+        )}
         <UserInfo $collapsed={collapsed}>
-          <span className="name">User Premium</span>
+          <span className="name">{user?.name || 'User'}</span>
         </UserInfo>
       </UserBlock>
     </SidebarRoot>

@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/areas/business", tags=["business"])
 
 @router.get("/events")
 async def list_events(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(BusinessEvent).order_by(desc(BusinessEvent.occurred_at)).limit(100))
+    result = await db.execute(select(BusinessEvent).where(BusinessEvent.user_id == current_user.id).order_by(desc(BusinessEvent.occurred_at)).limit(100))
     return result.scalars().all()
 
 
@@ -28,6 +28,7 @@ class BusinessEventCreate(BaseModel):
 @router.post("/events")
 async def create_event(body: BusinessEventCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
     event = BusinessEvent(
+        user_id=current_user.id,
         occurred_at=body.occurred_at or datetime.utcnow(),
         product=body.product,
         event_type=body.event_type,
@@ -46,6 +47,7 @@ async def create_event(body: BusinessEventCreate, current_user=Depends(get_curre
 async def get_summary(current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(
         select(BusinessEvent)
+        .where(BusinessEvent.user_id == current_user.id)
         .where(BusinessEvent.product == "ledgr")
         .where(BusinessEvent.event_type == "feature_shipped")
         .order_by(desc(BusinessEvent.occurred_at))
@@ -55,6 +57,7 @@ async def get_summary(current_user=Depends(get_current_user), db=Depends(get_db)
 
     mrr_result = await db.execute(
         select(BusinessEvent)
+        .where(BusinessEvent.user_id == current_user.id)
         .where(BusinessEvent.event_type == "mrr_update")
         .where(BusinessEvent.mrr.is_not(None))
         .order_by(desc(BusinessEvent.occurred_at))
@@ -75,6 +78,7 @@ async def mrr_history(current_user=Depends(get_current_user), db=Depends(get_db)
     """MRR time series from events that recorded an MRR value."""
     result = await db.execute(
         select(BusinessEvent)
+        .where(BusinessEvent.user_id == current_user.id)
         .where(BusinessEvent.mrr.is_not(None))
         .order_by(BusinessEvent.occurred_at)
     )

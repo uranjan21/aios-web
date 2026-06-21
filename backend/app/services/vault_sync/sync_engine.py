@@ -2,6 +2,7 @@
 import asyncio
 import hashlib
 import logging
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Awaitable, Set
@@ -53,13 +54,13 @@ async def _read_with_retry(abs_path: Path, retries: int = 3, delay: float = 1.0)
     return None
 
 
-async def handle_file_change(rel_path: str, change_type: str) -> None:
+async def handle_file_change(user_id: uuid.UUID, rel_path: str, change_type: str) -> None:
     settings = get_settings()
     vault_root = Path(settings.vault_path)
     abs_path = vault_root / rel_path
 
     if change_type == "deleted":
-        await _mark_missing(rel_path)
+        await _mark_missing(user_id, rel_path)
         return
 
     content = await _read_with_retry(abs_path)
@@ -72,7 +73,7 @@ async def handle_file_change(rel_path: str, change_type: str) -> None:
     file_type = detect_file_type(rel_path)
 
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(VaultFile).where(VaultFile.path == rel_path))
+        result = await session.execute(select(VaultFile).where(VaultFile.user_id == user_id).where(VaultFile.path == rel_path))
         existing: VaultFile | None = result.scalar_one_or_none()
 
         if existing and existing.checksum == new_checksum:
@@ -80,7 +81,7 @@ async def handle_file_change(rel_path: str, change_type: str) -> None:
 
         if existing and existing.sync_status == "pending" and existing.content != content:
             # Conflict: app has un-synced changes, and vault diverged
-            await _create_conflict(session, existing, content)
+            await _create_conflict(user_id, session, existing, content)
             return
 
         now = datetime.utcnow()
@@ -96,6 +97,7 @@ async def handle_file_change(rel_path: str, change_type: str) -> None:
             session.add(existing)
         else:
             vault_file = VaultFile(
+                user_id=user_id,
                 path=rel_path,
                 area=area,
                 file_type=file_type,
@@ -109,30 +111,31 @@ async def handle_file_change(rel_path: str, change_type: str) -> None:
         await session.commit()
 
     # Embed for RAG (non-blocking)
-    asyncio.create_task(embed_vault_file(rel_path, content))
+    asyncio.create_task(embed_vault_file(user_id, rel_path, content))
 
-    await _broadcast({"type": "vault_updated", "path": rel_path, "area": area})
+    await _broadcast({"type": "vault_updated", "path": rel_path, "area": area, "user_id": str(user_id)})
     logger.info("Synced vault file: %s (%s)", rel_path, change_type)
 
 
-async def _mark_missing(rel_path: str) -> None:
+async def _mark_missing(user_id: uuid.UUID, rel_path: str) -> None:
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(VaultFile).where(VaultFile.path == rel_path))
+        result = await session.execute(select(VaultFile).where(VaultFile.user_id == user_id).where(VaultFile.path == rel_path))
         existing = result.scalar_one_or_none()
         if existing:
             existing.sync_status = "missing"
             existing.updated_at = datetime.utcnow()
             session.add(existing)
             await session.commit()
-    await _broadcast({"type": "vault_missing", "path": rel_path})
+    await _broadcast({"type": "vault_missing", "path": rel_path, "user_id": str(user_id)})
 
 
-async def _create_conflict(session: AsyncSession, existing: VaultFile, vault_content: str) -> None:
+async def _create_conflict(user_id: uuid.UUID, session: AsyncSession, existing: VaultFile, vault_content: str) -> None:
     existing.sync_status = "conflict"
     existing.updated_at = datetime.utcnow()
     session.add(existing)
 
     conflict = VaultConflict(
+        user_id=user_id,
         file_id=existing.id,
         app_content=existing.content,
         vault_content=vault_content,
@@ -144,13 +147,14 @@ async def _create_conflict(session: AsyncSession, existing: VaultFile, vault_con
         "type": "conflict_detected",
         "path": existing.path,
         "conflict_id": str(conflict.id),
+        "user_id": str(user_id),
     })
     logger.warning("Conflict detected on vault file: %s", existing.path)
 
 
-async def get_sync_status() -> dict:
+async def get_sync_status(user_id: uuid.UUID) -> dict:
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(VaultFile))
+        result = await session.execute(select(VaultFile).where(VaultFile.user_id == user_id))
         files = result.scalars().all()
 
     total = len(files)

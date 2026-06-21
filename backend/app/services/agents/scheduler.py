@@ -18,12 +18,37 @@ def get_scheduler() -> AsyncIOScheduler:
     return _scheduler
 
 
-async def _dispatch(task_id: str) -> None:
+async def _run_global_job(module_name: str, func_name: str) -> None:
+    from app.models.user import User
+    from sqlmodel import select
+    from app.db.session import AsyncSessionLocal
+    import importlib
+    
+    try:
+        mod = importlib.import_module(module_name)
+        func = getattr(mod, func_name)
+    except Exception as e:
+        logger.error("Could not load global job %s.%s: %s", module_name, func_name, e)
+        return
+
+    try:
+        async with AsyncSessionLocal() as session:
+            users = (await session.execute(select(User))).scalars().all()
+        for user in users:
+            try:
+                await func(user.id)
+            except Exception as e:
+                logger.error("Job %s failed for user %s: %s", func_name, user.id, e)
+    except Exception as e:
+        logger.error("Global job %s failed to get users: %s", func_name, e)
+
+
+async def _dispatch(task_id: str, user_id: uuid.UUID) -> None:
     """Called by APScheduler — fires the agent run pipeline."""
     from app.api.agents import _run_agent
     run_id = str(uuid.uuid4())
     try:
-        await _run_agent(task_id, run_id)
+        await _run_agent(task_id, run_id, user_id)
     except Exception as e:
         logger.error("Scheduled agent %s failed: %s", task_id, e)
 
@@ -47,7 +72,7 @@ async def start_scheduler() -> None:
                 scheduler.add_job(
                     _dispatch,
                     trigger=CronTrigger.from_crontab(agent.cron_expression, timezone="UTC"),
-                    args=[agent.task_id],
+                    args=[agent.task_id, agent.user_id],
                     id=agent.task_id,
                     replace_existing=True,
                     misfire_grace_time=300,
@@ -56,53 +81,63 @@ async def start_scheduler() -> None:
             except Exception as e:
                 logger.warning("Could not schedule agent %s (%s): %s", agent.task_id, agent.cron_expression, e)
 
-        from app.services.finance.recurring import post_due_recurring, notify_due_tomorrow
         scheduler.add_job(
-            post_due_recurring,
+            _run_global_job,
             trigger=CronTrigger(hour=1, minute=0, timezone="UTC"),
+            args=["app.services.finance.recurring", "post_due_recurring"],
             id="finance_recurring_post",
             replace_existing=True,
             misfire_grace_time=3600,
         )
         # 03:30 UTC = 9:00 IST — morning reminder for tomorrow's bills/EMIs
         scheduler.add_job(
-            notify_due_tomorrow,
+            _run_global_job,
             trigger=CronTrigger(hour=3, minute=30, timezone="UTC"),
+            args=["app.services.finance.recurring", "notify_due_tomorrow"],
             id="finance_due_tomorrow",
             replace_existing=True,
             misfire_grace_time=3600,
         )
 
-        from app.services.insights.anomalies import detect_anomalies
         # 04:00 UTC = 9:30 IST — daily anomaly sweep (spending spikes, broken streaks)
         scheduler.add_job(
-            detect_anomalies,
+            _run_global_job,
             trigger=CronTrigger(hour=4, minute=0, timezone="UTC"),
+            args=["app.services.insights.anomalies", "detect_anomalies"],
             id="insights_anomalies",
             replace_existing=True,
             misfire_grace_time=3600,
         )
 
-        from app.services.insights.digest import generate_weekly_digest
         # Sunday 13:30 UTC = 19:00 IST — weekly digest
         scheduler.add_job(
-            generate_weekly_digest,
+            _run_global_job,
             trigger=CronTrigger(day_of_week="sun", hour=13, minute=30, timezone="UTC"),
+            args=["app.services.insights.digest", "generate_weekly_digest"],
             id="insights_weekly_digest",
             replace_existing=True,
             misfire_grace_time=7200,
+        )
+
+        scheduler.add_job(
+            _run_global_job,
+            trigger=CronTrigger(minute="*/30", timezone="UTC"),
+            args=["app.services.integrations._sync_job", "run_google_sync"],
+            id="google_sync",
+            replace_existing=True,
+            misfire_grace_time=1800,
         )
 
         scheduler.start()
         logger.info("APScheduler started — %d/%d agents registered", registered, len(agents))
 
         # Catch-up pass at boot for due days missed while the server was down
-        asyncio.get_running_loop().create_task(post_due_recurring())
+        asyncio.get_running_loop().create_task(_run_global_job("app.services.finance.recurring", "post_due_recurring"))
     except Exception as e:
         logger.error("APScheduler startup failed (non-fatal): %s", e)
 
 
-def reschedule_agent(task_id: str, cron_expression: str, is_active: bool) -> None:
+def reschedule_agent(task_id: str, cron_expression: str, is_active: bool, user_id: uuid.UUID = None) -> None:
     """Call after PATCH /agents/:id to keep scheduler in sync."""
     scheduler = get_scheduler()
     if not scheduler.running:
@@ -112,7 +147,7 @@ def reschedule_agent(task_id: str, cron_expression: str, is_active: bool) -> Non
             scheduler.add_job(
                 _dispatch,
                 trigger=CronTrigger.from_crontab(cron_expression, timezone="UTC"),
-                args=[task_id],
+                args=[task_id, user_id],
                 id=task_id,
                 replace_existing=True,
                 misfire_grace_time=300,

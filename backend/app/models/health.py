@@ -10,6 +10,7 @@ class HealthLog(SQLModel, table=True):
     __tablename__ = "health_logs"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     logged_at: datetime = Field(nullable=False)
     entry_type: str = Field(nullable=False)
     value: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(8, 2)))
@@ -22,6 +23,7 @@ class HealthLog(SQLModel, table=True):
 class HealthGoal(SQLModel, table=True):
     """Daily health targets — calories, water, steps, sleep."""
     __tablename__ = "health_goals"
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
 
     id: str = Field(default="singleton", primary_key=True)  # always one row
     calorie_target: int = Field(default=2000)
@@ -32,6 +34,9 @@ class HealthGoal(SQLModel, table=True):
     steps_target: int = Field(default=10000)
     sleep_target: float = Field(default=8.0)   # hours
     height_cm: Optional[float] = Field(default=None)  # for BMI calc
+    target_weight: Optional[float] = Field(default=None)
+    target_workouts_per_week: Optional[int] = Field(default=5)
+    target_water_l_per_day: Optional[float] = Field(default=3.0)
     updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
 
@@ -40,6 +45,7 @@ class Habit(SQLModel, table=True):
     __tablename__ = "health_habits"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     name: str = Field(nullable=False)
     icon: Optional[str] = Field(default=None)  # emoji
     is_active: bool = Field(default=True)
@@ -51,6 +57,7 @@ class HabitCheck(SQLModel, table=True):
     __tablename__ = "health_habit_checks"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     habit_id: uuid.UUID = Field(foreign_key="health_habits.id", nullable=False)
     check_date: str = Field(nullable=False)  # "YYYY-MM-DD"
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
@@ -61,6 +68,7 @@ class WorkoutSession(SQLModel, table=True):
     __tablename__ = "health_workout_sessions"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     name: str = Field(default="Workout", nullable=False)  # "Push Day", "Legs"…
     logged_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
@@ -72,6 +80,7 @@ class WorkoutSet(SQLModel, table=True):
     __tablename__ = "health_workout_sets"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     session_id: uuid.UUID = Field(foreign_key="health_workout_sessions.id", nullable=False)
     exercise: str = Field(nullable=False)
     set_number: int = Field(default=1, nullable=False)
@@ -85,6 +94,7 @@ class FoodItem(SQLModel, table=True):
     __tablename__ = "health_food_items"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     name: str = Field(nullable=False, unique=True)
     calories: float = Field(nullable=False)   # per 100g
     protein: float = Field(default=0)         # g per 100g

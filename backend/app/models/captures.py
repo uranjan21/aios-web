@@ -9,6 +9,7 @@ class Capture(SQLModel, table=True):
     __tablename__ = "captures"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     raw_text: str = Field(sa_column=Column(Text, nullable=False))
     processed: bool = Field(default=False, nullable=False)
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)

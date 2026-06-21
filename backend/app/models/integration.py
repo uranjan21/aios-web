@@ -11,6 +11,7 @@ class IntegrationCredential(SQLModel, table=True):
     __tablename__ = "integration_credentials"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     provider: str = Field(unique=True, nullable=False)
     access_token_encrypted: Optional[str] = Field(default=None, sa_column=Column(Text))
     refresh_token_encrypted: Optional[str] = Field(default=None, sa_column=Column(Text))

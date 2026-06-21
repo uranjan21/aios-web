@@ -139,7 +139,7 @@ export interface ContentItem {
 }
 
 export interface Integration {
-  provider: 'notion' | 'gcal' | 'github'
+  provider: 'notion' | 'gcal' | 'gfit' | 'github'
   status: 'connected' | 'disconnected' | 'expired' | 'error'
   metadata: Record<string, unknown> | null
   token_expires_at: string | null

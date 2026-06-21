@@ -77,20 +77,7 @@ const GOALS: Goal[] = [
   },
 ]
 
-const STORAGE_KEY = 'aios_fitness_goals'
 
-function loadGoalTargets(): Record<string, number> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : {}
-  } catch {
-    return {}
-  }
-}
-
-function saveGoalTargets(targets: Record<string, number>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(targets))
-}
 
 const StyledGoalCardHeader = styled.div`
   display: flex;
@@ -710,9 +697,17 @@ export function FitnessTab() {
   const [habitIcon, setHabitIcon] = useState('')
 
   // Goal targets
-  const [targets, setTargets] = useState<Record<string, number>>(() => {
-    const saved = loadGoalTargets()
-    return GOALS.reduce((acc, g) => ({ ...acc, [g.key]: saved[g.key] ?? g.defaultTarget }), {} as Record<string, number>)
+  const { data: goalsData } = useQuery({ queryKey: ['health', 'goals'], queryFn: healthApi.healthGoals })
+  
+  const goalTargets = {
+    weight: goalsData?.target_weight ?? GOALS[0].defaultTarget,
+    weekly_gym: goalsData?.target_workouts_per_week ?? GOALS[1].defaultTarget,
+    daily_water: goalsData?.target_water_l_per_day ?? GOALS[2].defaultTarget,
+  }
+
+  const updateGoalMutation = useMutation({
+    mutationFn: (d: Partial<HealthGoal>) => healthApi.updateHealthGoals(d),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['health', 'goals'] }),
   })
 
   const [prLimit, setPrLimit] = useState<number>(8)
@@ -766,9 +761,11 @@ export function FitnessTab() {
   })
 
   const handleTargetChange = (key: string, val: number) => {
-    const next = { ...targets, [key]: val }
-    setTargets(next)
-    saveGoalTargets(next)
+    const payload: Partial<HealthGoal> = {}
+    if (key === 'weight') payload.target_weight = val
+    if (key === 'weekly_gym') payload.target_workouts_per_week = val
+    if (key === 'daily_water') payload.target_water_l_per_day = val
+    updateGoalMutation.mutate(payload)
   }
 
   const validSets = rows.filter(r => r.exercise.trim() && r.reps).length
@@ -814,7 +811,7 @@ export function FitnessTab() {
                   key={goal.key}
                   goal={goal}
                   current={current}
-                  target={targets[goal.key]}
+                  target={goalTargets[goal.key as keyof typeof goalTargets]}
                   onTargetChange={val => handleTargetChange(goal.key, val)}
                 />
               )

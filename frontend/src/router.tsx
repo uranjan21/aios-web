@@ -15,11 +15,16 @@ const ChatPage = lazy(() => import('@/pages/ChatPage').then(m => ({ default: m.C
 const AgentsPage = lazy(() => import('@/pages/AgentsPage').then(m => ({ default: m.AgentsPage })))
 const IntegrationsPage = lazy(() => import('@/pages/IntegrationsPage').then(m => ({ default: m.IntegrationsPage })))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
+const OAuthCallbackPage = lazy(() => import('@/pages/OAuthCallbackPage').then(m => ({ default: m.OAuthCallbackPage })))
+const GoogleAuthCallbackPage = lazy(() => import('@/pages/GoogleAuthCallbackPage').then(m => ({ default: m.GoogleAuthCallbackPage })))
 const FinancePage = lazy(() => import('@/pages/areas/FinancePage').then(m => ({ default: m.FinancePage })))
 const HealthPage = lazy(() => import('@/pages/areas/HealthPage').then(m => ({ default: m.HealthPage })))
 const CareerPage = lazy(() => import('@/pages/areas/CareerPage').then(m => ({ default: m.CareerPage })))
 const BusinessPage = lazy(() => import('@/pages/areas/BusinessPage').then(m => ({ default: m.BusinessPage })))
 const ContentPage = lazy(() => import('@/pages/areas/ContentPage').then(m => ({ default: m.ContentPage })))
+
+const LandingPage = lazy(() => import('@/pages/LandingPage').then(m => ({ default: m.LandingPage })))
+const PricingPage = lazy(() => import('@/pages/PricingPage').then(m => ({ default: m.PricingPage })))
 
 // Guide Pages
 const GuideLayout = lazy(() => import('@/pages/guide/GuideLayout').then(m => ({ default: m.GuideLayout })))
@@ -31,6 +36,12 @@ const HealthGuide = lazy(() => import('@/pages/guide/HealthGuide').then(m => ({ 
 const CareerGuide = lazy(() => import('@/pages/guide/CareerGuide').then(m => ({ default: m.CareerGuide })))
 const BusinessGuide = lazy(() => import('@/pages/guide/BusinessGuide').then(m => ({ default: m.BusinessGuide })))
 const ContentGuide = lazy(() => import('@/pages/guide/ContentGuide').then(m => ({ default: m.ContentGuide })))
+
+// Legal Pages
+const LegalLayout = lazy(() => import('@/pages/legal/LegalLayout').then(m => ({ default: m.LegalLayout })))
+const PrivacyPolicyPage = lazy(() => import('@/pages/legal/PrivacyPolicyPage').then(m => ({ default: m.PrivacyPolicyPage })))
+const TermsOfServicePage = lazy(() => import('@/pages/legal/TermsOfServicePage').then(m => ({ default: m.TermsOfServicePage })))
+const SupportPage = lazy(() => import('@/pages/legal/SupportPage').then(m => ({ default: m.SupportPage })))
 
 function PageLoader() {
   return (
@@ -46,13 +57,16 @@ function PageLoader() {
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
   const logout = useAuthStore(s => s.logout)
+  const setUser = useAuthStore(s => s.setUser)
 
   useEffect(() => {
     if (!isAuthenticated) return
-    api.get('/auth/me').catch((err) => {
-      if (err?.response?.status === 401) logout()
-    })
-  }, [isAuthenticated, logout])
+    api.get('/auth/me')
+      .then(({ data }) => setUser(data))
+      .catch((err) => {
+        if (err?.response?.status === 401) logout()
+      })
+  }, [isAuthenticated, logout, setUser])
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
   return <>{children}</>
@@ -69,8 +83,21 @@ function Page({ children }: { children: React.ReactNode }) {
 }
 
 export const router = createBrowserRouter([
+  { path: '/', element: <Page><LandingPage /></Page>, errorElement: <RouteErrorBoundary /> },
+  { path: '/pricing', element: <Page><PricingPage /></Page>, errorElement: <RouteErrorBoundary /> },
   { path: '/login', element: <Page><LoginPage /></Page>, errorElement: <RouteErrorBoundary /> },
+  { path: '/auth/google/callback', element: <Page><GoogleAuthCallbackPage /></Page>, errorElement: <RouteErrorBoundary /> },
   {
+    element: <Page><LegalLayout /></Page>,
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      { path: '/privacy-policy', element: <PrivacyPolicyPage /> },
+      { path: '/terms-of-service', element: <TermsOfServicePage /> },
+      { path: '/support', element: <SupportPage /> },
+    ]
+  },
+  {
+    path: '/app',
     element: (
       <RequireAuth>
         <AppShell />
@@ -78,34 +105,34 @@ export const router = createBrowserRouter([
     ),
     errorElement: <RouteErrorBoundary />,
     children: [
-      { path: '/', element: <Page><DashboardPage /></Page> },
-      { path: '/chat', element: <Page><ChatPage /></Page> },
-      { path: '/chat/:sessionId', element: <Page><ChatPage /></Page> },
-      { path: '/agents', element: <Page><AgentsPage /></Page> },
+      { index: true, element: <Page><DashboardPage /></Page> },
+      { path: 'chat', element: <Page><ChatPage /></Page> },
+      { path: 'chat/:sessionId', element: <Page><ChatPage /></Page> },
+      { path: 'agents', element: <Page><AgentsPage /></Page> },
       
       // Finance Area
-      { path: '/areas/finance', element: <Page><FinancePage /></Page> },
+      { path: 'areas/finance', element: <Page><FinancePage /></Page> },
 
-      
       // Health Area
-      { path: '/areas/health', element: <Page><HealthPage /></Page> },
+      { path: 'areas/health', element: <Page><HealthPage /></Page> },
 
       // Career Area
-      // { path: '/areas/career', element: <Page><CareerPage /></Page> },
+      { path: 'areas/career', element: <Page><CareerPage /></Page> },
 
       // Business Area
-      // { path: '/areas/business', element: <Page><BusinessPage /></Page> },
+      { path: 'areas/business', element: <Page><BusinessPage /></Page> },
 
       // Content Area
-      // { path: '/areas/content', element: <Page><ContentPage /></Page> },
+      { path: 'areas/content', element: <Page><ContentPage /></Page> },
       
       // System
-      { path: '/integrations', element: <Page><IntegrationsPage /></Page> },
-      { path: '/settings', element: <Page><SettingsPage /></Page> },
+      { path: 'integrations', element: <Page><IntegrationsPage /></Page> },
+      { path: 'integrations/:provider/callback', element: <Page><OAuthCallbackPage /></Page> },
+      { path: 'settings', element: <Page><SettingsPage /></Page> },
       
       // Guide
       { 
-        path: '/guide', 
+        path: 'guide', 
         element: <Page><GuideLayout /></Page>,
         children: [
           { index: true, element: <GuideOverview /> },
@@ -119,10 +146,10 @@ export const router = createBrowserRouter([
         ]
       },
 
-      { path: '/areas', element: <Navigate to="/areas/finance" replace /> },
-      { path: '*', element: <Navigate to="/" replace /> },
+      { path: 'areas', element: <Navigate to="/app/areas/finance" replace /> },
     ],
   },
+  { path: '*', element: <Navigate to="/" replace /> },
 ], {
   future: {
     v7_relativeSplatPath: true,

@@ -16,7 +16,7 @@ async def list_logs(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    query = select(HealthLog).order_by(desc(HealthLog.logged_at))
+    query = select(HealthLog).where(HealthLog.user_id == current_user.id).order_by(desc(HealthLog.logged_at))
     if entry_type:
         query = query.where(HealthLog.entry_type == entry_type)
     query = query.limit(200)
@@ -35,6 +35,7 @@ class HealthLogCreate(BaseModel):
 @router.post("/logs")
 async def create_log(body: HealthLogCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
     log = HealthLog(
+        user_id=current_user.id,
         logged_at=body.logged_at or datetime.utcnow(),
         entry_type=body.entry_type,
         value=body.value,
@@ -52,6 +53,7 @@ async def create_log(body: HealthLogCreate, current_user=Depends(get_current_use
 async def gym_streak(current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(
         select(HealthLog)
+        .where(HealthLog.user_id == current_user.id)
         .where(HealthLog.entry_type == "gym")
         .order_by(desc(HealthLog.logged_at))
     )
@@ -95,6 +97,7 @@ async def gym_streak(current_user=Depends(get_current_user), db=Depends(get_db))
 async def health_summary(current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(
         select(HealthLog)
+        .where(HealthLog.user_id == current_user.id)
         .where(HealthLog.entry_type == "weight")
         .order_by(desc(HealthLog.logged_at))
         .limit(1)
@@ -111,10 +114,10 @@ async def health_summary(current_user=Depends(get_current_user), db=Depends(get_
 
 @router.get("/goals")
 async def get_health_goals(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(HealthGoal).where(HealthGoal.id == "singleton"))
+    result = await db.execute(select(HealthGoal).where(HealthGoal.user_id == current_user.id))
     goal = result.scalar_one_or_none()
     if not goal:
-        goal = HealthGoal()
+        goal = HealthGoal(id=str(current_user.id), user_id=current_user.id)
         db.add(goal)
         await db.commit()
         await db.refresh(goal)
@@ -130,14 +133,17 @@ class HealthGoalUpdate(BaseModel):
     steps_target: Optional[int] = None
     sleep_target: Optional[float] = None
     height_cm: Optional[float] = None
+    target_weight: Optional[float] = None
+    target_workouts_per_week: Optional[int] = None
+    target_water_l_per_day: Optional[float] = None
 
 
 @router.put("/goals")
 async def upsert_health_goals(body: HealthGoalUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(HealthGoal).where(HealthGoal.id == "singleton"))
+    result = await db.execute(select(HealthGoal).where(HealthGoal.user_id == current_user.id))
     goal = result.scalar_one_or_none()
     if not goal:
-        goal = HealthGoal()
+        goal = HealthGoal(id=str(current_user.id), user_id=current_user.id)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(goal, field, value)
     goal.updated_at = datetime.utcnow()
@@ -155,6 +161,7 @@ async def nutrition_today(current_user=Depends(get_current_user), db=Depends(get
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     result = await db.execute(
         select(HealthLog)
+        .where(HealthLog.user_id == current_user.id)
         .where(HealthLog.entry_type == "meal")
         .where(HealthLog.logged_at >= today_start)
         .order_by(HealthLog.logged_at)
@@ -203,12 +210,13 @@ async def water_today(current_user=Depends(get_current_user), db=Depends(get_db)
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     result = await db.execute(
         select(func.coalesce(func.sum(HealthLog.value), 0))
+        .where(HealthLog.user_id == current_user.id)
         .where(HealthLog.entry_type == "water")
         .where(HealthLog.logged_at >= today_start)
     )
     glasses_logged = float(result.scalar_one())
 
-    goals_result = await db.execute(select(HealthGoal).where(HealthGoal.id == "singleton"))
+    goals_result = await db.execute(select(HealthGoal).where(HealthGoal.user_id == current_user.id))
     goal = goals_result.scalar_one_or_none()
     target = goal.water_target if goal else 8
 
@@ -223,12 +231,13 @@ async def steps_today(current_user=Depends(get_current_user), db=Depends(get_db)
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     result = await db.execute(
         select(func.coalesce(func.sum(HealthLog.value), 0))
+        .where(HealthLog.user_id == current_user.id)
         .where(HealthLog.entry_type == "steps")
         .where(HealthLog.logged_at >= today_start)
     )
     steps_logged = float(result.scalar_one())
 
-    goals_result = await db.execute(select(HealthGoal).where(HealthGoal.id == "singleton"))
+    goals_result = await db.execute(select(HealthGoal).where(HealthGoal.user_id == current_user.id))
     goal = goals_result.scalar_one_or_none()
     target = goal.steps_target if goal else 10000
 
@@ -243,6 +252,7 @@ async def sleep_recent(current_user=Depends(get_current_user), db=Depends(get_db
     seven_days_ago = (datetime.utcnow() - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
     result = await db.execute(
         select(HealthLog)
+        .where(HealthLog.user_id == current_user.id)
         .where(HealthLog.entry_type == "sleep")
         .where(HealthLog.logged_at >= seven_days_ago)
         .order_by(HealthLog.logged_at)
@@ -257,7 +267,7 @@ async def sleep_recent(current_user=Depends(get_current_user), db=Depends(get_db
     daily = list(by_day.values())
     weekly_avg = round(sum(d["hours"] for d in daily) / len(daily), 1) if daily else 0.0
 
-    goals_result = await db.execute(select(HealthGoal).where(HealthGoal.id == "singleton"))
+    goals_result = await db.execute(select(HealthGoal).where(HealthGoal.user_id == current_user.id))
     goal = goals_result.scalar_one_or_none()
     target = goal.sleep_target if goal else 8.0
 
@@ -292,7 +302,7 @@ def _habit_streak(check_dates: set, today: _date) -> int:
 @router.get("/habits")
 async def list_habits(current_user=Depends(get_current_user), db=Depends(get_db)):
     habits = (await db.execute(
-        select(Habit).where(Habit.is_active == True).order_by(Habit.created_at)
+        select(Habit).where(Habit.user_id == current_user.id, Habit.is_active == True).order_by(Habit.created_at)
     )).scalars().all()
     if not habits:
         return []
@@ -338,7 +348,7 @@ class HabitCreate(BaseModel):
 
 @router.post("/habits")
 async def create_habit(body: HabitCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    habit = Habit(name=body.name.strip(), icon=body.icon)
+    habit = Habit(user_id=current_user.id, name=body.name.strip(), icon=body.icon)
     db.add(habit)
     await db.commit()
     await db.refresh(habit)
@@ -347,7 +357,7 @@ async def create_habit(body: HabitCreate, current_user=Depends(get_current_user)
 
 @router.delete("/habits/{habit_id}")
 async def delete_habit(habit_id: _uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    habit = (await db.execute(select(Habit).where(Habit.id == habit_id))).scalar_one_or_none()
+    habit = (await db.execute(select(Habit).where(Habit.user_id == current_user.id, Habit.id == habit_id))).scalar_one_or_none()
     if not habit:
         raise HTTPException(status_code=404, detail="Habit not found")
     habit.is_active = False  # soft delete — keeps check history
@@ -364,13 +374,13 @@ class HabitToggle(BaseModel):
 async def toggle_habit_check(habit_id: _uuid.UUID, body: HabitToggle, current_user=Depends(get_current_user), db=Depends(get_db)):
     day = body.date or datetime.utcnow().date().isoformat()
     existing = (await db.execute(
-        select(HabitCheck).where(HabitCheck.habit_id == habit_id, HabitCheck.check_date == day)
+        select(HabitCheck).where(HabitCheck.user_id == current_user.id, HabitCheck.habit_id == habit_id, HabitCheck.check_date == day)
     )).scalar_one_or_none()
     if existing:
         await db.delete(existing)
         await db.commit()
         return {"checked": False, "date": day}
-    db.add(HabitCheck(habit_id=habit_id, check_date=day))
+    db.add(HabitCheck(user_id=current_user.id, habit_id=habit_id, check_date=day))
     await db.commit()
     return {"checked": True, "date": day}
 
@@ -382,7 +392,7 @@ from app.models.health import WorkoutSession, WorkoutSet
 @router.get("/workouts")
 async def list_workouts(limit: int = 10, current_user=Depends(get_current_user), db=Depends(get_db)):
     sessions = (await db.execute(
-        select(WorkoutSession).order_by(desc(WorkoutSession.logged_at)).limit(min(limit, 50))
+        select(WorkoutSession).where(WorkoutSession.user_id == current_user.id).order_by(desc(WorkoutSession.logged_at)).limit(min(limit, 50))
     )).scalars().all()
     out = []
     for s in sessions:
@@ -404,7 +414,7 @@ async def list_workouts(limit: int = 10, current_user=Depends(get_current_user),
 async def workout_prs(current_user=Depends(get_current_user), db=Depends(get_db)):
     """Personal records — heaviest set per exercise."""
     sets = (await db.execute(
-        select(WorkoutSet).where(WorkoutSet.weight_kg != None)
+        select(WorkoutSet).where(WorkoutSet.user_id == current_user.id).where(WorkoutSet.weight_kg != None)
     )).scalars().all()
     best: dict = {}
     for s in sets:
@@ -431,7 +441,7 @@ class WorkoutCreate(BaseModel):
 async def create_workout(body: WorkoutCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
     if not body.sets:
         raise HTTPException(status_code=422, detail="At least one set required")
-    session_row = WorkoutSession(name=body.name.strip() or "Workout", logged_at=body.logged_at or datetime.utcnow(), notes=body.notes)
+    session_row = WorkoutSession(user_id=current_user.id, name=body.name.strip() or "Workout", logged_at=body.logged_at or datetime.utcnow(), notes=body.notes)
     db.add(session_row)
     await db.flush()
 
@@ -442,7 +452,7 @@ async def create_workout(body: WorkoutCreate, current_user=Depends(get_current_u
         if not ex or s.reps <= 0:
             continue
         counters[ex] = counters.get(ex, 0) + 1
-        db.add(WorkoutSet(session_id=session_row.id, exercise=ex, set_number=counters[ex], reps=s.reps, weight_kg=s.weight_kg))
+        db.add(WorkoutSet(user_id=current_user.id, session_id=session_row.id, exercise=ex, set_number=counters[ex], reps=s.reps, weight_kg=s.weight_kg))
 
     # PR detection vs history (before this session)
     for ex in counters:
@@ -450,14 +460,14 @@ async def create_workout(body: WorkoutCreate, current_user=Depends(get_current_u
         if max_new <= 0:
             continue
         prev = (await db.execute(
-            select(WorkoutSet).where(WorkoutSet.exercise == ex, WorkoutSet.weight_kg != None, WorkoutSet.session_id != session_row.id)
+            select(WorkoutSet).where(WorkoutSet.user_id == current_user.id, WorkoutSet.exercise == ex, WorkoutSet.weight_kg != None, WorkoutSet.session_id != session_row.id)
         )).scalars().all()
         prev_best = max((float(p.weight_kg) for p in prev), default=0)
         if max_new > prev_best:
             new_prs.append({"exercise": ex, "weight_kg": max_new, "previous": prev_best or None})
 
     # Keep the existing gym-streak logic fed (health_logs entry_type='gym')
-    db.add(HealthLog(entry_type="gym", notes=f"{session_row.name} — {len(body.sets)} sets", source="manual",
+    db.add(HealthLog(user_id=current_user.id, entry_type="gym", notes=f"{session_row.name} — {len(body.sets)} sets", source="manual",
                      logged_at=session_row.logged_at))
 
     await db.commit()
@@ -467,7 +477,7 @@ async def create_workout(body: WorkoutCreate, current_user=Depends(get_current_u
 
 @router.delete("/workouts/{workout_id}")
 async def delete_workout(workout_id: _uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    session_row = (await db.execute(select(WorkoutSession).where(WorkoutSession.id == workout_id))).scalar_one_or_none()
+    session_row = (await db.execute(select(WorkoutSession).where(WorkoutSession.user_id == current_user.id, WorkoutSession.id == workout_id))).scalar_one_or_none()
     if not session_row:
         raise HTTPException(status_code=404, detail="Workout not found")
     for s in (await db.execute(select(WorkoutSet).where(WorkoutSet.session_id == workout_id))).scalars().all():
@@ -483,9 +493,9 @@ from app.models.health import FoodItem
 
 @router.get("/foods")
 async def search_foods(q: Optional[str] = None, current_user=Depends(get_current_user), db=Depends(get_db)):
-    query = select(FoodItem).order_by(FoodItem.name).limit(20)
+    query = select(FoodItem).where(FoodItem.user_id == current_user.id).order_by(FoodItem.name).limit(20)
     if q:
-        query = select(FoodItem).where(FoodItem.name.ilike(f"%{q}%")).order_by(FoodItem.name).limit(20)
+        query = select(FoodItem).where(FoodItem.user_id == current_user.id).where(FoodItem.name.ilike(f"%{q}%")).order_by(FoodItem.name).limit(20)
     foods = (await db.execute(query)).scalars().all()
     return foods
 
@@ -502,10 +512,11 @@ class FoodCreate(BaseModel):
 
 @router.post("/foods")
 async def create_food(body: FoodCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    existing = (await db.execute(select(FoodItem).where(FoodItem.name.ilike(body.name.strip())))).scalar_one_or_none()
+    existing = (await db.execute(select(FoodItem).where(FoodItem.user_id == current_user.id).where(FoodItem.name.ilike(body.name.strip())))).scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=409, detail="Food already exists")
     food = FoodItem(
+        user_id=current_user.id,
         name=body.name.strip(), calories=body.calories, protein=body.protein,
         carbs=body.carbs, fat=body.fat, serving_desc=body.serving_desc,
         serving_grams=body.serving_grams, is_custom=True,

@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -24,6 +26,21 @@ def decode_access_token(token: str) -> Optional[dict]:
         return jwt.decode(token, settings.app_secret_key, algorithms=[ALGORITHM])
     except PyJWTError:
         return None
+
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    hashed = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 600_000)
+    return f"{salt}${hashed.hex()}"
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    try:
+        salt, hashed = password_hash.split("$", 1)
+        expected = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 600_000)
+        return secrets.compare_digest(expected.hex(), hashed)
+    except (ValueError, AttributeError):
+        return False
 
 
 def encrypt_token(token: str) -> str:

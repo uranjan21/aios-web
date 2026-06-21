@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     app_secret_key: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
     app_email: str = "demo@aios.dev"
     app_password: str = "demo1234"
+    google_login_email: str = ""
     allowed_origin: str = "http://localhost:5173"
     environment: str = "development"  # "production" | "development"
 
@@ -42,6 +43,8 @@ class Settings(BaseSettings):
     notion_client_secret: str = ""
     gcal_client_id: str = ""
     gcal_client_secret: str = ""
+    gfit_client_id: str = ""
+    gfit_client_secret: str = ""
     github_client_id: str = ""
     github_client_secret: str = ""
 

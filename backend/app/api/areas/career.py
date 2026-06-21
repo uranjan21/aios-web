@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/areas/career", tags=["career"])
 
 @router.get("/skills")
 async def list_skills(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(SkillInventory).order_by(SkillInventory.skill_name))
+    result = await db.execute(select(SkillInventory).where(SkillInventory.user_id == current_user.id).order_by(SkillInventory.skill_name))
     return result.scalars().all()
 
 
@@ -31,7 +31,7 @@ class SkillUpdate(BaseModel):
 
 @router.post("/skills")
 async def upsert_skill(body: SkillUpsert, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(SkillInventory).where(SkillInventory.skill_name == body.skill_name))
+    result = await db.execute(select(SkillInventory).where(SkillInventory.user_id == current_user.id).where(SkillInventory.skill_name == body.skill_name))
     skill = result.scalar_one_or_none()
     if skill:
         skill.level = body.level
@@ -40,7 +40,7 @@ async def upsert_skill(body: SkillUpsert, current_user=Depends(get_current_user)
             skill.notes = body.notes
         skill.last_updated = datetime.utcnow()
     else:
-        skill = SkillInventory(skill_name=body.skill_name, category=body.category, level=body.level, notes=body.notes)
+        skill = SkillInventory(user_id=current_user.id, skill_name=body.skill_name, category=body.category, level=body.level, notes=body.notes)
     db.add(skill)
     await db.commit()
     await db.refresh(skill)
@@ -49,7 +49,7 @@ async def upsert_skill(body: SkillUpsert, current_user=Depends(get_current_user)
 
 @router.put("/skills/{skill_id}")
 async def update_skill(skill_id: str, body: SkillUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(SkillInventory).where(SkillInventory.id == skill_id))
+    result = await db.execute(select(SkillInventory).where(SkillInventory.user_id == current_user.id).where(SkillInventory.id == skill_id))
     skill = result.scalar_one_or_none()
     if not skill:
         raise HTTPException(status_code=404, detail="Skill not found")
@@ -65,7 +65,7 @@ async def update_skill(skill_id: str, body: SkillUpdate, current_user=Depends(ge
 
 @router.get("/events")
 async def list_events(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(CareerEvent).order_by(desc(CareerEvent.occurred_at)).limit(100))
+    result = await db.execute(select(CareerEvent).where(CareerEvent.user_id == current_user.id).order_by(desc(CareerEvent.occurred_at)).limit(100))
     return result.scalars().all()
 
 
@@ -81,6 +81,7 @@ class CareerEventCreate(BaseModel):
 @router.post("/events")
 async def create_event(body: CareerEventCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
     event = CareerEvent(
+        user_id=current_user.id,
         occurred_at=body.occurred_at or datetime.utcnow(),
         event_type=body.event_type,
         title=body.title,
@@ -98,14 +99,14 @@ async def create_event(body: CareerEventCreate, current_user=Depends(get_current
 @router.get("/summary")
 async def get_summary(current_user=Depends(get_current_user), db=Depends(get_db)):
     from sqlalchemy import func as sa_func
-    total_skills = (await db.execute(select(sa_func.count(SkillInventory.id)))).scalar_one()
+    total_skills = (await db.execute(select(sa_func.count(SkillInventory.id)).where(SkillInventory.user_id == current_user.id))).scalar_one()
 
     latest_skill = (await db.execute(
-        select(SkillInventory).order_by(desc(SkillInventory.last_updated)).limit(1)
+        select(SkillInventory).where(SkillInventory.user_id == current_user.id).order_by(desc(SkillInventory.last_updated)).limit(1)
     )).scalar_one_or_none()
 
     latest_event = (await db.execute(
-        select(CareerEvent).order_by(desc(CareerEvent.occurred_at)).limit(1)
+        select(CareerEvent).where(CareerEvent.user_id == current_user.id).order_by(desc(CareerEvent.occurred_at)).limit(1)
     )).scalar_one_or_none()
 
     return {
@@ -132,7 +133,7 @@ async def get_roadmap(current_user=Depends(get_current_user)):
 async def list_opportunities(current_user=Depends(get_current_user), db=Depends(get_db)):
     from sqlmodel import asc
     result = await db.execute(
-        select(JobOpportunity).order_by(desc(JobOpportunity.created_at)).limit(100)
+        select(JobOpportunity).where(JobOpportunity.user_id == current_user.id).order_by(desc(JobOpportunity.created_at)).limit(100)
     )
     return result.scalars().all()
 
@@ -155,7 +156,7 @@ class OpportunityPatch(BaseModel):
 
 @router.post("/opportunities")
 async def create_opportunity(body: OpportunityCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    opp = JobOpportunity(**body.model_dump())
+    opp = JobOpportunity(user_id=current_user.id, **body.model_dump())
     db.add(opp)
     await db.commit()
     await db.refresh(opp)
@@ -164,7 +165,7 @@ async def create_opportunity(body: OpportunityCreate, current_user=Depends(get_c
 
 @router.patch("/opportunities/{opp_id}")
 async def patch_opportunity(opp_id: str, body: OpportunityPatch, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(JobOpportunity).where(JobOpportunity.id == opp_id))
+    result = await db.execute(select(JobOpportunity).where(JobOpportunity.user_id == current_user.id).where(JobOpportunity.id == opp_id))
     opp = result.scalar_one_or_none()
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found")
@@ -179,7 +180,7 @@ async def patch_opportunity(opp_id: str, body: OpportunityPatch, current_user=De
 
 @router.delete("/opportunities/{opp_id}")
 async def delete_opportunity(opp_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(JobOpportunity).where(JobOpportunity.id == opp_id))
+    result = await db.execute(select(JobOpportunity).where(JobOpportunity.user_id == current_user.id).where(JobOpportunity.id == opp_id))
     opp = result.scalar_one_or_none()
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found")

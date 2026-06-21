@@ -13,16 +13,17 @@ from app.models.finance import FinanceExpense, FinanceIncome
 from app.models.health import HealthLog
 from app.services.ai.insights import generate_text
 from app.services.notifications.push import send_push_to_all
+import uuid
 
 logger = logging.getLogger(__name__)
 
 
-async def _week_facts(session) -> str:
+async def _week_facts(session, user_id: uuid.UUID) -> str:
     now = datetime.utcnow()
     week_start = now - timedelta(days=7)
 
     expenses = (await session.execute(
-        select(FinanceExpense).where(FinanceExpense.logged_at >= week_start)
+        select(FinanceExpense).where(FinanceExpense.user_id == user_id, FinanceExpense.logged_at >= week_start)
     )).scalars().all()
     by_cat: dict = {}
     for e in expenses:
@@ -31,12 +32,12 @@ async def _week_facts(session) -> str:
     expense_total = sum(by_cat.values())
 
     income = (await session.execute(
-        select(FinanceIncome).where(FinanceIncome.logged_at >= week_start)
+        select(FinanceIncome).where(FinanceIncome.user_id == user_id, FinanceIncome.logged_at >= week_start)
     )).scalars().all()
     income_total = sum(float(i.amount) for i in income)
 
     logs = (await session.execute(
-        select(HealthLog).where(HealthLog.logged_at >= week_start)
+        select(HealthLog).where(HealthLog.user_id == user_id, HealthLog.logged_at >= week_start)
     )).scalars().all()
     gym = len([l for l in logs if l.entry_type == "gym"])
     meals = len([l for l in logs if l.entry_type == "meal"])
@@ -44,7 +45,7 @@ async def _week_facts(session) -> str:
     avg_sleep = sum(sleep) / len(sleep) if sleep else None
 
     published = (await session.execute(
-        select(ContentItem).where(ContentItem.status == "published", ContentItem.updated_at >= week_start)
+        select(ContentItem).where(ContentItem.user_id == user_id, ContentItem.status == "published", ContentItem.updated_at >= week_start)
     )).scalars().all()
 
     return (
@@ -59,11 +60,11 @@ async def _week_facts(session) -> str:
     )
 
 
-async def generate_weekly_digest() -> bool:
+async def generate_weekly_digest(user_id: uuid.UUID) -> bool:
     from app.api.agents import _broadcast_agent
 
     async with AsyncSessionLocal() as session:
-        facts = await _week_facts(session)
+        facts = await _week_facts(session, user_id)
 
         system = ("You write a Sunday-evening weekly review for one person's life dashboard. "
                   "Given the week's facts, write a short digest: 2-3 sentence narrative, then 'Wins:' (2-3 bullets), "
@@ -75,10 +76,10 @@ async def generate_weekly_digest() -> bool:
             logger.warning("Digest LLM failed, storing facts only: %s", e)
             text = facts
 
-        session.add(Capture(raw_text=f"📊 Weekly Digest — {datetime.utcnow().strftime('%d %b %Y')}\n\n{text}"))
+        session.add(Capture(user_id=user_id, raw_text=f"📊 Weekly Digest — {datetime.utcnow().strftime('%d %b %Y')}\n\n{text}"))
         await session.commit()
 
-    await _broadcast_agent({"type": "digest_ready", "title": "Weekly digest ready", "body": "Your week in review is in the inbox"})
-    await send_push_to_all("📊 Weekly digest ready", "Your week in review is waiting", "/")
+    await _broadcast_agent(user_id, {"type": "digest_ready", "title": "Weekly digest ready", "body": "Your week in review is in the inbox"})
+    await send_push_to_all(user_id, "📊 Weekly digest ready", "Your week in review is waiting", "/")
     logger.info("Weekly digest generated")
     return True

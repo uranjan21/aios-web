@@ -1,5 +1,6 @@
 import { aiApi } from "@/api/areas";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Button, Card } from "@ledgr/ui";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -495,43 +496,6 @@ function BriefView({ sections }: { sections: BriefSection[] }) {
 
 // ─────────────────────────── Empty states ───────────────────────────
 
-const EmptyRoot = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 8px;
-  padding: 24px 16px;
-`;
-
-const EmptyIconRing = styled.span<{ $color?: string }>`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: ${({ theme, $color }) => ($color ?? theme.color.accent) + "1A"};
-  color: ${({ theme, $color }) => $color ?? theme.color.accent};
-  margin-bottom: 4px;
-`;
-
-const EmptyTitle = styled.p`
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: ${({ theme }) => theme.color.foreground};
-`;
-
-const EmptyText = styled.p`
-  margin: 0;
-  max-width: 320px;
-  font-size: 12px;
-  line-height: 1.6;
-  color: ${({ theme }) => theme.color.mutedForeground};
-`;
-
 const DomainPills = styled.div`
   display: flex;
   gap: 6px;
@@ -713,52 +677,31 @@ export function OverviewInsightCard() {
             <DomainRowView domain="health"  text={overviewData.health}  />
           </DomainList>
         ) : (
-          <EmptyRoot>
-            <EmptyIconRing>
-              <Sparkles size={18} />
-            </EmptyIconRing>
-            <EmptyTitle>
-              {overviewMutation.isError ? "Couldn't reach the AI" : "Cross-domain snapshot"}
-            </EmptyTitle>
-            <EmptyText>
-              {overviewMutation.isError
+          <EmptyState
+            icon={<Sparkles size={32} />}
+            title={overviewMutation.isError ? "Couldn't reach the AI" : "Cross-domain snapshot"}
+            description={overviewMutation.isError
                 ? "Something went wrong — try analysing again."
                 : "One click reads your Finance + Health logs and gives you a plain-English snapshot of where you stand."}
-            </EmptyText>
-            <DomainPills>
-              <DomainPill $accent="#CA8A04"><IndianRupee size={10} />Finance</DomainPill>
-              <DomainPill $accent="#16A34A"><Heart size={10} />Health</DomainPill>
-            </DomainPills>
-          </EmptyRoot>
+          />
         ))}
 
       {/* ── Daily Brief ── */}
       {mode === "brief" &&
         (briefPending ? (
-          <EmptyRoot>
-            <EmptyIconRing><BookOpen size={18} /></EmptyIconRing>
-            <EmptyTitle>Generating your brief…</EmptyTitle>
-            <EmptyText>Reading your Finance + Health context and assembling today's brief.</EmptyText>
-          </EmptyRoot>
+          <EmptyState 
+            icon={<BookOpen size={32} />} 
+            title="Generating your brief…" 
+            description="Reading your Finance + Health context and assembling today's brief." 
+          />
         ) : briefReady ? (
           <BriefView sections={briefSections} />
         ) : (
-          <EmptyRoot>
-            <EmptyIconRing $color="#6366F1"><BookOpen size={18} /></EmptyIconRing>
-            <EmptyTitle>
-              {briefMutation.isError ? "Brief failed to generate" : "No brief for today yet"}
-            </EmptyTitle>
-            <EmptyText>
-              {briefMutation.isError
-                ? "Couldn't reach the AI — try again."
-                : "Generate your daily brief: priorities, money pulse, health pulse, and one key action — from your logged data."}
-            </EmptyText>
-            <DomainPills>
-              <DomainPill $accent="#6366F1"><Target size={10} />Priorities</DomainPill>
-              <DomainPill $accent="#CA8A04"><IndianRupee size={10} />Money</DomainPill>
-              <DomainPill $accent="#16A34A"><Heart size={10} />Health</DomainPill>
-            </DomainPills>
-          </EmptyRoot>
+          <EmptyState 
+            icon={<BookOpen size={32} />} 
+            title={briefMutation.isError ? "Brief failed to generate" : "No brief for today yet"} 
+            description={briefMutation.isError ? "We couldn't connect to the AI model." : "Click 'Generate Daily Brief' to orchestrate your day."} 
+          />
         ))}
     </Card>
   );

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { CheckCircle, XCircle, AlertCircle, ExternalLink, Trash2, Puzzle } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle, ExternalLink, Trash2, Puzzle, RefreshCw } from 'lucide-react'
 import { integrationsApi } from '@/api/integrations'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorCard } from '@/components/ErrorCard'
@@ -17,13 +17,12 @@ import { EmptyState } from '@/components/EmptyState'
 import type { Integration } from '@/types'
 import styled, { useTheme } from 'styled-components'
 
-const PROVIDER_INFO: Record<string, { label: string; desc: string }> = {
-  notion: { label: 'Notion', desc: 'Read pages and databases from your Notion workspace' },
-  gcal: { label: 'Google Calendar', desc: 'Sync upcoming events for dashboard and agent context' },
-  github: { label: 'GitHub', desc: 'Track commits and activity on your repos' },
+const PROVIDER_INFO: Record<string, { label: string; desc: string; syncable: boolean }> = {
+  notion: { label: 'Notion', desc: 'Read pages and databases from your Notion workspace', syncable: false },
+  gcal: { label: 'Google Calendar', desc: 'Sync upcoming events for dashboard and agent context', syncable: true },
+  gfit: { label: 'Google Fit', desc: 'Sync steps, calories, distance, weight and heart rate', syncable: true },
+  github: { label: 'GitHub', desc: 'Track commits and activity on your repos', syncable: false },
 }
-
-// ── Layout ─────────────────────────────────────────────────────────────────────
 
 const PageRoot = styled.div`
   min-height: 100vh;
@@ -45,34 +44,23 @@ const IntGrid = styled.div`
   grid-template-columns: 1fr;
   gap: 16px;
   @media (min-width: 768px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  @media (min-width: 1280px) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-`
-
-// ── Card header row ───────────────────────────────────────────────────────────
-
-const CardTop = styled.div`
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 12px;
-`
-
-const ProviderInfo = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`
-
-const ProviderText = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  @media (min-width: 1280px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 `
 
 const CardActions = styled.div`
   display: flex;
   gap: 8px;
   margin-top: 16px;
+  flex-wrap: wrap;
+`
+
+const MetaRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-top: 8px;
 `
 
 const SkeletonGroup = styled.div`
@@ -81,42 +69,20 @@ const SkeletonGroup = styled.div`
   gap: 6px;
 `
 
-// ── Styled Skeletons ──────────────────────────────────────────────────────────
+const SkelIcon = styled(Skeleton)`width: 2rem; height: 2rem; border-radius: 0.75rem;`
+const SkelTitle = styled(Skeleton)`height: 1rem; width: 8rem;`
+const SkelDesc = styled(Skeleton)`height: 0.75rem; width: 12rem;`
+const SkelStatus = styled(Skeleton)`height: 1.25rem; width: 5rem; border-radius: 9999px;`
+const SkelButton = styled(Skeleton)`height: 2rem; width: 6rem; border-radius: 0.5rem;`
 
-const SkelIcon = styled(Skeleton)`
-  width: 2rem;
-  height: 2rem;
-  border-radius: 0.75rem;
+const SpinIcon = styled(RefreshCw)<{ $spinning: boolean }>`
+  ${({ $spinning }) => $spinning && `animation: spin 1s linear infinite;`}
+  @keyframes spin { to { transform: rotate(360deg); } }
 `
-
-const SkelTitle = styled(Skeleton)`
-  height: 1rem;
-  width: 8rem;
-`
-
-const SkelDesc = styled(Skeleton)`
-  height: 0.75rem;
-  width: 12rem;
-`
-
-const SkelStatus = styled(Skeleton)`
-  height: 1.25rem;
-  width: 5rem;
-  border-radius: 9999px;
-`
-
-const SkelButton = styled(Skeleton)`
-  height: 2rem;
-  width: 6rem;
-  border-radius: 0.5rem;
-`
-
-// ── Components ────────────────────────────────────────────────────────────────
 
 function StatusIcon({ status }: { status: Integration['status'] }) {
   if (status === 'connected') return <IconBadge icon={CheckCircle} color="primary" size="md" />
   if (status === 'expired') return <IconBadge icon={AlertCircle} color="accent" size="md" />
-  if (status === 'error') return <IconBadge icon={XCircle} color="muted" size="md" />
   return <IconBadge icon={XCircle} color="muted" size="md" />
 }
 
@@ -126,10 +92,7 @@ function IntegrationCardSkeleton() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <SkelIcon />
-          <SkeletonGroup>
-            <SkelTitle />
-            <SkelDesc />
-          </SkeletonGroup>
+          <SkeletonGroup><SkelTitle /><SkelDesc /></SkeletonGroup>
         </div>
         <SkelStatus />
       </div>
@@ -141,7 +104,7 @@ function IntegrationCardSkeleton() {
 function IntegrationCard({ integration }: { integration: Integration }) {
   const theme = useTheme()
   const queryClient = useQueryClient()
-  const info = PROVIDER_INFO[integration.provider] ?? { label: integration.provider, desc: '' }
+  const info = PROVIDER_INFO[integration.provider] ?? { label: integration.provider, desc: '', syncable: false }
 
   const connectMutation = useMutation({
     mutationFn: () => integrationsApi.authUrl(integration.provider),
@@ -158,7 +121,19 @@ function IntegrationCard({ integration }: { integration: Integration }) {
     onError: () => toast.error(`Failed to disconnect ${info.label}`),
   })
 
+  const syncMutation = useMutation({
+    mutationFn: () => integrationsApi.sync(integration.provider),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] })
+      toast.success(`${info.label}: synced ${data.synced} items`)
+    },
+    onError: () => toast.error(`${info.label} sync failed`),
+  })
+
   const [dialogOpen, setDialogOpen] = useState(false)
+
+  const email = (integration.metadata as Record<string, string> | null)?.email
+  const lastSync = integration.token_expires_at
 
   return (
     <GlassCard
@@ -174,44 +149,61 @@ function IntegrationCard({ integration }: { integration: Integration }) {
         />
       }
     >
+      {integration.status === 'connected' && (
+        <MetaRow>
+          {email && <span>Connected as <strong>{email}</strong></span>}
+          {email && lastSync && <span>·</span>}
+          {lastSync && <span>Token expires {new Date(lastSync).toLocaleDateString()}</span>}
+        </MetaRow>
+      )}
       <CardActions>
         {integration.status !== 'connected' ? (
           <Button onClick={() => connectMutation.mutate()} disabled={connectMutation.isPending}>
             <ExternalLink size={14} />
-            {connectMutation.isPending ? 'Redirecting…' : 'Connect'}
+            {connectMutation.isPending ? 'Redirecting...' : 'Connect'}
           </Button>
         ) : (
-          <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" aria-label={`Disconnect ${info.label}`}>
-                <Trash2 size={14} /> Disconnect
+          <>
+            {info.syncable && (
+              <Button
+                variant="secondary"
+                onClick={() => syncMutation.mutate()}
+                disabled={syncMutation.isPending}
+              >
+                <SpinIcon size={14} $spinning={syncMutation.isPending} />
+                {syncMutation.isPending ? 'Syncing...' : 'Sync Now'}
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle style={{ fontSize: 16, fontWeight: 600, color: theme.color.foreground }}>
-                  Disconnect {info.label}?
-                </AlertDialogTitle>
-                <AlertDialogDescription style={{ fontSize: 14, color: theme.color.mutedForeground }}>
-                  The agent will no longer be able to read data from {info.label}. You can reconnect at any time.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel asChild>
-                  <Button variant="secondary">Cancel</Button>
-                </AlertDialogCancel>
-                <AlertDialogAction asChild>
-                  <Button
-                    variant="destructive"
-                    onClick={() => { setDialogOpen(false); disconnectMutation.mutate() }}
-                    disabled={disconnectMutation.isPending}
-                  >
-                    {disconnectMutation.isPending ? 'Disconnecting…' : 'Disconnect'}
-                  </Button>
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            )}
+            <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" aria-label={`Disconnect ${info.label}`}>
+                  <Trash2 size={14} /> Disconnect
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle style={{ fontSize: 16, fontWeight: 600, color: theme.color.foreground }}>
+                    Disconnect {info.label}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription style={{ fontSize: 14, color: theme.color.mutedForeground }}>
+                    The agent will no longer be able to read data from {info.label}. You can reconnect at any time.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel asChild><Button variant="secondary">Cancel</Button></AlertDialogCancel>
+                  <AlertDialogAction asChild>
+                    <Button
+                      variant="destructive"
+                      onClick={() => { setDialogOpen(false); disconnectMutation.mutate() }}
+                      disabled={disconnectMutation.isPending}
+                    >
+                      {disconnectMutation.isPending ? 'Disconnecting...' : 'Disconnect'}
+                    </Button>
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
         )}
       </CardActions>
     </GlassCard>
@@ -233,7 +225,7 @@ export function IntegrationsPage() {
         ) : (
           <IntGrid>
             {isLoading
-              ? Array.from({ length: 3 }).map((_, i) => <IntegrationCardSkeleton key={i} />)
+              ? Array.from({ length: 4 }).map((_, i) => <IntegrationCardSkeleton key={i} />)
               : integrations && integrations.length > 0
               ? integrations.map(i => <IntegrationCard key={i.provider} integration={i} />)
               : (
@@ -241,14 +233,14 @@ export function IntegrationsPage() {
                     <EmptyState
                       icon={ExternalLink}
                       title="No integrations configured yet"
-                      description="Connect Notion, Google Calendar, or GitHub to enrich your AI OS"
+                      description="Connect Notion, Google Calendar, Google Fit, or GitHub to enrich your AI OS"
                       action={{
                         label: "Connect Integration",
                         onClick: () => {
-                          toast.info("Connecting Notion integration...");
-                          integrationsApi.authUrl('notion')
+                          toast.info("Connecting Google Calendar...");
+                          integrationsApi.authUrl('gcal')
                             .then(({ url }) => { window.location.href = url })
-                            .catch(() => toast.error("Failed to initiate Notion connection"));
+                            .catch(() => toast.error("Failed to initiate connection"));
                         }
                       }}
                     />

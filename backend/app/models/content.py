@@ -9,6 +9,7 @@ class ContentItem(SQLModel, table=True):
     __tablename__ = "content_items"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     title: str = Field(nullable=False)
     platform: str = Field(nullable=False)
     status: str = Field(default="idea", nullable=False)

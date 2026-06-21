@@ -12,11 +12,11 @@ import uuid
 router = APIRouter(prefix="/api/areas/finance", tags=["finance"])
 
 
-async def _adjust_balance(db, account_id: Optional[uuid.UUID], delta: float) -> None:
+async def _adjust_balance(db, account_id: Optional[uuid.UUID], delta: float, user_id: uuid.UUID) -> None:
     """Apply a signed delta to an account balance. No-op if account_id is None."""
     if account_id is None:
         return
-    result = await db.execute(select(Account).where(Account.id == account_id))
+    result = await db.execute(select(Account).where(Account.id == account_id, Account.user_id == user_id))
     account = result.scalar_one_or_none()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -47,9 +47,9 @@ async def net_worth(current_user=Depends(get_current_user), db=Depends(get_db)):
     Account balances are signed by the double-entry layer (credit card debt is
     negative), so a plain sum is correct for the accounts component.
     """
-    accounts = (await db.execute(select(Account))).scalars().all()
-    investments = (await db.execute(select(FinanceInvestment))).scalars().all()
-    loans = (await db.execute(select(FinanceLoan).where(FinanceLoan.is_active == True))).scalars().all()
+    accounts = (await db.execute(select(Account).where(Account.user_id == current_user.id))).scalars().all()
+    investments = (await db.execute(select(FinanceInvestment).where(FinanceInvestment.user_id == current_user.id))).scalars().all()
+    loans = (await db.execute(select(FinanceLoan).where(FinanceLoan.user_id == current_user.id, FinanceLoan.is_active == True))).scalars().all()
 
     accounts_total = sum(float(a.balance) for a in accounts)
     investments_total = sum(float(i.current_value) for i in investments)
@@ -79,7 +79,7 @@ def _import_key(logged_at: datetime, amount: float, description: Optional[str]) 
     return (logged_at.date(), round(float(amount), 2), (description or "").strip().lower())
 
 
-async def _existing_import_keys(db, items: list[ImportItem]) -> set:
+async def _existing_import_keys(db, items: list[ImportItem], user_id: uuid.UUID) -> set:
     """Keys of existing expenses/income within the items' date range."""
     if not items:
         return set()
@@ -88,12 +88,12 @@ async def _existing_import_keys(db, items: list[ImportItem]) -> set:
 
     keys = set()
     expenses = (await db.execute(
-        select(FinanceExpense).where(FinanceExpense.logged_at >= lo, FinanceExpense.logged_at < hi)
+        select(FinanceExpense).where(FinanceExpense.user_id == user_id, FinanceExpense.logged_at >= lo, FinanceExpense.logged_at < hi)
     )).scalars().all()
     for e in expenses:
         keys.add(("expense",) + _import_key(e.logged_at, float(e.amount), e.description))
     income = (await db.execute(
-        select(FinanceIncome).where(FinanceIncome.logged_at >= lo, FinanceIncome.logged_at < hi)
+        select(FinanceIncome).where(FinanceIncome.user_id == user_id, FinanceIncome.logged_at >= lo, FinanceIncome.logged_at < hi)
     )).scalars().all()
     for i in income:
         keys.add(("income",) + _import_key(i.logged_at, float(i.amount), i.description))
@@ -103,7 +103,7 @@ async def _existing_import_keys(db, items: list[ImportItem]) -> set:
 @router.post("/import/check")
 async def import_check(body: ImportCheckBody, current_user=Depends(get_current_user), db=Depends(get_db)):
     """Flag which rows already exist (same kind + date + amount + description)."""
-    existing = await _existing_import_keys(db, body.items)
+    existing = await _existing_import_keys(db, body.items, current_user.id)
     return {
         "duplicates": [
             idx for idx, item in enumerate(body.items)
@@ -123,7 +123,7 @@ async def import_commit(body: ImportCommitBody, current_user=Depends(get_current
 
     Duplicates (vs existing rows) are skipped server-side as a final guard.
     """
-    existing = await _existing_import_keys(db, body.items)
+    existing = await _existing_import_keys(db, body.items, current_user.id)
     imported_expenses = 0
     imported_income = 0
     skipped = 0
@@ -137,6 +137,7 @@ async def import_commit(body: ImportCommitBody, current_user=Depends(get_current
             continue
         if item.kind == "expense":
             db.add(FinanceExpense(
+                user_id=current_user.id,
                 logged_at=item.logged_at, amount=item.amount,
                 category=item.category or "Uncategorized",
                 description=item.description, account_id=body.account_id,
@@ -145,6 +146,7 @@ async def import_commit(body: ImportCommitBody, current_user=Depends(get_current
             imported_expenses += 1
         else:
             db.add(FinanceIncome(
+                user_id=current_user.id,
                 logged_at=item.logged_at, amount=item.amount,
                 source=item.category or "other",
                 description=item.description, account_id=body.account_id,
@@ -155,7 +157,7 @@ async def import_commit(body: ImportCommitBody, current_user=Depends(get_current
     return {"imported_expenses": imported_expenses, "imported_income": imported_income, "skipped": skipped}
 
 
-async def _compute_health_score_for_date(db, target_date: datetime) -> dict:
+async def _compute_health_score_for_date(db, target_date: datetime, user_id: uuid.UUID) -> dict:
     from sqlalchemy import func
     
     month_start = target_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -169,11 +171,13 @@ async def _compute_health_score_for_date(db, target_date: datetime) -> dict:
 
     income_total = float((await db.execute(
         select(func.coalesce(func.sum(FinanceIncome.amount), 0))
+        .where(FinanceIncome.user_id == user_id)
         .where(FinanceIncome.logged_at >= month_start)
         .where(FinanceIncome.logged_at < next_month_start)
     )).scalar_one())
     expense_total = float((await db.execute(
         select(func.coalesce(func.sum(FinanceExpense.amount), 0))
+        .where(FinanceExpense.user_id == user_id)
         .where(FinanceExpense.logged_at >= month_start)
         .where(FinanceExpense.logged_at < next_month_start)
     )).scalar_one())
@@ -195,7 +199,7 @@ async def _compute_health_score_for_date(db, target_date: datetime) -> dict:
         })
 
     # 2. Debt-to-income — full marks at <=30% of income going to EMIs, zero at >=60%
-    loans = (await db.execute(select(FinanceLoan).where(FinanceLoan.is_active == True))).scalars().all()
+    loans = (await db.execute(select(FinanceLoan).where(FinanceLoan.user_id == user_id, FinanceLoan.is_active == True))).scalars().all()
     total_emi = sum(float(l.emi_amount) for l in loans)
     if not loans:
         components.append({
@@ -216,10 +220,11 @@ async def _compute_health_score_for_date(db, target_date: datetime) -> dict:
         })
 
     # 3. Emergency fund — liquid balances vs avg monthly spend (last 90 days), full at >=6 months
-    accounts = (await db.execute(select(Account))).scalars().all()
+    accounts = (await db.execute(select(Account).where(Account.user_id == user_id))).scalars().all()
     liquid = sum(max(float(a.balance), 0) for a in accounts if a.type in (AccountType.CHECKING, AccountType.SAVINGS))
     spend_90d = float((await db.execute(
         select(func.coalesce(func.sum(FinanceExpense.amount), 0))
+        .where(FinanceExpense.user_id == user_id)
         .where(FinanceExpense.logged_at >= target_date - timedelta(days=90))
         .where(FinanceExpense.logged_at < target_date)
     )).scalar_one())
@@ -238,13 +243,14 @@ async def _compute_health_score_for_date(db, target_date: datetime) -> dict:
         })
 
     # 4. Budget adherence — share of budgeted categories still within their limit
-    limits = (await db.execute(select(BudgetLimit))).scalars().all()
+    limits = (await db.execute(select(BudgetLimit).where(BudgetLimit.user_id == user_id))).scalars().all()
     limits = [l for l in limits if float(l.monthly_limit) > 0]
     if limits:
         within = 0
         for limit in limits:
             spent = float((await db.execute(
                 select(func.coalesce(func.sum(FinanceExpense.amount), 0))
+                .where(FinanceExpense.user_id == user_id)
                 .where(FinanceExpense.category == limit.category)
                 .where(FinanceExpense.logged_at >= month_start)
                 .where(FinanceExpense.logged_at < next_month_start)
@@ -277,11 +283,11 @@ async def health_score(current_user=Depends(get_current_user), db=Depends(get_db
     are marked unavailable and excluded from the composite.
     """
     now = datetime.utcnow()
-    current_data = await _compute_health_score_for_date(db, now)
+    current_data = await _compute_health_score_for_date(db, now, current_user.id)
     
     # Previous month score calculation
     prev_month_date = now.replace(day=1) - timedelta(days=1)
-    prev_data = await _compute_health_score_for_date(db, prev_month_date)
+    prev_data = await _compute_health_score_for_date(db, prev_month_date, current_user.id)
     
     return {
         **current_data,
@@ -291,14 +297,14 @@ async def health_score(current_user=Depends(get_current_user), db=Depends(get_db
 
 @router.get("/snapshots")
 async def list_snapshots(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceSnapshot).order_by(desc(FinanceSnapshot.snapshot_month)))
+    result = await db.execute(select(FinanceSnapshot).where(FinanceSnapshot.user_id == current_user.id).order_by(desc(FinanceSnapshot.snapshot_month)))
     return result.scalars().all()
 
 
 @router.get("/snapshots/latest")
 async def latest_snapshot(current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(
-        select(FinanceSnapshot).order_by(desc(FinanceSnapshot.snapshot_month)).limit(1)
+        select(FinanceSnapshot).where(FinanceSnapshot.user_id == current_user.id).order_by(desc(FinanceSnapshot.snapshot_month)).limit(1)
     )
     return result.scalar_one_or_none()
 
@@ -340,6 +346,7 @@ async def search_transactions(
         d_to = d_to + timedelta(days=1)  # inclusive end date
 
     def apply_common(query, model):
+        query = query.where(model.user_id == current_user.id)
         if min_amount is not None:
             query = query.where(model.amount >= min_amount)
         if max_amount is not None:
@@ -425,7 +432,7 @@ async def list_expenses(
     db=Depends(get_db),
 ):
     limit = min(limit, 200)
-    query = select(FinanceExpense).order_by(desc(FinanceExpense.logged_at))
+    query = select(FinanceExpense).where(FinanceExpense.user_id == current_user.id).order_by(desc(FinanceExpense.logged_at))
 
     if q:
         from sqlalchemy import or_
@@ -499,18 +506,20 @@ async def create_expense(body: ExpenseCreate, current_user=Depends(get_current_u
         group_id = uuid.uuid4()
         for part in body.splits:
             created.append(FinanceExpense(
+                user_id=current_user.id,
                 logged_at=logged_at, amount=part.amount, category=part.category,
                 description=body.description, account_id=body.account_id,
                 tags=body.tags, split_group_id=group_id, source="manual",
             ))
     else:
         created.append(FinanceExpense(
+            user_id=current_user.id,
             logged_at=logged_at, amount=body.amount, category=body.category,
             description=body.description, account_id=body.account_id,
             tags=body.tags, source="manual",
         ))
 
-    await _adjust_balance(db, body.account_id, -body.amount)
+    await _adjust_balance(db, body.account_id, -body.amount, current_user.id)
     for e in created:
         db.add(e)
     await db.commit()
@@ -536,7 +545,7 @@ class ExpenseUpdate(BaseModel):
 
 @router.patch("/expenses/{expense_id}")
 async def update_expense(expense_id: uuid.UUID, body: ExpenseUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceExpense).where(FinanceExpense.id == expense_id))
+    result = await db.execute(select(FinanceExpense).where(FinanceExpense.id == expense_id, FinanceExpense.user_id == current_user.id))
     expense = result.scalar_one_or_none()
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
@@ -544,7 +553,7 @@ async def update_expense(expense_id: uuid.UUID, body: ExpenseUpdate, current_use
         raise HTTPException(status_code=422, detail="Amount must be positive")
 
     # Revert old balance effect, apply new one
-    await _adjust_balance(db, expense.account_id, float(expense.amount))
+    await _adjust_balance(db, expense.account_id, float(expense.amount), current_user.id)
     if body.amount is not None:
         expense.amount = body.amount
     if body.category is not None:
@@ -557,7 +566,7 @@ async def update_expense(expense_id: uuid.UUID, body: ExpenseUpdate, current_use
         expense.tags = body.tags
     if "account_id" in body.model_fields_set:
         expense.account_id = body.account_id
-    await _adjust_balance(db, expense.account_id, -float(expense.amount))
+    await _adjust_balance(db, expense.account_id, -float(expense.amount), current_user.id)
 
     db.add(expense)
     await db.commit()
@@ -571,11 +580,11 @@ async def update_expense(expense_id: uuid.UUID, body: ExpenseUpdate, current_use
 
 @router.delete("/expenses/{expense_id}")
 async def delete_expense(expense_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceExpense).where(FinanceExpense.id == expense_id))
+    result = await db.execute(select(FinanceExpense).where(FinanceExpense.id == expense_id, FinanceExpense.user_id == current_user.id))
     expense = result.scalar_one_or_none()
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
-    await _adjust_balance(db, expense.account_id, float(expense.amount))
+    await _adjust_balance(db, expense.account_id, float(expense.amount), current_user.id)
     await db.delete(expense)
     await db.commit()
     return {"status": "deleted"}
@@ -585,7 +594,7 @@ async def delete_expense(expense_id: uuid.UUID, current_user=Depends(get_current
 
 @router.get("/goals")
 async def list_goals(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinancialGoal).order_by(FinancialGoal.created_at))
+    result = await db.execute(select(FinancialGoal).where(FinancialGoal.user_id == current_user.id).order_by(FinancialGoal.created_at))
     return result.scalars().all()
 
 
@@ -604,6 +613,7 @@ async def create_goal(body: GoalCreate, current_user=Depends(get_current_user), 
     from datetime import date as date_type
     deadline = date_type.fromisoformat(body.deadline) if body.deadline else None
     goal = FinancialGoal(
+        user_id=current_user.id,
         name=body.name,
         icon=body.icon,
         target_amount=body.target_amount,
@@ -629,7 +639,7 @@ class GoalUpdate(BaseModel):
 
 @router.patch("/goals/{goal_id}")
 async def update_goal(goal_id: uuid.UUID, body: GoalUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinancialGoal).where(FinancialGoal.id == goal_id))
+    result = await db.execute(select(FinancialGoal).where(FinancialGoal.id == goal_id, FinancialGoal.user_id == current_user.id))
     goal = result.scalar_one_or_none()
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
@@ -655,7 +665,7 @@ async def update_goal(goal_id: uuid.UUID, body: GoalUpdate, current_user=Depends
 
 @router.delete("/goals/{goal_id}")
 async def delete_goal(goal_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinancialGoal).where(FinancialGoal.id == goal_id))
+    result = await db.execute(select(FinancialGoal).where(FinancialGoal.id == goal_id, FinancialGoal.user_id == current_user.id))
     goal = result.scalar_one_or_none()
     if not goal:
         raise HTTPException(status_code=404, detail="Goal not found")
@@ -668,7 +678,7 @@ async def delete_goal(goal_id: uuid.UUID, current_user=Depends(get_current_user)
 
 @router.get("/bills")
 async def list_bills(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceBill).order_by(FinanceBill.due_day))
+    result = await db.execute(select(FinanceBill).where(FinanceBill.user_id == current_user.id).order_by(FinanceBill.due_day))
     return result.scalars().all()
 
 
@@ -686,6 +696,7 @@ class BillCreate(BaseModel):
 @router.post("/bills")
 async def create_bill(body: BillCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
     bill = FinanceBill(
+        user_id=current_user.id,
         name=body.name,
         amount=body.amount,
         due_day=body.due_day,
@@ -714,7 +725,7 @@ class BillUpdate(BaseModel):
 
 @router.patch("/bills/{bill_id}")
 async def update_bill(bill_id: uuid.UUID, body: BillUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceBill).where(FinanceBill.id == bill_id))
+    result = await db.execute(select(FinanceBill).where(FinanceBill.id == bill_id, FinanceBill.user_id == current_user.id))
     bill = result.scalar_one_or_none()
     if not bill:
         raise HTTPException(status_code=404, detail="Bill not found")
@@ -728,7 +739,7 @@ async def update_bill(bill_id: uuid.UUID, body: BillUpdate, current_user=Depends
 
 @router.delete("/bills/{bill_id}")
 async def delete_bill(bill_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceBill).where(FinanceBill.id == bill_id))
+    result = await db.execute(select(FinanceBill).where(FinanceBill.id == bill_id, FinanceBill.user_id == current_user.id))
     bill = result.scalar_one_or_none()
     if not bill:
         raise HTTPException(status_code=404, detail="Bill not found")
@@ -741,7 +752,7 @@ async def delete_bill(bill_id: uuid.UUID, current_user=Depends(get_current_user)
 
 @router.get("/income")
 async def list_income(month: Optional[str] = None, current_user=Depends(get_current_user), db=Depends(get_db)):
-    query = select(FinanceIncome).order_by(desc(FinanceIncome.logged_at))
+    query = select(FinanceIncome).where(FinanceIncome.user_id == current_user.id).order_by(desc(FinanceIncome.logged_at))
 
     if month:
         try:
@@ -772,6 +783,7 @@ async def create_income(body: IncomeCreate, current_user=Depends(get_current_use
     if body.amount <= 0:
         raise HTTPException(status_code=422, detail="Amount must be positive")
     income = FinanceIncome(
+        user_id=current_user.id,
         amount=body.amount,
         source=body.source,
         description=body.description,
@@ -779,7 +791,7 @@ async def create_income(body: IncomeCreate, current_user=Depends(get_current_use
         tags=body.tags,
         logged_at=body.logged_at or datetime.utcnow(),
     )
-    await _adjust_balance(db, body.account_id, body.amount)
+    await _adjust_balance(db, body.account_id, body.amount, current_user.id)
     db.add(income)
     await db.commit()
     await db.refresh(income)
@@ -797,7 +809,7 @@ class IncomeUpdate(BaseModel):
 
 @router.patch("/income/{income_id}")
 async def update_income(income_id: uuid.UUID, body: IncomeUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceIncome).where(FinanceIncome.id == income_id))
+    result = await db.execute(select(FinanceIncome).where(FinanceIncome.id == income_id, FinanceIncome.user_id == current_user.id))
     income = result.scalar_one_or_none()
     if not income:
         raise HTTPException(status_code=404, detail="Income not found")
@@ -805,7 +817,7 @@ async def update_income(income_id: uuid.UUID, body: IncomeUpdate, current_user=D
         raise HTTPException(status_code=422, detail="Amount must be positive")
 
     # Revert old balance effect, apply new one
-    await _adjust_balance(db, income.account_id, -float(income.amount))
+    await _adjust_balance(db, income.account_id, -float(income.amount), current_user.id)
     if body.amount is not None:
         income.amount = body.amount
     if body.source is not None:
@@ -818,7 +830,7 @@ async def update_income(income_id: uuid.UUID, body: IncomeUpdate, current_user=D
         income.tags = body.tags
     if "account_id" in body.model_fields_set:
         income.account_id = body.account_id
-    await _adjust_balance(db, income.account_id, float(income.amount))
+    await _adjust_balance(db, income.account_id, float(income.amount), current_user.id)
 
     db.add(income)
     await db.commit()
@@ -828,11 +840,11 @@ async def update_income(income_id: uuid.UUID, body: IncomeUpdate, current_user=D
 
 @router.delete("/income/{income_id}")
 async def delete_income(income_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceIncome).where(FinanceIncome.id == income_id))
+    result = await db.execute(select(FinanceIncome).where(FinanceIncome.id == income_id, FinanceIncome.user_id == current_user.id))
     income = result.scalar_one_or_none()
     if not income:
         raise HTTPException(status_code=404, detail="Income not found")
-    await _adjust_balance(db, income.account_id, -float(income.amount))
+    await _adjust_balance(db, income.account_id, -float(income.amount), current_user.id)
     await db.delete(income)
     await db.commit()
     return {"status": "deleted"}
@@ -842,7 +854,7 @@ async def delete_income(income_id: uuid.UUID, current_user=Depends(get_current_u
 
 @router.get("/transfers")
 async def list_transfers(month: Optional[str] = None, current_user=Depends(get_current_user), db=Depends(get_db)):
-    query = select(FinanceTransfer).order_by(desc(FinanceTransfer.logged_at))
+    query = select(FinanceTransfer).where(FinanceTransfer.user_id == current_user.id).order_by(desc(FinanceTransfer.logged_at))
     if month:
         start, end = _month_range(month)
         query = query.where(FinanceTransfer.logged_at >= start).where(FinanceTransfer.logged_at < end)
@@ -867,14 +879,15 @@ async def create_transfer(body: TransferCreate, current_user=Depends(get_current
     if body.from_account_id == body.to_account_id:
         raise HTTPException(status_code=422, detail="From and to accounts must differ")
     transfer = FinanceTransfer(
+        user_id=current_user.id,
         amount=body.amount,
         from_account_id=body.from_account_id,
         to_account_id=body.to_account_id,
         description=body.description,
         logged_at=body.logged_at or datetime.utcnow(),
     )
-    await _adjust_balance(db, body.from_account_id, -body.amount)
-    await _adjust_balance(db, body.to_account_id, body.amount)
+    await _adjust_balance(db, body.from_account_id, -body.amount, current_user.id)
+    await _adjust_balance(db, body.to_account_id, body.amount, current_user.id)
     db.add(transfer)
     await db.commit()
     await db.refresh(transfer)
@@ -883,12 +896,12 @@ async def create_transfer(body: TransferCreate, current_user=Depends(get_current
 
 @router.delete("/transfers/{transfer_id}")
 async def delete_transfer(transfer_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceTransfer).where(FinanceTransfer.id == transfer_id))
+    result = await db.execute(select(FinanceTransfer).where(FinanceTransfer.id == transfer_id, FinanceTransfer.user_id == current_user.id))
     transfer = result.scalar_one_or_none()
     if not transfer:
         raise HTTPException(status_code=404, detail="Transfer not found")
-    await _adjust_balance(db, transfer.from_account_id, float(transfer.amount))
-    await _adjust_balance(db, transfer.to_account_id, -float(transfer.amount))
+    await _adjust_balance(db, transfer.from_account_id, float(transfer.amount), current_user.id)
+    await _adjust_balance(db, transfer.to_account_id, -float(transfer.amount), current_user.id)
     await db.delete(transfer)
     await db.commit()
     return {"status": "deleted"}
@@ -915,6 +928,7 @@ async def cashflow(month: Optional[str] = None, current_user=Depends(get_current
     # totals
     income_result = await db.execute(
         select(func.coalesce(func.sum(FinanceIncome.amount), 0))
+        .where(FinanceIncome.user_id == current_user.id)
         .where(FinanceIncome.logged_at >= month_start)
         .where(FinanceIncome.logged_at < month_end)
     )
@@ -922,6 +936,7 @@ async def cashflow(month: Optional[str] = None, current_user=Depends(get_current
 
     expense_result = await db.execute(
         select(func.coalesce(func.sum(FinanceExpense.amount), 0))
+        .where(FinanceExpense.user_id == current_user.id)
         .where(FinanceExpense.logged_at >= month_start)
         .where(FinanceExpense.logged_at < month_end)
     )
@@ -932,11 +947,13 @@ async def cashflow(month: Optional[str] = None, current_user=Depends(get_current
     # by day — merge income and expense rows
     income_rows = await db.execute(
         select(FinanceIncome.logged_at, FinanceIncome.amount)
+        .where(FinanceIncome.user_id == current_user.id)
         .where(FinanceIncome.logged_at >= month_start)
         .where(FinanceIncome.logged_at < month_end)
     )
     expense_rows = await db.execute(
         select(FinanceExpense.logged_at, FinanceExpense.amount)
+        .where(FinanceExpense.user_id == current_user.id)
         .where(FinanceExpense.logged_at >= month_start)
         .where(FinanceExpense.logged_at < month_end)
     )
@@ -970,7 +987,7 @@ async def cashflow(month: Optional[str] = None, current_user=Depends(get_current
 
 @router.get("/budgets")
 async def list_budgets(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(BudgetLimit))
+    result = await db.execute(select(BudgetLimit).where(BudgetLimit.user_id == current_user.id))
     return result.scalars().all()
 
 
@@ -980,11 +997,12 @@ async def budget_status(month: Optional[str] = None, current_user=Depends(get_cu
     from sqlalchemy import func
     start, end = _month_range(month)
 
-    budgets_result = await db.execute(select(BudgetLimit))
+    budgets_result = await db.execute(select(BudgetLimit).where(BudgetLimit.user_id == current_user.id))
     budgets = budgets_result.scalars().all()
 
     spent_result = await db.execute(
         select(FinanceExpense.category, func.coalesce(func.sum(FinanceExpense.amount), 0))
+        .where(FinanceExpense.user_id == current_user.id)
         .where(FinanceExpense.logged_at >= start)
         .where(FinanceExpense.logged_at < end)
         .group_by(FinanceExpense.category)
@@ -1014,13 +1032,13 @@ class BudgetUpsert(BaseModel):
 @router.put("/budgets")
 async def upsert_budget(body: BudgetUpsert, current_user=Depends(get_current_user), db=Depends(get_db)):
     """Create or replace budget limit for a category."""
-    result = await db.execute(select(BudgetLimit).where(BudgetLimit.category == body.category))
+    result = await db.execute(select(BudgetLimit).where(BudgetLimit.category == body.category, BudgetLimit.user_id == current_user.id))
     budget = result.scalar_one_or_none()
     if budget:
         budget.monthly_limit = body.monthly_limit
         budget.updated_at = datetime.utcnow()
     else:
-        budget = BudgetLimit(category=body.category, monthly_limit=body.monthly_limit)
+        budget = BudgetLimit(user_id=current_user.id, category=body.category, monthly_limit=body.monthly_limit)
     db.add(budget)
     await db.commit()
     await db.refresh(budget)
@@ -1029,7 +1047,7 @@ async def upsert_budget(body: BudgetUpsert, current_user=Depends(get_current_use
 
 @router.delete("/budgets/{category}")
 async def delete_budget(category: str, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(BudgetLimit).where(BudgetLimit.category == category))
+    result = await db.execute(select(BudgetLimit).where(BudgetLimit.category == category, BudgetLimit.user_id == current_user.id))
     budget = result.scalar_one_or_none()
     if not budget:
         raise HTTPException(status_code=404, detail="Budget not found")
@@ -1041,7 +1059,7 @@ async def delete_budget(category: str, current_user=Depends(get_current_user), d
 
 @router.get("/accounts")
 async def list_accounts(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(Account).order_by(Account.name))
+    result = await db.execute(select(Account).where(Account.user_id == current_user.id).order_by(Account.name))
     return result.scalars().all()
 
 class AccountCreate(BaseModel):
@@ -1052,7 +1070,7 @@ class AccountCreate(BaseModel):
 
 @router.post("/accounts")
 async def create_account(body: AccountCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    account = Account(name=body.name, type=body.type, balance=body.balance, currency=body.currency)
+    account = Account(user_id=current_user.id, name=body.name, type=body.type, balance=body.balance, currency=body.currency)
     db.add(account)
     await db.commit()
     await db.refresh(account)
@@ -1063,22 +1081,23 @@ async def account_ledger(account_id: uuid.UUID, limit: int = 50, current_user=De
     """Unified recent transaction history for one account: expenses, income, transfers."""
     limit = min(limit, 200)
 
-    result = await db.execute(select(Account).where(Account.id == account_id))
+    result = await db.execute(select(Account).where(Account.id == account_id, Account.user_id == current_user.id))
     account = result.scalar_one_or_none()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
 
     expenses = (await db.execute(
-        select(FinanceExpense).where(FinanceExpense.account_id == account_id)
+        select(FinanceExpense).where(FinanceExpense.account_id == account_id, FinanceExpense.user_id == current_user.id)
         .order_by(desc(FinanceExpense.logged_at)).limit(limit)
     )).scalars().all()
     income = (await db.execute(
-        select(FinanceIncome).where(FinanceIncome.account_id == account_id)
+        select(FinanceIncome).where(FinanceIncome.account_id == account_id, FinanceIncome.user_id == current_user.id)
         .order_by(desc(FinanceIncome.logged_at)).limit(limit)
     )).scalars().all()
     transfers = (await db.execute(
         select(FinanceTransfer)
         .where((FinanceTransfer.from_account_id == account_id) | (FinanceTransfer.to_account_id == account_id))
+        .where(FinanceTransfer.user_id == current_user.id)
         .order_by(desc(FinanceTransfer.logged_at)).limit(limit)
     )).scalars().all()
 
@@ -1109,7 +1128,7 @@ async def update_account(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    result = await db.execute(select(Account).where(Account.id == account_id))
+    result = await db.execute(select(Account).where(Account.id == account_id, Account.user_id == current_user.id))
     account = result.scalar_one_or_none()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -1137,7 +1156,7 @@ async def update_account(
 
 @router.delete("/accounts/{account_id}")
 async def delete_account(account_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(Account).where(Account.id == account_id))
+    result = await db.execute(select(Account).where(Account.id == account_id, Account.user_id == current_user.id))
     account = result.scalar_one_or_none()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -1149,7 +1168,7 @@ async def delete_account(account_id: uuid.UUID, current_user=Depends(get_current
 
 @router.get("/categories")
 async def list_categories(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(Category).order_by(Category.name))
+    result = await db.execute(select(Category).where(Category.user_id == current_user.id).order_by(Category.name))
     return result.scalars().all()
 
 class CategoryCreate(BaseModel):
@@ -1159,19 +1178,19 @@ class CategoryCreate(BaseModel):
 
 @router.post("/categories")
 async def create_category(body: CategoryCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    existing = await db.execute(select(Category).where(Category.name == body.name))
+    existing = await db.execute(select(Category).where(Category.name == body.name, Category.user_id == current_user.id))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Category with this name already exists")
 
     if body.parent_id is not None:
-        parent_result = await db.execute(select(Category).where(Category.id == body.parent_id))
+        parent_result = await db.execute(select(Category).where(Category.id == body.parent_id, Category.user_id == current_user.id))
         parent = parent_result.scalar_one_or_none()
         if not parent:
             raise HTTPException(status_code=404, detail="Parent category not found")
         if parent.parent_id is not None:
             raise HTTPException(status_code=422, detail="Parent category must be a top-level category (max 2 levels)")
 
-    category = Category(name=body.name, parent_id=body.parent_id, icon=body.icon)
+    category = Category(user_id=current_user.id, name=body.name, parent_id=body.parent_id, icon=body.icon)
     db.add(category)
     await db.commit()
     await db.refresh(category)
@@ -1184,13 +1203,13 @@ class CategoryUpdate(BaseModel):
 
 @router.patch("/categories/{category_id}")
 async def update_category(category_id: uuid.UUID, body: CategoryUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(Category).where(Category.id == category_id))
+    result = await db.execute(select(Category).where(Category.id == category_id, Category.user_id == current_user.id))
     category = result.scalar_one_or_none()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
 
     if body.name is not None and body.name != category.name:
-        existing = await db.execute(select(Category).where(Category.name == body.name))
+        existing = await db.execute(select(Category).where(Category.name == body.name, Category.user_id == current_user.id))
         if existing.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Category with this name already exists")
         category.name = body.name
@@ -1200,13 +1219,13 @@ async def update_category(category_id: uuid.UUID, body: CategoryUpdate, current_
         if new_parent_id is not None:
             if new_parent_id == category.id:
                 raise HTTPException(status_code=422, detail="Category cannot be its own parent")
-            parent_result = await db.execute(select(Category).where(Category.id == new_parent_id))
+            parent_result = await db.execute(select(Category).where(Category.id == new_parent_id, Category.user_id == current_user.id))
             parent = parent_result.scalar_one_or_none()
             if not parent:
                 raise HTTPException(status_code=404, detail="Parent category not found")
             if parent.parent_id is not None:
                 raise HTTPException(status_code=422, detail="Parent category must be a top-level category (max 2 levels)")
-            children = await db.execute(select(Category).where(Category.parent_id == category.id))
+            children = await db.execute(select(Category).where(Category.parent_id == category.id, Category.user_id == current_user.id))
             if children.scalars().first():
                 raise HTTPException(status_code=422, detail="Category has subcategories and cannot become a subcategory itself")
         category.parent_id = new_parent_id
@@ -1221,7 +1240,7 @@ async def update_category(category_id: uuid.UUID, body: CategoryUpdate, current_
 
 @router.delete("/categories/{category_id}")
 async def delete_category(category_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(Category).where(Category.id == category_id))
+    result = await db.execute(select(Category).where(Category.id == category_id, Category.user_id == current_user.id))
     category = result.scalar_one_or_none()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
@@ -1234,13 +1253,13 @@ async def delete_category(category_id: uuid.UUID, current_user=Depends(get_curre
 
 @router.get("/investments")
 async def list_investments(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceInvestment).order_by(desc(FinanceInvestment.current_value)))
+    result = await db.execute(select(FinanceInvestment).where(FinanceInvestment.user_id == current_user.id).order_by(desc(FinanceInvestment.current_value)))
     return result.scalars().all()
 
 
 @router.get("/investments/summary")
 async def investments_summary(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceInvestment))
+    result = await db.execute(select(FinanceInvestment).where(FinanceInvestment.user_id == current_user.id))
     investments = result.scalars().all()
 
     total_invested = sum(float(i.invested_amount) for i in investments)
@@ -1276,6 +1295,7 @@ class InvestmentCreate(BaseModel):
 async def create_investment(body: InvestmentCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
     from datetime import date as date_type
     investment = FinanceInvestment(
+        user_id=current_user.id,
         name=body.name,
         type=body.type,
         invested_amount=body.invested_amount,
@@ -1302,7 +1322,7 @@ class InvestmentUpdate(BaseModel):
 
 @router.patch("/investments/{investment_id}")
 async def update_investment(investment_id: uuid.UUID, body: InvestmentUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceInvestment).where(FinanceInvestment.id == investment_id))
+    result = await db.execute(select(FinanceInvestment).where(FinanceInvestment.id == investment_id, FinanceInvestment.user_id == current_user.id))
     investment = result.scalar_one_or_none()
     if not investment:
         raise HTTPException(status_code=404, detail="Investment not found")
@@ -1321,7 +1341,7 @@ async def update_investment(investment_id: uuid.UUID, body: InvestmentUpdate, cu
 
 @router.delete("/investments/{investment_id}")
 async def delete_investment(investment_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceInvestment).where(FinanceInvestment.id == investment_id))
+    result = await db.execute(select(FinanceInvestment).where(FinanceInvestment.id == investment_id, FinanceInvestment.user_id == current_user.id))
     investment = result.scalar_one_or_none()
     if not investment:
         raise HTTPException(status_code=404, detail="Investment not found")
@@ -1334,13 +1354,13 @@ async def delete_investment(investment_id: uuid.UUID, current_user=Depends(get_c
 
 @router.get("/loans")
 async def list_loans(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceLoan).order_by(desc(FinanceLoan.is_active), FinanceLoan.emi_day))
+    result = await db.execute(select(FinanceLoan).where(FinanceLoan.user_id == current_user.id).order_by(desc(FinanceLoan.is_active), FinanceLoan.emi_day))
     return result.scalars().all()
 
 
 @router.get("/loans/summary")
 async def loans_summary(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceLoan).where(FinanceLoan.is_active == True))
+    result = await db.execute(select(FinanceLoan).where(FinanceLoan.user_id == current_user.id, FinanceLoan.is_active == True))
     loans = result.scalars().all()
     total_outstanding = sum(float(l.outstanding_amount) for l in loans)
     total_emi = sum(float(l.emi_amount) for l in loans)
@@ -1368,6 +1388,7 @@ class LoanCreate(BaseModel):
 @router.post("/loans")
 async def create_loan(body: LoanCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
     loan = FinanceLoan(
+        user_id=current_user.id,
         name=body.name,
         loan_type=body.loan_type,
         lender=body.lender,
@@ -1403,7 +1424,7 @@ class LoanUpdate(BaseModel):
 
 @router.patch("/loans/{loan_id}")
 async def update_loan(loan_id: uuid.UUID, body: LoanUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceLoan).where(FinanceLoan.id == loan_id))
+    result = await db.execute(select(FinanceLoan).where(FinanceLoan.id == loan_id, FinanceLoan.user_id == current_user.id))
     loan = result.scalar_one_or_none()
     if not loan:
         raise HTTPException(status_code=404, detail="Loan not found")
@@ -1418,7 +1439,7 @@ async def update_loan(loan_id: uuid.UUID, body: LoanUpdate, current_user=Depends
 
 @router.delete("/loans/{loan_id}")
 async def delete_loan(loan_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceLoan).where(FinanceLoan.id == loan_id))
+    result = await db.execute(select(FinanceLoan).where(FinanceLoan.id == loan_id, FinanceLoan.user_id == current_user.id))
     loan = result.scalar_one_or_none()
     if not loan:
         raise HTTPException(status_code=404, detail="Loan not found")

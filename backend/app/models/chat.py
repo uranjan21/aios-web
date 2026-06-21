@@ -9,6 +9,7 @@ class ChatSession(SQLModel, table=True):
     __tablename__ = "chat_sessions"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     title: Optional[str] = None
     tokens_used: int = Field(default=0, nullable=False)
     input_tokens: int = Field(default=0, nullable=False)
@@ -22,6 +23,7 @@ class ChatMessage(SQLModel, table=True):
     __tablename__ = "chat_messages"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     session_id: uuid.UUID = Field(foreign_key="chat_sessions.id", nullable=False)
     role: str = Field(nullable=False)
     content: str = Field(sa_column=Column(Text, nullable=False))
@@ -35,5 +37,6 @@ class DailyTokenUsage(SQLModel, table=True):
     __tablename__ = "daily_token_usage"
 
     usage_date: date = Field(primary_key=True, default_factory=date.today)
+    user_id: uuid.UUID = Field(foreign_key="users.id", primary_key=True)
     tokens_used: int = Field(default=0, nullable=False)
     updated_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)

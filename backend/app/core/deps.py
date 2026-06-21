@@ -1,3 +1,4 @@
+import uuid
 from typing import AsyncGenerator, Optional
 
 from fastapi import Cookie, Depends, HTTPException, WebSocket, status
@@ -27,7 +28,12 @@ async def get_current_user(
     if not sub:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token claims")
 
-    return {"user_id": sub, "token": aios_token}
+    try:
+        user_id = uuid.UUID(sub)
+    except ValueError:
+        user_id = sub
+
+    return {"user_id": user_id, "token": aios_token}
 
 
 async def ws_auth(websocket: WebSocket) -> Optional[dict]:

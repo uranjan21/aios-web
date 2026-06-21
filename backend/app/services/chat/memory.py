@@ -30,23 +30,23 @@ def _seconds_until_midnight() -> int:
     return int((midnight - now).total_seconds())
 
 
-async def get_daily_tokens_used(day: date) -> int:
+async def get_daily_tokens_used(user_id: UUID, day: date) -> int:
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(DailyTokenUsage).where(DailyTokenUsage.usage_date == day))
+        result = await session.execute(select(DailyTokenUsage).where(DailyTokenUsage.user_id == user_id).where(DailyTokenUsage.usage_date == day))
         row = result.scalar_one_or_none()
         return row.tokens_used if row else 0
 
 
-async def get_session_tokens_used(session_id: UUID) -> int:
+async def get_session_tokens_used(user_id: UUID, session_id: UUID) -> int:
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(ChatSession).where(ChatSession.id == session_id))
+        result = await session.execute(select(ChatSession).where(ChatSession.user_id == user_id).where(ChatSession.id == session_id))
         row = result.scalar_one_or_none()
         return row.tokens_used if row else 0
 
 
-async def _refund_daily_reservation(day: date, amount: int) -> None:
+async def _refund_daily_reservation(user_id: UUID, day: date, amount: int) -> None:
     async with AsyncSessionLocal() as db_session:
-        result = await db_session.execute(select(DailyTokenUsage).where(DailyTokenUsage.usage_date == day))
+        result = await db_session.execute(select(DailyTokenUsage).where(DailyTokenUsage.user_id == user_id).where(DailyTokenUsage.usage_date == day))
         daily = result.scalar_one_or_none()
         if daily:
             daily.tokens_used = max(0, daily.tokens_used - amount)
@@ -55,7 +55,7 @@ async def _refund_daily_reservation(day: date, amount: int) -> None:
             await db_session.commit()
 
 
-async def reserve_budget(session_id: UUID, estimated_input: int = ESTIMATED_TOKENS) -> None:
+async def reserve_budget(user_id: UUID, session_id: UUID, estimated_input: int = ESTIMATED_TOKENS) -> None:
     """Atomically check + pre-debit budget. Raises if over limit.
 
     Uses SELECT FOR UPDATE inside a transaction so two concurrent requests
@@ -69,6 +69,7 @@ async def reserve_budget(session_id: UUID, estimated_input: int = ESTIMATED_TOKE
         async with db_session.begin():
             result = await db_session.execute(
                 select(DailyTokenUsage)
+                .where(DailyTokenUsage.user_id == user_id)
                 .where(DailyTokenUsage.usage_date == today)
                 .with_for_update()
             )
@@ -89,20 +90,22 @@ async def reserve_budget(session_id: UUID, estimated_input: int = ESTIMATED_TOKE
                 db_session.add(daily)
             else:
                 db_session.add(DailyTokenUsage(
+                    user_id=user_id,
                     usage_date=today,
                     tokens_used=estimated_input,
                     updated_at=now,
                 ))
 
-    session_used = await get_session_tokens_used(session_id)
+    session_used = await get_session_tokens_used(user_id, session_id)
     if session_used + estimated_input > settings.claude_session_token_limit:
-        await _refund_daily_reservation(today, estimated_input)
+        await _refund_daily_reservation(user_id, today, estimated_input)
         raise SessionTokenLimitExceeded(
             "Session context is full. Start a new session to continue."
         )
 
 
 async def record_usage(
+    user_id: UUID,
     session_id: UUID,
     input_tokens: int,
     output_tokens: int,
@@ -115,14 +118,14 @@ async def record_usage(
     now = datetime.utcnow()
 
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(DailyTokenUsage).where(DailyTokenUsage.usage_date == today))
+        result = await session.execute(select(DailyTokenUsage).where(DailyTokenUsage.user_id == user_id).where(DailyTokenUsage.usage_date == today))
         daily = result.scalar_one_or_none()
         if daily:
             daily.tokens_used = max(0, daily.tokens_used + delta)
             daily.updated_at = now
             session.add(daily)
 
-        sess_result = await session.execute(select(ChatSession).where(ChatSession.id == session_id))
+        sess_result = await session.execute(select(ChatSession).where(ChatSession.user_id == user_id).where(ChatSession.id == session_id))
         chat_session = sess_result.scalar_one_or_none()
         if chat_session:
             chat_session.tokens_used += total_actual
@@ -134,10 +137,10 @@ async def record_usage(
         await session.commit()
 
 
-async def get_token_budget_status() -> dict:
+async def get_token_budget_status(user_id: UUID) -> dict:
     settings = get_settings()
     today = date.today()
-    used = await get_daily_tokens_used(today)
+    used = await get_daily_tokens_used(user_id, today)
     limit = settings.claude_daily_token_limit
     reset_in = _seconds_until_midnight()
     return {

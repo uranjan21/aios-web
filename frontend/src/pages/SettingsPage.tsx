@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, BellOff, Settings, Palette, Activity, Sparkles, Keyboard, User } from 'lucide-react'
+import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, BellOff, Settings, Palette, Activity, Sparkles, Keyboard, User, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { chatApi } from '@/api/chat'
@@ -67,6 +67,7 @@ const SECTION_META: Record<string, { icon: React.ReactNode; subtitle: string }> 
   'System Status': { icon: <Activity size={16} />, subtitle: 'Live state of backend, sync, and integrations' },
   'AI Usage': { icon: <Sparkles size={16} />, subtitle: 'Token spend and model usage this period' },
   'Keyboard Shortcuts': { icon: <Keyboard size={16} />, subtitle: 'Quick reference for in-app shortcuts' },
+  Billing: { icon: <CreditCard size={16} />, subtitle: 'Manage subscription and billing' },
   Account: { icon: <User size={16} />, subtitle: 'Sign-out and account-level controls' },
 }
 
@@ -519,6 +520,19 @@ export function SettingsPage() {
               </Row>
             ))
           }
+        </Section>
+
+        <Section
+          title="Billing"
+          delay={300}
+          action={
+            <Button size="sm" onClick={() => navigate('/pricing')}>
+              Upgrade Plan
+            </Button>
+          }
+        >
+          <Row label="Current Plan"><span style={{ fontSize: 13, color: 'var(--foreground)', fontWeight: 500 }}>Starter (Free)</span></Row>
+          <Row label="Next Billing Date"><span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>N/A</span></Row>
         </Section>
 
         <GlassCard

@@ -1,9 +1,8 @@
-// @ts-nocheck
 import { useEffect } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Dialog, Button } from '@ledgr/ui'
 import { toast } from 'sonner'
-import { Copy, RefreshCw } from 'lucide-react'
+import { Copy, RefreshCw, Sparkles } from 'lucide-react'
 import { aiApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import styled from 'styled-components'
@@ -11,7 +10,7 @@ import styled from 'styled-components'
 const IdeaLabel = styled.div`
   font-size: 12px;
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 `
 
 const DraftText = styled.div`
@@ -23,23 +22,28 @@ const DraftText = styled.div`
   overflow-y: auto;
 `
 
-const GeneratingLabel = styled.p`
-  font-size: 12px;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  padding: 16px 0;
-  margin: 0;
-`
-
 const SkeletonStack = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 8px 0;
+  padding: 4px 0;
 `
 
-const DraftSkeleton = styled(Skeleton)`
-  height: 14px;
-  width: 100%;
+const InitialState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 0 8px;
+  text-align: center;
+`
+
+const InitialHint = styled.p`
+  margin: 0;
+  font-size: 12.5px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  line-height: 1.5;
+  max-width: 320px;
 `
 
 const Footer = styled.div`
@@ -47,6 +51,8 @@ const Footer = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid ${({ theme }) => theme.color.border};
 `
 
 const FooterRight = styled.div`
@@ -54,7 +60,7 @@ const FooterRight = styled.div`
   gap: 8px;
 `
 
-/** AI content draft — platform-aware thread/post/outline from an idea title. */
+/** AI content draft — user triggers generation explicitly, then can regenerate or copy. */
 export function DraftModal({ open, onClose, title, platform }: {
   open: boolean
   onClose: () => void
@@ -66,13 +72,10 @@ export function DraftModal({ open, onClose, title, platform }: {
     onError: () => toast.error('AI temporarily unavailable'),
   })
 
+  // Reset draft when modal closes so next open starts fresh
   useEffect(() => {
-    if (open && title.trim()) {
-      reset()
-      mutate()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+    if (!open) reset()
+  }, [open, reset])
 
   const copy = async () => {
     if (!data?.text) return
@@ -81,26 +84,42 @@ export function DraftModal({ open, onClose, title, platform }: {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(visible) => { if (!visible) onClose() }}>
-      <IdeaLabel>Idea: {title}</IdeaLabel>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }} title="AI Draft" size="lg">
+      <IdeaLabel>Idea: <strong>{title}</strong> · {platform}</IdeaLabel>
+
       {isPending ? (
         <SkeletonStack>
-          {[1, 2, 3, 4, 5].map(i => <DraftSkeleton key={i} />)}
+          {[90, 75, 85, 60, 80].map((w, i) => (
+            <Skeleton key={i} style={{ height: 14, width: `${w}%` }} />
+          ))}
         </SkeletonStack>
       ) : data ? (
         <DraftText>{data.text}</DraftText>
       ) : (
-        <GeneratingLabel>Generating…</GeneratingLabel>
-      )}
-      <Footer>
-        <Button variant="outline" startIcon={<RefreshCw size={13} />} loading={isPending} onClick={() => mutate()}>
-          Regenerate
-        </Button>
-        <FooterRight>
-          <Button variant="ghost" onClick={onClose}>Close</Button>
-          <Button variant="primary" startIcon={<Copy size={13} />} disabled={!data?.text} onClick={copy}>
-            Copy
+        <InitialState>
+          <Sparkles size={28} style={{ opacity: 0.4 }} />
+          <InitialHint>
+            Click <strong>Generate</strong> to draft a {platform} post for this idea using your content context.
+          </InitialHint>
+          <Button variant="primary" startIcon={<Sparkles size={13} />} onClick={() => mutate()}>
+            Generate Draft
           </Button>
+        </InitialState>
+      )}
+
+      <Footer>
+        {data ? (
+          <Button variant="outline" size="sm" startIcon={<RefreshCw size={12} />} loading={isPending} onClick={() => mutate()}>
+            Regenerate
+          </Button>
+        ) : <span />}
+        <FooterRight>
+          <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
+          {data && (
+            <Button variant="primary" size="sm" startIcon={<Copy size={12} />} onClick={copy}>
+              Copy
+            </Button>
+          )}
         </FooterRight>
       </Footer>
     </Dialog>

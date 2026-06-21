@@ -10,6 +10,7 @@ class BusinessEvent(SQLModel, table=True):
     __tablename__ = "business_events"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     occurred_at: datetime = Field(nullable=False)
     product: str = Field(default="ledgr", nullable=False)
     event_type: str = Field(nullable=False)

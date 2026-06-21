@@ -2,221 +2,217 @@
 
 ## What this is
 
-A full-stack personal command center / AI OS web application for managing multiple life domains (Finance, Health, Career, Business, Content) with real-time AI-powered agents, vault file sync, and multi-LLM integration (Anthropic + OpenAI).
+A full-stack personal life-management OS — Finance, Health, Career, Business, Content — with AI agents, vault sync, and multi-LLM integration. **Transitioning from single-user to multi-tenant SaaS (decided 2026-06-21).** All new DB/backend work must be multi-user aware: `users` table, `user_id` FK on every user-data table, row-level isolation.
+
+---
 
 ## Stack
 
-- **Frontend**: React 18 + TypeScript + Vite + styled-components + Radix UI (via @ledgr/ui) + Ant Design
-- **Backend**: Python 3.11+ + FastAPI + SQLModel (async SQLAlchemy ORM) + asyncpg
-- **Database**: PostgreSQL + pgvector (for vector embeddings)
-- **AI/LLMs**: Anthropic Claude SDK, OpenAI SDK, NVIDIA NIM (default llm_provider)
-- **Real-time**: WebSockets (sync, chat, agents)
-- **State (Frontend)**: Zustand
-- **Forms**: React Hook Form + Zod validation
-- **Data Fetching**: React Query (TanStack)
-- **Package Managers**: pnpm (frontend), uv (backend)
-- **Containerization**: Docker Compose
+- **Frontend**: React 18 + TypeScript + Vite + **@ledgr/ui** (component library at `ledgr-ui/`) + styled-components + Ant Design (complex widgets only — Tabs, DatePicker, Segmented)
+- **Backend**: Python 3.11+ + FastAPI + SQLModel (async SQLAlchemy) + asyncpg
+- **Database**: PostgreSQL 15 + pgvector
+- **AI/LLMs**: Anthropic Claude SDK, OpenAI SDK, NVIDIA NIM (`settings.nvidia_chat_model`, default provider)
+- **Real-time**: FastAPI native WebSockets (`/ws/sync`, `/ws/chat`, `/ws/agents`)
+- **State**: Zustand (global) + React Query / TanStack (server state)
+- **Auth**: JWT in httpOnly SameSite=Strict cookie (`aios_token`). Google OAuth added 2026-06-21.
+- **Package managers**: pnpm (frontend), uv (backend)
+- **Container**: Docker + docker-compose
+
+---
+
+## Design System — "Premium Black + Gold" (locked since 2026-06-20)
+
+**Tailwind is fully removed.** All styling is styled-components + @ledgr/ui theme tokens.
+
+| Token | Value |
+|---|---|
+| Background | `#FAFAF9` (warm stone off-white) |
+| Foreground | `#0C0A09` |
+| Card | `#FFFFFF` |
+| Primary | `#1C1917` (near-black) |
+| Primary hover | `#292524` |
+| Accent / Gold | `#CA8A04` (amber gold) |
+| Font (UI/body) | `DM Sans` |
+| Font (display) | `Playfair Display` (numbers, hero values only) |
+| Shadows | Flat/clean — no claymorphism |
+
+**HARD RULES:**
+- Never use `hsl(var(--x))` — CSS vars are HEX, use `var()` or `color-mix()` directly
+- No serif fonts in body/UI (Playfair Display = display numbers only)
+- No white/highlight inset shadows on buttons
+- `ThemeProvider` with `aiosLightTheme` wraps the whole app (`src/theme/aiosTheme.ts`)
+- `src/index.css` = minimal pre-render reset only; no utility classes
+
+---
 
 ## Architecture
 
-### Frontend Architecture
+### Frontend
 
-- **SPA Router**: React Router v6 for client-side navigation
-- **Feature Areas**: Finance, Health, Career, Business, Content — each with dedicated pages and shared AreaTabs sub-navigation
-- **API Client**: Centralized axios-based API client in `frontend/src/api`
-- **State Management**: Zustand stores for global state (user, domain data, UI state)
-- **Components**: Modular React components in `frontend/src/components` with Radix UI primitives + Ant Design
-- **Styling**: styled-components and Ant Design; prefer @ledgr/ui theme values/tokens; light mode by default
-- **Validation**: Zod schemas for form data and API responses
+- SPA via React Router v6; `RequireAuth` guard on all area routes
+- Feature areas: Finance / Health / Career / Business / Content — each has dedicated page + `<AreaTabs>` sub-nav (never nest Tabs)
+- API: functions in `frontend/src/api/` — no raw fetch or axios in components
+- Styling: `styled.div` / `styled(Component)` everywhere; `className` in SC = CSS selector hook, NOT utility
+- `WorkspaceLayout` + `RailHeading` pattern: analytics/lists → center; inputs/forms → right 300px sticky rail
+- `GlobalCapture` (⌘L): uses `@ledgr/ui Dialog`, parses NL text via `/captures/parse`, routes to correct domain
 
-### Backend Architecture
+### Backend
 
-- **Framework**: FastAPI with lifespan management for startup/shutdown hooks
-- **Router-Based Modules**: Domain-specific routers (auth, sync, chat, agents, finance, health, career, business, content, captures, integrations)
-- **Service Layer**: `backend/app/services` contains business logic (agents orchestration, AI calls, chat, RAG, vault sync)
-- **Models Layer**: `backend/app/models` defines SQLModel schemas for all domains
-- **Database**: AsyncPG + SQLAlchemy for async PostgreSQL access; Alembic for migrations
-- **Real-time**: WebSocket handlers (`/ws/sync`, `/ws/chat`, `/ws/agents`) with token auth via `ws_auth` dependency
-- **Middleware**: CORS, security headers, request logging, rate limiting (slowapi)
-- **Scheduler**: APScheduler for background jobs (agents, cron tasks)
-- **File Watcher**: VaultWatcher monitors vault directory for file changes and syncs to database
+- Routers: `backend/app/api/areas/<domain>.py` for each domain
+- Service layer: `backend/app/services/` (finance, insights, notifications have sub-folders; others are direct in routers)
+- No `--reload` in Docker — **restart required after any Python edit**: `docker compose restart backend`
+- Alembic: always review autogenerated migrations — autogenerate tries to DROP `captures` table (model not imported in env). Strip unrelated drops before `upgrade head`.
+- APScheduler jobs: recurring finance post (01:00 UTC), budget alerts (on expense write), anomaly scan (04:00 UTC), weekly digest (Sun 13:30 UTC), bill notifications (03:30 UTC)
 
-### Data Flow
+### WebSockets
 
-1. **Frontend** makes REST/WebSocket calls to **Backend**
-2. **Backend** validates requests, queries **PostgreSQL** (with pgvector for embeddings)
-3. **Services** layer handles AI calls (Anthropic/OpenAI), RAG queries, agent orchestration
-4. **WebSocket handlers** push real-time updates (sync state, chat messages, agent status) back to **Frontend**
-5. **Vault Watcher** monitors local file system; triggers sync service on file changes
+- Backend: `api/sync.py`, `api/chat.py`, `api/agents.py`
+- Frontend hooks: `useChat.ts`, `useNotifications.ts`, `useVaultSync.ts`
+- Always call `ws_auth(websocket)` BEFORE accepting frames; close with code 1008 on auth failure
 
-## Commands
-
-### Frontend (Development)
-
-```bash
-cd frontend
-pnpm dev              # Start Vite dev server (port 5173)
-pnpm build            # Build for production
-pnpm lint             # Run ESLint
-pnpm preview          # Preview production build
-```
-
-### Backend (Development)
-
-```bash
-cd backend
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-pytest                # Run tests
-pytest -v             # Verbose test output
-```
-
-### Docker Compose (Full Stack Local)
-
-```bash
-docker-compose up     # Start all services (db, backend, frontend)
-docker-compose down   # Stop all services
-```
-
-### Database Migrations
-
-```bash
-cd backend
-alembic revision --autogenerate -m "description"
-alembic upgrade head  # Apply migrations
-```
+---
 
 ## Project Structure
 
 ```text
 aios-web/
-├── frontend/                    # React TypeScript SPA
+├── frontend/
 │   ├── src/
-│   │   ├── api/                 # Axios HTTP client + API hooks
-│   │   ├── components/          # Reusable React components (UI, domain-specific)
-│   │   ├── hooks/               # Custom React hooks
-│   │   ├── lib/                 # Utility functions
-│   │   ├── pages/               # Page-level components (Finance, Health, Career, etc.)
-│   │   ├── stores/              # Zustand state stores
-│   │   ├── types/               # TypeScript interfaces
-│   │   ├── App.tsx              # Root component
-│   │   ├── main.tsx             # Entry point
-│   │   └── router.tsx           # React Router config
-│   ├── index.html               # HTML template
-│   ├── vite.config.ts           # Vite bundler config
-│   ├── tailwind.config.ts       # Tailwind CSS config
-│   ├── package.json             # Dependencies (React, Radix, TanStack, etc.)
-│   └── tsconfig.json            # TypeScript config
+│   │   ├── api/               # All HTTP calls — never call fetch/axios directly in components
+│   │   ├── components/
+│   │   │   ├── layout/        # AppShell, Sidebar, TopBar, BottomNav, WorkspaceLayout
+│   │   │   ├── ui/            # Shared primitives (AreaTabs, Skeleton, TextTabs…)
+│   │   │   ├── dashboard/     # Dashboard card components
+│   │   │   └── areas/         # Domain-specific components (finance/, health/, content/…)
+│   │   ├── hooks/             # useChat, useNotifications, useVaultSync, useKeyboardShortcuts…
+│   │   ├── lib/               # Utility fns (formatCurrency, parseLocalDate, fmtDateKey…)
+│   │   ├── pages/             # Page-level components
+│   │   ├── stores/            # Zustand stores (authStore, uiStore, notificationStore, dayEventsStore)
+│   │   ├── theme/             # aiosTheme.ts — all design tokens
+│   │   └── router.tsx         # All routes + RequireAuth guard
+│   ├── index.html
+│   ├── vite.config.ts
+│   └── package.json
 │
-├── backend/                     # FastAPI Python backend
+├── backend/
 │   ├── app/
-│   │   ├── api/                 # Route handlers (auth, sync, chat, agents, domains)
-│   │   ├── services/            # Business logic
-│   │   │   ├── agents/          # Agent orchestration + scheduler
-│   │   │   ├── ai/              # LLM calls (Anthropic, OpenAI)
-│   │   │   ├── chat/            # Chat service (message handling, context)
-│   │   │   ├── rag/             # RAG pipeline (retrieval + embedding)
-│   │   │   ├── vault_sync/      # File system watcher + sync engine
-│   │   │   └── integrations/    # External API integrations
-│   │   ├── models/              # SQLModel schemas (Finance, Health, Career, Business, Agents, etc.)
-│   │   ├── core/                # Config, dependencies, middleware, rate limiting
-│   │   ├── db/                  # Database session + engine setup
-│   │   ├── main.py              # FastAPI app factory + lifespan
-│   │   └── __init__.py
-│   ├── alembic/                 # Database migrations
-│   ├── tests/                   # Unit + integration tests
-│   ├── pyproject.toml           # Dependencies (FastAPI, SQLModel, pgvector, Anthropic, OpenAI)
-│   ├── alembic.ini              # Alembic config
-│   ├── Dockerfile               # Docker image for backend
-│   └── seed_dummy_data.py       # Populate DB with test data
+│   │   ├── api/               # Route handlers
+│   │   │   └── areas/         # finance.py, health.py, career.py, business.py, content.py
+│   │   ├── services/          # Business logic
+│   │   │   ├── agents/        # Orchestration + APScheduler
+│   │   │   ├── ai/            # LLM calls (insights.py, anomalies.py, digest.py)
+│   │   │   ├── finance/       # recurring.py, budget_alerts.py
+│   │   │   ├── chat/          # Streaming chat + tools
+│   │   │   ├── rag/           # Retrieval + embeddings
+│   │   │   └── vault_sync/    # VaultWatcher + VaultWriteGuard
+│   │   ├── models/            # SQLModel schemas
+│   │   ├── core/              # Config, deps, middleware, rate limiting
+│   │   └── main.py            # FastAPI factory + lifespan
+│   ├── alembic/               # Migrations
+│   ├── seed_dummy_data.py     # Dev DB seeding
+│   ├── seed_finance_real_data.py
+│   └── data_finance_2026.json
 │
-├── ledgr-ui/                    # Reusable React component library
-├── docker-compose.yml           # Multi-container orchestration (db, backend, frontend)
-├── MEMORY.md                    # UI/UX guidelines, known issues, active projects
-├── PROJECT.md                   # Core project definition and layout conventions
-├── CLAUDE.md                    # This file
-├── .env.example                 # Environment template
-├── setup.sh                     # Setup script
-├── run.sh                       # Shell script to run application
-└── .gitignore                   # Git ignore rules
+├── ledgr-ui/                  # @ledgr/ui component library (local package)
+├── docker-compose.yml
+├── CLAUDE.md                  # This file — source of truth for architecture + conventions
+├── .env                       # Secrets (never commit)
+├── .env.example
+├── run.sh
+└── setup.sh
 ```
-
-## Conventions (Follow These)
-
-### Backend Conventions
-
-- **Async First**: All I/O is async (database, HTTP, file operations)
-- **Router Naming**: `backend/app/api/areas/<domain>.py` defines routers for a domain (e.g., `finance.py`, `health.py`)
-- **Service Layer**: `backend/app/services/` (only `finance`, `insights`, and `notifications` have dedicated service sub-folders; others query database models directly in routers); routers call services and return JSON
-- **Error Handling**: Use FastAPI HTTPException with appropriate status codes; log errors with logger
-- **Database**: Use SQLModel for schemas; all queries are async with `async with engine.begin() as conn:`
-- **WebSocket Auth**: Always call `ws_auth(websocket)` before accepting frames; close with code 1008 on auth failure
-- **Settings**: Environment vars via `get_settings()` from `app.core.config`; never hardcode secrets
-
-### Frontend Conventions
-
-- **API Client**: Use `frontend/src/api` functions for all HTTP calls; handle loading/error states with React Query
-- **Components**: Functional components with hooks; use Zustand for global state, React Query for server state
-- **Forms**: Use React Hook Form + Zod; validation happens at submit time
-- **Styling**: styled-components and @ledgr/ui theme tokens; keep card/table/dialog corners at 10px by default
-- **Responsive**: Mobile-first; test at 375px, 768px, 1024px, 1440px breakpoints
-- **AreaTabs**: Sub-navigation within domains uses shared `<AreaTabs>` component; never nest `<Tabs>`
-
-### UI/UX (from MEMORY.md)
-
-- **No page-level titles**: Breadcrumbs only in global header
-- **12-column grid**: Cards must NOT stretch unnecessarily; use auto-fit grids or tight col-spans (e.g., `col-span-3`)
-- **Card Aesthetics**: `bg-card` on soft gray background; faint borders (`border-border/60`); compact `10px` radius; tight padding (`p-2` or `p-3`)
-- **Typography**: Compact fonts (`text-xs`, `text-sm`); NO bold values inside cards; title case for widget titles
-- **Dashboard Layout**: Keep the main dashboard in a tight two-column shell and avoid stray empty spaces in lower rows
-- **Agents Page**: Use a dense table/card pattern with clear status, schedule, last-run, and actions columns
-- **Sidebar**: Top-level links only; NO accordions or sub-menus
-
-### Project Conventions
-
-- **Naming**: snake_case for Python, camelCase for TypeScript
-- **Imports**: Absolute imports using path aliases (`@/` for frontend, relative for backend)
-- **Commits**: Conventional commits (feat:, fix:, refactor:, docs:, test:)
-- **Branches**: feature/, bugfix/, hotfix/ prefixes
-
-## Don't Touch / Gotchas
-
-### Critical Gotchas
-
-- **Vault Watcher**: Requires `VAULT_PATH` env var pointing to local vault directory. If path doesn't exist, watcher won't start (non-fatal warning). Ensure path exists before deploying.
-- **Default Secrets**: Backend config uses weak defaults (e.g., `change-me-in-production`). Replace `APP_SECRET_KEY` and `APP_PASSWORD` in `.env` before production.
-- **WebSocket Auth**: Must call `ws_auth(websocket)` BEFORE accepting frames. Missing auth can leak data.
-- **pgvector Extension**: PostgreSQL must have pgvector installed. The docker-compose uses `pgvector/pgvector:pg15` image which includes it.
-- **Database Migrations**: Always run `alembic upgrade head` after pulling new code. Missing migrations = runtime errors.
-- **Environment Variables**: Copy `.env.example` to `.env` and fill in API keys (Anthropic, OpenAI), vault path, database URL, etc.
-
-### Performance Considerations
-
-- **Real-time Overload**: WebSocket handlers broadcast to all connected clients. For many users, consider message filtering or rooms.
-- **Vector Embeddings**: pgvector queries with `<->` operator can be slow on large tables; add indexes on embedding columns.
-- **RAG Performance**: Embedding + retrieval in `chat_service` blocks the WebSocket. Consider async task queue (Celery/RQ) for large documents.
-- **Rate Limiting**: Backend uses `slowapi` for rate limits. Adjust thresholds in `app.core.rate_limit` for production.
-
-### Known Issues (from MEMORY.md)
-
-- Chat and Settings pages may still use older Tailwind/Radix components; consider migrating to Ant Design + Styled Components system
-- Secrets in backend config need hardening
-- Vault sync watcher may not handle rapid file changes well (debounce needed)
-
-## Key Entry Points
-
-- **Frontend**: `frontend/src/main.tsx` → App.tsx → Router → Pages
-- **Backend**: `backend/app/main.py` → `create_app()` → FastAPI instance → Routers
-- **Database**: `backend/alembic/` for migrations; `backend/app/db/session.py` for engine setup
-- **WebSockets**: Backend: `backend/app/api/sync.py`, `chat.py`, `agents.py`; Frontend: Inline WebSocket instantiations in frontend/src/hooks/useChat.ts, useNotifications.ts, and useVaultSync.ts
-
-## Development Workflow
-
-1. **New Feature**: Create branch `feature/name`, build in `backend/app/services` + `backend/app/api` + `frontend/src`
-2. **Database Schema Change**: Add model in `backend/app/models`, run `alembic revision --autogenerate`, apply with `alembic upgrade head`
-3. **UI Update**: Respect MEMORY.md guidelines (AreaTabs, grid density, typography). Always use Catalyst aesthetics.
-4. **Testing**: Write tests in `backend/tests/` for services; test frontend with React Testing Library or manual browser testing
-5. **Commit & Push**: Use conventional commits; ensure no secrets leak into git history
 
 ---
 
-**Last Updated**: 2026-06-21 | **Version**: 0.2.0
+## Conventions
+
+### Backend
+
+- **Async first**: all I/O async (DB, HTTP, file ops)
+- **Error handling**: FastAPI `HTTPException` with correct status; log with `logger`
+- **Secrets**: `get_settings()` from `app.core.config`; never hardcode
+- **DB**: SQLModel schemas; async queries with `async with engine.begin() as conn`
+- **SaaS rule**: every user-data table needs `user_id UUID FK → users.id`; queries filter by authenticated user
+
+### Frontend
+
+- **No magic numbers**: every spacing/color/radius traces to a theme token
+- **No Tailwind classes**: Tailwind is removed — any `className` on SC components is a CSS selector hook
+- **No `any` types**: TypeScript strict — use proper interfaces
+- **Modals**: always use `@ledgr/ui Dialog`; never roll custom overlay/backdrop/portal
+- **Forms**: React Hook Form + Zod; validate at submit
+- **React Query**: always set `staleTime` on queries that don't need to refetch on every render
+
+### UI/UX rules (always apply)
+
+- **Sidebar**: top-level links only — no accordions, no sub-menus
+- **AreaTabs**: always `<AreaTabs>` from `@/components/ui/AreaTabs`; never nest `<Tabs>`
+- **No page-level titles** rendered inside content — breadcrumbs only in TopBar
+- **Dashboard layout**: two-column shell, right column 300px fixed, left `1fr`
+- **Density**: compact text (13–14px body), tight padding (16–20px on cards), no oversized bold values
+- **Agents page**: dense table pattern — status, schedule, last-run, actions columns
+- **Action-Rail**: inputs/forms always in right WorkspaceLayout rail; data/analytics in center
+
+---
+
+## Critical Gotchas
+
+- **No Docker `--reload`**: any Python change → `docker compose restart backend`
+- **Alembic autogenerate** tries to DROP `captures` table — always review, strip unrelated drops
+- **Recharts animation**: add `isAnimationActive={false}` to every `<Pie>/<Bar>/<Area>/<Line>` — default animation leaves shapes empty in headless/preview environments
+- **VaultWriteGuard**: all vault writes validated against `ALLOWED_WRITE_PATHS`; never bypass
+- **pgvector**: Docker image must be `pgvector/pgvector:pg15`
+- **Push notifications gotcha**: `docker compose restart` does NOT re-read `env_file` — use `docker compose up -d backend` after `.env` changes
+- **health_logs entry_type CHECK**: allowed values are `gym,weight,food,meal,water,steps,body_fat,sleep,note` — adding a new type needs a migration to update the Postgres CHECK constraint
+- **CSS vars are HEX**: never `hsl(var(--x))` — use `var(--x)` or `color-mix()`
+- **Pending migration chain** (not yet applied if Docker was down): `c7d2e9f1a3b4` (splits/tags) → `d8e3f0a2b5c6` (habits) → `e9f4a1b3c6d7` (workouts) → `f0a5b2c4d7e8` (foods). Run `alembic upgrade head` to apply.
+
+---
+
+## Commands
+
+```bash
+# Frontend
+cd frontend
+pnpm dev              # Vite dev server :5173
+pnpm build            # Production build
+pnpm lint
+
+# Backend (local, not Docker)
+cd backend
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# Docker (preferred)
+docker compose up -d          # Start all services
+docker compose restart backend  # After any Python edit
+docker compose exec backend alembic upgrade head
+docker compose exec backend pytest
+
+# Migrations
+cd backend
+alembic revision --autogenerate -m "description"
+alembic upgrade head
+```
+
+---
+
+## Recent Updates (2026-06-21)
+
+- **Legal Pages**: Added `PrivacyPolicyPage`, `TermsOfServicePage`, and `SupportPage` in `frontend/src/pages/legal/` with public routing and footer links on the login page.
+- **Google Integrations**: Implemented Google OAuth flow (`GoogleAuthCallbackPage`), added `google_sync` models and tables (`g001`), and created integration services for Google Calendar and Google Fit (`google_calendar.py`, `google_fit.py`).
+- **UI Refactoring**: Cleaned up finance components by removing deprecated `FinanceStats` and `WalletWidgets`. Consolidated `FilterBar` and `StyledIcon`.
+- **Gitignore Update**: Ignored AI assistant artifacts (`.agents/`, `.claude/`, `.gemini/`).
+- **Multi-Tenancy Enforced**: Fully refactored the database schema and backend to enforce multi-tenancy. Added `user_id` FKs to all 36 data tables (migrations applied) and updated all 178+ API queries and background services to filter operations by `current_user.id`.
+
+---
+
+## Known Issues / Backlog
+
+- Google OAuth creates user records automatically on first login; email/password signup endpoint added
+- Vault sync watcher may miss rapid successive file changes (debounce needed)
+- FitnessTab workout goals stored in localStorage — needs backend API endpoint
+- F5 splits+tags: code complete, migration `c7d2e9f1a3b4` written but not verified (Docker was down at time of writing)
+
+---
+
+**Last Updated**: 2026-06-21 | **Version**: 0.3.0

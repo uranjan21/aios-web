@@ -9,6 +9,7 @@ class Agent(SQLModel, table=True):
     __tablename__ = "agents"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     task_id: str = Field(unique=True, nullable=False)
     name: str = Field(nullable=False)
     description: Optional[str] = Field(default=None, sa_column=Column(Text))

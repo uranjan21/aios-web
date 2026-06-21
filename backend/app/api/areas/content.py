@@ -17,7 +17,7 @@ async def list_items(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    query = select(ContentItem).order_by(desc(ContentItem.updated_at))
+    query = select(ContentItem).where(ContentItem.user_id == current_user.id).order_by(desc(ContentItem.updated_at))
     if status:
         query = query.where(ContentItem.status == status)
     if platform:
@@ -38,6 +38,7 @@ class ContentItemCreate(BaseModel):
 @router.post("/items")
 async def create_item(body: ContentItemCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
     item = ContentItem(
+        user_id=current_user.id,
         title=body.title,
         platform=body.platform,
         content_type=body.content_type,
@@ -62,7 +63,7 @@ class ContentItemPatch(BaseModel):
 
 @router.patch("/items/{item_id}")
 async def patch_item(item_id: str, body: ContentItemPatch, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(ContentItem).where(ContentItem.id == item_id))
+    result = await db.execute(select(ContentItem).where(ContentItem.user_id == current_user.id).where(ContentItem.id == item_id))
     item = result.scalar_one_or_none()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -86,7 +87,7 @@ async def patch_item(item_id: str, body: ContentItemPatch, current_user=Depends(
 
 @router.delete("/items/{item_id}")
 async def delete_item(item_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(ContentItem).where(ContentItem.id == item_id))
+    result = await db.execute(select(ContentItem).where(ContentItem.user_id == current_user.id).where(ContentItem.id == item_id))
     item = result.scalar_one_or_none()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")

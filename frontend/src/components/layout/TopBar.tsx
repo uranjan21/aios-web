@@ -3,6 +3,7 @@ import { ArrowLeft, Sun, Moon, Search, Menu, ChevronRight, Home } from 'lucide-r
 import { NotificationBell } from '@/components/NotificationBell'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
+import { useAuthStore } from '@/stores/authStore'
 import styled from 'styled-components'
 
 const HeaderRoot = styled.header`
@@ -267,6 +268,7 @@ const PAGE_NAMES: Record<string, string> = {
 
 export function TopBar() {
   const { theme, toggleTheme, setCmdPaletteOpen, toggleSidebar } = useUIStore()
+  const user = useAuthStore(s => s.user)
   const location = useLocation()
   const navigate = useNavigate()
   
@@ -343,11 +345,15 @@ export function TopBar() {
         {/* We can use the custom NotificationBell but wrap it conceptually if needed */}
         <NotificationBell />
         
-        <UserMenuTrigger aria-label="User settings menu">
-          <div className="avatar">U</div>
+        <UserMenuTrigger aria-label="User settings menu" onClick={() => navigate('/settings')}>
+          {user?.picture_url ? (
+            <img className="avatar" src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+          ) : (
+            <div className="avatar">{(user?.name || 'U')[0].toUpperCase()}</div>
+          )}
           <div className="info">
-            <span className="name">User Premium</span>
-            <span className="role">Admin</span>
+            <span className="name">{user?.name || 'User'}</span>
+            <span className="role">{user?.auth_provider === 'google' ? user.email : 'Admin'}</span>
           </div>
         </UserMenuTrigger>
       </RightCluster>

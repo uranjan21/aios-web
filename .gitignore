@@ -85,3 +85,8 @@ docker-compose.override.yml
 
 # Graphify
 graphify-out/
+
+# AI Assistants & Subagents
+.agents/
+.claude/
+.gemini/

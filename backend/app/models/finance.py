@@ -11,6 +11,7 @@ class FinanceSnapshot(SQLModel, table=True):
     __tablename__ = "finance_snapshots"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     snapshot_month: date = Field(unique=True, nullable=False)
     salary: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2)))
     take_home: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2)))
@@ -34,6 +35,7 @@ class AccountType(str, Enum):
 class Account(SQLModel, table=True):
     __tablename__ = "finance_accounts"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     name: str = Field(nullable=False)
     type: AccountType = Field(nullable=False)
     balance: Decimal = Field(default=0, sa_column=Column(Numeric(12, 2)))
@@ -43,6 +45,7 @@ class Account(SQLModel, table=True):
 class Category(SQLModel, table=True):
     __tablename__ = "finance_categories"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     name: str = Field(nullable=False, unique=True)
     parent_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_categories.id")
     icon: Optional[str] = Field(default=None)
@@ -52,6 +55,7 @@ class FinanceExpense(SQLModel, table=True):
     __tablename__ = "finance_expenses"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     logged_at: datetime = Field(nullable=False)
     amount: Decimal = Field(sa_column=Column(Numeric(10, 2), nullable=False))
     category: Optional[str] = Field(nullable=True)
@@ -80,6 +84,7 @@ class FinancialGoal(SQLModel, table=True):
     __tablename__ = "finance_goals"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     name: str = Field(nullable=False)
     icon: str = Field(default="🎯", nullable=False)
     target_amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
@@ -96,6 +101,7 @@ class FinanceBill(SQLModel, table=True):
     __tablename__ = "finance_bills"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     name: str = Field(nullable=False)
     amount: Decimal = Field(sa_column=Column(Numeric(10, 2), nullable=False))
     due_day: int = Field(nullable=False)  # day of month 1-31
@@ -113,6 +119,7 @@ class FinanceIncome(SQLModel, table=True):
     __tablename__ = "finance_income"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     source: str = Field(nullable=False)  # salary/freelance/dividend/other
     account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
@@ -127,6 +134,7 @@ class FinanceTransfer(SQLModel, table=True):
     __tablename__ = "finance_transfers"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     from_account_id: uuid.UUID = Field(foreign_key="finance_accounts.id", nullable=False)
     to_account_id: uuid.UUID = Field(foreign_key="finance_accounts.id", nullable=False)
@@ -140,6 +148,7 @@ class FinanceInvestment(SQLModel, table=True):
     __tablename__ = "finance_investments"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     name: str = Field(nullable=False)
     type: str = Field(default="mutual_fund", nullable=False)  # stock/mutual_fund/fd/ppf/nps/crypto/gold/other
     invested_amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
@@ -156,6 +165,7 @@ class FinanceLoan(SQLModel, table=True):
     __tablename__ = "finance_loans"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     name: str = Field(nullable=False)
     loan_type: str = Field(default="personal", nullable=False)  # home/personal/car/education/credit_card/other
     lender: Optional[str] = Field(default=None)

@@ -7,6 +7,7 @@ import asyncio
 import base64
 import json
 import logging
+import uuid
 
 from pywebpush import webpush, WebPushException
 from sqlmodel import select
@@ -37,7 +38,7 @@ def _send_one(sub_info: dict, payload: str) -> None:
     )
 
 
-async def send_push_to_all(title: str, body: str, url: str = "/") -> int:
+async def send_push_to_all(user_id: uuid.UUID, title: str, body: str, url: str = "/") -> int:
     """Send a push to every stored subscription. Returns delivered count."""
     settings = get_settings()
     if not settings.vapid_private_key or not settings.vapid_public_key:
@@ -45,7 +46,7 @@ async def send_push_to_all(title: str, body: str, url: str = "/") -> int:
         return 0
 
     async with AsyncSessionLocal() as session:
-        subs = (await session.execute(select(PushSubscription))).scalars().all()
+        subs = (await session.execute(select(PushSubscription).where(PushSubscription.user_id == user_id))).scalars().all()
         if not subs:
             return 0
 

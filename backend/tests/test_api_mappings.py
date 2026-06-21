@@ -295,7 +295,7 @@ def test_api_mappings():
             else:
                 match = re.search(r'params\s*:\s*\{\s*([^}]+)\s*\}', ep['payload'])
                 if match:
-                    f_query_params = [p.strip() for p in match.group(1).split(',') if p.strip()]
+                    f_query_params = [p.split(':')[0].strip() for p in match.group(1).split(',') if p.strip()]
             
             # Check if frontend parameters are present in backend query parameters
             for fp in f_query_params:

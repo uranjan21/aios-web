@@ -10,6 +10,8 @@ import { GlobalCapture } from '@/components/GlobalCapture'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useUIStore } from '@/stores/uiStore'
+import { WelcomeWizard } from '@/components/onboarding/WelcomeWizard'
+import { useState } from 'react'
 
 const MobileBackdrop = styled.div<{ $show: boolean }>`
   display: none;
@@ -76,11 +78,20 @@ export function AppShell() {
   const location = useLocation()
   const { pushRecentPage, sidebarOpen, setSidebarOpen } = useUIStore()
 
+  const [showWizard, setShowWizard] = useState(() => {
+    return localStorage.getItem('aios_onboarded') !== 'true'
+  })
+
   useEffect(() => {
     pushRecentPage(location.pathname)
     // Close mobile sidebar on navigation
     setSidebarOpen(false)
   }, [location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCompleteWizard = () => {
+    localStorage.setItem('aios_onboarded', 'true')
+    setShowWizard(false)
+  }
 
   return (
     <Root>
@@ -102,6 +113,7 @@ export function AppShell() {
       <CommandPalette />
       <GlobalCapture />
       <BottomNav />
+      {showWizard && <WelcomeWizard onComplete={handleCompleteWizard} />}
     </Root>
   )
 }

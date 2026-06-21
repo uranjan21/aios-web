@@ -10,6 +10,7 @@ class PushSubscription(SQLModel, table=True):
     __tablename__ = "push_subscriptions"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     endpoint: str = Field(sa_column=Column(Text, nullable=False, unique=True))
     p256dh: str = Field(nullable=False)
     auth: str = Field(nullable=False)

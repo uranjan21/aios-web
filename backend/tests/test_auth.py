@@ -4,13 +4,13 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_login_wrong_password(client):
-    resp = await client.post("/api/auth/login", json={"password": "wrongpassword"})
+    resp = await client.post("/api/auth/login", json={"email": "test@example.com", "password": "wrongpassword"})
     assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_login_correct_password(client):
-    resp = await client.post("/api/auth/login", json={"password": "testpass"})
+    resp = await client.post("/api/auth/login", json={"email": "admin@example.com", "password": "testpass"})
     assert resp.status_code == 200
     data = resp.json()
     assert data.get("status") == "ok"
