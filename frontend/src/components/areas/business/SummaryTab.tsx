@@ -4,12 +4,12 @@ import { useQuery } from '@tanstack/react-query'
 import { businessApi } from '@/api/areas'
 import { formatCurrency, formatRelativeTime } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
-import { TrendingUp, Package, Clock, IndianRupee, LineChart } from 'lucide-react'
+import { TrendingUp, Package, Clock, IndianRupee, LineChart, AlertCircle } from 'lucide-react'
 import Highcharts from 'highcharts'
 Highcharts.setOptions({ accessibility: { enabled: false } })
 import HighchartsReact from 'highcharts-react-official'
 import styled, { useTheme } from 'styled-components'
-import { Card, Select } from '@ledgr/ui'
+import { Card, Select, Badge } from '@ledgr/ui'
 import type React from 'react'
 
 const ACCENT_HEX: Record<string, string> = {
@@ -41,6 +41,7 @@ function MrrTrendCard() {
         <Select
           size="sm"
           fullWidth={false}
+          aria-label="MRR period filter"
           options={[
             { label: '6 Months', value: '6m' },
             { label: '12 Months', value: '12m' },
@@ -154,11 +155,11 @@ const SkeletonGrid = styled(TileGrid)`
 
 const StyledSummarySkeleton = styled(Skeleton)`
   height: 80px;
-  border-radius: 12px;
+  border-radius: 10px;
 `
 
 const StatusBanner = styled.div<{ $positive: boolean }>`
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 12px;
   border: 1px solid ${({ theme, $positive }) => $positive ? `${theme.color.success}33` : `${theme.color.warning}33`};
   background: ${({ theme, $positive }) => $positive ? `${theme.color.success}14` : `${theme.color.warning}14`};
@@ -223,10 +224,14 @@ export function SummaryTab() {
       <MrrTrendCard />
 
       <StatusBanner $positive={mrr > 0}>
-        <span>{mrr > 0 ? '🟢' : '🟡'}</span>
-        {mrr > 0
-          ? `Revenue-generating. MRR ${formatCurrency(mrr)} · ARR ${formatCurrency(arr)}`
-          : 'Pre-revenue. Keep shipping — first ₹ is the hardest.'}
+        <Badge tone={mrr > 0 ? "success" : "warning"} size="sm">
+          {mrr > 0 ? "Revenue" : "Idea"}
+        </Badge>
+        <span>
+          {mrr > 0
+            ? `Revenue-generating. MRR ${formatCurrency(mrr)} · ARR ${formatCurrency(arr)}`
+            : 'Pre-revenue. Keep shipping — first ₹ is the hardest.'}
+        </span>
       </StatusBanner>
     </Root>
   )

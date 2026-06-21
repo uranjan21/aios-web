@@ -88,6 +88,7 @@ export function TwitterQueueCard() {
           <div style={{ width: '90px' }}>
             <Select
               size="sm"
+              aria-label="Filter queue entries"
               value={filter}
               onChange={(val: any) => setFilter(val)}
               options={[

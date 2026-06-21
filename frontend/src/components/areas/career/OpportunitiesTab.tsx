@@ -6,7 +6,7 @@ import { Popconfirm } from '@/components/ui/Popconfirm'
 import { Input, Select, SelectItem, Button, Badge, SegmentedControl, HeaderActionPortal } from '@ledgr/ui'
 import { Plus, ExternalLink, Trash2, Briefcase, XCircle } from 'lucide-react'
 import {
-  DndContext, DragOverlay, PointerSensor,
+  DndContext, DragOverlay, PointerSensor, KeyboardSensor,
   useSensor, useSensors, useDraggable, useDroppable,
   type DragStartEvent, type DragEndEvent,
 } from '@dnd-kit/core'
@@ -71,9 +71,13 @@ const FormField = styled.div`
 
 const FormGrid2 = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 12px;
   margin-bottom: 12px;
+
+  @media (min-width: 640px) {
+    grid-template-columns: 1fr 1fr;
+  }
 `
 
 const FormFooter = styled.div`
@@ -130,6 +134,11 @@ const DragCard = styled.div<{ $dragging: boolean }>`
   box-shadow: ${({ theme }) => theme.shadow.xs};
   opacity: ${({ $dragging }) => $dragging ? 0.4 : 1};
   &:active { cursor: grabbing; }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color.ring};
+    outline-offset: -2px;
+  }
 `
 
 const DragCardRole = styled.div`
@@ -325,6 +334,7 @@ function OppRow({ opp }: { opp: JobOpportunity }) {
             onValueChange={v => patchMutation.mutate(v as any)}
             disabled={patchMutation.isPending}
             style={{ width: 110 }}
+            aria-label="Opportunity status"
           >
             {STATUS_ORDER.map(s => (
               <SelectItem key={s} value={s}>
@@ -382,29 +392,29 @@ function AddForm({ onClose }: { onClose: () => void }) {
       <form onSubmit={e => { e.preventDefault(); mutate() }}>
         <FormGrid2>
           <FormField>
-            <FormLabel>Company</FormLabel>
-            <Input placeholder="Stripe, Notion…" value={company} onChange={(e: any) => setCompany(e.target.value)} required />
+            <FormLabel htmlFor="opp-company">Company</FormLabel>
+            <Input id="opp-company" placeholder="Stripe, Notion…" value={company} onChange={(e: any) => setCompany(e.target.value)} required />
           </FormField>
           <FormField>
-            <FormLabel>Role</FormLabel>
-            <Input placeholder="Software Engineer" value={role} onChange={(e: any) => setRole(e.target.value)} required />
+            <FormLabel htmlFor="opp-role">Role</FormLabel>
+            <Input id="opp-role" placeholder="Software Engineer" value={role} onChange={(e: any) => setRole(e.target.value)} required />
           </FormField>
         </FormGrid2>
         <FormGrid2>
           <FormField>
-            <FormLabel>Status</FormLabel>
-            <Select value={status} onValueChange={(val: any) => setStatus(val)}>
+            <FormLabel htmlFor="opp-status">Status</FormLabel>
+            <Select id="opp-status" value={status} onValueChange={(val: any) => setStatus(val)} aria-label="Opportunity status">
               {STATUS_ORDER.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </Select>
           </FormField>
           <FormField>
-            <FormLabel>URL</FormLabel>
-            <Input placeholder="https://…" type="url" value={url} onChange={(e: any) => setUrl(e.target.value)} />
+            <FormLabel htmlFor="opp-url">URL</FormLabel>
+            <Input id="opp-url" placeholder="https://…" type="url" value={url} onChange={(e: any) => setUrl(e.target.value)} />
           </FormField>
         </FormGrid2>
         <div style={{ marginBottom: 12 }}>
-          <FormLabel>Notes</FormLabel>
-          <Input placeholder="Referral via X, recruiter name…" value={notes} onChange={(e: any) => setNotes(e.target.value)} />
+          <FormLabel htmlFor="opp-notes">Notes</FormLabel>
+          <Input id="opp-notes" placeholder="Referral via X, recruiter name…" value={notes} onChange={(e: any) => setNotes(e.target.value)} />
         </div>
         <FormFooter>
           <Button variant="ghost" type="button" onClick={onClose} size="sm">Cancel</Button>
@@ -421,9 +431,11 @@ function PipelineCard({ opp }: { opp: JobOpportunity }) {
     <DragCard
       ref={setNodeRef}
       $dragging={isDragging}
+      tabIndex={0}
       {...attributes}
       {...listeners}
       style={transform ? { transform: `translate(${transform.x}px, ${transform.y}px)` } : undefined}
+      aria-label={`${opp.role} at ${opp.company}. Press spacebar to drag.`}
     >
       <DragCardRole>{opp.role}</DragCardRole>
       <DragCardCompany>{opp.company}</DragCardCompany>
@@ -460,7 +472,10 @@ function RejectZone() {
 function PipelineBoard({ opps }: { opps: JobOpportunity[] }) {
   const queryClient = useQueryClient()
   const [activeId, setActiveId] = useState<string | null>(null)
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor)
+  )
 
   const moveMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: OpportunityStatus }) =>

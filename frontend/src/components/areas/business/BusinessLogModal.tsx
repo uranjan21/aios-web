@@ -12,9 +12,13 @@ const Form = styled.form`
 
 const FormGrid = styled.div`
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  grid-template-columns: 1fr;
   gap: 16px;
   margin-bottom: 8px;
+
+  @media (min-width: 480px) {
+    grid-template-columns: 1fr 2fr;
+  }
 `
 
 const FormGroup = styled.div`
@@ -74,15 +78,15 @@ export function BusinessLogModal({ open, onClose }: { open: boolean; onClose: ()
     <Dialog open={open} onOpenChange={handleOpenChange} title="Log Business Event">
       <Form onSubmit={e => { e.preventDefault(); mutate() }}>
         <FormGrid>
-          <Select value={eventType} onValueChange={setEventType}>
+          <Select value={eventType} onValueChange={setEventType} aria-label="Event type">
             {Object.keys(EVENT_TYPE_COLORS).map(t => (
               <SelectItem key={t} value={t}>{t.replace('_', ' ')}</SelectItem>
             ))}
           </Select>
-          <Input placeholder="Event Title" value={title} onChange={(e: any) => setTitle(e.target.value)} required />
+          <Input placeholder="Event Title" value={title} onChange={(e: any) => setTitle(e.target.value)} required aria-label="Event title" />
         </FormGrid>
         <FormGroup>
-          <Textarea placeholder="Description (optional)" rows={3} value={description} onChange={(e: any) => setDescription(e.target.value)} />
+          <Textarea placeholder="Description (optional)" rows={3} value={description} onChange={(e: any) => setDescription(e.target.value)} aria-label="Description" />
         </FormGroup>
         <FormActions>
           <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>

@@ -1,5 +1,6 @@
 import {
   fmtDateKey,
+  parseLocalDate,
   useDayEventsStore,
   type DayEvent,
   type EventCategory,
@@ -167,11 +168,10 @@ const DayNum = styled.span`
 `;
 
 const EventDot = styled.span<{ $selected?: boolean }>`
-  position: absolute;
-  bottom: 4px;
   width: 4px;
   height: 4px;
   border-radius: 50%;
+  flex-shrink: 0;
   background: ${({ theme, $selected }) =>
     $selected ? theme.color.primaryForeground : theme.color.accent};
 `;
@@ -345,7 +345,10 @@ export function MonthlyCalendar({
               $selected={isSelected}
               $outside={outside}
               $hasEvents={count > 0}
-              onClick={() => onSelectDate(new Date(date))}
+              onClick={() => {
+                onSelectDate(new Date(date));
+                if (outside) setViewMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+              }}
               aria-label={`${MONTH_NAMES[date.getMonth()]} ${date.getDate()}${count ? `, ${count} event${count > 1 ? "s" : ""}` : ""}`}
             >
               <DayNum>{date.getDate()}</DayNum>
@@ -363,7 +366,7 @@ export function MonthlyCalendar({
 
       <AddEventRow>
         <SelectedLabel>
-          {new Date(selectedKey).toLocaleDateString("en-IN", {
+          {parseLocalDate(selectedKey).toLocaleDateString("en-IN", {
             weekday: "short",
             day: "numeric",
             month: "short",
@@ -432,6 +435,7 @@ export function MonthlyCalendar({
             <div>
               <Label htmlFor="evt-category">Category</Label>
               <Select
+                id="evt-category"
                 fullWidth
                 options={CATEGORIES}
                 value={draft.category || "personal"}

@@ -6,13 +6,14 @@ import type {
   FinanceInvestment, InvestmentSummary, FinanceLoan, LoanSummary, SleepRecent, HabitItem,
   WorkoutSessionItem, WorkoutPR, FoodDbItem,
   FinanceTransfer, BudgetStatus, LedgerEntry, NetWorth, TxnSearchResult, FinanceHealthScore,
+  Account, Category, Capture,
 } from '@/types'
 
 // Finance
 export const financeApi = {
   netWorth: () => api.get<NetWorth>('/areas/finance/net-worth').then(r => r.data),
   healthScore: () => api.get<FinanceHealthScore>('/areas/finance/health-score').then(r => r.data),
-  importCheck: (items: { logged_at: string; amount: number; kind: string; description?: string }[]) =>
+  importCheck: (items: { logged_at: string; amount: number; kind: string; category?: string; description?: string }[]) =>
     api.post<{ duplicates: number[] }>('/areas/finance/import/check', { items }).then(r => r.data),
   importCommit: (items: { logged_at: string; amount: number; kind: string; category?: string; description?: string }[], account_id?: string) =>
     api.post<{ imported_expenses: number; imported_income: number; skipped: number }>('/areas/finance/import/commit', { items, account_id }).then(r => r.data),
@@ -25,8 +26,8 @@ export const financeApi = {
       '/areas/finance/expenses', { params: { month, category, limit, offset, time_range, q, account_id } }
     ).then(r => r.data),
   createExpense: (data: { amount: number; category: string; description?: string; logged_at?: string; account_id?: string; tags?: string; splits?: { category: string; amount: number }[] }) =>
-    api.post<FinanceExpense>('/areas/finance/expenses', data).then(r => r.data),
-  patchExpense: (id: string, d: Partial<{ amount: number; category: string; description: string; logged_at: string; account_id: string | null; tags: string | null }>) =>
+    api.post<FinanceExpense | { split_group_id: string; items: FinanceExpense[] }>('/areas/finance/expenses', data).then(r => r.data),
+  patchExpense: (id: string, d: Partial<{ amount: number; category: string | null; description: string | null; logged_at: string; account_id: string | null; tags: string | null }>) =>
     api.patch<FinanceExpense>(`/areas/finance/expenses/${id}`, d).then(r => r.data),
   deleteExpense: (id: string) => api.delete(`/areas/finance/expenses/${id}`).then(r => r.data),
   // Goals (Savings Pots)
@@ -42,7 +43,7 @@ export const financeApi = {
   // Income
   income: (month?: string) => api.get<FinanceIncome[]>('/areas/finance/income', { params: { month } }).then(r => r.data),
   createIncome: (d: {amount:number; source:string; description?:string; logged_at?:string; account_id?:string; tags?:string}) => api.post<FinanceIncome>('/areas/finance/income', d).then(r=>r.data),
-  patchIncome: (id: string, d: Partial<{ amount: number; source: string; description: string; logged_at: string; account_id: string | null; tags: string | null }>) =>
+  patchIncome: (id: string, d: Partial<{ amount: number; source: string; description: string | null; logged_at: string; account_id: string | null; tags: string | null }>) =>
     api.patch<FinanceIncome>(`/areas/finance/income/${id}`, d).then(r => r.data),
   deleteIncome: (id: string) => api.delete(`/areas/finance/income/${id}`).then(r => r.data),
   // Transfers
@@ -60,27 +61,27 @@ export const financeApi = {
   deleteBudget: (category: string) =>
     api.delete(`/areas/finance/budgets/${encodeURIComponent(category)}`).then(r => r.data),
   // Accounts
-  accounts: () => api.get<any[]>('/areas/finance/accounts').then(r => r.data),
+  accounts: () => api.get<Account[]>('/areas/finance/accounts').then(r => r.data),
   createAccount: (data: { name: string; type: string; balance?: number; currency?: string }) =>
-    api.post<any>('/areas/finance/accounts', data).then(r => r.data),
+    api.post<Account>('/areas/finance/accounts', data).then(r => r.data),
   updateAccount: (id: string, data: Partial<{ name: string; type: string; balance: number; currency: string }>) =>
-    api.patch<any>(`/areas/finance/accounts/${id}`, data).then(r => r.data),
+    api.patch<Account>(`/areas/finance/accounts/${id}`, data).then(r => r.data),
   deleteAccount: (id: string) => api.delete(`/areas/finance/accounts/${id}`).then(r => r.data),
   accountLedger: (id: string, limit = 50) =>
-    api.get<{ account: any; entries: LedgerEntry[] }>(`/areas/finance/accounts/${id}/ledger`, { params: { limit } }).then(r => r.data),
+    api.get<{ account: Account; entries: LedgerEntry[] }>(`/areas/finance/accounts/${id}/ledger`, { params: { limit } }).then(r => r.data),
   // Categories
-  categories: () => api.get<any[]>('/areas/finance/categories').then(r => r.data),
+  categories: () => api.get<Category[]>('/areas/finance/categories').then(r => r.data),
   createCategory: (data: { name: string; parent_id?: string | null; icon?: string | null }) =>
-    api.post<any>('/areas/finance/categories', data).then(r => r.data),
+    api.post<Category>('/areas/finance/categories', data).then(r => r.data),
   updateCategory: (id: string, data: Partial<{ name: string; parent_id: string | null; icon: string | null }>) =>
-    api.patch<any>(`/areas/finance/categories/${id}`, data).then(r => r.data),
+    api.patch<Category>(`/areas/finance/categories/${id}`, data).then(r => r.data),
   deleteCategory: (id: string) => api.delete(`/areas/finance/categories/${id}`).then(r => r.data),
   // Investments (portfolio)
   investments: () => api.get<FinanceInvestment[]>('/areas/finance/investments').then(r => r.data),
   investmentsSummary: () => api.get<InvestmentSummary>('/areas/finance/investments/summary').then(r => r.data),
   createInvestment: (d: { name: string; type: string; invested_amount: number; current_value: number; units?: number; purchase_date?: string | null; notes?: string }) =>
     api.post<FinanceInvestment>('/areas/finance/investments', d).then(r => r.data),
-  patchInvestment: (id: string, d: Partial<{ name: string; type: string; invested_amount: number; current_value: number; units: number; purchase_date: string | null; notes: string }>) =>
+  patchInvestment: (id: string, d: Partial<{ name: string; type: string; invested_amount: number; current_value: number; units: number | null; purchase_date: string | null; notes: string | null }>) =>
     api.patch<FinanceInvestment>(`/areas/finance/investments/${id}`, d).then(r => r.data),
   deleteInvestment: (id: string) => api.delete(`/areas/finance/investments/${id}`).then(r => r.data),
   // Loans / EMI
@@ -88,7 +89,7 @@ export const financeApi = {
   loansSummary: () => api.get<LoanSummary>('/areas/finance/loans/summary').then(r => r.data),
   createLoan: (d: { name: string; loan_type: string; lender?: string; principal_amount: number; outstanding_amount: number; interest_rate: number; emi_amount: number; emi_day: number; tenure_months?: number; notes?: string; account_id?: string }) =>
     api.post<FinanceLoan>('/areas/finance/loans', d).then(r => r.data),
-  patchLoan: (id: string, d: Partial<{ name: string; loan_type: string; lender: string; principal_amount: number; outstanding_amount: number; interest_rate: number; emi_amount: number; emi_day: number; tenure_months: number; is_active: boolean; notes: string }>) =>
+  patchLoan: (id: string, d: Partial<{ name: string; loan_type: string; lender: string | null; principal_amount: number; outstanding_amount: number; interest_rate: number; emi_amount: number; emi_day: number; tenure_months: number | null; is_active: boolean; notes: string | null; account_id: string | null }>) =>
     api.patch<FinanceLoan>(`/areas/finance/loans/${id}`, d).then(r => r.data),
   deleteLoan: (id: string) => api.delete(`/areas/finance/loans/${id}`).then(r => r.data),
 }
@@ -105,7 +106,7 @@ export const healthApi = {
   updateHealthGoals: (d: Partial<HealthGoal>) => api.put<HealthGoal>('/areas/health/goals', d).then(r=>r.data),
   nutritionToday: () => api.get<NutritionToday>('/areas/health/nutrition/today').then(r => r.data),
   waterToday: () => api.get<{glasses_logged:number; target:number}>('/areas/health/water/today').then(r => r.data),
-  stepsToday: () => api.get<{steps:number; target:number}>('/areas/health/steps/today').then(r => r.data),
+  stepsToday: () => api.get<{steps_logged:number; target:number}>('/areas/health/steps/today').then(r => r.data),
   logMeal: (d: {calories:number; protein?:number; carbs?:number; fat?:number; meal_type?:string; food_name:string}) =>
     api.post<HealthLog>('/areas/health/logs', {
       entry_type: 'meal',
@@ -140,7 +141,7 @@ export const careerApi = {
   upsertSkill: (data: { skill_name: string; category: string; level: string; notes?: string }) =>
     api.post<SkillInventory>('/areas/career/skills', data).then(r => r.data),
   events: () => api.get<CareerEvent[]>('/areas/career/events').then(r => r.data),
-  createEvent: (data: { event_type: string; title: string; description?: string }) =>
+  createEvent: (data: { event_type: string; title: string; description?: string; skill?: string; skill_level?: string; occurred_at?: string }) =>
     api.post<CareerEvent>('/areas/career/events', data).then(r => r.data),
   roadmap: () => api.get('/areas/career/roadmap').then(r => r.data),
   // Job opportunities
@@ -156,7 +157,7 @@ export const careerApi = {
 // Business
 export const businessApi = {
   events: () => api.get<BusinessEvent[]>('/areas/business/events').then(r => r.data),
-  createEvent: (data: { event_type: string; title: string; description?: string; mrr?: number }) =>
+  createEvent: (data: { event_type: string; title: string; description?: string; mrr?: number; product?: string; occurred_at?: string }) =>
     api.post<BusinessEvent>('/areas/business/events', data).then(r => r.data),
   summary: () => api.get('/areas/business/summary').then(r => r.data),
   mrrHistory: () => api.get<{ date: string; mrr: number; title: string }[]>('/areas/business/mrr-history').then(r => r.data),
@@ -170,14 +171,15 @@ export interface ParsedCapture {
 }
 
 export const aiApi = {
-  explain: (area: 'finance' | 'health') => api.post<{ text: string }>('/ai/explain', { area }).then(r => r.data),
+  explain: (area: 'finance' | 'health') => api.post<{ text: string; facts?: string }>('/ai/explain', { area }).then(r => r.data),
   skillGap: (target_role: string) => api.post<{ text: string }>('/ai/skill-gap', { target_role }).then(r => r.data),
   draft: (title: string, platform: string, notes?: string) => api.post<{ text: string }>('/ai/draft', { title, platform, notes }).then(r => r.data),
+  dailyBrief: () => api.post<{ text: string; generated_at: string }>('/ai/daily-brief').then(r => r.data),
 }
 
 export const capturesApi = {
-  create: (raw_text: string) => api.post('/captures', { raw_text }).then(r => r.data),
-  list: () => api.get('/captures').then(r => r.data),
+  create: (raw_text: string) => api.post<Capture>('/captures', { raw_text }).then(r => r.data),
+  list: () => api.get<Capture[]>('/captures').then(r => r.data),
   parse: (text: string) => api.post<ParsedCapture>('/captures/parse', { text }).then(r => r.data),
 }
 
@@ -185,7 +187,7 @@ export const capturesApi = {
 export const contentApi = {
   items: (status?: string, platform?: string) =>
     api.get<ContentItem[]>('/areas/content/items', { params: { status, platform } }).then(r => r.data),
-  createItem: (data: { title: string; platform: string; content_type?: string; notes?: string }) =>
+  createItem: (data: { title: string; platform: string; content_type?: string; notes?: string; idea_date?: string }) =>
     api.post<ContentItem>('/areas/content/items', data).then(r => r.data),
   patchItem: (id: string, data: { title?: string; platform?: string; content_type?: string; status?: string; publish_date?: string; notes?: string }) =>
     api.patch<ContentItem>(`/areas/content/items/${id}`, data).then(r => r.data),

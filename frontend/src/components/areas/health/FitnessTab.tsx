@@ -126,8 +126,8 @@ const StyledGoalValueWrapper = styled.div`
 `;
 
 const StyledGoalCurrentValue = styled.span`
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 500;
   color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
   font-variant-numeric: tabular-nums;
 `;
@@ -222,13 +222,15 @@ function GoalCard({ goal, current, target, onTargetChange }: {
       </StyledGoalProgressBar>
 
       <StyledGoalInputWrapper>
-        <StyledGoalInputLabel>Target:</StyledGoalInputLabel>
+        <StyledGoalInputLabel htmlFor={`goal-target-${goal.key}`}>Target:</StyledGoalInputLabel>
         <StyledGoalInput
+          id={`goal-target-${goal.key}`}
           type="number"
           value={target}
           min={0.1}
           step={goal.key === 'daily_water' ? 0.5 : 1}
           onChange={e => onTargetChange(parseFloat(e.target.value) || target)}
+          aria-label={`${goal.label} target`}
         />
         <StyledGoalInputUnit>{goal.unit}</StyledGoalInputUnit>
       </StyledGoalInputWrapper>
@@ -424,6 +426,7 @@ const StyledHabitDayButton = styled.button<{ $checked?: boolean; $isToday?: bool
   align-items: center;
   justify-content: center;
   padding: 0;
+  cursor: pointer;
   border: 1px solid ${({ $checked, $isToday, theme }) => 
     $checked ? 'var(--primary)' : 
     $isToday ? 'var(--accent)' : 
@@ -434,6 +437,11 @@ const StyledHabitDayButton = styled.button<{ $checked?: boolean; $isToday?: bool
   
   &:hover {
     border-color: ${({ $checked }) => $checked ? 'var(--primary)' : 'var(--accent)'};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color?.ring || '#CA8A04'};
+    outline-offset: 1px;
   }
 `;
 
@@ -487,7 +495,7 @@ function HabitRow({ habit }: { habit: HabitItem }) {
   return (
     <StyledHabitRowWrapper>
       <StyledHabitInfo>
-        <StyledHabitIcon>{habit.icon || '🎯'}</StyledHabitIcon>
+        <StyledHabitIcon>{habit.icon || <Target size={12} />}</StyledHabitIcon>
         <StyledHabitDetails>
           <StyledHabitName>{habit.name}</StyledHabitName>
           <StyledHabitStreak>
@@ -555,9 +563,13 @@ const StyledGoalsGrid = styled.div`
 
 const StyledHabitsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr;
   gap: 0.75rem;
   margin-bottom: 0.5rem;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
 `;
 
 const StyledBadgesWrapper = styled.div`
@@ -598,10 +610,10 @@ const StyledHabitsStatsLabel = styled.p`
 `;
 
 const StyledHabitsStatsValue = styled.p`
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
-  letter-spacing: -0.025em;
+  letter-spacing: -0.01em;
   margin: 0.125rem 0 0 0;
 `;
 
@@ -979,7 +991,7 @@ export function FitnessTab() {
 
         {logType === 'workout' && (
           <StyledFormWrapper>
-            <Input placeholder="Session name — Push Day, Legs…" value={workoutName} onChange={e => setWorkoutName(e.target.value)} />
+            <Input placeholder="Session name — Push Day, Legs…" value={workoutName} onChange={e => setWorkoutName(e.target.value)} aria-label="Workout session name" />
             <StyledSetsWrapper>
               {rows.map((row, i) => (
                 <StyledSetRow key={i}>
@@ -990,13 +1002,14 @@ export function FitnessTab() {
                       list={`exercises-${i}`}
                       value={row.exercise}
                       onChange={(e: any) => updateRow(i, { exercise: e.target.value })}
+                      aria-label="Exercise name"
                     />
                     <datalist id={`exercises-${i}`}>
                       {COMMON_EXERCISES.map(e => <option key={e} value={e} />)}
                     </datalist>
                   </StyledExerciseInputWrapper>
-                  <Input type="number" size="sm" placeholder="Reps" min={1} style={{ width: '3.5rem' }} value={row.reps ?? ''} onChange={(e: any) => updateRow(i, { reps: e.target.value ? Number(e.target.value) : null })} />
-                  <Input type="number" size="sm" placeholder="kg" min={0} step={2.5} style={{ width: '4rem' }} value={row.weight_kg ?? ''} onChange={(e: any) => updateRow(i, { weight_kg: e.target.value ? Number(e.target.value) : null })} />
+                  <Input type="number" size="sm" placeholder="Reps" min={1} style={{ width: '3.5rem' }} value={row.reps ?? ''} onChange={(e: any) => updateRow(i, { reps: e.target.value ? Number(e.target.value) : null })} aria-label="Reps" />
+                  <Input type="number" size="sm" placeholder="kg" min={0} step={2.5} style={{ width: '4rem' }} value={row.weight_kg ?? ''} onChange={(e: any) => updateRow(i, { weight_kg: e.target.value ? Number(e.target.value) : null })} aria-label="Weight in kg" />
                   {rows.length > 1 && (
                     <Button size="icon" variant="ghost" onClick={() => setRows(rs => rs.filter((_, idx) => idx !== i))} aria-label="Remove set">
                       <X size={12} />
@@ -1025,8 +1038,9 @@ export function FitnessTab() {
                 onChange={e => setHabitName(e.target.value)}
                 onKeyDown={(e) => { if(e.key === 'Enter') { habitName.trim() && habitMutation.mutate() } }}
                 style={{ flex: 1 }}
+                aria-label="Habit name"
               />
-              <Input placeholder="🧘" value={habitIcon} onChange={e => setHabitIcon(e.target.value)} style={{ width: '3rem', textAlign: 'center' }} maxLength={2} />
+              <Input placeholder="Icon" value={habitIcon} onChange={e => setHabitIcon(e.target.value)} style={{ width: '3rem', textAlign: 'center' }} maxLength={2} aria-label="Habit emoji icon" />
             </StyledHabitFormRow>
             <Button size="sm" variant="primary" style={{ width: '100%', marginTop: '0.5rem' }} disabled={!habitName.trim() || habitMutation.isPending} onClick={() => habitMutation.mutate()}>
               <StyledButtonContent>

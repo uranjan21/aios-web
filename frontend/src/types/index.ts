@@ -276,3 +276,28 @@ export interface SleepRecent {
   daily: { date: string; hours: number; quality: string | null }[]
   weekly_avg: number; target: number; last_night: number | null;
 }
+
+export interface Account {
+  id: string
+  name: string
+  type: 'checking' | 'savings' | 'credit_card' | 'investment' | 'loan'
+  balance: number
+  currency: string
+  created_at: string
+}
+
+export interface Category {
+  id: string
+  name: string
+  parent_id: string | null
+  icon: string | null
+  created_at: string
+}
+
+export interface Capture {
+  id: string
+  raw_text: string
+  processed: boolean
+  created_at: string
+}
+

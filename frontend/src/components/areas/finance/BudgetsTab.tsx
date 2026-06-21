@@ -278,13 +278,13 @@ export function BudgetsTab() {
         <FormContainer>
           <FormLayout onSubmit={e => { e.preventDefault(); upsertMutation.mutate({ category: formCategory, monthly_limit: formLimit }) }}>
             <SelectWrapper>
-              <Select placeholder="Category" disabled={!!editing} value={formCategory} onChange={(v) => setFormCategory(v as string)}>
+              <Select placeholder="Category" disabled={!!editing} value={formCategory} onChange={(v) => setFormCategory(v as string)} aria-label="Budget category">
                 {CATEGORIES.filter(c => !budgets?.some(b => b.category === c) || (editing && c === editing.category))
                   .map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </Select>
             </SelectWrapper>
             <InputWrapper>
-              <Input type="number" startAdornment="₹" placeholder="Limit" min="1" value={formLimit} onChange={(e) => setFormLimit(e.target.value)} required />
+              <Input type="number" startAdornment="₹" placeholder="Limit" min="1" value={formLimit} onChange={(e) => setFormLimit(e.target.value)} required aria-label="Budget limit" />
             </InputWrapper>
             <ButtonsWrapper>
               <Button variant="primary" type="submit" loading={upsertMutation.isPending} size="sm">

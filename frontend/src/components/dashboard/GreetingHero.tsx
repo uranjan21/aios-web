@@ -1,7 +1,8 @@
 import { useUIStore } from "@/stores/uiStore";
 import { Button, Card } from "@ledgr/ui";
-import { Plus, Sparkles } from "lucide-react";
-import styled from "styled-components";
+import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import styled, { keyframes } from "styled-components";
 
 const QUOTES: Array<{ text: string; author: string }> = [
   { text: "Discipline equals freedom.", author: "Jocko Willink" },
@@ -43,21 +44,55 @@ function quoteOfTheDay(): { text: string; author: string } {
   return QUOTES[dayIndex % QUOTES.length];
 }
 
+/** ISO-8601 week number. */
+function getWeekNumber(d: Date): number {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+}
+
+function getDayOfYear(d: Date): number {
+  const start = new Date(d.getFullYear(), 0, 0);
+  return Math.floor((d.getTime() - start.getTime()) / 86400000);
+}
+
+function daysInYear(d: Date): number {
+  const y = d.getFullYear();
+  return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0 ? 366 : 365;
+}
+
+const pulse = keyframes`
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.6); opacity: 0.35; }
+`;
+
 const HeroCard = styled(Card)`
   position: relative;
   overflow: hidden;
+  border: 1px solid ${({ theme }) => theme.color.border};
   background:
     radial-gradient(
-      circle at top right,
-      ${({ theme }) => theme.color.accent}18 0%,
-      transparent 18%
+      120% 130% at 100% 0%,
+      ${({ theme }) => theme.color.accent}14 0%,
+      transparent 46%
     ),
-    linear-gradient(
-      135deg,
-      ${({ theme }) => theme.color.card} 0%,
-      ${({ theme }) => theme.color.muted} 100%
+    ${({ theme }) => theme.color.card};
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      ${({ theme }) => theme.color.accent} 0%,
+      ${({ theme }) => theme.color.accent}40 28%,
+      transparent 60%
     );
-  border: 1px solid ${({ theme }) => theme.color.border};
+    pointer-events: none;
+  }
 `;
 
 const Row = styled.div`
@@ -66,61 +101,64 @@ const Row = styled.div`
   gap: 18px;
   align-items: stretch;
   @media (min-width: 900px) {
-    grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.95fr);
-    gap: 22px;
-    align-items: center;
+    grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.9fr);
+    gap: 24px;
+    align-items: stretch;
   }
 `;
 
 const Left = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
   min-width: 0;
   justify-content: center;
 `;
 
-const TopRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-`;
-
-const Eyebrow = styled.span`
+const StatusRow = styled.div`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: ${({ theme }) => theme.color.accent}12;
-  color: ${({ theme }) => theme.color.accent};
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-`;
-
-const TodayPill = styled.span`
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: ${({ theme }) => theme.color.background};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  color: ${({ theme }) => theme.color.mutedForeground};
-  font-size: 11px;
+  gap: 8px;
+  font-size: 12px;
   font-weight: 600;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  font-variant-numeric: tabular-nums;
+`;
+
+const PulseDot = styled.span`
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: ${({ theme }) => theme.color.accent};
+  flex-shrink: 0;
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: ${({ theme }) => theme.color.accent};
+    animation: ${pulse} 2.4s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      animation: none;
+    }
+  }
+`;
+
+const Sep = styled.span`
+  color: ${({ theme }) => theme.color.border};
 `;
 
 const Greeting = styled.h1`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: clamp(28px, 3.2vw, 42px);
+  font-size: clamp(30px, 3.4vw, 46px);
   font-weight: 800;
-  line-height: 1;
+  line-height: 1.02;
   color: ${({ theme }) => theme.color.foreground};
   margin: 0;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.035em;
 `;
 
 const Accent = styled.span`
@@ -128,68 +166,82 @@ const Accent = styled.span`
 `;
 
 const DateLine = styled.p`
-  font-size: 13px;
+  font-size: 13.5px;
   color: ${({ theme }) => theme.color.mutedForeground};
   margin: 0;
 `;
 
-const MetaRow = styled.div`
+const ChipRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
+  margin-top: 2px;
 `;
 
-const MetaTag = styled.span`
+const Chip = styled.span`
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: ${({ theme }) => theme.color.muted};
+  border: 1px solid ${({ theme }) => theme.color.border};
   color: ${({ theme }) => theme.color.foreground};
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 `;
 
-const Right = styled.div`
+const ChipKey = styled.span`
+  color: ${({ theme }) => theme.color.mutedForeground};
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+`;
+
+const QuotePanel = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border-radius: ${({ theme }) => theme.radii.xl};
-  background: ${({ theme }) => theme.color.background};
+  gap: 16px;
+  padding: 18px;
+  border-radius: ${({ theme }) => theme.radii.lg};
+  background: ${({ theme }) => theme.color.muted};
   border: 1px solid ${({ theme }) => theme.color.border};
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 `;
 
-const QuoteRow = styled.div`
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-`;
-
-const QuoteIcon = styled.div`
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: ${({ theme }) => theme.color.accent}18;
-  color: ${({ theme }) => theme.color.accent};
-  display: flex;
+const QuoteLabel = styled.span`
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: ${({ theme }) => theme.color.accent};
+`;
+
+const QuoteBlock = styled.blockquote`
+  margin: 0;
+  padding-left: 14px;
+  border-left: 2px solid ${({ theme }) => theme.color.accent};
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
 `;
 
 const QuoteText = styled.p`
   margin: 0;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.55;
   color: ${({ theme }) => theme.color.foreground};
-  font-style: italic;
+  font-weight: 500;
 `;
 
-const QuoteAuthor = styled.span`
-  display: block;
-  margin-top: 4px;
-  font-size: 11px;
+const QuoteAuthor = styled.cite`
+  font-size: 11.5px;
   color: ${({ theme }) => theme.color.mutedForeground};
   font-style: normal;
 `;
@@ -202,9 +254,21 @@ const CaptureBtn = styled(Button)`
 
 export function GreetingHero({ name }: { name?: string }) {
   const setCaptureModalOpen = useUIStore((s) => s.setCaptureModalOpen);
+  const [now, setNow] = useState<Date>(() => new Date());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   const greeting = getGreeting();
   const quote = quoteOfTheDay();
-  const dateString = new Date().toLocaleDateString("en-IN", {
+  const time = now.toLocaleTimeString("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const weekday = now.toLocaleDateString("en-IN", { weekday: "long" });
+  const dateString = now.toLocaleDateString("en-IN", {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -215,31 +279,36 @@ export function GreetingHero({ name }: { name?: string }) {
     <HeroCard size="lg" variant="default">
       <Row>
         <Left>
-          <TopRow>
-            <Eyebrow>Welcome back</Eyebrow>
-            <TodayPill>{dateString.split(",")[0]}</TodayPill>
-          </TopRow>
+          <StatusRow>
+            <PulseDot />
+            {time}
+            <Sep>·</Sep>
+            {weekday}
+          </StatusRow>
           <Greeting>
             {greeting}
             {name ? `, ${name}` : ""}
             <Accent>.</Accent>
           </Greeting>
           <DateLine>{dateString}</DateLine>
-          <MetaRow>
-            <MetaTag>🧭 Focused today</MetaTag>
-            <MetaTag>⚡ Momentum on</MetaTag>
-          </MetaRow>
+          <ChipRow>
+            <Chip>
+              <ChipKey>Week</ChipKey>
+              {getWeekNumber(now)}
+            </Chip>
+            <Chip>
+              <ChipKey>Day</ChipKey>
+              {getDayOfYear(now)} / {daysInYear(now)}
+            </Chip>
+          </ChipRow>
         </Left>
 
-        <Right>
-          <QuoteRow>
-            <QuoteIcon>
-              <Sparkles size={14} />
-            </QuoteIcon>
-            <QuoteText>
-              “{quote.text}”<QuoteAuthor>— {quote.author}</QuoteAuthor>
-            </QuoteText>
-          </QuoteRow>
+        <QuotePanel>
+          <QuoteLabel>Daily principle</QuoteLabel>
+          <QuoteBlock>
+            <QuoteText>{quote.text}</QuoteText>
+            <QuoteAuthor>— {quote.author}</QuoteAuthor>
+          </QuoteBlock>
           <CaptureBtn
             variant="primary"
             size="md"
@@ -248,7 +317,7 @@ export function GreetingHero({ name }: { name?: string }) {
           >
             Quick Capture
           </CaptureBtn>
-        </Right>
+        </QuotePanel>
       </Row>
     </HeroCard>
   );

@@ -232,7 +232,7 @@ function SkillRow({ skill }: { skill: SkillInventory }) {
         <SkillName>{skill.skill_name}</SkillName>
         <SkillCat>{skill.category}</SkillCat>
       </SkillInfo>
-      <Select value={skill.level} onValueChange={(level: any) => patch(level)} size="sm" style={{ minWidth: 110 }}>
+      <Select value={skill.level} onValueChange={(level: any) => patch(level)} size="sm" style={{ minWidth: 110 }} aria-label="Skill level">
         {(Object.keys(LEVEL_LABELS) as SkillInventory['level'][]).map(l => (
           <SelectItem key={l} value={l}>
             <Badge tone={LEVEL_COLORS[l]}>{LEVEL_LABELS[l]}</Badge>
@@ -263,7 +263,7 @@ function OpportunityRow({ opp }: { opp: JobOpportunity }) {
             <ExternalLink size={14} />
           </a>
         )}
-        <Select value={opp.status} onValueChange={(val: any) => patch(val)} style={{ minWidth: 120 }}>
+        <Select value={opp.status} onValueChange={(val: any) => patch(val)} style={{ minWidth: 120 }} aria-label="Opportunity status">
           {Object.keys(OPP_STATUS_COLORS).map(s => (
             <SelectItem key={s} value={s}>
               <Badge tone={OPP_STATUS_COLORS[s as OpportunityStatus]}>{s.charAt(0).toUpperCase() + s.slice(1)}</Badge>
@@ -352,6 +352,7 @@ export function CareerPage() {
                         ]}
                         value={oppStatusFilter}
                         onChange={(val) => setOppStatusFilter(val as string)}
+                        aria-label="Filter opportunities by status"
                       />
                     }
                     hoverable
@@ -386,6 +387,7 @@ export function CareerPage() {
                             ]}
                             value={timelineFilter}
                             onChange={(val) => setTimelineFilter(val as string)}
+                            aria-label="Filter timeline events by type"
                           />
                           <Button size="sm" onClick={() => setIsLogModalOpen(true)}>
                             <Plus size={12} style={{ marginRight: 4 }} /> Log Milestone
@@ -445,6 +447,7 @@ export function CareerPage() {
                           ]}
                           value={radarFilter}
                           onChange={(val) => setRadarFilter(val as string)}
+                          aria-label="Filter skills radar by category"
                         />
                       }
                       hoverable

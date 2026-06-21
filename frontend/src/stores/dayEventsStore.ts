@@ -73,3 +73,9 @@ export const fmtDateKey = (d: Date): string => {
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
+
+/** Parse a YYYY-MM-DD key as a local date (avoids UTC midnight off-by-one). */
+export const parseLocalDate = (key: string): Date => {
+  const [y, m, d] = key.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}

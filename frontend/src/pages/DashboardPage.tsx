@@ -24,9 +24,12 @@ const Inner = styled.div`
   max-width: 1440px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(0, 80%) minmax(280px, 20%);
+  grid-template-columns: 1fr;
   gap: 20px;
   align-items: start;
+  @media (min-width: 1024px) {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
 `;
 
 const HeroBlock = styled.div`
@@ -45,13 +48,15 @@ const LeftColumn = styled.div`
 `;
 
 const RightColumn = styled.aside`
-  position: sticky;
-  top: 16px;
-  align-self: start;
   min-width: 0;
   width: 100%;
   max-width: 100%;
-  height: calc(100vh - 32px);
+  @media (min-width: 1024px) {
+    position: sticky;
+    top: 16px;
+    align-self: start;
+    height: calc(100vh - 64px);
+  }
 `;
 
 const ThreeRow = styled.div`
@@ -59,7 +64,6 @@ const ThreeRow = styled.div`
   grid-template-columns: 1fr;
   gap: 20px;
   align-items: stretch;
-  grid-auto-rows: 1fr;
   @media (min-width: 768px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -73,7 +77,6 @@ const TwoRow = styled.div`
   grid-template-columns: 1fr;
   gap: 20px;
   align-items: stretch;
-  grid-auto-rows: 1fr;
   @media (min-width: 768px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

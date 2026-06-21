@@ -40,9 +40,13 @@ const FormContainer = styled(motion.form)`
 
 const FormGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 `
 
 const FormGroup = styled.div`
@@ -99,25 +103,25 @@ function NewEventForm({ onClose }: { onClose: () => void }) {
     >
       <FormGrid>
         <div>
-          <FormLabel>Type</FormLabel>
-          <Select value={eventType} onValueChange={setEventType} required>
+          <FormLabel htmlFor="evt-type">Type</FormLabel>
+          <Select id="evt-type" value={eventType} onValueChange={setEventType} required aria-label="Event type">
             {Object.entries(EVENT_TYPE_LABELS).map(([v, l]) => (
               <SelectItem key={v} value={v}>{l}</SelectItem>
             ))}
           </Select>
         </div>
         <div>
-          <FormLabel>MRR (optional)</FormLabel>
-          <Input type="number" startAdornment="₹" placeholder="0" min={0} value={mrr} onChange={(e: any) => setMrr(e.target.value)} />
+          <FormLabel htmlFor="evt-mrr">MRR (optional)</FormLabel>
+          <Input id="evt-mrr" type="number" startAdornment="₹" placeholder="0" min={0} value={mrr} onChange={(e: any) => setMrr(e.target.value)} />
         </div>
       </FormGrid>
       <FormGroup>
-        <FormLabel>Title</FormLabel>
-        <Input placeholder="What happened?" maxLength={200} value={title} onChange={(e: any) => setTitle(e.target.value)} required />
+        <FormLabel htmlFor="evt-title">Title</FormLabel>
+        <Input id="evt-title" placeholder="What happened?" maxLength={200} value={title} onChange={(e: any) => setTitle(e.target.value)} required />
       </FormGroup>
       <FormGroup>
-        <FormLabel>Description</FormLabel>
-        <Textarea placeholder="More context (optional)" rows={3} value={description} onChange={(e: any) => setDescription(e.target.value)} />
+        <FormLabel htmlFor="evt-description">Description</FormLabel>
+        <Textarea id="evt-description" placeholder="More context (optional)" rows={3} value={description} onChange={(e: any) => setDescription(e.target.value)} />
       </FormGroup>
       <FormActions>
         <Button variant="ghost" type="button" onClick={onClose} size="sm">Cancel</Button>
@@ -280,6 +284,7 @@ export function EventsTab() {
               ]}
               value={eventTypeFilter}
               onChange={(val) => setEventTypeFilter(val as string)}
+              aria-label="Filter events by type"
             />
             {!showForm && (
               <LogEventButton onClick={() => setShowForm(true)}>

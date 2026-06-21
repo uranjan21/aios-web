@@ -55,6 +55,7 @@ async def get_summary(current_user=Depends(get_current_user), db=Depends(get_db)
 
     mrr_result = await db.execute(
         select(BusinessEvent)
+        .where(BusinessEvent.event_type == "mrr_update")
         .where(BusinessEvent.mrr.is_not(None))
         .order_by(desc(BusinessEvent.occurred_at))
         .limit(1)

@@ -1,13 +1,14 @@
 import { useMemo } from 'react'
+import { toast } from 'sonner'
 import styled from 'styled-components'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Flame, Activity, Target, Layers, History, IndianRupee, Heart, Briefcase, Rocket, PenLine, Check, Clock } from 'lucide-react'
+import { Flame, Activity, Target, Layers, History, IndianRupee, Heart, Briefcase, Rocket, PenLine, Check, Clock, AlertCircle } from 'lucide-react'
 import { Card, Stack } from '@ledgr/ui'
 import { useNavigate } from 'react-router-dom'
 import {
   healthApi, financeApi, careerApi, businessApi, contentApi, capturesApi,
 } from '@/api/areas'
-import { useDayEventsStore, fmtDateKey } from '@/stores/dayEventsStore'
+import { useDayEventsStore, fmtDateKey, parseLocalDate } from '@/stores/dayEventsStore'
 import { formatCurrency, formatRelativeTime } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CATEGORY_COLOR } from './MonthlyCalendar'
@@ -108,7 +109,28 @@ export function HabitsCard() {
   const today = fmtDateKey(new Date())
   const toggle = useMutation({
     mutationFn: (id: string) => healthApi.toggleHabit(id, today),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['health', 'habits'] }),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ['health', 'habits'] })
+      const prev = qc.getQueryData<typeof habits>(['health', 'habits'])
+      qc.setQueryData<typeof habits>(['health', 'habits'], (old) =>
+        old?.map((h) =>
+          h.id === id
+            ? {
+                ...h,
+                checks: Array.isArray(h.checks) && h.checks.includes(today)
+                  ? h.checks.filter((d: string) => d !== today)
+                  : [...(h.checks ?? []), today],
+              }
+            : h
+        )
+      )
+      return { prev }
+    },
+    onError: (_err, _id, ctx) => {
+      qc.setQueryData(['health', 'habits'], ctx?.prev)
+      toast.error('Failed to toggle habit')
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['health', 'habits'] }),
   })
 
   return (
@@ -207,14 +229,15 @@ const TotalLabel = styled.span`
 `
 
 export function WeekActivityCard() {
-  const { data: captures, isLoading } = useQuery({
+  const { data: captures, isLoading, isError } = useQuery({
     queryKey: ['captures', 'list'],
-    queryFn: () => capturesApi.list?.() ?? Promise.resolve([]),
+    queryFn: () => capturesApi.list(),
+    staleTime: 60_000,
   })
 
   const week = useMemo(() => {
     const buckets: Array<{ date: Date; key: string; count: number; dow: string }> = []
-    const todayDow = ['S','M','T','W','T','F','S']
+    const todayDow = ['Su','Mo','Tu','We','Th','Fr','Sa']
     for (let i = 6; i >= 0; i--) {
       const d = new Date()
       d.setDate(d.getDate() - i)
@@ -237,7 +260,11 @@ export function WeekActivityCard() {
 
   return (
     <Card title="This Week" subtitle="Captures per day" icon={<Activity size={14} style={{ color: '#0EA5E9' }} />}>
-      {isLoading ? (
+      {isError ? (
+        <Empty style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <AlertCircle size={13} /> Failed to load captures.
+        </Empty>
+      ) : isLoading ? (
         <Skeleton style={{ height: 110, width: '100%' }} />
       ) : (
         <>
@@ -335,10 +362,10 @@ export function FocusCard() {
       ) : (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           {top3.map((e, i) => {
-            const color = CATEGORY_COLOR[e.category]
+            const color = CATEGORY_COLOR[e.category] ?? '#6B7280'
             const dateLabel = e.date === todayKey
               ? 'Today'
-              : new Date(e.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' })
+              : parseLocalDate(e.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' })
             return (
               <FocusItem key={e.id} $color={color}>
                 <FocusNum $color={color}>{i + 1}</FocusNum>
@@ -417,25 +444,33 @@ const PulseValue = styled.span`
 
 export function DomainPulseCard() {
   const navigate = useNavigate()
-  const { data: netWorth } = useQuery({ queryKey: ['finance', 'net-worth'], queryFn: financeApi.netWorth })
-  const { data: streak } = useQuery({ queryKey: ['health', 'streak'], queryFn: healthApi.streak })
-  const { data: career } = useQuery({ queryKey: ['career', 'summary'], queryFn: careerApi.summary })
-  const { data: business } = useQuery({ queryKey: ['business', 'summary'], queryFn: businessApi.summary })
-  const { data: content } = useQuery({ queryKey: ['content', 'items'], queryFn: () => contentApi.items() })
+  const { data: netWorth } = useQuery({ queryKey: ['finance', 'net-worth'], queryFn: financeApi.netWorth, staleTime: 60_000 })
+  const { data: streak } = useQuery({ queryKey: ['health', 'streak'], queryFn: healthApi.streak, staleTime: 60_000 })
+  const { data: career } = useQuery({ queryKey: ['career', 'summary'], queryFn: careerApi.summary, staleTime: 60_000 })
+  const { data: business } = useQuery({ queryKey: ['business', 'summary'], queryFn: businessApi.summary, staleTime: 60_000 })
+  const { data: content } = useQuery({ queryKey: ['content', 'items'], queryFn: () => contentApi.items(), staleTime: 60_000 })
 
-  const thisMonth = (content ?? []).filter((i) => {
-    if (i.status !== 'published' || !i.publish_date) return false
-    const d = new Date(i.publish_date)
-    const now = new Date()
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-  }).length
+  const thisMonth = content
+    ? content.filter((i) => {
+        if (i.status !== 'published' || !i.publish_date) return false
+        const d = new Date(i.publish_date)
+        const now = new Date()
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+      }).length
+    : null
+
+  const mrrValue = (() => {
+    if (!business) return '—'
+    const n = Number(business.mrr)
+    return Number.isFinite(n) && n > 0 ? formatCurrency(n) : '—'
+  })()
 
   const tiles = [
     { label: 'Finance', value: netWorth ? formatCurrency(netWorth.net_worth) : '—', color: '#CA8A04', icon: <IndianRupee size={14} />, path: '/areas/finance' },
     { label: 'Health',  value: streak ? `${streak.current_streak}d` : '—', color: '#16A34A', icon: <Heart size={14} />, path: '/areas/health' },
     { label: 'Career',  value: career?.total_skills != null ? `${career.total_skills} skills` : '—', color: '#0EA5E9', icon: <Briefcase size={14} />, path: '/areas/career' },
-    { label: 'Business',value: business?.mrr != null ? formatCurrency(Number(business.mrr)) : '₹0', color: '#DC2626', icon: <Rocket size={14} />, path: '/areas/business' },
-    { label: 'Content', value: `${thisMonth}/mo`, color: '#A855F7', icon: <PenLine size={14} />, path: '/areas/content' },
+    { label: 'Business',value: mrrValue, color: '#DC2626', icon: <Rocket size={14} />, path: '/areas/business' },
+    { label: 'Content', value: thisMonth !== null ? `${thisMonth}/mo` : '—', color: '#A855F7', icon: <PenLine size={14} />, path: '/areas/content' },
   ]
 
   return (
@@ -503,10 +538,17 @@ export function RecentActivityCard() {
   const navigate = useNavigate()
   const { data: captures, isLoading } = useQuery({
     queryKey: ['captures', 'list'],
-    queryFn: () => capturesApi.list?.() ?? Promise.resolve([]),
+    queryFn: () => capturesApi.list(),
+    staleTime: 60_000,
   })
 
-  const items = Array.isArray(captures) ? (captures as Array<{ id: string; raw_text?: string; text?: string; created_at?: string }>).slice(0, 6) : []
+  const items = Array.isArray(captures)
+    ? (captures as Array<{ id: string; raw_text?: string; text?: string; created_at?: string }>)
+        .slice()
+        .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
+        .filter((c) => !!(c.raw_text || c.text))
+        .slice(0, 6)
+    : []
 
   return (
     <Card

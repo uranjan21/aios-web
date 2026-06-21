@@ -71,6 +71,11 @@ const ToggleButton = styled.button<{ $collapsed: boolean }>`
   justify-content: center;
   cursor: pointer;
   box-shadow: ${({ theme }) => theme.shadow.md};
+  transition: background-color 120ms, border-color 120ms;
+  
+  &:hover {
+    background: ${CHROME_BORDER};
+  }
   
   & > svg {
     width: 12px;
@@ -336,7 +341,7 @@ export function Sidebar() {
         </BrandText>
       </BrandPanel>
 
-      <NavList>
+      <NavList aria-label="Main navigation">
         {NAV_GROUPS.map((group) => (
           <NavGroup key={group.category}>
             <CategoryHeader $collapsed={collapsed}>{group.category}</CategoryHeader>

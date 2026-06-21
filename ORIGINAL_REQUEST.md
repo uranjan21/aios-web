@@ -262,3 +262,32 @@ Update the remaining documentation to ensure accuracy and high quality. This inv
 - [ ] Code snippets within the documentation match the current implementation in the source code.
 - [ ] Formatting (e.g., headings, lists, code block language tags) is consistent across all reviewed files.
 - [ ] Unnecessary files (empty, redundant, or explicitly outdated) have been successfully removed.
+
+## Follow-up — 2026-06-21T11:28:08+05:30
+
+Audit all the backend APIs in the current `aios-web` project, simultaneously verify their frontend mappings programmatically, and ensure the corresponding frontend features meet accessibility (a11y) and premium UI/UX standards.
+
+Working directory: /Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web
+Integrity mode: benchmark
+
+## Requirements
+
+### R1. Comprehensive Backend API Audit
+Identify all backend APIs defined in the `aios-web` project (specifically in the `backend` directory) and document their expected inputs, outputs, and behaviors.
+
+### R2. Frontend Mapping Verification
+Identify where these APIs are called in the `frontend` code. Ensure every documented API endpoint has corresponding programmatic checks testing the frontend implementation against expected backend responses. Provide scripts or tests to verify this integration.
+
+### R3. Accessibility & UI/UX Audit
+For the frontend features utilizing these APIs, use the `a11y-debugging` and `ui-ux-pro-max` guidelines to audit the UI. Ensure the features are fully accessible (semantic HTML, proper ARIA labels, focus states) and follow premium UI/UX design standards.
+
+## Acceptance Criteria
+
+### API & Frontend Mapping
+- [ ] A complete list of backend APIs is documented.
+- [ ] A mapping of each backend API to its frontend implementation is provided.
+- [ ] Programmatic test scripts (e.g., using a testing framework or custom scripts) successfully verify the API-to-frontend mappings.
+
+### UI/UX & Accessibility
+- [ ] The audited frontend features pass an accessibility review based on the `a11y-debugging` skill.
+- [ ] The UI components meet the design quality standards from the `ui-ux-pro-max` skill.

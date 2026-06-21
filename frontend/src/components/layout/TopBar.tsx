@@ -37,6 +37,11 @@ const BackButton = styled.button`
     background: ${({ theme }) => theme.color.muted};
     color: ${({ theme }) => theme.color.foreground};
   }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color.ring};
+    outline-offset: 2px;
+  }
   
   svg { width: 16px; height: 16px; }
 `
@@ -51,6 +56,11 @@ const Hamburger = styled.button`
   border-radius: 12px;
   
   &:hover { background: ${({ theme }) => theme.color.muted}; }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color.ring};
+    outline-offset: 2px;
+  }
   
   @media (min-width: 768px) {
     display: none;
@@ -169,6 +179,11 @@ const IconButton = styled.button`
     background: ${({ theme }) => theme.color.muted};
     color: ${({ theme }) => theme.color.foreground};
   }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color.ring};
+    outline-offset: 2px;
+  }
   
   svg {
     width: 16px;
@@ -193,6 +208,11 @@ const UserMenuTrigger = styled.button`
   transition: background-color 120ms;
   
   &:hover { background: ${({ theme }) => theme.color.muted}; }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color.ring};
+    outline-offset: 2px;
+  }
   
   .avatar {
     width: 24px;
@@ -311,6 +331,7 @@ export function TopBar() {
           type="text" 
           placeholder="Search anything (⌘K)..." 
           readOnly 
+          aria-label="Global search"
         />
       </GlobalSearchContainer>
 
@@ -322,7 +343,7 @@ export function TopBar() {
         {/* We can use the custom NotificationBell but wrap it conceptually if needed */}
         <NotificationBell />
         
-        <UserMenuTrigger>
+        <UserMenuTrigger aria-label="User settings menu">
           <div className="avatar">U</div>
           <div className="info">
             <span className="name">User Premium</span>

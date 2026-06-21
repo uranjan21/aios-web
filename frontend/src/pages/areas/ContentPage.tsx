@@ -339,6 +339,7 @@ function EngagementWidget({ publishedItems }: { publishedItems: ContentItem[] })
         <div onClick={(e) => e.stopPropagation()}>
           <Select
             size="sm"
+            aria-label="Period filter"
             value={period}
             onChange={(val: any) => setPeriod(val)}
             options={[
@@ -625,6 +626,7 @@ export function ContentPage() {
         <Dialog open={editDialog.open} onOpenChange={(open) => setEditDialog(d => ({ ...d, open }))} title="Edit task title">
           <div style={{ marginTop: 16 }}>
             <Input
+              aria-label="New task title"
               value={editDialog.title}
               onChange={e => setEditDialog(d => ({ ...d, title: e.target.value }))}
             />
@@ -642,6 +644,7 @@ export function ContentPage() {
           <div style={{ marginTop: 16 }}>
             <p style={{ fontSize: 14, color: 'var(--muted-foreground)', marginBottom: 8 }}>Format: YYYY-MM-DD</p>
             <Input
+              aria-label="Publish date"
               value={scheduleDialog.date}
               onChange={e => setScheduleDialog(d => ({ ...d, date: e.target.value }))}
               placeholder="YYYY-MM-DD"

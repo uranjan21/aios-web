@@ -79,9 +79,15 @@ const StyledListItem = styled.div`
   justify-content: space-between;
   padding: 0.75rem 1rem;
   transition: background-color 0.2s;
+  cursor: pointer;
   
   &:hover {
     background-color: rgba(45, 49, 58, 0.02);
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color?.ring || '#CA8A04'};
+    outline-offset: -2px;
   }
 `;
 
@@ -456,7 +462,7 @@ export function BodySleepTab() {
           ) : (
             <StyledListWrapper>
               {[...filteredSleepList].reverse().map(d => (
-                <StyledListItem key={d.date}>
+                <StyledListItem key={d.date} tabIndex={0}>
                   <div>
                     <StyledListItemTitle>{format(new Date(d.date), 'EEE, MMM d')}</StyledListItemTitle>
                     {d.quality && <StyledListItemSubtitle>{d.quality} quality</StyledListItemSubtitle>}
@@ -487,20 +493,20 @@ export function BodySleepTab() {
         {logType === 'body' && (
           <StyledForm onSubmit={e => { e.preventDefault(); bodyMutation.mutate(bodyFormState); setLogModalOpen(false); }}>
             <StyledFormGroup>
-              <StyledLabel>Date</StyledLabel>
-              <Input type="date" value={bodyFormState.logged_at} onChange={(e: any) => setBodyFormState(p => ({ ...p, logged_at: e.target.value }))} />
+              <StyledLabel htmlFor="body-date">Date</StyledLabel>
+              <Input id="body-date" type="date" value={bodyFormState.logged_at} onChange={(e: any) => setBodyFormState(p => ({ ...p, logged_at: e.target.value }))} />
             </StyledFormGroup>
             <StyledFormGroup>
-              <StyledLabel>Weight (kg)</StyledLabel>
-              <Input type="number" required placeholder="0" min={0} step={0.1} value={bodyFormState.weight_kg} onChange={(e: any) => setBodyFormState(p => ({ ...p, weight_kg: e.target.value }))} />
+              <StyledLabel htmlFor="body-weight">Weight (kg)</StyledLabel>
+              <Input id="body-weight" type="number" required placeholder="0" min={0} step={0.1} value={bodyFormState.weight_kg} onChange={(e: any) => setBodyFormState(p => ({ ...p, weight_kg: e.target.value }))} />
             </StyledFormGroup>
             <StyledFormGroup>
-              <StyledLabel>Body Fat % (optional)</StyledLabel>
-              <Input type="number" placeholder="0" min={0} max={100} step={0.1} value={bodyFormState.body_fat_pct} onChange={(e: any) => setBodyFormState(p => ({ ...p, body_fat_pct: e.target.value }))} />
+              <StyledLabel htmlFor="body-fat">Body Fat % (optional)</StyledLabel>
+              <Input id="body-fat" type="number" placeholder="0" min={0} max={100} step={0.1} value={bodyFormState.body_fat_pct} onChange={(e: any) => setBodyFormState(p => ({ ...p, body_fat_pct: e.target.value }))} />
             </StyledFormGroup>
             <StyledFormGroup>
-              <StyledLabel>Notes</StyledLabel>
-              <Input placeholder="Optional note" value={bodyFormState.notes} onChange={(e: any) => setBodyFormState(p => ({ ...p, notes: e.target.value }))} />
+              <StyledLabel htmlFor="body-notes">Notes</StyledLabel>
+              <Input id="body-notes" placeholder="Optional note" value={bodyFormState.notes} onChange={(e: any) => setBodyFormState(p => ({ ...p, notes: e.target.value }))} />
             </StyledFormGroup>
             <StyledFormActions>
               <Button variant="outline" size="sm" type="button" onClick={() => setLogModalOpen(false)}>Cancel</Button>
@@ -514,16 +520,16 @@ export function BodySleepTab() {
         {logType === 'sleep' && (
           <StyledForm onSubmit={e => { e.preventDefault(); sleepMutation.mutate(sleepFormState); setLogModalOpen(false); }}>
             <StyledFormGroup>
-              <StyledLabel>Date</StyledLabel>
-              <Input type="date" value={sleepFormState.logged_at} onChange={(e: any) => setSleepFormState(p => ({ ...p, logged_at: e.target.value }))} />
+              <StyledLabel htmlFor="sleep-date">Date</StyledLabel>
+              <Input id="sleep-date" type="date" value={sleepFormState.logged_at} onChange={(e: any) => setSleepFormState(p => ({ ...p, logged_at: e.target.value }))} />
             </StyledFormGroup>
             <StyledFormGroup>
-              <StyledLabel>Hours Slept</StyledLabel>
-              <Input type="number" required placeholder="8" min={0} max={24} step={0.5} value={sleepFormState.hours} onChange={(e: any) => setSleepFormState(p => ({ ...p, hours: e.target.value }))} />
+              <StyledLabel htmlFor="sleep-hours">Hours Slept</StyledLabel>
+              <Input id="sleep-hours" type="number" required placeholder="8" min={0} max={24} step={0.5} value={sleepFormState.hours} onChange={(e: any) => setSleepFormState(p => ({ ...p, hours: e.target.value }))} />
             </StyledFormGroup>
             <StyledFormGroup>
-              <StyledLabel>Quality</StyledLabel>
-              <Select size="sm" options={qualitySelectOptions} value={sleepFormState.quality} onChange={(val: any) => setSleepFormState(p => ({ ...p, quality: val }))} />
+              <StyledLabel htmlFor="sleep-quality">Quality</StyledLabel>
+              <Select id="sleep-quality" size="sm" options={qualitySelectOptions} value={sleepFormState.quality} onChange={(val: any) => setSleepFormState(p => ({ ...p, quality: val }))} />
             </StyledFormGroup>
             <StyledFormActions>
               <Button variant="outline" size="sm" type="button" onClick={() => setLogModalOpen(false)}>Cancel</Button>

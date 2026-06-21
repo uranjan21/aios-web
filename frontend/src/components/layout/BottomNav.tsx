@@ -9,7 +9,9 @@ const Nav = styled.nav`
   left: 0;
   right: 0;
   height: 64px;
-  background: ${({ theme }) => theme.color.card};
+  background: color-mix(in srgb, ${({ theme }) => theme.color.card} 80%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-top: 1px solid ${({ theme }) => theme.color.border};
   box-shadow: ${({ theme }) => theme.shadow.lg};
   z-index: ${({ theme }) => theme.zIndex.sticky};
@@ -31,6 +33,11 @@ const TabLink = styled(NavLink)<{ $active: boolean }>`
   text-decoration: none;
   color: ${({ theme, $active }) => $active ? theme.color.primary : theme.color.mutedForeground};
   transition: color 120ms;
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color.ring};
+    outline-offset: -4px;
+  }
 `
 
 const IconWrap = styled.div<{ $active: boolean }>`
@@ -52,7 +59,7 @@ export function BottomNav() {
   const location = useLocation()
 
   return (
-    <Nav>
+    <Nav aria-label="Mobile navigation">
       {TABS.map(({ to, icon: Icon, label }) => {
         const active = to === '/'
           ? location.pathname === '/'

@@ -10,7 +10,7 @@ import {
   ChevronLeft, ChevronRight, ShoppingBag, Clapperboard, Home, Heart,
   CreditCard, Shirt, GraduationCap, Zap, Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   ArrowLeftRight, ArrowDownCircle, ArrowUpCircle, PencilLine, Trash2, Search, Upload as UploadIcon,
-  Plus } from 'lucide-react'
+  Plus, Split, X, Check } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { cn, formatCurrency } from '@/lib/utils'
 import styled from 'styled-components'
@@ -63,9 +63,13 @@ function getCategoryIcon(category: string) {
 // ── Summary bar ────────────────────────────────────────────────────────────
 const SummaryGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
   margin-bottom: 12px;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 `
 
 const SumValue = styled.div<{ $color: string }>`
@@ -110,9 +114,13 @@ function SummaryBar({ income, expense }: { income: number; expense: number }) {
 // ── Form Components ────────────────────────────────────────────────────────
 const FormGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
   margin-bottom: 12px;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 `
 
 const FormLabel = styled.label`
@@ -324,7 +332,10 @@ function TransactionRow({ txn, onEdit }: { txn: Txn; onEdit: (t: Txn) => void })
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
             <TxnDesc>{txn.description || txn.category}</TxnDesc>
             {txn.split_group_id && (
-              <span style={{ fontSize: 10, color: 'var(--primary)', flexShrink: 0 }} title="Part of a split payment">⧉ split</span>
+              <span style={{ fontSize: 10, color: 'var(--primary)', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 2 }} title="Part of a split payment">
+                <Split size={10} />
+                split
+              </span>
             )}
           </div>
           <TxnMeta>
@@ -499,36 +510,36 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
       <form id="transaction-form" onSubmit={e => { e.preventDefault(); mutate() }}>
         <FormGrid>
           <div>
-            <FormLabel>Amount (₹)</FormLabel>
-            <Input type="number" startAdornment="₹" placeholder="0.00" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} required />
+            <FormLabel htmlFor="txn-amount">Amount (₹)</FormLabel>
+            <Input id="txn-amount" type="number" startAdornment="₹" placeholder="0.00" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} required />
           </div>
           <div>
-            <FormLabel>Date</FormLabel>
-            <Input type="date" value={date} onChange={e => setDate(e.target.value)} required />
+            <FormLabel htmlFor="txn-date">Date</FormLabel>
+            <Input id="txn-date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
           </div>
         </FormGrid>
         {effectiveKind === 'Transfer' ? (
           <FormGrid>
             <div>
-              <FormLabel>From Account</FormLabel>
-              <Select placeholder="Source account" options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))} value={fromAccountId} onChange={(v: string) => setFromAccountId(v)} required />
+              <FormLabel htmlFor="txn-from-account">From Account</FormLabel>
+              <Select id="txn-from-account" placeholder="Source account" options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))} value={fromAccountId} onChange={(v: string) => setFromAccountId(v)} required />
             </div>
             <div>
-              <FormLabel>To Account</FormLabel>
-              <Select placeholder="Destination account" options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))} value={toAccountId} onChange={(v: string) => setToAccountId(v)} required />
+              <FormLabel htmlFor="txn-to-account">To Account</FormLabel>
+              <Select id="txn-to-account" placeholder="Destination account" options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))} value={toAccountId} onChange={(v: string) => setToAccountId(v)} required />
             </div>
           </FormGrid>
         ) : (
           <FormGrid>
             {!(effectiveKind === 'Expense' && splitMode) && (
               <div>
-                <FormLabel>{effectiveKind === 'Expense' ? 'Category' : 'Source'}</FormLabel>
-                <Select placeholder={effectiveKind === 'Expense' ? 'Select category' : 'Select source'} options={(effectiveKind === 'Expense' ? EXPENSE_CATEGORIES : INCOME_SOURCES).map(c => ({ label: c, value: c }))} value={category} onChange={(v: string) => setCategory(v)} required />
+                <FormLabel htmlFor="txn-category">{effectiveKind === 'Expense' ? 'Category' : 'Source'}</FormLabel>
+                <Select id="txn-category" placeholder={effectiveKind === 'Expense' ? 'Select category' : 'Select source'} options={(effectiveKind === 'Expense' ? EXPENSE_CATEGORIES : INCOME_SOURCES).map(c => ({ label: c, value: c }))} value={category} onChange={(v: string) => setCategory(v)} required />
               </div>
             )}
             <div>
-              <FormLabel>Account (optional)</FormLabel>
-              <Select placeholder="No account" options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))} value={accountId} onChange={(v: string) => setAccountId(v)} />
+              <FormLabel htmlFor="txn-account">Account (optional)</FormLabel>
+              <Select id="txn-account" placeholder="No account" options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))} value={accountId} onChange={(v: string) => setAccountId(v)} />
             </div>
           </FormGrid>
         )}
@@ -543,13 +554,13 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
             {splits.map((s, idx) => (
               <FormFlexStart key={idx}>
                 <FormFlex1>
-                  <Select placeholder="Category" options={EXPENSE_CATEGORIES.map(c => ({ label: c, value: c }))} value={s.category} onChange={(v: string) => { const n = [...splits]; n[idx].category = v; setSplits(n); }} required />
+                  <Select placeholder="Category" options={EXPENSE_CATEGORIES.map(c => ({ label: c, value: c }))} value={s.category} onChange={(v: string) => { const n = [...splits]; n[idx].category = v; setSplits(n); }} required aria-label={`Split category ${idx + 1}`} />
                 </FormFlex1>
                 <AmountInputWrap>
-                  <Input type="number" startAdornment="₹" placeholder="0" min="0.01" value={s.amount || ''} onChange={(e) => { const n = [...splits]; n[idx].amount = e.target.value; setSplits(n); }} required />
+                  <Input type="number" startAdornment="₹" placeholder="0" min="0.01" value={s.amount || ''} onChange={(e) => { const n = [...splits]; n[idx].amount = e.target.value; setSplits(n); }} required aria-label={`Split amount ${idx + 1}`} />
                 </AmountInputWrap>
                 {splits.length > 2 && (
-                  <Button variant="ghost" size="sm" type="button" onClick={() => { const n = [...splits]; n.splice(idx, 1); setSplits(n); }} aria-label="Remove split row">✕</Button>
+                  <Button variant="ghost" size="sm" type="button" onClick={() => { const n = [...splits]; n.splice(idx, 1); setSplits(n); }} aria-label={`Remove split row ${idx + 1}`}><X size={12} /></Button>
                 )}
               </FormFlexStart>
             ))}
@@ -560,7 +571,7 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
               const diff = total - parts
               return (
                 <SplitText $color={Math.abs(diff) < 0.01 ? 'var(--kpi-emerald)' : 'var(--kpi-amber)'}>
-                  Parts: {formatCurrency(parts)} of {formatCurrency(total)}{Math.abs(diff) >= 0.01 ? ` — ${formatCurrency(Math.abs(diff))} ${diff > 0 ? 'remaining' : 'over'}` : ' ✓'}
+                  Parts: {formatCurrency(parts)} of {formatCurrency(total)}{Math.abs(diff) >= 0.01 ? ` — ${formatCurrency(Math.abs(diff))} ${diff > 0 ? 'remaining' : 'over'}` : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}><Check size={10} /> Matched</span>}
                 </SplitText>
               )
             })()}
@@ -568,13 +579,13 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
         )}
         {effectiveKind !== 'Transfer' && (
           <FormGroup>
-            <FormLabel>Tags (comma separated)</FormLabel>
-            <Input placeholder="e.g. trip-goa, reimbursable" value={tags.join(',')} onChange={e => setTags(e.target.value.split(',').map(s => s.trim()))} />
+            <FormLabel htmlFor="txn-tags">Tags (comma separated)</FormLabel>
+            <Input id="txn-tags" placeholder="e.g. trip-goa, reimbursable" value={tags.join(',')} onChange={e => setTags(e.target.value.split(',').map(s => s.trim()))} />
           </FormGroup>
         )}
         <FormGroup>
-          <FormLabel>Description</FormLabel>
-          <Input placeholder="Optional note" maxLength={200} value={description} onChange={e => setDescription(e.target.value)} />
+          <FormLabel htmlFor="txn-description">Description</FormLabel>
+          <Input id="txn-description" placeholder="Optional note" maxLength={200} value={description} onChange={e => setDescription(e.target.value)} />
         </FormGroup>
       </form>
       <DialogFooter>
@@ -763,6 +774,7 @@ export function TransactionsTab() {
           startAdornment={<Search size={13} />}
           size="sm"
           style={{ width: 200 }}
+          aria-label="Search transactions"
         />
         <ToolbarIconBtn
           onClick={() => setFilterOpen(true)}
@@ -1017,9 +1029,11 @@ function FilterModal({
           options={[{ label: 'All', value: 'all' }, { label: 'Exp', value: 'expense' }, { label: 'Inc', value: 'income' }, { label: 'Trf', value: 'transfer' }]}
           value={filterKind}
           onChange={setFilterKind}
+          aria-label="Filter by type"
         />
-        <FilterLabel>Account</FilterLabel>
+        <FilterLabel htmlFor="filter-account">Account</FilterLabel>
         <Select
+          id="filter-account"
           size="sm"
           placeholder="Select Account"
           allowClear
@@ -1027,9 +1041,11 @@ function FilterModal({
           value={filterAccount}
           onChange={setFilterAccount}
           options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))}
+          aria-label="Filter by account"
         />
-        <FilterLabel>Category</FilterLabel>
+        <FilterLabel htmlFor="filter-category">Category</FilterLabel>
         <Select
+          id="filter-category"
           size="sm"
           placeholder="Select Category"
           allowClear
@@ -1037,18 +1053,19 @@ function FilterModal({
           value={filterCategory}
           onChange={setFilterCategory}
           options={(categories ?? []).map((c: any) => ({ label: c.name, value: c.name }))}
+          aria-label="Filter by category"
         />
-        <FilterLabel>Tag</FilterLabel>
-        <Input size="sm" placeholder="Enter tag name" value={filterTag} onChange={e => setFilterTag(e.target.value)} allowClear />
+        <FilterLabel htmlFor="filter-tag">Tag</FilterLabel>
+        <Input id="filter-tag" size="sm" placeholder="Enter tag name" value={filterTag} onChange={e => setFilterTag(e.target.value)} allowClear aria-label="Filter by tag name" />
         <FilterLabel>Amount Range</FilterLabel>
         <FilterRow>
-          <Input type="number" size="sm" placeholder="Min ₹" min="0" style={{ width: '100%' }} value={filterMin || ''} onChange={e => setFilterMin(e.target.value ? Number(e.target.value) : null)} />
-          <Input type="number" size="sm" placeholder="Max ₹" min="0" style={{ width: '100%' }} value={filterMax || ''} onChange={e => setFilterMax(e.target.value ? Number(e.target.value) : null)} />
+          <Input type="number" size="sm" placeholder="Min ₹" min="0" style={{ width: '100%' }} value={filterMin || ''} onChange={e => setFilterMin(e.target.value ? Number(e.target.value) : null)} aria-label="Minimum amount" />
+          <Input type="number" size="sm" placeholder="Max ₹" min="0" style={{ width: '100%' }} value={filterMax || ''} onChange={e => setFilterMax(e.target.value ? Number(e.target.value) : null)} aria-label="Maximum amount" />
         </FilterRow>
         <FilterLabel>Date Range</FilterLabel>
         <FilterRow>
-          <Input type="date" size="sm" style={{ width: '100%' }} value={filterRange?.[0] ? filterRange[0].format('YYYY-MM-DD') : ''} onChange={e => setFilterRange(e.target.value ? [dayjs(e.target.value), filterRange?.[1] || dayjs(e.target.value)] : null)} />
-          <Input type="date" size="sm" style={{ width: '100%' }} value={filterRange?.[1] ? filterRange[1].format('YYYY-MM-DD') : ''} onChange={e => setFilterRange(e.target.value ? [filterRange?.[0] || dayjs(e.target.value), dayjs(e.target.value)] : null)} />
+          <Input type="date" size="sm" style={{ width: '100%' }} value={filterRange?.[0] ? filterRange[0].format('YYYY-MM-DD') : ''} onChange={e => setFilterRange(e.target.value ? [dayjs(e.target.value), filterRange?.[1] || dayjs(e.target.value)] : null)} aria-label="Start date" />
+          <Input type="date" size="sm" style={{ width: '100%' }} value={filterRange?.[1] ? filterRange[1].format('YYYY-MM-DD') : ''} onChange={e => setFilterRange(e.target.value ? [filterRange?.[0] || dayjs(e.target.value), dayjs(e.target.value)] : null)} aria-label="End date" />
         </FilterRow>
         <FilterActions>
           <Button variant="primary" size="sm" style={{ width: '100%' }} onClick={onClose}>Apply Filters</Button>

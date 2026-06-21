@@ -54,6 +54,7 @@ export function ContentCaptureModal({ open, onClose }: { open: boolean; onClose:
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 8 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <Input
+              aria-label="Idea title"
               placeholder="What's your next big idea?"
               value={form.title}
               onChange={e => { setForm(f => ({ ...f, title: e.target.value })); setTitleError('') }}
@@ -69,6 +70,7 @@ export function ContentCaptureModal({ open, onClose }: { open: boolean; onClose:
           </div>
 
           <Select
+            aria-label="Target platform"
             value={form.platform}
             onChange={v => setForm(f => ({ ...f, platform: v }))}
             size="lg"

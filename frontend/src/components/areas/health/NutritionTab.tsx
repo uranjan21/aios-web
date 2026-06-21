@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import styled from 'styled-components'
 
-import { Utensils, Clock, Search, Plus, Flame, ListChecks } from 'lucide-react'
+import { Utensils, Clock, Search, Plus, Flame, ListChecks, Coffee } from 'lucide-react'
 import { healthApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import { format } from 'date-fns'
@@ -15,10 +15,10 @@ import { Dialog, Button, Input, Select, SelectItem, Card, HeaderActionPortal, Se
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack']
 
 const QUICK_ADDS = [
-  { label: '🍛 Dal Rice', kcal: 450, protein: 12, carbs: 75, fat: 8, type: 'Lunch' },
-  { label: '🫓 Roti', kcal: 100, protein: 3, carbs: 18, fat: 2, type: 'Dinner' },
-  { label: '🥛 Whey', kcal: 130, protein: 24, carbs: 5, fat: 2, type: 'Snack' },
-  { label: '☕ Coffee', kcal: 15, protein: 1, carbs: 2, fat: 1, type: 'Snack' },
+  { label: 'Dal Rice', kcal: 450, protein: 12, carbs: 75, fat: 8, type: 'Lunch' },
+  { label: 'Roti', kcal: 100, protein: 3, carbs: 18, fat: 2, type: 'Dinner' },
+  { label: 'Whey', kcal: 130, protein: 24, carbs: 5, fat: 2, type: 'Snack' },
+  { label: 'Coffee', kcal: 15, protein: 1, carbs: 2, fat: 1, type: 'Snack' },
 ]
 
 interface MacroBarProps {
@@ -110,8 +110,8 @@ const StyledCalorieRingTextWrapper = styled.div`
 `;
 
 const StyledCalorieRingValue = styled.span`
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 500;
   color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
 `;
 
@@ -224,9 +224,15 @@ const StyledMealItem = styled.div`
   justify-content: space-between;
   padding: 0.75rem 20px;
   transition: background-color 0.2s;
+  cursor: pointer;
   
   &:hover {
     background-color: rgba(45, 49, 58, 0.02);
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color?.ring || '#CA8A04'};
+    outline-offset: -2px;
   }
 `;
 
@@ -314,6 +320,11 @@ const StyledQuickAddButton = styled.button`
   
   &:hover {
     background-color: rgba(45, 49, 58, 0.2);
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color?.ring || '#CA8A04'};
+    outline-offset: 1px;
   }
 `;
 
@@ -434,7 +445,7 @@ export function NutritionTab() {
 
   const handleQuickAdd = (item: typeof QUICK_ADDS[0]) => {
     setFormState({
-      food_name: item.label.replace(/^[^\s]+ /, ''),
+      food_name: item.label,
       calories: String(item.kcal),
       protein: String(item.protein),
       carbs: String(item.carbs),
@@ -526,7 +537,7 @@ export function NutritionTab() {
                 .map(meal => {
                 const parsed = parseMealNotes(meal.notes)
                 return (
-                  <StyledMealItem key={meal.id}>
+                  <StyledMealItem key={meal.id} tabIndex={0}>
                     <StyledMealInfo>
                       <StyledMealIconWrapper>
                         <Utensils style={{ width: '14px', height: '14px', color: 'var(--primary)' }} />
@@ -560,11 +571,16 @@ export function NutritionTab() {
         <StyledQuickAddSection>
           <StyledQuickAddTitle>Quick Add</StyledQuickAddTitle>
           <StyledQuickAddButtons>
-            {QUICK_ADDS.map(item => (
-              <StyledQuickAddButton key={item.label} onClick={() => handleQuickAdd(item)}>
-                {item.label}
-              </StyledQuickAddButton>
-            ))}
+            {QUICK_ADDS.map(item => {
+              const IconComponent = item.label.toLowerCase() === 'coffee' ? Coffee : Utensils;
+              return (
+                <StyledQuickAddButton key={item.label} onClick={() => handleQuickAdd(item)}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <IconComponent size={11} /> {item.label}
+                  </span>
+                </StyledQuickAddButton>
+              )
+            })}
           </StyledQuickAddButtons>
         </StyledQuickAddSection>
 
@@ -582,6 +598,7 @@ export function NutritionTab() {
                 else if (!e.target.value) { setSelectedFood(null); setGrams(null) }
               }}
               size="sm"
+              aria-label="Search food database"
             />
             <datalist id="food-search">
               {(foods ?? []).map(f => (
@@ -600,6 +617,7 @@ export function NutritionTab() {
             value={grams ?? ''}
             onChange={(e: any) => handleGramsChange(e.target.value ? Number(e.target.value) : null)}
             disabled={!selectedFood}
+            aria-label="Weight in grams"
           />
         </StyledSearchSection>
         
@@ -611,31 +629,31 @@ export function NutritionTab() {
         
         <StyledForm onSubmit={e => { e.preventDefault(); logMealMutation.mutate(formState); }}>
           <StyledFormGroup>
-            <StyledLabel>Food Name</StyledLabel>
-            <Input required placeholder="e.g. Chicken Rice Bowl" size="sm" value={formState.food_name} onChange={(e: any) => setFormState(p => ({ ...p, food_name: e.target.value }))} />
+            <StyledLabel htmlFor="nut-food-name">Food Name</StyledLabel>
+            <Input id="nut-food-name" required placeholder="e.g. Chicken Rice Bowl" size="sm" value={formState.food_name} onChange={(e: any) => setFormState(p => ({ ...p, food_name: e.target.value }))} />
           </StyledFormGroup>
           <StyledFormGroup>
-            <StyledLabel>Meal Type</StyledLabel>
-            <Select size="sm" value={formState.meal_type} onChange={(v: any) => setFormState(p => ({ ...p, meal_type: v }))}>
+            <StyledLabel htmlFor="nut-meal-type">Meal Type</StyledLabel>
+            <Select id="nut-meal-type" size="sm" value={formState.meal_type} onChange={(v: any) => setFormState(p => ({ ...p, meal_type: v }))}>
               {MEAL_TYPES.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
             </Select>
           </StyledFormGroup>
           <StyledFormGrid>
             <StyledFormGroup>
-              <StyledLabel>Calories</StyledLabel>
-              <Input type="number" required placeholder="0" min={0} size="sm" value={formState.calories} onChange={(e: any) => setFormState(p => ({ ...p, calories: e.target.value }))} />
+              <StyledLabel htmlFor="nut-calories">Calories</StyledLabel>
+              <Input id="nut-calories" type="number" required placeholder="0" min={0} size="sm" value={formState.calories} onChange={(e: any) => setFormState(p => ({ ...p, calories: e.target.value }))} />
             </StyledFormGroup>
             <StyledFormGroup>
-              <StyledLabel>Protein (g)</StyledLabel>
-              <Input type="number" placeholder="0" min={0} size="sm" value={formState.protein} onChange={(e: any) => setFormState(p => ({ ...p, protein: e.target.value }))} />
+              <StyledLabel htmlFor="nut-protein">Protein (g)</StyledLabel>
+              <Input id="nut-protein" type="number" placeholder="0" min={0} size="sm" value={formState.protein} onChange={(e: any) => setFormState(p => ({ ...p, protein: e.target.value }))} />
             </StyledFormGroup>
             <StyledFormGroup>
-              <StyledLabel>Carbs (g)</StyledLabel>
-              <Input type="number" placeholder="0" min={0} size="sm" value={formState.carbs} onChange={(e: any) => setFormState(p => ({ ...p, carbs: e.target.value }))} />
+              <StyledLabel htmlFor="nut-carbs">Carbs (g)</StyledLabel>
+              <Input id="nut-carbs" type="number" placeholder="0" min={0} size="sm" value={formState.carbs} onChange={(e: any) => setFormState(p => ({ ...p, carbs: e.target.value }))} />
             </StyledFormGroup>
             <StyledFormGroup>
-              <StyledLabel>Fat (g)</StyledLabel>
-              <Input type="number" placeholder="0" min={0} size="sm" value={formState.fat} onChange={(e: any) => setFormState(p => ({ ...p, fat: e.target.value }))} />
+              <StyledLabel htmlFor="nut-fat">Fat (g)</StyledLabel>
+              <Input id="nut-fat" type="number" placeholder="0" min={0} size="sm" value={formState.fat} onChange={(e: any) => setFormState(p => ({ ...p, fat: e.target.value }))} />
             </StyledFormGroup>
           </StyledFormGrid>
           <Button variant="primary" type="submit" disabled={logMealMutation.isPending} size="sm" style={{ width: '100%' }}>Log Meal</Button>

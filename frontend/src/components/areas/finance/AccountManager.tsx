@@ -293,9 +293,10 @@ export const AccountManager: React.FC = () => {
       <Dialog title="Edit Account" open={!!editingAccount} onOpenChange={v => { if (!v) closeEdit(); }}>
         <FormGrid>
           <FullWidth>
-            <FieldLabel>
+            <FieldLabel htmlFor="edit-account-name">
               Account name
               <Input
+                id="edit-account-name"
                 value={editForm.name}
                 onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                 placeholder="e.g. HDFC Savings"
@@ -303,30 +304,35 @@ export const AccountManager: React.FC = () => {
               />
             </FieldLabel>
           </FullWidth>
-          <FieldLabel>
+          <FieldLabel htmlFor="edit-account-type">
             Type
             <Select
+              id="edit-account-type"
               fullWidth
               size="md"
               value={editForm.type}
               onChange={(v) => setEditForm(f => ({ ...f, type: String(v) }))}
               options={ACCOUNT_TYPE_OPTIONS}
+              aria-label="Account type"
             />
           </FieldLabel>
-          <FieldLabel>
+          <FieldLabel htmlFor="edit-account-currency">
             Currency
             <Select
+              id="edit-account-currency"
               fullWidth
               size="md"
               value={editForm.currency}
               onChange={(v) => setEditForm(f => ({ ...f, currency: String(v) }))}
               options={CURRENCY_OPTIONS}
+              aria-label="Currency"
             />
           </FieldLabel>
           <FullWidth>
-            <FieldLabel>
+            <FieldLabel htmlFor="edit-account-balance">
               Balance
               <Input
+                id="edit-account-balance"
                 type="number"
                 step="0.01"
                 value={editForm.balance}

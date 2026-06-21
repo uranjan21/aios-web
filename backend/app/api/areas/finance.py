@@ -642,8 +642,8 @@ async def update_goal(goal_id: uuid.UUID, body: GoalUpdate, current_user=Depends
         goal.target_amount = body.target_amount
     if body.current_amount is not None:
         goal.current_amount = body.current_amount
-    if body.deadline is not None:
-        goal.deadline = date_type.fromisoformat(body.deadline)
+    if "deadline" in body.model_fields_set:
+        goal.deadline = date_type.fromisoformat(body.deadline) if body.deadline is not None else None
     if body.color is not None:
         goal.color = body.color
     goal.updated_at = datetime.utcnow()

@@ -74,6 +74,7 @@ function Section({ title, children, delay, action }: { title: string; children: 
   const meta = SECTION_META[title]
   return (
     <GlassCard
+      variant="glass"
       title={title}
       subtitle={meta?.subtitle}
       icon={meta?.icon}
@@ -153,6 +154,7 @@ const RetryBtn = styled.button`
   border: none;
   cursor: pointer;
   border-radius: 4px;
+  transition: color 120ms ease-in-out;
   &:hover { color: ${({ theme }) => theme.color.foreground}; }
   &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 2px; }
 `
@@ -477,6 +479,7 @@ export function SettingsPage() {
               ]}
               value={aiRange}
               onChange={(val) => setAiRange(val as string)}
+              aria-label="AI usage period"
             />
           }
         >
@@ -499,6 +502,7 @@ export function SettingsPage() {
               ]}
               value={shortcutCategory}
               onChange={(val) => setShortcutCategory(val as string)}
+              aria-label="Keyboard shortcut category"
             />
           }
         >
@@ -518,6 +522,7 @@ export function SettingsPage() {
         </Section>
 
         <GlassCard
+          variant="glass"
           title="Account"
           subtitle="Sign-out and account-level controls"
           icon={<User size={16} />}

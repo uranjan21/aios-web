@@ -54,7 +54,6 @@ async def gym_streak(current_user=Depends(get_current_user), db=Depends(get_db))
         select(HealthLog)
         .where(HealthLog.entry_type == "gym")
         .order_by(desc(HealthLog.logged_at))
-        .limit(100)
     )
     gym_logs = result.scalars().all()
 
@@ -65,19 +64,29 @@ async def gym_streak(current_user=Depends(get_current_user), db=Depends(get_db))
     dates = sorted({l.logged_at.date() for l in gym_logs}, reverse=True)
     last_workout_at = dates[0].isoformat() if dates else None
 
-    current_streak = 0
+    def _count_streak(sorted_dates_desc: list, start_date) -> int:
+        streak = 0
+        check = start_date
+        for d in sorted_dates_desc:
+            if d >= check - timedelta(days=1):
+                streak += 1
+                check = d
+            else:
+                break
+        return streak
+
     today = date.today()
-    check = today
-    for d in dates:
-        if d >= check - timedelta(days=1):
-            current_streak += 1
-            check = d
-        else:
-            break
+    current_streak = _count_streak(dates, today)
+
+    longest_streak = 0
+    for i, d in enumerate(dates):
+        s = _count_streak(dates[i:], d)
+        if s > longest_streak:
+            longest_streak = s
 
     return {
         "current_streak": current_streak,
-        "longest_streak": current_streak,  # simplified
+        "longest_streak": longest_streak,
         "last_workout_at": last_workout_at,
     }
 
@@ -285,21 +294,39 @@ async def list_habits(current_user=Depends(get_current_user), db=Depends(get_db)
     habits = (await db.execute(
         select(Habit).where(Habit.is_active == True).order_by(Habit.created_at)
     )).scalars().all()
+    if not habits:
+        return []
+
     today = datetime.utcnow().date()
     window_start = (today - _timedelta(days=29)).isoformat()
+    habit_ids = [h.id for h in habits]
+
+    window_rows = (await db.execute(
+        select(HabitCheck).where(
+            HabitCheck.habit_id.in_(habit_ids),
+            HabitCheck.check_date >= window_start,
+        )
+    )).scalars().all()
+    all_rows = (await db.execute(
+        select(HabitCheck.habit_id, HabitCheck.check_date).where(
+            HabitCheck.habit_id.in_(habit_ids)
+        )
+    )).all()
+
+    from collections import defaultdict
+    window_by_habit: dict = defaultdict(list)
+    for c in window_rows:
+        window_by_habit[c.habit_id].append(c.check_date)
+    all_by_habit: dict = defaultdict(set)
+    for habit_id, check_date in all_rows:
+        all_by_habit[habit_id].add(check_date)
 
     out = []
     for h in habits:
-        checks = (await db.execute(
-            select(HabitCheck).where(HabitCheck.habit_id == h.id, HabitCheck.check_date >= window_start)
-        )).scalars().all()
-        all_checks = (await db.execute(
-            select(HabitCheck.check_date).where(HabitCheck.habit_id == h.id)
-        )).scalars().all()
         out.append({
             "id": str(h.id), "name": h.name, "icon": h.icon,
-            "streak": _habit_streak(set(all_checks), today),
-            "checks": sorted(c.check_date for c in checks),
+            "streak": _habit_streak(all_by_habit[h.id], today),
+            "checks": sorted(window_by_habit[h.id]),
         })
     return out
 

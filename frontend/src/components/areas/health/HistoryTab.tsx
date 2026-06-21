@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Select, Badge, Button, Card as GlassCard, DataTable } from '@ledgr/ui'
-import { Download, Activity, History } from 'lucide-react'
+import { Select, Badge, Button, Card as GlassCard, DataTable, HeaderActionPortal } from '@ledgr/ui'
+import { Download, Activity, History, Plus } from 'lucide-react'
 import { healthApi } from '@/api/areas'
 import { exportToCsv, formatRelativeTime } from '@/lib/utils'
 import { format } from 'date-fns'
@@ -129,49 +129,61 @@ export function HistoryTab({ onLogClick }: { onLogClick?: () => void }) {
 
   return (
     <>
-    <WorkspaceLayout rail={undefined}>
-      <GlassCard
-        title="History Logs"
-        subtitle="Recent entries and health logs history"
-        icon={<History size={16} />}
-        action={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Select
-              value={filterType}
-              onChange={setFilterType}
-              size="sm"
-              options={selectOptions}
-              fullWidth={false}
-            />
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleExport}
-              disabled={!filtered?.length}
-            >
-              <StyledButtonContent>
-                <Download size={13} />
-                <span>Export CSV</span>
-              </StyledButtonContent>
-            </Button>
-          </div>
-        }
-        size="none"
-      >
-        <DataTable
-          columns={columns}
-          rows={filtered ?? []}
-          getRowKey={(log: any) => log.id}
-          loading={isLoading}
-          empty={{
-            icon: <Activity size={20} />,
-            title: 'No logs',
-            description: 'Start logging to see your history here.',
-            action: <Button size="sm" variant="primary" onClick={onLogClick || (() => {})}>Add Entry</Button>,
-          }}
-        />
-      </GlassCard>
-    </WorkspaceLayout>
+      <HeaderActionPortal>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleExport}
+            disabled={!filtered?.length}
+          >
+            <StyledButtonContent>
+              <Download size={13} />
+              <span>Export CSV</span>
+            </StyledButtonContent>
+          </Button>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={onLogClick || (() => {})}
+          >
+            <Plus size={12} style={{ marginRight: 4 }} /> Add Entry
+          </Button>
+        </div>
+      </HeaderActionPortal>
+      <WorkspaceLayout rail={undefined}>
+        <GlassCard
+          title="History Logs"
+          subtitle="Recent entries and health logs history"
+          icon={<History size={16} />}
+          action={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Select
+                value={filterType}
+                onChange={setFilterType}
+                size="sm"
+                options={selectOptions}
+                fullWidth={false}
+                aria-label="Filter logs by type"
+              />
+            </div>
+          }
+          size="none"
+        >
+          <DataTable
+            columns={columns}
+            rows={filtered ?? []}
+            getRowKey={(log: any) => log.id}
+            loading={isLoading}
+            empty={{
+              icon: <Activity size={20} />,
+              title: 'No logs',
+              description: 'Start logging to see your history here.',
+              action: <Button size="sm" variant="primary" onClick={onLogClick || (() => {})}>Add Entry</Button>,
+            }}
+          />
+        </GlassCard>
+      </WorkspaceLayout>
     </>
   )
 }

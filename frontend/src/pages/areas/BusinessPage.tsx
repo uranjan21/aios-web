@@ -8,7 +8,7 @@ import { motion } from 'framer-motion'
 import styled from 'styled-components'
 import { Timeline } from 'antd'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Button, Badge, Select } from '@ledgr/ui'
+import { Button, Badge, Select, Input } from '@ledgr/ui'
 import { AreaTabs } from '@/components/ui/AreaTabs'
 import { EventsTab } from '@/components/areas/business/EventsTab'
 import { SummaryTab } from '@/components/areas/business/SummaryTab'
@@ -235,6 +235,22 @@ const RunwayMessage = styled.span`
   display: block;
 `
 
+const CalculatorInputs = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+  margin-bottom: 12px;
+`
+
+const CalcLabel = styled.label`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`
+
 function RunwayCalculator() {
   const [cash, setCash] = useState(50000)
   const [burnRate, setBurnRate] = useState(5000)
@@ -261,27 +277,35 @@ function RunwayCalculator() {
           ]}
           value={runwayPeriod}
           onChange={(val) => setRunwayPeriod(val as string)}
+          aria-label="Scope period"
         />
       }
       hoverable
       fadeIn="up"
     >
-      <RunwayHeader>
-        <div>
-          <RunwayLabel>Current Cash</RunwayLabel>
-          <RunwayValue>
-            <span>₹</span>
-            <span>{cash.toLocaleString()}</span>
-          </RunwayValue>
-        </div>
-        <div>
-          <RunwayLabel>Monthly Burn</RunwayLabel>
-          <RunwayValue>
-            <Activity size={14} />
-            <span>{burnRate.toLocaleString()}</span>
-          </RunwayValue>
-        </div>
-      </RunwayHeader>
+      <CalculatorInputs>
+        <CalcLabel htmlFor="runway-cash">
+          Current Cash (₹)
+          <Input
+            id="runway-cash"
+            type="number"
+            value={cash}
+            onChange={(e: any) => setCash(Number(e.target.value) || 0)}
+            size="sm"
+          />
+        </CalcLabel>
+        <CalcLabel htmlFor="runway-burn">
+          Monthly Burn (₹)
+          <Input
+            id="runway-burn"
+            type="number"
+            value={burnRate}
+            onChange={(e: any) => setBurnRate(Number(e.target.value) || 0)}
+            size="sm"
+          />
+        </CalcLabel>
+      </CalculatorInputs>
+
       <RunwayStatusContainer $isHealthy={isHealthy}>
         <div>
           <RunwayStatusLabel>Estimated Runway</RunwayStatusLabel>
@@ -378,6 +402,7 @@ export function BusinessPage() {
                           ]}
                           value={eventTypeFilter}
                           onChange={(val) => setEventTypeFilter(val as string)}
+                          aria-label="Filter events by type"
                         />
                         <Button size="sm" onClick={() => setIsLogModalOpen(true)}>
                           <ActionButtonContent>

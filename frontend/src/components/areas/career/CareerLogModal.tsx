@@ -13,6 +13,9 @@ const TwoColGrid = styled.div`
   gap: 16px;
   margin-top: 8px;
   margin-bottom: 16px;
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
 `
 
 const HalfGrid = styled.div`
@@ -20,6 +23,9 @@ const HalfGrid = styled.div`
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-bottom: 16px;
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
 `
 
 const FormFooter = styled.div`
@@ -77,13 +83,13 @@ function MilestoneForm({ onClose }: { onClose: () => void }) {
   return (
     <form onSubmit={e => { e.preventDefault(); mutate() }}>
       <TwoColGrid>
-        <Select value={eventType} onValueChange={setEventType} required>
+        <Select value={eventType} onValueChange={setEventType} required aria-label="Event type">
           {Object.entries(EVENT_TYPE_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
         </Select>
-        <Input placeholder="What did you achieve?" value={title} onChange={(e: any) => setTitle(e.target.value)} required />
+        <Input placeholder="What did you achieve?" value={title} onChange={(e: any) => setTitle(e.target.value)} required aria-label="Milestone title" />
       </TwoColGrid>
       <FormGroup>
-        <Textarea placeholder="Details (optional)" rows={3} value={description} onChange={(e: any) => setDescription(e.target.value)} />
+        <Textarea placeholder="Details (optional)" rows={3} value={description} onChange={(e: any) => setDescription(e.target.value)} aria-label="Milestone description" />
       </FormGroup>
       <FormFooter>
         <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
@@ -120,16 +126,16 @@ function OpportunityForm({ onClose }: { onClose: () => void }) {
   return (
     <form onSubmit={e => { e.preventDefault(); mutate() }}>
       <HalfGrid>
-        <Input placeholder="Company" value={company} onChange={(e: any) => setCompany(e.target.value)} required />
-        <Input placeholder="Role" value={role} onChange={(e: any) => setRole(e.target.value)} required />
+        <Input placeholder="Company" value={company} onChange={(e: any) => setCompany(e.target.value)} required aria-label="Company name" />
+        <Input placeholder="Role" value={role} onChange={(e: any) => setRole(e.target.value)} required aria-label="Role title" />
       </HalfGrid>
       <TwoColGrid>
-        <Select value={status} onValueChange={setStatus} required>
+        <Select value={status} onValueChange={setStatus} required aria-label="Opportunity status">
           {Object.keys(OPP_STATUS_COLORS).map(s => (
             <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>
           ))}
         </Select>
-        <Input placeholder="Job posting URL (optional)" value={url} onChange={(e: any) => setUrl(e.target.value)} />
+        <Input placeholder="Job posting URL (optional)" value={url} onChange={(e: any) => setUrl(e.target.value)} aria-label="Job posting URL" />
       </TwoColGrid>
       <FormFooter>
         <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
@@ -169,16 +175,16 @@ function SkillForm({ onClose }: { onClose: () => void }) {
   return (
     <form onSubmit={e => { e.preventDefault(); mutate() }}>
       <HalfGrid>
-        <Input placeholder="Skill name" value={skillName} onChange={(e: any) => setSkillName(e.target.value)} required />
-        <Input placeholder="Category (e.g. technical, soft skill)" value={category} onChange={(e: any) => setCategory(e.target.value)} required />
+        <Input placeholder="Skill name" value={skillName} onChange={(e: any) => setSkillName(e.target.value)} required aria-label="Skill name" />
+        <Input placeholder="Category (e.g. technical, soft skill)" value={category} onChange={(e: any) => setCategory(e.target.value)} required aria-label="Skill category" />
       </HalfGrid>
       <TwoColGrid>
-        <Select value={level} onValueChange={setLevel} required>
+        <Select value={level} onValueChange={setLevel} required aria-label="Skill proficiency level">
           {(Object.keys(LEVEL_LABELS) as SkillInventory['level'][]).map(l => (
             <SelectItem key={l} value={l}>{LEVEL_LABELS[l]}</SelectItem>
           ))}
         </Select>
-        <Input placeholder="Notes (optional)" value={notes} onChange={(e: any) => setNotes(e.target.value)} />
+        <Input placeholder="Notes (optional)" value={notes} onChange={(e: any) => setNotes(e.target.value)} aria-label="Notes" />
       </TwoColGrid>
       <FormFooter>
         <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>

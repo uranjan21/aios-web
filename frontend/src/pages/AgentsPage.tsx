@@ -49,7 +49,7 @@ class AgentErrorBoundary extends Component<
             padding: 16,
             background:
               "color-mix(in srgb, var(--destructive) 8%, transparent)",
-            borderRadius: "12px",
+            borderRadius: "10px",
             border:
               "1px solid color-mix(in srgb, var(--destructive) 20%, transparent)",
           }}
@@ -107,7 +107,7 @@ const PageContainer = styled.div`
 
 const AgentSkeleton = styled(Skeleton)`
   height: 64px;
-  border-radius: 12px;
+  border-radius: 10px;
   background-color: ${({ theme }) => theme.color?.muted || "var(--muted)"};
 `;
 
@@ -564,6 +564,7 @@ function AgentCard({ agent }: { agent: Agent }) {
               variant="outline"
               onClick={() => setTerminalOpen(true)}
               size="sm"
+              aria-label={`View terminal logs for ${agent.name}`}
               style={{
                 color: theme.color.mutedForeground,
                 display: "flex",

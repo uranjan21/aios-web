@@ -15,10 +15,10 @@ import { useChat } from '@/hooks/useChat'
 import { chatApi } from '@/api/chat'
 
 const QUICK_PROMPTS = [
-  { label: '🏋️ Log gym session', value: "Log today's gym session" },
-  { label: '💸 Week spending?', value: 'What did I spend this week?' },
-  { label: '📈 Career summary', value: 'Summarize my career progress this month' },
-  { label: '📅 Upcoming events', value: "What's on my calendar this week?" },
+  { label: 'Log gym session', value: "Log today's gym session" },
+  { label: 'Week spending?', value: 'What did I spend this week?' },
+  { label: 'Career summary', value: 'Summarize my career progress this month' },
+  { label: 'Upcoming events', value: "What's on my calendar this week?" },
 ]
 
 type ToolMeta = { icon: React.FC<{ className?: string, style?: any }>; colorKey: 'primary' | 'accent' | 'foreground' | 'muted' | 'mutedForeground'; summary: (input: Record<string, unknown>) => string }
@@ -88,6 +88,11 @@ const ToolCallButton = styled.button<{ $open: boolean }>`
   
   &:hover {
     background-color: ${({ theme }) => theme.color.muted};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color.ring};
+    outline-offset: -2px;
   }
 `
 
@@ -449,6 +454,13 @@ const SessionItem = styled.div`
     background-color: ${({ theme }) => theme.color.muted}80;
     color: ${({ theme }) => theme.color.foreground};
   }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color.ring};
+    outline-offset: -2px;
+    background-color: ${({ theme }) => theme.color.muted}80;
+    color: ${({ theme }) => theme.color.foreground};
+  }
 `
 
 const SessionItemTitle = styled.span`
@@ -800,7 +812,17 @@ export function ChatPage() {
             <p style={{ fontSize: '12px', color: theme.color.mutedForeground, padding: '8px 12px' }}>No past sessions</p>
           ) : null}
           {sessions?.map(s => (
-            <SessionItem key={s.id} onClick={() => navigate(`/chat/${s.id}`)}>
+            <SessionItem 
+              key={s.id} 
+              tabIndex={0}
+              onClick={() => navigate(`/chat/${s.id}`)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  navigate(`/chat/${s.id}`)
+                }
+              }}
+            >
               <SessionItemTitle>{s.title || 'New conversation'}</SessionItemTitle>
               <SessionActions>
                 <SessionActionButton onClick={(e) => { e.stopPropagation(); handleRename(s.id, s.title) }} aria-label="Rename session">

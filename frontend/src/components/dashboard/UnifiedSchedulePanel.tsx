@@ -2,6 +2,7 @@ import { Card } from "@ledgr/ui";
 import styled from "styled-components";
 import { MonthlyCalendar } from "./MonthlyCalendar";
 import { TodaysTimeline } from "./TodaysTimeline";
+import { Calendar } from "lucide-react";
 
 interface UnifiedSchedulePanelProps {
   selectedDate: Date;
@@ -42,7 +43,12 @@ export function UnifiedSchedulePanel({
   onSelectDate,
 }: UnifiedSchedulePanelProps) {
   return (
-    <Card title="Schedule" size="md">
+    <Card 
+      title="Schedule" 
+      subtitle="Monthly calendar and daily agenda" 
+      icon={<Calendar size={14} />} 
+      size="md"
+    >
       <PanelBody>
         <CalendarSection>
           <MonthlyCalendar

@@ -1,5 +1,6 @@
 import {
   fmtDateKey,
+  parseLocalDate,
   useDayEventsStore,
   type DayEvent,
 } from "@/stores/dayEventsStore";
@@ -218,7 +219,7 @@ export function TodaysTimeline({ date }: TodaysTimelineProps) {
 
   const label = isToday
     ? `Today's tasks`
-    : new Date(key).toLocaleDateString("en-IN", {
+    : parseLocalDate(key).toLocaleDateString("en-IN", {
         weekday: "long",
         day: "numeric",
         month: "short",
@@ -250,7 +251,7 @@ export function TodaysTimeline({ date }: TodaysTimelineProps) {
               <Item key={e.id} $done={!!e.done}>
                 <Dot $color={color} />
                 <Time>
-                  <Clock size={10} /> {fmtTime(e.time)}
+                  {e.time && <Clock size={10} />} {fmtTime(e.time)}
                   {end ? ` – ${end}` : ""}
                 </Time>
                 <ItemRow>

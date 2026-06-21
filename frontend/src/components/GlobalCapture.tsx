@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Send, Loader2, FileText, Sparkles, Check } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { Send, Loader2, Sparkles, Check } from 'lucide-react'
+import { Dialog } from '@ledgr/ui'
 import { toast } from 'sonner'
 import styled from 'styled-components'
 import { capturesApi, financeApi, healthApi, type ParsedCapture } from '@/api/areas'
@@ -45,83 +45,6 @@ async function executeParsed(p: ParsedCapture, rawText: string): Promise<string>
 }
 
 /* ── Styled components ──────────────────────────────────────────────── */
-const FixedContainer = styled.div`
-  position: fixed;
-  inset: 0;
-  z-index: ${({ theme }) => theme.zIndex.modal};
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 15vh 16px 16px;
-  @media (min-width: 640px) { padding-top: 20vh; }
-`
-
-const BackdropMotion = styled(motion.div)`
-  position: fixed;
-  inset: 0;
-  background: ${({ theme }) => theme.color.overlay};
-  backdrop-filter: blur(4px);
-`
-
-const PanelMotion = styled(motion.div)`
-  position: relative;
-  width: 100%;
-  max-width: 576px;
-  background: ${({ theme }) => theme.color.card};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii['2xl']};
-  box-shadow: ${({ theme }) => theme.shadow.xl};
-  overflow: hidden;
-`
-
-const PanelHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  border-bottom: 1px solid ${({ theme }) => theme.color.border};
-  background: ${({ theme }) => theme.color.muted}50;
-`
-
-const HeaderIconWrap = styled.div`
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: ${({ theme }) => theme.color.primary}14;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: ${({ theme }) => theme.color.primary};
-  flex-shrink: 0;
-`
-
-const HeaderTitle = styled.span`
-  font-size: 14px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.color.foreground};
-`
-
-const ShortcutRow = styled.div`
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  color: ${({ theme }) => theme.color.mutedForeground};
-`
-
-const Kbd = styled.kbd`
-  background: ${({ theme }) => theme.color.muted};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 5px;
-  padding: 1px 6px;
-  font-family: ${({ theme }) => theme.typography.fontFamily.mono};
-  font-size: 10px;
-`
-
-const Body = styled.div`
-  padding: 16px;
-`
 
 const StyledTextarea = styled.textarea`
   width: 100%;
@@ -130,16 +53,15 @@ const StyledTextarea = styled.textarea`
   border: none;
   outline: none;
   color: ${({ theme }) => theme.color.foreground};
-  font-size: 18px;
+  font-size: 17px;
   font-family: inherit;
-  line-height: 1.5;
+  line-height: 1.55;
   display: block;
-  &::placeholder { color: ${({ theme }) => theme.color.mutedForeground}60; }
-  @media (min-width: 640px) { font-size: 20px; }
+  &::placeholder { color: ${({ theme }) => theme.color.mutedForeground}55; }
 `
 
 const ParsedBanner = styled.div`
-  margin-top: 8px;
+  margin-top: 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -147,7 +69,7 @@ const ParsedBanner = styled.div`
   padding: 8px 12px;
   border-radius: 10px;
   border: 1px solid ${({ theme }) => theme.color.primary}40;
-  background: ${({ theme }) => theme.color.primary}10;
+  background: ${({ theme }) => theme.color.primary}0D;
 `
 
 const ParsedInfo = styled.div`
@@ -171,13 +93,13 @@ const SaveAsNoteBtn = styled.button`
   &:hover { color: ${({ theme }) => theme.color.foreground}; }
 `
 
-const Footer = styled.div`
+const CaptureActions = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  margin-top: 14px;
+  padding-top: 12px;
   border-top: 1px solid ${({ theme }) => theme.color.border};
-  background: ${({ theme }) => theme.color.muted}50;
 `
 
 const FooterHint = styled.span`
@@ -185,8 +107,7 @@ const FooterHint = styled.span`
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
-const InboxMoniker = styled.span`
-  font-family: ${({ theme }) => theme.typography.fontFamily.mono};
+const InboxMoniker = styled.code`
   background: ${({ theme }) => theme.color.muted};
   padding: 1px 5px;
   border-radius: 4px;
@@ -199,7 +120,7 @@ const SaveBtn = styled.button`
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
   background: ${({ theme }) => theme.color.primary};
   color: ${({ theme }) => theme.color.primaryForeground};
@@ -219,15 +140,19 @@ export function GlobalCapture() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const queryClient = useQueryClient()
 
+  // ⌘L to toggle — reads current state directly to avoid stale closure
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === 'l' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setCaptureModalOpen(!captureModalOpen) }
-      if (e.key === 'Escape' && captureModalOpen) setCaptureModalOpen(false)
+      if (e.key === 'l' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        setCaptureModalOpen(!useUIStore.getState().captureModalOpen)
+      }
     }
     document.addEventListener('keydown', down)
     return () => document.removeEventListener('keydown', down)
-  }, [captureModalOpen, setCaptureModalOpen])
+  }, [setCaptureModalOpen])
 
+  // Focus textarea on open; reset on close
   useEffect(() => {
     if (captureModalOpen) setTimeout(() => inputRef.current?.focus(), 50)
     else { setText(''); setParsed(null) }
@@ -248,6 +173,7 @@ export function GlobalCapture() {
       toast.success(msg)
       queryClient.invalidateQueries({ queryKey: ['finance'] })
       queryClient.invalidateQueries({ queryKey: ['health'] })
+      queryClient.invalidateQueries({ queryKey: ['captures'] })
       setCaptureModalOpen(false); setText(''); setParsed(null)
     },
     onError: () => toast.error('Failed to save — kept your text, try again'),
@@ -262,68 +188,49 @@ export function GlobalCapture() {
   }
 
   return (
-    <AnimatePresence>
-      {captureModalOpen && (
-        <FixedContainer>
-          <BackdropMotion
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            onClick={() => setCaptureModalOpen(false)}
-            aria-hidden="true"
-          />
-          <PanelMotion
-            initial={{ opacity: 0, scale: 0.96, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 16 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            role="dialog" aria-modal="true" aria-label="Global capture"
-          >
-            <PanelHeader>
-              <HeaderIconWrap><FileText size={14} /></HeaderIconWrap>
-              <HeaderTitle>Quick Capture</HeaderTitle>
-              <ShortcutRow>
-                <Kbd>⌘L</Kbd>
-                <span>to open</span>
-              </ShortcutRow>
-            </PanelHeader>
+    <Dialog
+      open={captureModalOpen}
+      onOpenChange={setCaptureModalOpen}
+      title="Quick Capture"
+      description="Type anything — AI routes it to finance, health, or your inbox."
+      size="md"
+    >
+      <StyledTextarea
+        ref={inputRef}
+        value={text}
+        onChange={e => { setText(e.target.value); setParsed(null) }}
+        placeholder="spent 450 on groceries · weight 81.2 · drank 2L water…"
+        rows={4}
+        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
+      />
 
-            <Body>
-              <StyledTextarea
-                ref={inputRef}
-                value={text}
-                onChange={e => { setText(e.target.value); setParsed(null) }}
-                placeholder="spent 450 on groceries · weight 81.2 · drank 2L water…"
-                rows={4}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
-              />
-              {parsed && (
-                <ParsedBanner>
-                  <ParsedInfo>
-                    <Sparkles size={14} color="inherit" style={{ flexShrink: 0 }} />
-                    <span><strong>{DOMAIN_LABELS[parsed.domain]}</strong> — {parsed.summary}</span>
-                  </ParsedInfo>
-                  <SaveAsNoteBtn onClick={() => confirmMutation.mutate({ domain: 'capture', fields: {}, summary: '' })}>
-                    Save as note instead
-                  </SaveAsNoteBtn>
-                </ParsedBanner>
-              )}
-            </Body>
-
-            <Footer>
-              <FooterHint>
-                {parsed
-                  ? 'Confirm to log it where it belongs'
-                  : <>AI parses it — notes fall back to<InboxMoniker>inbox.md</InboxMoniker></>
-                }
-              </FooterHint>
-              <SaveBtn onClick={handleSubmit} disabled={isPending || !text.trim()}>
-                {isPending ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : parsed ? <Check size={16} /> : <Send size={16} />}
-                {parsed ? 'Confirm' : 'Save'}
-              </SaveBtn>
-            </Footer>
-          </PanelMotion>
-        </FixedContainer>
+      {parsed && (
+        <ParsedBanner>
+          <ParsedInfo>
+            <Sparkles size={14} color="inherit" style={{ flexShrink: 0 }} />
+            <span><strong>{DOMAIN_LABELS[parsed.domain]}</strong> — {parsed.summary}</span>
+          </ParsedInfo>
+          <SaveAsNoteBtn onClick={() => confirmMutation.mutate({ domain: 'capture', fields: {}, summary: '' })}>
+            Save as note instead
+          </SaveAsNoteBtn>
+        </ParsedBanner>
       )}
-    </AnimatePresence>
+
+      <CaptureActions>
+        <FooterHint>
+          {parsed
+            ? 'Confirm to log it where it belongs'
+            : <>AI parses it — notes fall back to<InboxMoniker>inbox.md</InboxMoniker></>
+          }
+        </FooterHint>
+        <SaveBtn onClick={handleSubmit} disabled={isPending || !text.trim()}>
+          {isPending
+            ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} />
+            : parsed ? <Check size={15} /> : <Send size={15} />
+          }
+          {parsed ? 'Confirm' : 'Save'}
+        </SaveBtn>
+      </CaptureActions>
+    </Dialog>
   )
 }
