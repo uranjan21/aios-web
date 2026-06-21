@@ -222,7 +222,7 @@ const StyledMealItem = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 20px;
   transition: background-color 0.2s;
   
   &:hover {
@@ -366,7 +366,6 @@ const StyledButtonContent = styled.span`
 
 export function NutritionTab() {
   const [formState, setFormState] = useState({ food_name: '', calories: '', protein: '', carbs: '', fat: '', meal_type: 'Snack' })
-  const [nutritionPeriod, setNutritionPeriod] = useState('today')
   const queryClient = useQueryClient()
   const [foodQuery, setFoodQuery] = useState('')
   const [selectedFood, setSelectedFood] = useState<FoodDbItem | null>(null)
@@ -474,21 +473,6 @@ export function NutritionTab() {
           title="Today's Nutrition"
           subtitle="Calories burned vs target with macro breakdown"
           icon={<Flame size={16} />}
-          action={
-            <div onClick={(e) => e.stopPropagation()}>
-              <Select
-                size="sm"
-                value={nutritionPeriod}
-                onChange={(val: any) => setNutritionPeriod(val)}
-                options={[
-                  { value: 'today', label: 'Today' },
-                  { value: 'weekly', label: 'Weekly (Avg)' },
-                  { value: 'monthly', label: 'Monthly (Avg)' },
-                ]}
-                style={{ width: '120px' }}
-              />
-            </div>
-          }
           size="md"
         >
           {loadingNutrition || loadingGoals ? (

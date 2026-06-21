@@ -110,6 +110,7 @@ const StyledCard = styled.div<{
 
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 
   ${({ $fadeIn, $delay }) => $fadeIn === 'up' && css`
     animation: ${fadeInUp} 0.35s cubic-bezier(0.16, 1, 0.3, 1) ${$delay}ms both;
@@ -125,7 +126,7 @@ export const CardHeader = styled.div<{ $inset?: boolean }>`
   margin-bottom: 16px;
   /* When the parent Card has no padding, the header needs its own horizontal
      inset so icon/title don't sit flush at the card edge. */
-  ${({ $inset }) => $inset && `
+  ${({ $inset }) => $inset && css`
     padding-top: 16px;
     padding-left: 20px;
     padding-right: 20px;
@@ -137,6 +138,12 @@ export const TitleGroup = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+
+  & svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
 `;
 
 export const CardTitle = styled.h2`

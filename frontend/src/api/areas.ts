@@ -63,7 +63,7 @@ export const financeApi = {
   accounts: () => api.get<any[]>('/areas/finance/accounts').then(r => r.data),
   createAccount: (data: { name: string; type: string; balance?: number; currency?: string }) =>
     api.post<any>('/areas/finance/accounts', data).then(r => r.data),
-  updateAccount: (id: string, data: Partial<{ name: string; type: string }>) =>
+  updateAccount: (id: string, data: Partial<{ name: string; type: string; balance: number; currency: string }>) =>
     api.patch<any>(`/areas/finance/accounts/${id}`, data).then(r => r.data),
   deleteAccount: (id: string) => api.delete(`/areas/finance/accounts/${id}`).then(r => r.data),
   accountLedger: (id: string, limit = 50) =>
@@ -88,7 +88,7 @@ export const financeApi = {
   loansSummary: () => api.get<LoanSummary>('/areas/finance/loans/summary').then(r => r.data),
   createLoan: (d: { name: string; loan_type: string; lender?: string; principal_amount: number; outstanding_amount: number; interest_rate: number; emi_amount: number; emi_day: number; tenure_months?: number; notes?: string; account_id?: string }) =>
     api.post<FinanceLoan>('/areas/finance/loans', d).then(r => r.data),
-  patchLoan: (id: string, d: Partial<{ outstanding_amount: number; is_active: boolean; notes: string }>) =>
+  patchLoan: (id: string, d: Partial<{ name: string; loan_type: string; lender: string; principal_amount: number; outstanding_amount: number; interest_rate: number; emi_amount: number; emi_day: number; tenure_months: number; is_active: boolean; notes: string }>) =>
     api.patch<FinanceLoan>(`/areas/finance/loans/${id}`, d).then(r => r.data),
   deleteLoan: (id: string) => api.delete(`/areas/finance/loans/${id}`).then(r => r.data),
 }

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@/components/ui/Popconfirm'
-import { Button, Switch, Dialog, Badge, Input, DataTable, SegmentedControl, Card } from '@ledgr/ui'
+import { Button, Switch, Dialog, Badge, Input, DataTable, SegmentedControl, Card, Select } from '@ledgr/ui'
 import { Trash2, PencilLine, Landmark } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -135,10 +135,27 @@ function ordinal(n: number) {
   return n + (s[(v - 20) % 10] || s[v] || s[0])
 }
 
+type LoanForm = {
+  name: string
+  loan_type: string
+  lender: string
+  principal_amount: string
+  outstanding_amount: string
+  interest_rate: string
+  emi_amount: string
+  emi_day: string
+  tenure_months: string
+  notes: string
+}
+const EMPTY_LOAN_FORM: LoanForm = {
+  name: '', loan_type: 'home', lender: '', principal_amount: '0', outstanding_amount: '0',
+  interest_rate: '0', emi_amount: '0', emi_day: '1', tenure_months: '', notes: '',
+}
+
 export function LoansTab() {
   const queryClient = useQueryClient()
   const [updatingLoan, setUpdatingLoan] = useState<FinanceLoan | null>(null)
-  const [outstandingAmount, setOutstandingAmount] = useState<string>('')
+  const [loanForm, setLoanForm] = useState<LoanForm>(EMPTY_LOAN_FORM)
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paid'>('all')
 
   const { data: loans, isLoading } = useQuery({
@@ -152,15 +169,16 @@ export function LoansTab() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: (values: { outstanding_amount: string }) =>
-      financeApi.patchLoan(updatingLoan!.id, { outstanding_amount: parseFloat(values.outstanding_amount) }),
+    mutationFn: (patch: Parameters<typeof financeApi.patchLoan>[1]) =>
+      financeApi.patchLoan(updatingLoan!.id, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'loans'] })
+      queryClient.invalidateQueries({ queryKey: ['finance', 'loans', 'summary'] })
       toast.success('Loan updated')
       setUpdatingLoan(null)
-      setOutstandingAmount('')
+      setLoanForm(EMPTY_LOAN_FORM)
     },
-    onError: () => toast.error('Failed to update loan'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to update loan'),
   })
 
   const toggleMutation = useMutation({
@@ -183,7 +201,50 @@ export function LoansTab() {
 
   const openUpdate = (loan: FinanceLoan) => {
     setUpdatingLoan(loan)
-    setOutstandingAmount(String(loan.outstanding_amount))
+    setLoanForm({
+      name: loan.name ?? '',
+      loan_type: loan.loan_type ?? 'home',
+      lender: loan.lender ?? '',
+      principal_amount: String(loan.principal_amount ?? 0),
+      outstanding_amount: String(loan.outstanding_amount ?? 0),
+      interest_rate: String(loan.interest_rate ?? 0),
+      emi_amount: String(loan.emi_amount ?? 0),
+      emi_day: String(loan.emi_day ?? 1),
+      tenure_months: loan.tenure_months != null ? String(loan.tenure_months) : '',
+      notes: (loan as any).notes ?? '',
+    })
+  }
+
+  const closeEdit = () => {
+    setUpdatingLoan(null)
+    setLoanForm(EMPTY_LOAN_FORM)
+  }
+
+  const handleSave = () => {
+    const name = loanForm.name.trim()
+    if (!name) { toast.error('Name is required'); return }
+    const principal = parseFloat(loanForm.principal_amount)
+    const outstanding = parseFloat(loanForm.outstanding_amount)
+    const rate = parseFloat(loanForm.interest_rate)
+    const emi = parseFloat(loanForm.emi_amount)
+    const emiDay = parseInt(loanForm.emi_day, 10)
+    const tenure = loanForm.tenure_months ? parseInt(loanForm.tenure_months, 10) : undefined
+    if ([principal, outstanding, rate, emi, emiDay].some(Number.isNaN)) {
+      toast.error('All numeric fields must be valid numbers'); return
+    }
+    if (emiDay < 1 || emiDay > 31) { toast.error('EMI day must be between 1 and 31'); return }
+    updateMutation.mutate({
+      name,
+      loan_type: loanForm.loan_type,
+      lender: loanForm.lender.trim() || undefined,
+      principal_amount: principal,
+      outstanding_amount: outstanding,
+      interest_rate: rate,
+      emi_amount: emi,
+      emi_day: emiDay,
+      ...(tenure !== undefined && { tenure_months: tenure }),
+      notes: loanForm.notes.trim() || undefined,
+    })
   }
 
   const columns = [
@@ -327,18 +388,67 @@ export function LoansTab() {
 
         <Dialog
           open={!!updatingLoan}
-          title={<span style={{ color: 'var(--foreground)' }}>Update outstanding — {updatingLoan?.name}</span>}
-          onOpenChange={(open) => { if (!open) { setUpdatingLoan(null); setOutstandingAmount('') } }}
-          size="sm"
+          title={<span style={{ color: 'var(--foreground)' }}>Edit Loan{updatingLoan?.name ? ` — ${updatingLoan.name}` : ''}</span>}
+          onOpenChange={(open) => { if (!open) closeEdit() }}
+          size="md"
         >
-          <UpdateForm onSubmit={e => { e.preventDefault(); updateMutation.mutate({ outstanding_amount: outstandingAmount }) }}>
+          <UpdateForm onSubmit={e => { e.preventDefault(); handleSave() }}>
             <div>
-              <FieldLabel>Outstanding amount (₹)</FieldLabel>
-              <Input type="number" startAdornment="₹" placeholder="0" min="0" size="lg" value={outstandingAmount} onChange={(e) => setOutstandingAmount(e.target.value)} required />
+              <FieldLabel>Loan name</FieldLabel>
+              <Input value={loanForm.name} onChange={(e: any) => setLoanForm(f => ({ ...f, name: e.target.value }))} placeholder="Home Loan — SBI" autoFocus required />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <FieldLabel>Type</FieldLabel>
+                <Select fullWidth value={loanForm.loan_type} onChange={(v: any) => setLoanForm(f => ({ ...f, loan_type: String(v) }))} options={[
+                  { value: 'home', label: 'Home loan' },
+                  { value: 'personal', label: 'Personal loan' },
+                  { value: 'car', label: 'Car loan' },
+                  { value: 'education', label: 'Education loan' },
+                  { value: 'credit_card', label: 'Credit card' },
+                  { value: 'other', label: 'Other' },
+                ]} />
+              </div>
+              <div>
+                <FieldLabel>Lender</FieldLabel>
+                <Input value={loanForm.lender} onChange={(e: any) => setLoanForm(f => ({ ...f, lender: e.target.value }))} placeholder="SBI" />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <FieldLabel>Principal amount</FieldLabel>
+                <Input type="number" startAdornment="₹" min="0" value={loanForm.principal_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, principal_amount: e.target.value }))} required />
+              </div>
+              <div>
+                <FieldLabel>Outstanding amount</FieldLabel>
+                <Input type="number" startAdornment="₹" min="0" value={loanForm.outstanding_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, outstanding_amount: e.target.value }))} required />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <div>
+                <FieldLabel>Interest rate (%)</FieldLabel>
+                <Input type="number" min="0" step="0.01" value={loanForm.interest_rate} onChange={(e: any) => setLoanForm(f => ({ ...f, interest_rate: e.target.value }))} required />
+              </div>
+              <div>
+                <FieldLabel>EMI amount</FieldLabel>
+                <Input type="number" startAdornment="₹" min="0" value={loanForm.emi_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, emi_amount: e.target.value }))} required />
+              </div>
+              <div>
+                <FieldLabel>EMI day</FieldLabel>
+                <Input type="number" min="1" max="31" value={loanForm.emi_day} onChange={(e: any) => setLoanForm(f => ({ ...f, emi_day: e.target.value }))} required />
+              </div>
+            </div>
+            <div>
+              <FieldLabel>Tenure (months, optional)</FieldLabel>
+              <Input type="number" min="1" value={loanForm.tenure_months} onChange={(e: any) => setLoanForm(f => ({ ...f, tenure_months: e.target.value }))} placeholder="e.g. 240" />
+            </div>
+            <div>
+              <FieldLabel>Notes</FieldLabel>
+              <Input value={loanForm.notes} onChange={(e: any) => setLoanForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional" />
             </div>
             <FormActions>
-              <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save</Button>
-              <Button variant="ghost" onClick={() => { setUpdatingLoan(null); setOutstandingAmount('') }}>Cancel</Button>
+              <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save changes</Button>
+              <Button variant="ghost" type="button" onClick={closeEdit} disabled={updateMutation.isPending}>Cancel</Button>
             </FormActions>
           </UpdateForm>
         </Dialog>

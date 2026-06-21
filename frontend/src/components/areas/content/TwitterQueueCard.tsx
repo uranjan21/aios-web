@@ -85,17 +85,18 @@ export function TwitterQueueCard() {
       icon={<StyledTwitter size={14} />}
       action={
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={(e) => e.stopPropagation()}>
-          <Select
-            size="sm"
-            value={filter}
-            onChange={(val: any) => setFilter(val)}
-            options={[
-              { value: 'all', label: 'All Drafts' },
-              { value: 'ready', label: 'Ready' },
-              { value: 'ideas', label: 'Ideas' },
-            ]}
-            style={{ width: '90px' }}
-          />
+          <div style={{ width: '90px' }}>
+            <Select
+              size="sm"
+              value={filter}
+              onChange={(val: any) => setFilter(val)}
+              options={[
+                { value: 'all', label: 'All Drafts' },
+                { value: 'ready', label: 'Ready' },
+                { value: 'ideas', label: 'Ideas' },
+              ]}
+            />
+          </div>
           <CountLabel>{entries.length} items</CountLabel>
         </div>
       }

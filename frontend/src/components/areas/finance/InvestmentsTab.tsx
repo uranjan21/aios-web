@@ -127,9 +127,22 @@ const TYPE_META: Record<string, { label: string; icon: string; color: string }> 
 }
 
 export function InvestmentsTab() {
+  type HoldingForm = {
+    name: string
+    type: string
+    units: string
+    invested_amount: string
+    current_value: string
+    purchase_date: string
+    notes: string
+  }
+  const EMPTY_HOLDING_FORM: HoldingForm = {
+    name: '', type: 'stock', units: '', invested_amount: '0', current_value: '0', purchase_date: '', notes: '',
+  }
+
   const queryClient = useQueryClient()
   const [updatingHolding, setUpdatingHolding] = useState<FinanceInvestment | null>(null)
-  const [currentValue, setCurrentValue] = useState<string>('')
+  const [holdingForm, setHoldingForm] = useState<HoldingForm>(EMPTY_HOLDING_FORM)
   const [typeFilter, setTypeFilter] = useState<string>('all')
 
   const { data: holdings, isLoading } = useQuery({
@@ -143,15 +156,16 @@ export function InvestmentsTab() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: (values: { current_value: string }) =>
-      financeApi.patchInvestment(updatingHolding!.id, { current_value: parseFloat(values.current_value) }),
+    mutationFn: (patch: Parameters<typeof financeApi.patchInvestment>[1]) =>
+      financeApi.patchInvestment(updatingHolding!.id, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'investments'] })
+      queryClient.invalidateQueries({ queryKey: ['finance', 'investments', 'summary'] })
       toast.success('Holding updated')
       setUpdatingHolding(null)
-      setCurrentValue('')
+      setHoldingForm(EMPTY_HOLDING_FORM)
     },
-    onError: () => toast.error('Failed to update holding'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to update holding'),
   })
 
   const deleteMutation = useMutation({
@@ -165,7 +179,40 @@ export function InvestmentsTab() {
 
   const openUpdate = (holding: FinanceInvestment) => {
     setUpdatingHolding(holding)
-    setCurrentValue(String(holding.current_value))
+    setHoldingForm({
+      name: holding.name ?? '',
+      type: holding.type ?? 'stock',
+      units: holding.units != null ? String(holding.units) : '',
+      invested_amount: String(holding.invested_amount ?? 0),
+      current_value: String(holding.current_value ?? 0),
+      purchase_date: (holding as any).purchase_date ? String((holding as any).purchase_date).slice(0, 10) : '',
+      notes: (holding as any).notes ?? '',
+    })
+  }
+
+  const closeEdit = () => {
+    setUpdatingHolding(null)
+    setHoldingForm(EMPTY_HOLDING_FORM)
+  }
+
+  const handleSave = () => {
+    const name = holdingForm.name.trim()
+    if (!name) { toast.error('Name is required'); return }
+    const invested = parseFloat(holdingForm.invested_amount)
+    const current = parseFloat(holdingForm.current_value)
+    const units = holdingForm.units ? parseFloat(holdingForm.units) : undefined
+    if (Number.isNaN(invested) || invested < 0) { toast.error('Invested amount must be a non-negative number'); return }
+    if (Number.isNaN(current) || current < 0) { toast.error('Current value must be a non-negative number'); return }
+    if (units !== undefined && (Number.isNaN(units) || units < 0)) { toast.error('Units must be a non-negative number'); return }
+    updateMutation.mutate({
+      name,
+      type: holdingForm.type,
+      invested_amount: invested,
+      current_value: current,
+      ...(units !== undefined && { units }),
+      purchase_date: holdingForm.purchase_date || null,
+      notes: holdingForm.notes.trim() || undefined,
+    })
   }
 
   const columns = [
@@ -287,18 +334,46 @@ export function InvestmentsTab() {
 
       <Dialog
         open={!!updatingHolding}
-        title={<ModalTitle>Update value — {updatingHolding?.name}</ModalTitle>}
-        onOpenChange={(open) => { if (!open) { setUpdatingHolding(null); setCurrentValue('') } }}
-        size="sm"
+        title={<ModalTitle>Edit Holding{updatingHolding?.name ? ` — ${updatingHolding.name}` : ''}</ModalTitle>}
+        onOpenChange={(open) => { if (!open) closeEdit() }}
+        size="md"
       >
-        <FormContainer onSubmit={e => { e.preventDefault(); updateMutation.mutate({ current_value: currentValue }) }}>
+        <FormContainer onSubmit={e => { e.preventDefault(); handleSave() }}>
           <FormGroup>
-            <Label>Current value (₹)</Label>
-            <Input type="number" startAdornment="₹" placeholder="0" min="0" size="lg" value={currentValue} onChange={(e) => setCurrentValue(e.target.value)} required />
+            <Label>Name</Label>
+            <Input value={holdingForm.name} onChange={(e: any) => setHoldingForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. HDFC Top 100" autoFocus required />
+          </FormGroup>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <FormGroup>
+              <Label>Type</Label>
+              <Select fullWidth value={holdingForm.type} onChange={(v: any) => setHoldingForm(f => ({ ...f, type: String(v) }))} options={Object.entries(TYPE_META).map(([value, meta]) => ({ value, label: meta.label }))} />
+            </FormGroup>
+            <FormGroup>
+              <Label>Units (optional)</Label>
+              <Input type="number" min="0" step="0.0001" value={holdingForm.units} onChange={(e: any) => setHoldingForm(f => ({ ...f, units: e.target.value }))} placeholder="0" />
+            </FormGroup>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <FormGroup>
+              <Label>Invested amount</Label>
+              <Input type="number" startAdornment="₹" min="0" value={holdingForm.invested_amount} onChange={(e: any) => setHoldingForm(f => ({ ...f, invested_amount: e.target.value }))} required />
+            </FormGroup>
+            <FormGroup>
+              <Label>Current value</Label>
+              <Input type="number" startAdornment="₹" min="0" value={holdingForm.current_value} onChange={(e: any) => setHoldingForm(f => ({ ...f, current_value: e.target.value }))} required />
+            </FormGroup>
+          </div>
+          <FormGroup>
+            <Label>Purchase date</Label>
+            <Input type="date" value={holdingForm.purchase_date} onChange={(e: any) => setHoldingForm(f => ({ ...f, purchase_date: e.target.value }))} />
+          </FormGroup>
+          <FormGroup>
+            <Label>Notes</Label>
+            <Input value={holdingForm.notes} onChange={(e: any) => setHoldingForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional" />
           </FormGroup>
           <ActionsContainer>
-            <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save</Button>
-            <Button variant="ghost" onClick={() => { setUpdatingHolding(null); setCurrentValue('') }} type="button">Cancel</Button>
+            <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save changes</Button>
+            <Button variant="ghost" type="button" onClick={closeEdit} disabled={updateMutation.isPending}>Cancel</Button>
           </ActionsContainer>
         </FormContainer>
       </Dialog>

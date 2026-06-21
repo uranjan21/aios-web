@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import dayjs from 'dayjs'
 import { format } from 'date-fns'
 import { Select, Badge, EmptyState, Button, HeaderActionPortal } from '@ledgr/ui'
 import { financeApi } from '@/api/areas'
@@ -292,7 +293,8 @@ function HealthScoreCard({ data, delay = 0 }: { data: import('@/types').FinanceH
       </GlassCard>
     )
   }
-  const band = BAND_STYLES[data.band] ?? BAND_STYLES.fair
+  const currentData = (healthPeriod === 'prev' && data.prev) ? data.prev : data
+  const band = BAND_STYLES[currentData.band] ?? BAND_STYLES.fair
   return (
     <GlassCard
       title="Financial Health"
@@ -319,11 +321,11 @@ function HealthScoreCard({ data, delay = 0 }: { data: import('@/types').FinanceH
       style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
     >
       <HealthScoreTop>
-        <HealthScoreValue>{data.score}</HealthScoreValue>
+        <HealthScoreValue>{currentData.score}</HealthScoreValue>
         <HealthScoreMax>/ 100</HealthScoreMax>
       </HealthScoreTop>
       <HealthScoreComponents>
-        {data.components.map(c => (
+        {currentData.components.map(c => (
           <div key={c.key}>
             <ComponentHeader>
               <ComponentLabel>{c.label}</ComponentLabel>
@@ -370,10 +372,6 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
   const [showExplainMonth, setShowExplainMonth] = useState(false)
   const [chartFilter, setChartFilter] = useState<'Daily' | 'Weekly' | 'Monthly' | 'Yearly' | 'All Time'>('Monthly')
 
-  const [netWorthFilter, setNetWorthFilter] = useState('all')
-  const [spentFilter, setSpentFilter] = useState('month')
-  const [incomeFilter, setIncomeFilter] = useState('month')
-  const [savingsFilter, setSavingsFilter] = useState('monthly')
   const [upcomingFilter, setUpcomingFilter] = useState('all')
 
   const month = format(new Date(), 'yyyy-MM')
@@ -408,6 +406,12 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
     queryFn: () => financeApi.expenses(month, undefined, 100, 0),
   })
 
+  const { data: yearlyExpenses } = useQuery({
+    queryKey: ['finance', 'expenses', 'yearly'],
+    queryFn: () => financeApi.expenses(undefined, undefined, 200, 0),
+    enabled: period === 'This Year',
+  })
+
   const { data: income } = useQuery({
     queryKey: ['finance', 'income', month],
     queryFn: () => financeApi.income(month),
@@ -424,8 +428,22 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
   const totalIncome = useMemo(() => (income ?? []).reduce((acc, i) => acc + Number(i.amount), 0), [income])
   const savingsRate = totalIncome > 0 ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100) : null
 
+  const filteredExpenseItems = useMemo(() => {
+    let items = expenseItems
+    if (period === 'This Year') {
+      items = yearlyExpenses?.items ?? expenseItems
+      const yearStart = dayjs().startOf('year')
+      return items.filter(item => dayjs(item.logged_at).isAfter(yearStart))
+    }
+    if (period === 'This Week') {
+      const weekStart = dayjs().subtract(6, 'day').startOf('day')
+      return items.filter(item => dayjs(item.logged_at).isAfter(weekStart))
+    }
+    return items
+  }, [expenseItems, yearlyExpenses, period])
+
   const byCategory = new Map<string, number>()
-  expenseItems.forEach(t => byCategory.set(t.category ?? 'Other', (byCategory.get(t.category ?? 'Other') ?? 0) + Number(t.amount)))
+  filteredExpenseItems.forEach(t => byCategory.set(t.category ?? 'Other', (byCategory.get(t.category ?? 'Other') ?? 0) + Number(t.amount)))
   const allCategories = Array.from(byCategory.entries()).sort((a, b) => b[1] - a[1])
   let topCategories = allCategories.slice(0, 5)
   const otherAmount = allCategories.slice(5).reduce((sum, [, amt]) => sum + amt, 0)
@@ -507,8 +525,12 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
       dueDay: l.emi_day,
       type: 'EMI' as const,
     }))
-    return [...billItems, ...loanItems].sort((a, b) => a.days - b.days).slice(0, 5)
-  }, [bills, loans])
+    const filtered = [...billItems, ...loanItems].filter(item => {
+      if (upcomingFilter === '7d') return item.days <= 7
+      return true
+    })
+    return filtered.sort((a, b) => a.days - b.days).slice(0, 5)
+  }, [bills, loans, upcomingFilter])
 
   if (loadingSnapshot || loadingExpenses) {
     return (
@@ -553,56 +575,20 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
             sub="assets − liabilities"
             accent={Number(netWorth?.net_worth ?? 0) < 0 ? 'var(--accent)' : undefined}
             icon={<Wallet size={16} />}
-            action={
-              <Select
-                size="sm"
-                fullWidth={false}
-                options={[
-                  { label: 'All Assets', value: 'all' },
-                  { label: 'Liquid Only', value: 'liquid' },
-                ]}
-                value={netWorthFilter}
-                onChange={(val) => setNetWorthFilter(val as string)}
-              />
-            }
           />
-          <StatTile 
-            label="Spent" 
-            value={formatCurrency(totalExpenses)} 
-            sub={`${expenseItems.length} transactions this month`} 
-            accent="var(--accent)" 
+          <StatTile
+            label="Spent"
+            value={formatCurrency(totalExpenses)}
+            sub={`${expenseItems.length} transactions this month`}
+            accent="var(--accent)"
             icon={<TrendingDown size={16} />}
-            action={
-              <Select
-                size="sm"
-                fullWidth={false}
-                options={[
-                  { label: 'This Month', value: 'month' },
-                  { label: 'This Week', value: 'week' },
-                ]}
-                value={spentFilter}
-                onChange={(val) => setSpentFilter(val as string)}
-              />
-            }
           />
-          <StatTile 
-            label="Income" 
-            value={formatCurrency(totalIncome)} 
-            sub={`${(income ?? []).length} entries this month`} 
-            accent="var(--primary)" 
+          <StatTile
+            label="Income"
+            value={formatCurrency(totalIncome)}
+            sub={`${(income ?? []).length} entries this month`}
+            accent="var(--primary)"
             icon={<TrendingUp size={16} />}
-            action={
-              <Select
-                size="sm"
-                fullWidth={false}
-                options={[
-                  { label: 'This Month', value: 'month' },
-                  { label: 'This Week', value: 'week' },
-                ]}
-                value={incomeFilter}
-                onChange={(val) => setIncomeFilter(val as string)}
-              />
-            }
           />
           <StatTile
             label="Savings Rate"
@@ -610,18 +596,6 @@ export function HomeTab({ onNavigateTab }: { onNavigateTab: (key: string) => voi
             sub={savingsRate === null ? 'log income to see' : savingsRate >= 20 ? 'healthy' : 'aim for 20%+'}
             accent={savingsRate !== null && savingsRate >= 20 ? 'var(--primary)' : undefined}
             icon={<PiggyBank size={16} />}
-            action={
-              <Select
-                size="sm"
-                fullWidth={false}
-                options={[
-                  { label: 'Monthly', value: 'monthly' },
-                  { label: 'Yearly', value: 'yearly' },
-                ]}
-                value={savingsFilter}
-                onChange={(val) => setSavingsFilter(val as string)}
-              />
-            }
           />
         </KpiGrid>
 

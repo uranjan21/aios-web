@@ -82,3 +82,6 @@ tmp/
 # Docker
 .dockerignore
 docker-compose.override.yml
+
+# Graphify
+graphify-out/

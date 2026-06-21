@@ -144,9 +144,12 @@ function daysLeft(deadline: string | null): number | null {
 }
 
 export function GoalsTab() {
+  type EditForm = { name: string; icon: string; target_amount: string; current_amount: string; deadline: string; color: string }
+  const EMPTY_FORM: EditForm = { name: '', icon: '', target_amount: '0', current_amount: '0', deadline: '', color: '' }
+
   const queryClient = useQueryClient()
   const [updatingGoal, setUpdatingGoal] = useState<FinancialGoal | null>(null)
-  const [currentAmount, setCurrentAmount] = useState<string>('')
+  const [editForm, setEditForm] = useState<EditForm>(EMPTY_FORM)
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'overdue'>('all')
 
   const { data: goals, isLoading } = useQuery({
@@ -155,15 +158,15 @@ export function GoalsTab() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: (values: { current_amount: string }) =>
-      financeApi.patchGoal(updatingGoal!.id, { current_amount: parseFloat(values.current_amount) }),
+    mutationFn: (patch: Partial<{ name: string; icon: string; target_amount: number; current_amount: number; deadline: string | null; color: string }>) =>
+      financeApi.patchGoal(updatingGoal!.id, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'goals'] })
       toast.success('Goal updated')
       setUpdatingGoal(null)
-      setCurrentAmount('')
+      setEditForm(EMPTY_FORM)
     },
-    onError: () => toast.error('Failed to update goal'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to update goal'),
   })
 
   const deleteMutation = useMutation({
@@ -177,7 +180,36 @@ export function GoalsTab() {
 
   const openUpdate = (goal: FinancialGoal) => {
     setUpdatingGoal(goal)
-    setCurrentAmount(String(goal.current_amount))
+    setEditForm({
+      name: goal.name ?? '',
+      icon: goal.icon ?? '',
+      target_amount: String(goal.target_amount ?? 0),
+      current_amount: String(goal.current_amount ?? 0),
+      deadline: goal.deadline ? String(goal.deadline).slice(0, 10) : '',
+      color: goal.color ?? '',
+    })
+  }
+
+  const closeEdit = () => {
+    setUpdatingGoal(null)
+    setEditForm(EMPTY_FORM)
+  }
+
+  const handleSave = () => {
+    const name = editForm.name.trim()
+    if (!name) { toast.error('Name is required'); return }
+    const target = parseFloat(editForm.target_amount)
+    const current = parseFloat(editForm.current_amount)
+    if (Number.isNaN(target) || target < 0) { toast.error('Target must be a non-negative number'); return }
+    if (Number.isNaN(current) || current < 0) { toast.error('Current must be a non-negative number'); return }
+    updateMutation.mutate({
+      name,
+      icon: editForm.icon || undefined,
+      target_amount: target,
+      current_amount: current,
+      deadline: editForm.deadline ? editForm.deadline : null,
+      color: editForm.color || undefined,
+    })
   }
 
   const columns = [
@@ -300,18 +332,38 @@ export function GoalsTab() {
 
         <Dialog
           open={!!updatingGoal}
-          title={<ModalTitle>Update saved amount — {updatingGoal?.name}</ModalTitle>}
-          onOpenChange={(open) => { if (!open) { setUpdatingGoal(null); setCurrentAmount('') } }}
+          title={<ModalTitle>Edit Goal{updatingGoal?.name ? ` — ${updatingGoal.name}` : ''}</ModalTitle>}
+          onOpenChange={(open) => { if (!open) closeEdit() }}
           size="sm"
         >
-          <FormContainer onSubmit={e => { e.preventDefault(); updateMutation.mutate({ current_amount: currentAmount }) }}>
+          <FormContainer onSubmit={e => { e.preventDefault(); handleSave() }}>
             <FormGroup>
-              <Label>Current amount saved (₹)</Label>
-              <Input type="number" startAdornment="₹" placeholder="0" min="0" size="lg" value={currentAmount} onChange={(e) => setCurrentAmount(e.target.value)} required />
+              <Label>Name</Label>
+              <Input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Emergency Fund" autoFocus required />
+            </FormGroup>
+            <FormGroup>
+              <Label>Icon (emoji)</Label>
+              <Input value={editForm.icon} maxLength={2} onChange={e => setEditForm(f => ({ ...f, icon: e.target.value }))} placeholder="🎯" />
+            </FormGroup>
+            <FormGroup>
+              <Label>Target amount (₹)</Label>
+              <Input type="number" startAdornment="₹" min="0" step="100" value={editForm.target_amount} onChange={e => setEditForm(f => ({ ...f, target_amount: e.target.value }))} required />
+            </FormGroup>
+            <FormGroup>
+              <Label>Current amount (₹)</Label>
+              <Input type="number" startAdornment="₹" min="0" step="100" value={editForm.current_amount} onChange={e => setEditForm(f => ({ ...f, current_amount: e.target.value }))} required />
+            </FormGroup>
+            <FormGroup>
+              <Label>Deadline</Label>
+              <Input type="date" value={editForm.deadline} onChange={e => setEditForm(f => ({ ...f, deadline: e.target.value }))} />
+            </FormGroup>
+            <FormGroup>
+              <Label>Color (hex)</Label>
+              <Input value={editForm.color} onChange={e => setEditForm(f => ({ ...f, color: e.target.value }))} placeholder="#0D9488" />
             </FormGroup>
             <ActionsContainer>
-              <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save</Button>
-              <Button variant="ghost" onClick={() => { setUpdatingGoal(null); setCurrentAmount('') }} type="button">Cancel</Button>
+              <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save changes</Button>
+              <Button variant="ghost" onClick={closeEdit} type="button" disabled={updateMutation.isPending}>Cancel</Button>
             </ActionsContainer>
           </FormContainer>
         </Dialog>

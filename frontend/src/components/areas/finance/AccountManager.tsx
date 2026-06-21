@@ -114,16 +114,70 @@ function AccountLedgerDrawer({ account, onClose }: { account: any | null; onClos
   );
 }
 
+const ACCOUNT_TYPE_OPTIONS = [
+  { value: 'checking', label: 'Checking' },
+  { value: 'savings', label: 'Savings' },
+  { value: 'credit_card', label: 'Credit card' },
+  { value: 'investment', label: 'Investment' },
+  { value: 'loan', label: 'Loan' },
+];
+
+const CURRENCY_OPTIONS = [
+  { value: 'INR', label: 'INR — Indian Rupee' },
+  { value: 'USD', label: 'USD — US Dollar' },
+  { value: 'EUR', label: 'EUR — Euro' },
+  { value: 'GBP', label: 'GBP — British Pound' },
+  { value: 'AED', label: 'AED — UAE Dirham' },
+  { value: 'SGD', label: 'SGD — Singapore Dollar' },
+];
+
+type EditState = {
+  name: string;
+  type: string;
+  balance: string;
+  currency: string;
+};
+
+const EMPTY_EDIT_STATE: EditState = { name: '', type: 'checking', balance: '0', currency: 'INR' };
+
+const FormGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 4px 0 8px;
+  @media (max-width: 480px) { grid-template-columns: 1fr; }
+`;
+
+const FieldLabel = styled.label`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.foreground};
+`;
+
+const FullWidth = styled.div`
+  grid-column: 1 / -1;
+`;
+
 export const AccountManager: React.FC = () => {
   const queryClient = useQueryClient();
   const [ledgerAccount, setLedgerAccount] = useState<any | null>(null);
   const [editingAccount, setEditingAccount] = useState<any | null>(null);
-  const [editName, setEditName] = useState('');
+  const [editForm, setEditForm] = useState<EditState>(EMPTY_EDIT_STATE);
   const [typeFilter, setTypeFilter] = useState<string>('all');
 
-  // Sync editing state
+  // Hydrate the edit form when an account is picked for editing.
   React.useEffect(() => {
-    if (editingAccount) setEditName(editingAccount.name);
+    if (editingAccount) {
+      setEditForm({
+        name: editingAccount.name ?? '',
+        type: editingAccount.type ?? 'checking',
+        balance: String(editingAccount.balance ?? 0),
+        currency: editingAccount.currency ?? 'INR',
+      });
+    }
   }, [editingAccount]);
 
   const { data: accounts = [], isLoading } = useQuery({
@@ -136,17 +190,49 @@ export const AccountManager: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'accounts'] });
       toast.success('Account deleted');
-    }
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to delete account'),
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: { id: string, name: string }) => financeApi.updateAccount(data.id, { name: data.name }),
+    mutationFn: ({ id, patch }: { id: string; patch: { name: string; type: string; balance: number; currency: string } }) =>
+      financeApi.updateAccount(id, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['finance', 'net-worth'] });
       toast.success('Account updated');
       setEditingAccount(null);
-    }
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to update account'),
   });
+
+  const closeEdit = () => {
+    setEditingAccount(null);
+    setEditForm(EMPTY_EDIT_STATE);
+  };
+
+  const handleSave = () => {
+    if (!editingAccount) return;
+    const trimmedName = editForm.name.trim();
+    if (!trimmedName) {
+      toast.error('Name is required');
+      return;
+    }
+    const balanceNum = parseFloat(editForm.balance);
+    if (Number.isNaN(balanceNum)) {
+      toast.error('Balance must be a number');
+      return;
+    }
+    updateMutation.mutate({
+      id: editingAccount.id,
+      patch: {
+        name: trimmedName,
+        type: editForm.type,
+        balance: balanceNum,
+        currency: editForm.currency.trim().toUpperCase(),
+      },
+    });
+  };
 
   const columns = [
     { id: 'name', header: 'Name', cell: (row: any) => row.name },
@@ -204,14 +290,55 @@ export const AccountManager: React.FC = () => {
 
       <AccountLedgerDrawer account={ledgerAccount} onClose={() => setLedgerAccount(null)} />
 
-      <Dialog title="Edit Account" open={!!editingAccount} onOpenChange={v => { if (!v) setEditingAccount(null) }}>
-        <div style={{ padding: '4px 0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ fontSize: 12, fontWeight: 500 }}>Account Name</div>
-          <Input value={editName} onChange={e => setEditName(e.target.value)} />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-          <Button variant="ghost" onClick={() => setEditingAccount(null)}>Cancel</Button>
-          <Button variant="primary" onClick={() => updateMutation.mutate({ id: editingAccount.id, name: editName })} loading={updateMutation.isPending}>Save</Button>
+      <Dialog title="Edit Account" open={!!editingAccount} onOpenChange={v => { if (!v) closeEdit(); }}>
+        <FormGrid>
+          <FullWidth>
+            <FieldLabel>
+              Account name
+              <Input
+                value={editForm.name}
+                onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="e.g. HDFC Savings"
+                autoFocus
+              />
+            </FieldLabel>
+          </FullWidth>
+          <FieldLabel>
+            Type
+            <Select
+              fullWidth
+              size="md"
+              value={editForm.type}
+              onChange={(v) => setEditForm(f => ({ ...f, type: String(v) }))}
+              options={ACCOUNT_TYPE_OPTIONS}
+            />
+          </FieldLabel>
+          <FieldLabel>
+            Currency
+            <Select
+              fullWidth
+              size="md"
+              value={editForm.currency}
+              onChange={(v) => setEditForm(f => ({ ...f, currency: String(v) }))}
+              options={CURRENCY_OPTIONS}
+            />
+          </FieldLabel>
+          <FullWidth>
+            <FieldLabel>
+              Balance
+              <Input
+                type="number"
+                step="0.01"
+                value={editForm.balance}
+                onChange={e => setEditForm(f => ({ ...f, balance: e.target.value }))}
+                startAdornment={editForm.currency || '₹'}
+              />
+            </FieldLabel>
+          </FullWidth>
+        </FormGrid>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: 4 }}>
+          <Button variant="ghost" onClick={closeEdit} disabled={updateMutation.isPending}>Cancel</Button>
+          <Button variant="primary" onClick={handleSave} loading={updateMutation.isPending}>Save changes</Button>
         </div>
       </Dialog>
     </Card>

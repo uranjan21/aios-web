@@ -126,14 +126,16 @@ const StyledGoalValueWrapper = styled.div`
 `;
 
 const StyledGoalCurrentValue = styled.span`
-  font-size: 0.75rem;
+  font-size: 20px;
   font-weight: 700;
   color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
+  font-variant-numeric: tabular-nums;
 `;
 
 const StyledGoalTargetValue = styled.span`
-  font-size: 10px;
+  font-size: 11px;
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
+  margin-left: 4px;
 `;
 
 const StyledGoalProgressBar = styled.div`
@@ -202,12 +204,11 @@ function GoalCard({ goal, current, target, onTargetChange }: {
 
   return (
     <GlassCard
-      size="sm"
-      style={{ padding: '0.75rem' }}
       title={goal.label}
-      subtitle="Daily fitness and water goals tracker"
-      icon={<Icon style={{ width: '14px', height: '14px', color: goal.color }} />}
-      action={done ? <CheckCircle2 style={{ width: '16px', height: '16px', color: 'var(--primary)' }} /> : undefined}
+      subtitle="Daily target progress"
+      icon={<Icon size={16} style={{ color: goal.color }} />}
+      action={done && <CheckCircle2 size={16} style={{ color: 'var(--primary)' }} />}
+      size="sm"
     >
       <StyledGoalValueWrapper>
         <StyledGoalCurrentValue>
@@ -330,7 +331,7 @@ function SessionCard({ session }: { session: WorkoutSessionItem }) {
       size="sm"
       title={session.name}
       subtitle={dayjs(session.logged_at).format('ddd, MMM D')}
-      icon={<Dumbbell size={14} />}
+      icon={<Dumbbell size={16} />}
       action={
         <Popconfirm title="Delete this workout?" onConfirm={() => deleteMutation.mutate()} okText="Delete" okButtonProps={{ danger: true }}>
           <StyledDeleteButton aria-label="Delete workout">
@@ -359,7 +360,7 @@ const StyledHabitRowWrapper = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 20px;
   border-bottom: 1px solid rgba(45, 49, 58, 0.15);
   
   &:last-child {

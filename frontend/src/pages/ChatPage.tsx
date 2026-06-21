@@ -724,12 +724,14 @@ export function ChatPage() {
 
   const updateSessionMut = useMutation({
     mutationFn: ({ id, data }: { id: string, data: any }) => chatApi.updateSession(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['chat', 'sessions'] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['chat', 'sessions'] }),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to update session'),
   })
 
   const deleteSessionMut = useMutation({
     mutationFn: (id: string) => chatApi.deleteSession(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['chat', 'sessions'] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['chat', 'sessions'] }),
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to delete session'),
   })
 
   const handleRename = (id: string, current: string | null) => {

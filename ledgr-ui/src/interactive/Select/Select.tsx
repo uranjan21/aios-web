@@ -8,7 +8,7 @@
  * - Keyboard: Space/Enter to open, Arrow keys to navigate, type-ahead first char, Esc to close.
  */
 import { createContext, useContext, useId, useMemo, useRef, useState, useEffect, useLayoutEffect } from 'react';
-import type { ReactNode } from 'react';
+import type { ReactNode, CSSProperties } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { Portal } from '../../utils/Portal';
 import { useOnClickOutside, useEscapeKey } from '../../utils/hooks';
@@ -42,6 +42,7 @@ export interface SelectProps {
   /** Custom trigger renderer — receives the selected option. */
   renderValue?: (selected: SelectOption | undefined) => ReactNode;
   children?: ReactNode;
+  style?: CSSProperties;
 }
 
 interface SelectCtx {
@@ -172,6 +173,7 @@ export function Select({
   id,
   renderValue,
   children,
+  style,
 }: SelectProps) {
   const isControlled = value !== undefined;
   const [internal, setInternal] = useState<string | undefined>(defaultValue);
@@ -191,7 +193,7 @@ export function Select({
 
   // Resolve selected option from prop options
   const selectedOption = useMemo(
-    () => options?.find(o => o.value === current),
+    () => options?.find(o => String(o.value) === String(current)),
     [options, current],
   );
 
@@ -296,6 +298,7 @@ export function Select({
         $fullWidth={fullWidth}
         onClick={() => setOpen(o => !o)}
         onKeyDown={handleTriggerKey}
+        style={style}
       >
         <Value>
           {renderValue

@@ -240,13 +240,16 @@ function RunwayCalculator() {
   const [burnRate, setBurnRate] = useState(5000)
   const [runwayPeriod, setRunwayPeriod] = useState('monthly')
 
-  const runwayMonths = burnRate > 0 ? (cash / burnRate).toFixed(1) : '∞'
-  const isHealthy = burnRate === 0 || cash / burnRate > 6
+  const multiplier = runwayPeriod === 'quarterly' ? 3 : 1
+  const adjustedBurnRate = burnRate * multiplier
+  const runwayValue = adjustedBurnRate > 0 ? (cash / adjustedBurnRate).toFixed(1) : '∞'
+  const runwayUnit = runwayPeriod === 'quarterly' ? 'quarters' : 'months'
+  const isHealthy = burnRate === 0 || (cash / burnRate) > 6
 
   return (
     <GlassCard
       title="Runway Calculator"
-      subtitle="Calculate cash runway based on burn rate"
+      subtitle="Burn rate and operational cash forecast"
       icon={<TrendingUp size={16} color="var(--muted-foreground)" />}
       action={
         <Select
@@ -283,7 +286,7 @@ function RunwayCalculator() {
         <div>
           <RunwayStatusLabel>Estimated Runway</RunwayStatusLabel>
           <RunwayStatusValue $isHealthy={isHealthy}>
-            {runwayMonths} <RunwayStatusUnit>months</RunwayStatusUnit>
+            {runwayValue} <RunwayStatusUnit>{runwayUnit}</RunwayStatusUnit>
           </RunwayStatusValue>
         </div>
         <RunwayMessageWrapper>
@@ -357,7 +360,7 @@ export function BusinessPage() {
 
                   <GlassCard
                     title="Event Timeline"
-                    subtitle="Recent venture milestones and decisions"
+                    subtitle="Venture milestones, decisions, and feature releases"
                     icon={<History size={16} color="var(--muted-foreground)" />}
                     action={
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

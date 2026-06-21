@@ -307,9 +307,10 @@ export function FinanceStats({ period }: { period: Period }) {
     queryKey: ['finance', 'cashflow', month],
     queryFn: () => financeApi.cashflow(month),
   })
+  const expensesMonthParam = spendPeriod === 'yearly' ? undefined : month
   const { data: expensesPage, isLoading: loadingExpenses } = useQuery({
-    queryKey: ['finance', 'expenses', 'month', month],
-    queryFn: () => financeApi.expenses(month, undefined, 200, 0),
+    queryKey: ['finance', 'expenses', 'spendPeriod', spendPeriod, month],
+    queryFn: () => financeApi.expenses(expensesMonthParam, undefined, 200, 0),
   })
   const { data: budgetStatus } = useQuery({
     queryKey: ['finance', 'budgets', 'status'],
@@ -322,15 +323,15 @@ export function FinanceStats({ period }: { period: Period }) {
     queries: last12Months.map(m => ({
       queryKey: ['finance', 'cashflow', m],
       queryFn: () => financeApi.cashflow(m),
-      enabled: period === 'This Year',
+      enabled: true,
       staleTime: 5 * 60 * 1000,
     })),
   })
-  const loadingYear = period === 'This Year' && yearQueries.some(q => q.isLoading)
+  const loadingYear = yearQueries.some(q => q.isLoading)
   const isLoading = loadingCashflow || loadingExpenses || loadingYear
 
   const donutData = useMemo(() => {
-    if (period === 'This Year') {
+    if (incExpPeriod === 'yearly') {
       const totals = yearQueries.reduce((acc, q) => {
         acc.income += q.data?.income_total ?? 0
         acc.expense += q.data?.expense_total ?? 0
@@ -338,22 +339,19 @@ export function FinanceStats({ period }: { period: Period }) {
       }, { income: 0, expense: 0 })
       return [{ name: 'Income', value: totals.income }, { name: 'Expense', value: totals.expense }]
     }
-    if (period === 'This Week') {
-      const weekStart = dayjs().subtract(6, 'day').format('YYYY-MM-DD')
-      const week = (cashflow?.by_day ?? []).filter(d => d.date >= weekStart)
-      const totals = week.reduce((acc, d) => ({ income: acc.income + d.income, expense: acc.expense + d.expense }), { income: 0, expense: 0 })
-      return [{ name: 'Income', value: totals.income }, { name: 'Expense', value: totals.expense }]
-    }
     return [{ name: 'Income', value: cashflow?.income_total ?? 0 }, { name: 'Expense', value: cashflow?.expense_total ?? 0 }]
-  }, [period, cashflow, yearQueries])
+  }, [incExpPeriod, cashflow, yearQueries])
 
   const donutTotal = donutData.reduce((a, b) => a + b.value, 0)
 
   const pieData = useMemo(() => {
     let items = expensesPage?.items ?? []
-    if (period === 'This Week') {
+    if (spendPeriod === 'weekly') {
       const weekStart = dayjs().subtract(6, 'day').startOf('day')
       items = items.filter(e => dayjs(e.logged_at).isAfter(weekStart))
+    } else if (spendPeriod === 'yearly') {
+      const yearStart = dayjs().startOf('year')
+      items = items.filter(e => dayjs(e.logged_at).isAfter(yearStart))
     }
     const byCategory = new Map<string, number>()
     items.forEach(e => byCategory.set(e.category, (byCategory.get(e.category) ?? 0) + Number(e.amount)))
@@ -361,39 +359,31 @@ export function FinanceStats({ period }: { period: Period }) {
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 8)
-  }, [expensesPage, period])
+  }, [expensesPage, spendPeriod])
 
   const trendOptions = useMemo(() => {
-    if (period === 'This Year') {
-      const categories = last12Months.map(m => dayjs(m + '-01').format('MMM'))
-      const data = yearQueries.map(q => Math.round((q.data?.income_total ?? 0) - (q.data?.expense_total ?? 0)))
-      return {
-        chart: { type: 'column', backgroundColor: 'transparent', height: 240 },
-        title: { text: null }, credits: { enabled: false }, legend: { enabled: false },
-        xAxis: { categories, labels: { style: { color: theme.color.mutedForeground } }, lineWidth: 0, tickWidth: 0 },
-        yAxis: { visible: false },
-        tooltip: { backgroundColor: theme.color.popover, style: { color: theme.color.popoverForeground }, borderWidth: 0,
-          formatter: function (this: any) { return `<b>${this.x}</b><br/>${formatCurrency(this.y as number)}` } },
-        plotOptions: { column: { borderRadius: 4, borderWidth: 0 } },
-        series: [{ name: 'Net Cashflow', data, colors: data.map(v => v >= 0 ? theme.color.accent : theme.color.mutedForeground), colorByPoint: true }],
-      }
+    let slicedMonths = last12Months
+    let slicedQueries = yearQueries
+    if (trendTimeline === '6m') {
+      slicedMonths = last12Months.slice(-6)
+      slicedQueries = yearQueries.slice(-6)
+    } else if (trendTimeline === '12m') {
+      slicedMonths = last12Months.slice(-12)
+      slicedQueries = yearQueries.slice(-12)
     }
-    let byDay = cashflow?.by_day ?? []
-    if (period === 'This Week') byDay = byDay.filter(d => d.date >= dayjs().subtract(6, 'day').format('YYYY-MM-DD'))
+    const categories = slicedMonths.map(m => dayjs(m + '-01').format('MMM'))
+    const data = slicedQueries.map(q => Math.round((q.data?.income_total ?? 0) - (q.data?.expense_total ?? 0)))
     return {
-      chart: { type: 'areaspline', backgroundColor: 'transparent', height: 240, margin: [20, 0, 20, 0] },
+      chart: { type: 'column', backgroundColor: 'transparent', height: 240 },
       title: { text: null }, credits: { enabled: false }, legend: { enabled: false },
-      xAxis: { categories: byDay.map(d => dayjs(d.date).format('MMM D')),
-        labels: { style: { color: theme.color.mutedForeground } }, lineWidth: 0, tickWidth: 0 },
+      xAxis: { categories, labels: { style: { color: theme.color.mutedForeground } }, lineWidth: 0, tickWidth: 0 },
       yAxis: { visible: false },
       tooltip: { backgroundColor: theme.color.popover, style: { color: theme.color.popoverForeground }, borderWidth: 0,
         formatter: function (this: any) { return `<b>${this.x}</b><br/>${formatCurrency(this.y as number)}` } },
-      plotOptions: { areaspline: { fillOpacity: 0.2, lineWidth: 3, marker: { enabled: false } } },
-      series: [{ name: 'Net Cashflow', data: byDay.map(d => Math.round(d.income - d.expense)),
-        color: theme.color.accent,
-        fillColor: { linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 }, stops: [[0, `color-mix(in srgb, ${theme.color.accent} 50%, transparent)`], [1, `color-mix(in srgb, ${theme.color.accent} 0%, transparent)`]] } }],
+      plotOptions: { column: { borderRadius: 4, borderWidth: 0 } },
+      series: [{ name: 'Net Cashflow', data, colors: data.map(v => v >= 0 ? theme.color.accent : theme.color.mutedForeground), colorByPoint: true }],
     }
-  }, [period, cashflow, yearQueries, last12Months, theme])
+  }, [trendTimeline, yearQueries, last12Months, theme])
 
   return (
     <StatsGrid>
@@ -453,7 +443,7 @@ export function FinanceStats({ period }: { period: Period }) {
 
       <Col7>
         <ChartCard
-          title={`Spending by Category${period === 'This Year' ? ' (This Month)' : ''}`}
+          title={`Spending by Category${spendPeriod === 'yearly' ? ' (This Year)' : ' (This Month)'}`}
           subtitle="Tap a slice to drill into its transactions"
           icon={<PieChartIcon size={16} />}
           action={
@@ -514,7 +504,7 @@ export function FinanceStats({ period }: { period: Period }) {
       {drillCategory && (
         <Col12>
           <ChartCard
-            title={`${drillCategory} — Transactions This Month`}
+            title={`${drillCategory} — Transactions ${spendPeriod === 'yearly' ? 'This Year' : 'This Month'}`}
             subtitle="Drill-down view for the selected category"
             icon={<Receipt size={16} />}
             action={
@@ -524,7 +514,11 @@ export function FinanceStats({ period }: { period: Period }) {
             }
           >
             {(() => {
-              const items = (expensesPage?.items ?? []).filter(e => e.category === drillCategory)
+              let items = (expensesPage?.items ?? []).filter(e => e.category === drillCategory)
+              if (spendPeriod === 'yearly') {
+                const yearStart = dayjs().startOf('year')
+                items = items.filter(e => dayjs(e.logged_at).isAfter(yearStart))
+              }
               if (items.length === 0) return <EmptyState title="No transactions" />
               return (
                 <DrillScroll>
@@ -596,7 +590,7 @@ export function FinanceStats({ period }: { period: Period }) {
 
       <Col6>
         <ChartCard
-          title={`Trend — ${period}`}
+          title={`Trend — ${trendTimeline === '6m' ? '6 Months' : trendTimeline === '12m' ? '12 Months' : 'All Time'}`}
           subtitle="Net cashflow over the selected horizon"
           icon={<Layers size={16} />}
           action={

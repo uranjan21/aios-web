@@ -209,7 +209,7 @@ const MobileSub = styled.p`
 `
 
 
-const LoginCardForm = styled.form`
+const LoginCard = styled(Card)`
   animation: ${fadeUp} 0.5s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
 `
 
@@ -394,73 +394,73 @@ export function LoginPage() {
             <MobileSub>Your life, beautifully run</MobileSub>
           </MobileBrand>
 
-          <LoginCardForm onSubmit={handleSubmit}>
-            <Card
-              title="Welcome back"
-              subtitle="Enter your passphrase to continue"
-              icon={<Shield size={16} />}
-              action={<StatusPill label="Secure" tone="primary" />}
-              style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
-            >
-              <div>
-                <FieldLabel htmlFor="login-email">Email</FieldLabel>
+          <LoginCard
+            as="form"
+            onSubmit={handleSubmit}
+            title="Welcome back"
+            subtitle="Enter your passphrase to continue"
+            icon={<Shield size={16} />}
+            action={<StatusPill label="Secure" tone="primary" />}
+            style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
+          >
+            <div>
+              <FieldLabel htmlFor="login-email">Email</FieldLabel>
+              <Input
+                id="login-email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                autoFocus
+                required
+                fullWidth
+                size="lg"
+              />
+            </div>
+
+            <div>
+              <FieldLabel htmlFor="login-password">Passphrase</FieldLabel>
+              <PasswordWrap>
                 <Input
-                  id="login-email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  autoFocus
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter your passphrase"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
                   required
                   fullWidth
                   size="lg"
+                  style={{ paddingRight: '44px' }}
                 />
-              </div>
+                <ShowHideBtn
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </ShowHideBtn>
+              </PasswordWrap>
+            </div>
 
-              <div>
-                <FieldLabel htmlFor="login-password">Passphrase</FieldLabel>
-                <PasswordWrap>
-                  <Input
-                    id="login-password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter your passphrase"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                    fullWidth
-                    size="lg"
-                    style={{ paddingRight: '44px' }}
-                  />
-                  <ShowHideBtn
-                    type="button"
-                    onClick={() => setShowPassword(v => !v)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </ShowHideBtn>
-                </PasswordWrap>
-              </div>
+            {error && <ErrorBox>{error}</ErrorBox>}
 
-              {error && <ErrorBox>{error}</ErrorBox>}
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              disabled={loading || !email || !password}
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
+              {loading ? 'Unlocking…' : <><span>Enter</span><ArrowRight size={16} /></>}
+            </Button>
 
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                disabled={loading || !email || !password}
-                style={{ width: '100%', justifyContent: 'center' }}
-              >
-                {loading ? 'Unlocking…' : <><span>Enter</span><ArrowRight size={16} /></>}
-              </Button>
-
-              <DemoLink
-                type="button"
-                onClick={() => { setEmail('demo@aios.dev'); setPassword('demo1234') }}
-              >
-                Use demo credentials
-              </DemoLink>
-            </Card>
-          </LoginCardForm>
+            <DemoLink
+              type="button"
+              onClick={() => { setEmail('demo@aios.dev'); setPassword('demo1234') }}
+            >
+              Use demo credentials
+            </DemoLink>
+          </LoginCard>
 
           <MobileDomains>
             {DOMAINS.map(d => (

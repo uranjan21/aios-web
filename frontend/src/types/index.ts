@@ -236,6 +236,9 @@ export interface HealthScoreComponent {
 }
 export interface FinanceHealthScore {
   score: number; band: 'excellent' | 'good' | 'fair' | 'attention'; components: HealthScoreComponent[];
+  prev?: {
+    score: number; band: 'excellent' | 'good' | 'fair' | 'attention'; components: HealthScoreComponent[];
+  };
 }
 export interface TxnSearchItem {
   id: string; kind: 'expense' | 'income' | 'transfer'; logged_at: string;

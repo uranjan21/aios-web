@@ -3,7 +3,7 @@
 ## Architecture
 - **Frontend SPA**: React 18 + TS + Tailwind + Ant Design.
 - **Routing**: React Router v6 mapping to Pages (`DashboardPage`, `LoginPage`, `ChatPage`, `AgentsPage`, `SettingsPage`, `IntegrationsPage`, and Area pages).
-- **Global Theme**: Stored in `aiosTheme.ts`, customized Deep Cobalt palette mapped to Light and Dark modes.
+- **Global Theme**: Stored in `aiosTheme.ts`, customized Warm Stone & Gold Accent palette mapped to Light and Dark modes.
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
@@ -31,3 +31,4 @@
 - `frontend/src/pages/areas/` — Domain area pages (Finance, Health, Career, Business, Content).
 - `frontend/src/components/layout/` — Shell elements (AppShell, Sidebar, TopBar, BottomNav).
 - `frontend/src/components/ui/` — Base ui primitives.
+- `frontend/src/components/PageTransition.tsx` — Page transition wrapper.

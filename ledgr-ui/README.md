@@ -53,17 +53,17 @@ const brandTheme = {
 
 | Category | Components |
 |---|---|
-| **Primitives** | Button, Input, Textarea, Label, Card, Badge, Avatar, Separator, Stack, Inline |
+| **Primitives** | Button, Input, Textarea, Label, Card, Badge, Avatar, Separator, Stack, Spinner |
 | **Interactive** | Select, Checkbox, Switch, Tooltip, Dialog, Sheet, Tabs, DropdownMenu, Popover |
-| **Patterns** | EmptyState, PageHeader, SegmentedControl, MonthPicker, DatePicker, StatusBadge, Toast, ConfirmDialog, ErrorBoundary |
-| **Layout** | AppShell, Sidebar, Header, Breadcrumbs, MobileBottomNav |
+| **Patterns** | EmptyState, PageHeader, SegmentedControl, MonthPicker, DatePicker, StatusBadge, Toast, ConfirmDialog, ErrorBoundary, AreaToolbar, Skeleton, KpiCard |
+| **Layout** | AppShell, Sidebar, AppHeader, Breadcrumbs, MobileBottomNav |
 | **Data** | StatCard, DataTable, KanbanBoard, ChartCard |
 
 ## Theming model
 
 The library uses **three layers**:
 
-1. **Primitive tokens** (`tokens.ts`) — raw values: colour palettes, font stacks, spacing scale.
+1. **Primitive tokens** (`tokens.ts`) — raw values: color palettes, font stacks, spacing scale.
 2. **Semantic theme** (`theme.ts`) — `primary`, `background`, `destructive`, etc. Mapped from primitives.
 3. **Component styles** — consume `props.theme.color.primary`, never raw hex.
 
@@ -74,7 +74,7 @@ Change a primitive once → every component updates.
 - All interactive components meet WCAG 2.1 AA contrast at default theme.
 - Focus rings are visible by default (`focus-visible`).
 - Modals/sheets trap focus and restore on close.
-- Icon-only buttons require an `aria-label` prop (enforced via TypeScript when no `children`).
+- Icon-only buttons: `aria-label` is highly recommended for accessibility on icon-only buttons (when no `children`).
 - Respects `prefers-reduced-motion`.
 
 ## License

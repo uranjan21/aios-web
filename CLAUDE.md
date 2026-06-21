@@ -4,10 +4,10 @@
 A full-stack personal command center / AI OS web application for managing multiple life domains (Finance, Health, Career, Business, Content) with real-time AI-powered agents, vault file sync, and multi-LLM integration (Anthropic + OpenAI).
 
 ## Stack
-- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + Radix UI + Ant Design
+- **Frontend**: React 18 + TypeScript + Vite + styled-components + Radix UI (via @ledgr/ui) + Ant Design
 - **Backend**: Python 3.11+ + FastAPI + SQLModel (async SQLAlchemy ORM) + asyncpg
 - **Database**: PostgreSQL + pgvector (for vector embeddings)
-- **AI/LLMs**: Anthropic Claude SDK, OpenAI SDK
+- **AI/LLMs**: Anthropic Claude SDK, OpenAI SDK, NVIDIA NIM (default llm_provider)
 - **Real-time**: WebSockets (sync, chat, agents)
 - **State (Frontend)**: Zustand
 - **Forms**: React Hook Form + Zod validation
@@ -20,17 +20,17 @@ A full-stack personal command center / AI OS web application for managing multip
 ### Frontend Architecture
 - **SPA Router**: React Router v6 for client-side navigation
 - **Feature Areas**: Finance, Health, Career, Business, Content — each with dedicated pages and shared AreaTabs sub-navigation
-- **API Client**: Centralized axios-based API client in `/src/api`
+- **API Client**: Centralized axios-based API client in `frontend/src/api`
 - **State Management**: Zustand stores for global state (user, domain data, UI state)
-- **Components**: Modular React components in `/src/components` with Radix UI primitives + Ant Design
-- **Styling**: Tailwind CSS + Styled Components; light mode by default
+- **Components**: Modular React components in `frontend/src/components` with Radix UI primitives + Ant Design
+- **Styling**: styled-components and Ant Design; prefer @ledgr/ui theme values/tokens; light mode by default
 - **Validation**: Zod schemas for form data and API responses
 
 ### Backend Architecture
 - **Framework**: FastAPI with lifespan management for startup/shutdown hooks
 - **Router-Based Modules**: Domain-specific routers (auth, sync, chat, agents, finance, health, career, business, content, captures, integrations)
-- **Service Layer**: `/app/services` contains business logic (agents orchestration, AI calls, chat, RAG, vault sync)
-- **Models Layer**: `/app/models` defines SQLModel schemas for all domains
+- **Service Layer**: `backend/app/services` contains business logic (agents orchestration, AI calls, chat, RAG, vault sync)
+- **Models Layer**: `backend/app/models` defines SQLModel schemas for all domains
 - **Database**: AsyncPG + SQLAlchemy for async PostgreSQL access; Alembic for migrations
 - **Real-time**: WebSocket handlers (`/ws/sync`, `/ws/chat`, `/ws/agents`) with token auth via `ws_auth` dependency
 - **Middleware**: CORS, security headers, request logging, rate limiting (slowapi)
@@ -78,7 +78,7 @@ alembic upgrade head  # Apply migrations
 
 ## Project Structure
 
-```
+```text
 aios-web/
 ├── frontend/                    # React TypeScript SPA
 │   ├── src/
@@ -120,11 +120,14 @@ aios-web/
 │   ├── Dockerfile               # Docker image for backend
 │   └── seed_dummy_data.py       # Populate DB with test data
 │
+├── ledgr-ui/                    # Reusable React component library
 ├── docker-compose.yml           # Multi-container orchestration (db, backend, frontend)
 ├── MEMORY.md                    # UI/UX guidelines, known issues, active projects
+├── PROJECT.md                   # Core project definition and layout conventions
 ├── CLAUDE.md                    # This file
 ├── .env.example                 # Environment template
 ├── setup.sh                     # Setup script
+├── run.sh                       # Shell script to run application
 └── .gitignore                   # Git ignore rules
 ```
 
@@ -132,26 +135,28 @@ aios-web/
 
 ### Backend Conventions
 - **Async First**: All I/O is async (database, HTTP, file operations)
-- **Router Naming**: `/app/api/<domain>.py` defines routers for a domain (e.g., `finance.py`, `health.py`)
-- **Service Layer**: Domain logic lives in `/app/services/<domain>/`; routers call services and return JSON
+- **Router Naming**: `backend/app/api/areas/<domain>.py` defines routers for a domain (e.g., `finance.py`, `health.py`)
+- **Service Layer**: `backend/app/services/` (only `finance`, `insights`, and `notifications` have dedicated service sub-folders; others query database models directly in routers); routers call services and return JSON
 - **Error Handling**: Use FastAPI HTTPException with appropriate status codes; log errors with logger
 - **Database**: Use SQLModel for schemas; all queries are async with `async with engine.begin() as conn:`
 - **WebSocket Auth**: Always call `ws_auth(websocket)` before accepting frames; close with code 1008 on auth failure
 - **Settings**: Environment vars via `get_settings()` from `app.core.config`; never hardcode secrets
 
 ### Frontend Conventions
-- **API Client**: Use `/src/api` functions for all HTTP calls; handle loading/error states with React Query
+- **API Client**: Use `frontend/src/api` functions for all HTTP calls; handle loading/error states with React Query
 - **Components**: Functional components with hooks; use Zustand for global state, React Query for server state
 - **Forms**: Use React Hook Form + Zod; validation happens at submit time
-- **Styling**: Tailwind classes + Styled Components; prefer semantic tokens (`bg-card`, `text-muted-foreground`)
+- **Styling**: styled-components and @ledgr/ui theme tokens; keep card/table/dialog corners at 10px by default
 - **Responsive**: Mobile-first; test at 375px, 768px, 1024px, 1440px breakpoints
 - **AreaTabs**: Sub-navigation within domains uses shared `<AreaTabs>` component; never nest `<Tabs>`
 
 ### UI/UX (from MEMORY.md)
 - **No page-level titles**: Breadcrumbs only in global header
 - **12-column grid**: Cards must NOT stretch unnecessarily; use auto-fit grids or tight col-spans (e.g., `col-span-3`)
-- **Card Aesthetics**: `bg-card` on soft gray background; faint borders (`border-border/60`); `rounded-xl` or `rounded-2xl`; tight padding (`p-2` or `p-3`)
+- **Card Aesthetics**: `bg-card` on soft gray background; faint borders (`border-border/60`); compact `10px` radius; tight padding (`p-2` or `p-3`)
 - **Typography**: Compact fonts (`text-xs`, `text-sm`); NO bold values inside cards; title case for widget titles
+- **Dashboard Layout**: Keep the main dashboard in a tight two-column shell and avoid stray empty spaces in lower rows
+- **Agents Page**: Use a dense table/card pattern with clear status, schedule, last-run, and actions columns
 - **Sidebar**: Top-level links only; NO accordions or sub-menus
 
 ### Project Conventions
@@ -182,19 +187,19 @@ aios-web/
 - Vault sync watcher may not handle rapid file changes well (debounce needed)
 
 ## Key Entry Points
-- **Frontend**: `/frontend/src/main.tsx` → App.tsx → Router → Pages
-- **Backend**: `/backend/app/main.py` → `create_app()` → FastAPI instance → Routers
-- **Database**: `/backend/alembic/` for migrations; `/backend/app/db/session.py` for engine setup
-- **WebSockets**: Backend: `/backend/app/api/sync.py`, `chat.py`, `agents.py`; Frontend: `/frontend/src/api/websocket.ts` or similar
+- **Frontend**: `frontend/src/main.tsx` → App.tsx → Router → Pages
+- **Backend**: `backend/app/main.py` → `create_app()` → FastAPI instance → Routers
+- **Database**: `backend/alembic/` for migrations; `backend/app/db/session.py` for engine setup
+- **WebSockets**: Backend: `backend/app/api/sync.py`, `chat.py`, `agents.py`; Frontend: Inline WebSocket instantiations in frontend/src/hooks/useChat.ts, useNotifications.ts, and useVaultSync.ts
 
 ## Development Workflow
 
-1. **New Feature**: Create branch `feature/name`, build in `/backend/app/services` + `/backend/app/api` + `/frontend/src`
-2. **Database Schema Change**: Add model in `/backend/app/models`, run `alembic revision --autogenerate`, apply with `alembic upgrade head`
+1. **New Feature**: Create branch `feature/name`, build in `backend/app/services` + `backend/app/api` + `frontend/src`
+2. **Database Schema Change**: Add model in `backend/app/models`, run `alembic revision --autogenerate`, apply with `alembic upgrade head`
 3. **UI Update**: Respect MEMORY.md guidelines (AreaTabs, grid density, typography). Always use Catalyst aesthetics.
-4. **Testing**: Write tests in `/backend/tests/` for services; test frontend with React Testing Library or manual browser testing
+4. **Testing**: Write tests in `backend/tests/` for services; test frontend with React Testing Library or manual browser testing
 5. **Commit & Push**: Use conventional commits; ensure no secrets leak into git history
 
 ---
 
-**Last Updated**: 2026-06-10 | **Version**: 0.1.0
+**Last Updated**: 2026-06-21 | **Version**: 0.2.0

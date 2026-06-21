@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+from decimal import Decimal
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -154,17 +155,14 @@ async def import_commit(body: ImportCommitBody, current_user=Depends(get_current
     return {"imported_expenses": imported_expenses, "imported_income": imported_income, "skipped": skipped}
 
 
-@router.get("/health-score")
-async def health_score(current_user=Depends(get_current_user), db=Depends(get_db)):
-    """Composite financial health score (0-100) from four components.
-
-    Components with missing prerequisites (e.g. no income logged this month)
-    are marked unavailable and excluded from the composite.
-    """
+async def _compute_health_score_for_date(db, target_date: datetime) -> dict:
     from sqlalchemy import func
-
-    now = datetime.utcnow()
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    month_start = target_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if month_start.month == 12:
+        next_month_start = month_start.replace(year=month_start.year + 1, month=1)
+    else:
+        next_month_start = month_start.replace(month=month_start.month + 1)
 
     def clamp(v: float, lo: float = 0.0, hi: float = 100.0) -> float:
         return max(lo, min(hi, v))
@@ -172,10 +170,12 @@ async def health_score(current_user=Depends(get_current_user), db=Depends(get_db
     income_total = float((await db.execute(
         select(func.coalesce(func.sum(FinanceIncome.amount), 0))
         .where(FinanceIncome.logged_at >= month_start)
+        .where(FinanceIncome.logged_at < next_month_start)
     )).scalar_one())
     expense_total = float((await db.execute(
         select(func.coalesce(func.sum(FinanceExpense.amount), 0))
         .where(FinanceExpense.logged_at >= month_start)
+        .where(FinanceExpense.logged_at < next_month_start)
     )).scalar_one())
 
     components = []
@@ -220,7 +220,8 @@ async def health_score(current_user=Depends(get_current_user), db=Depends(get_db
     liquid = sum(max(float(a.balance), 0) for a in accounts if a.type in (AccountType.CHECKING, AccountType.SAVINGS))
     spend_90d = float((await db.execute(
         select(func.coalesce(func.sum(FinanceExpense.amount), 0))
-        .where(FinanceExpense.logged_at >= now - timedelta(days=90))
+        .where(FinanceExpense.logged_at >= target_date - timedelta(days=90))
+        .where(FinanceExpense.logged_at < target_date)
     )).scalar_one())
     avg_monthly = spend_90d / 3
     if avg_monthly > 0:
@@ -246,6 +247,7 @@ async def health_score(current_user=Depends(get_current_user), db=Depends(get_db
                 select(func.coalesce(func.sum(FinanceExpense.amount), 0))
                 .where(FinanceExpense.category == limit.category)
                 .where(FinanceExpense.logged_at >= month_start)
+                .where(FinanceExpense.logged_at < next_month_start)
             )).scalar_one())
             if spent <= float(limit.monthly_limit):
                 within += 1
@@ -265,6 +267,26 @@ async def health_score(current_user=Depends(get_current_user), db=Depends(get_db
     band = "excellent" if score >= 80 else "good" if score >= 60 else "fair" if score >= 40 else "attention"
 
     return {"score": score, "band": band, "components": components}
+
+
+@router.get("/health-score")
+async def health_score(current_user=Depends(get_current_user), db=Depends(get_db)):
+    """Composite financial health score (0-100) from four components.
+
+    Components with missing prerequisites (e.g. no income logged this month)
+    are marked unavailable and excluded from the composite.
+    """
+    now = datetime.utcnow()
+    current_data = await _compute_health_score_for_date(db, now)
+    
+    # Previous month score calculation
+    prev_month_date = now.replace(day=1) - timedelta(days=1)
+    prev_data = await _compute_health_score_for_date(db, prev_month_date)
+    
+    return {
+        **current_data,
+        "prev": prev_data
+    }
 
 
 @router.get("/snapshots")
@@ -1071,6 +1093,46 @@ async def account_ledger(account_id: uuid.UUID, limit: int = 50, current_user=De
 
     entries.sort(key=lambda x: x["logged_at"], reverse=True)
     return {"account": account, "entries": entries[:limit]}
+
+
+class AccountUpdate(BaseModel):
+    name: Optional[str] = None
+    type: Optional[AccountType] = None
+    balance: Optional[float] = None
+    currency: Optional[str] = None
+
+
+@router.patch("/accounts/{account_id}")
+async def update_account(
+    account_id: uuid.UUID,
+    body: AccountUpdate,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    result = await db.execute(select(Account).where(Account.id == account_id))
+    account = result.scalar_one_or_none()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    updates = body.model_dump(exclude_unset=True)
+    if "name" in updates:
+        name = (updates["name"] or "").strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Name cannot be empty")
+        account.name = name
+    if "type" in updates and updates["type"] is not None:
+        account.type = updates["type"]
+    if "balance" in updates and updates["balance"] is not None:
+        account.balance = Decimal(str(updates["balance"]))
+    if "currency" in updates:
+        currency = (updates["currency"] or "").strip().upper()
+        if not currency:
+            raise HTTPException(status_code=400, detail="Currency cannot be empty")
+        account.currency = currency
+
+    await db.commit()
+    await db.refresh(account)
+    return account
 
 
 @router.delete("/accounts/{account_id}")

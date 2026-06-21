@@ -332,13 +332,13 @@ export function CareerPage() {
                   <KpiGrid>
                     <CareerStat title="Skills Tracked" value={String(skills?.length ?? 0)} subtitle="total skills tracked" icon={<BookOpen size={16} />} />
                     <CareerStat title="Active Pipeline" value={String(activeOpps.length)} subtitle="open opportunities" accent="text-primary" icon={<Briefcase size={16} />} />
-                    <CareerStat title="In Play" value={String(inPlay)} subtitle="interview or offer stages" accent={inPlay > 0 ? 'text-kpi-emerald' : undefined} icon={<Target size={16} />} />
+                    <CareerStat title="In Play" value={String(inPlay)} subtitle="interview or offer stages" accent={inPlay > 0 ? 'text-kpi-emerald' : undefined} icon={<Activity size={16} />} />
                     <CareerStat title="Milestones" value={String(events?.length ?? 0)} subtitle="timeline logs" icon={<History size={16} />} />
                   </KpiGrid>
 
                   <GlassCard
                     title="Opportunities Pipeline"
-                    subtitle="Track active job applications and stages"
+                    subtitle="Active job postings and project pipelines"
                     icon={<Briefcase size={16} />}
                     action={
                       <Select
@@ -370,7 +370,7 @@ export function CareerPage() {
                   <TwoColGrid>
                     <GlassCard
                       title="Career Timeline"
-                      subtitle="Career history and milestone timeline"
+                      subtitle="Milestones and professional history timeline"
                       icon={<History size={16} />}
                       action={
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

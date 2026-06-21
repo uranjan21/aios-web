@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState, forwardRef } from 'react'
+import { useState, forwardRef, useMemo } from 'react'
+import dayjs from 'dayjs'
 import { Input, Dialog, ConfirmDialog, Button, Select } from '@ledgr/ui'
 import { Card as AppCard } from '@ledgr/ui'
 import { toast } from 'sonner'
@@ -316,8 +317,19 @@ const EngagStats = styled.div`
   flex: 1;
 `
 
-function EngagementWidget({ publishedCount }: { publishedCount: number }) {
+function EngagementWidget({ publishedItems }: { publishedItems: ContentItem[] }) {
   const [period, setPeriod] = useState('30d')
+  
+  const filteredCount = useMemo(() => {
+    const now = dayjs()
+    const daysLimit = period === '7d' ? 7 : period === '90d' ? 90 : 30
+    const limitDate = now.subtract(daysLimit, 'day')
+    return publishedItems.filter(item => {
+      if (!item.publish_date) return false
+      return dayjs(item.publish_date).isAfter(limitDate)
+    }).length
+  }, [publishedItems, period])
+
   return (
     <AppCard
       title="Content Summary"
@@ -344,7 +356,7 @@ function EngagementWidget({ publishedCount }: { publishedCount: number }) {
       <EngagStats>
         <StatItemRoot>
           <StatItemLabel><Eye size={14} /> Published</StatItemLabel>
-          <StatItemValue>{publishedCount} piece{publishedCount !== 1 ? 's' : ''}</StatItemValue>
+          <StatItemValue>{filteredCount} piece{filteredCount !== 1 ? 's' : ''}</StatItemValue>
         </StatItemRoot>
         <StatItemRoot>
           <StatItemLabel><MousePointerClick size={14} /> Analytics</StatItemLabel>
@@ -577,7 +589,7 @@ export function ContentPage() {
                   </PipelineCols>
 
                   <Sidebar>
-                    <EngagementWidget publishedCount={published} />
+                    <EngagementWidget publishedItems={byStatus['published'] ?? []} />
                     <TwitterQueueCard />
                   </Sidebar>
 

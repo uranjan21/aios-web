@@ -1,14 +1,12 @@
 // @ts-nocheck
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Select, Badge, Button, Card } from '@ledgr/ui'
+import { Select, Badge, Button, Card as GlassCard, DataTable } from '@ledgr/ui'
 import { Download, Activity, History } from 'lucide-react'
 import { healthApi } from '@/api/areas'
 import { exportToCsv, formatRelativeTime } from '@/lib/utils'
 import { format } from 'date-fns'
-import { Table } from '@/components/ui/Table'
 import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
-import { AreaToolbar, HeaderActionPortal } from '@ledgr/ui'
 import styled from 'styled-components'
 
 const TYPE_COLORS: Record<string, "success" | "info" | "warning" | "accent" | "neutral" | "primary" | "destructive"> = {
@@ -130,26 +128,26 @@ export function HistoryTab({ onLogClick }: { onLogClick?: () => void }) {
   ]
 
   return (
+    <>
     <WorkspaceLayout rail={undefined}>
-      <Card
-        title="Health Logs"
-        subtitle="History of logged body metrics, sleep, nutrition and fitness logs"
-        icon={<Activity size={16} />}
+      <GlassCard
+        title="History Logs"
+        subtitle="Recent entries and health logs history"
+        icon={<History size={16} />}
         action={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Select
               value={filterType}
               onChange={setFilterType}
               size="sm"
               options={selectOptions}
-              style={{ minWidth: '120px', fontSize: '12px', height: '2rem' }}
+              fullWidth={false}
             />
             <Button
               size="sm"
               variant="ghost"
               onClick={handleExport}
               disabled={!filtered?.length}
-              style={{ height: '2rem', padding: '0 0.625rem' }}
             >
               <StyledButtonContent>
                 <Download size={13} />
@@ -160,7 +158,7 @@ export function HistoryTab({ onLogClick }: { onLogClick?: () => void }) {
         }
         size="none"
       >
-        <Table
+        <DataTable
           columns={columns}
           rows={filtered ?? []}
           getRowKey={(log: any) => log.id}
@@ -172,7 +170,8 @@ export function HistoryTab({ onLogClick }: { onLogClick?: () => void }) {
             action: <Button size="sm" variant="primary" onClick={onLogClick || (() => {})}>Add Entry</Button>,
           }}
         />
-      </Card>
+      </GlassCard>
     </WorkspaceLayout>
+    </>
   )
 }

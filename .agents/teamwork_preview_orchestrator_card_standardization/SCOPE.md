@@ -9,11 +9,11 @@
 | # | Name | Scope | Dependencies | Status |
 |---|---|---|---|---|
 | 1 | Exploration & Audit | Find all pages and tabs rendering cards or charts, identify missing icons, subtitles, and poorly-placed actions/filters. | none | DONE |
-| 2a | General Pages Refactor | Update `LoginPage.tsx`, `DashboardPage.tsx`, `SettingsPage.tsx`, `AiInsightCard.tsx`, and `CareerRadar.tsx`. | M1 | PLANNED |
-| 2b | Business & Career Refactor | Update `BusinessPage.tsx`, `SummaryTab.tsx` (business), and `CareerPage.tsx`. | M1 | PLANNED |
-| 2c | Health, Finance & Content Refactor | Update `HistoryTab.tsx` (health), `FitnessTab.tsx` (health), `TransactionsTab.tsx` (finance), and `ContentPage.tsx` (content). | M1 | PLANNED |
-| 3 | Verification & Review | Build the project, run tests, verify formatting, check via reviewers and challengers. | M2a, M2b, M2c | PLANNED |
-| 4 | Forensic Audit | Pass the Forensic Integrity Audit checks with a CLEAN verdict. | M3 | PLANNED |
+| 2a | General Pages Refactor | Update `LoginPage.tsx`, `DashboardPage.tsx`, `SettingsPage.tsx`, `AiInsightCard.tsx`, and `CareerRadar.tsx`. | M1 | DONE |
+| 2b | Business & Career Refactor | Update `BusinessPage.tsx`, `SummaryTab.tsx` (business), and `CareerPage.tsx`. | M1 | DONE |
+| 2c | Health, Finance & Content Refactor | Update `HistoryTab.tsx` (health), `FitnessTab.tsx` (health), `TransactionsTab.tsx` (finance), and `ContentPage.tsx` (content). | M1 | DONE |
+| 3 | Verification & Review | Build the project, run tests, verify formatting, check via reviewers and challengers. | M2a, M2b, M2c | DONE |
+| 4 | Forensic Audit | Pass the Forensic Integrity Audit checks with a CLEAN verdict. | M3 | DONE |
 
 ## Interface Contracts
 - All cards must use `@ledgr/ui` `Card` or `GlassCard`.

@@ -232,3 +232,33 @@ For every card updated, pass the following props to the global `Card` component 
 - [ ] Relevant filters are invented and applied for cards that previously lacked them.
 - [ ] Filters and chart legends are rendered inside the `CardHeader` (via the `action` prop) rather than inside the card body.
 - [ ] The application compiles successfully with `npm run build` with no type errors or missing imports.
+
+## Follow-up — 2026-06-21T00:47:39Z
+
+Audit, clean, and update all documentation and markdown files in the project to ensure they are relevant, accurate, and properly formatted.
+
+Working directory: /Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web
+Integrity mode: development
+
+## Requirements
+
+### R1. Audit Scope
+Locate and review all markdown (`.md`) and documentation files within the project directory. Exclude standard ignore directories like `node_modules` and `.git`.
+
+### R2. Clean Unnecessary Files
+Identify and remove files that are no longer necessary. A file is considered unnecessary if it is empty, mostly empty, unused and auto-generated, redundant (contents covered elsewhere), or describes outdated architectural decisions and old plans that no longer reflect the current state of the project.
+
+### R3. Update and Standardize Documentation
+Update the remaining documentation to ensure accuracy and high quality. This involves:
+- Fixing broken links and correcting typos.
+- Updating code snippets to accurately reflect the current codebase.
+- Standardizing the formatting, structure, and style across all documentation files.
+- Adding missing context where recent code changes lack corresponding documentation.
+
+## Acceptance Criteria
+
+### Verification
+- [ ] No broken internal or relative markdown links exist in any of the documentation files.
+- [ ] Code snippets within the documentation match the current implementation in the source code.
+- [ ] Formatting (e.g., headings, lists, code block language tags) is consistent across all reviewed files.
+- [ ] Unnecessary files (empty, redundant, or explicitly outdated) have been successfully removed.
