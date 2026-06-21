@@ -247,14 +247,19 @@ async def _compute_health_score_for_date(db, target_date: datetime, user_id: uui
     limits = [l for l in limits if float(l.monthly_limit) > 0]
     if limits:
         within = 0
+        limit_categories = [l.category for l in limits]
+        spent_query = await db.execute(
+            select(FinanceExpense.category, func.coalesce(func.sum(FinanceExpense.amount), 0))
+            .where(FinanceExpense.user_id == user_id)
+            .where(FinanceExpense.category.in_(limit_categories))
+            .where(FinanceExpense.logged_at >= month_start)
+            .where(FinanceExpense.logged_at < next_month_start)
+            .group_by(FinanceExpense.category)
+        )
+        spent_by_category = {cat: float(amount) for cat, amount in spent_query.all()}
+        
         for limit in limits:
-            spent = float((await db.execute(
-                select(func.coalesce(func.sum(FinanceExpense.amount), 0))
-                .where(FinanceExpense.user_id == user_id)
-                .where(FinanceExpense.category == limit.category)
-                .where(FinanceExpense.logged_at >= month_start)
-                .where(FinanceExpense.logged_at < next_month_start)
-            )).scalar_one())
+            spent = spent_by_category.get(limit.category, 0.0)
             if spent <= float(limit.monthly_limit):
                 within += 1
         components.append({

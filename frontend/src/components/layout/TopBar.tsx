@@ -345,7 +345,7 @@ export function TopBar() {
         {/* We can use the custom NotificationBell but wrap it conceptually if needed */}
         <NotificationBell />
         
-        <UserMenuTrigger aria-label="User settings menu" onClick={() => navigate('/settings')}>
+        <UserMenuTrigger aria-label={`User settings menu: ${user?.name || 'User'}`} onClick={() => navigate('/settings')}>
           {user?.picture_url ? (
             <img className="avatar" src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
           ) : (

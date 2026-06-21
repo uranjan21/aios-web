@@ -10,11 +10,7 @@ import { financeApi } from '@/api/areas';
 import { formatCurrency } from '@/lib/utils';
 import { PencilLine } from 'lucide-react';
 import { Input } from '@ledgr/ui';
-
-const LoadingText = styled.div`
-  font-size: 12px;
-  color: ${({ theme }) => theme.color.mutedForeground};
-`
+import { Skeleton } from '@/components/ui/skeleton';
 
 const EntriesList = styled.div`
   display: flex;
@@ -89,7 +85,17 @@ function AccountLedgerDrawer({ account, onClose }: { account: any | null; onClos
       size="md"
     >
       {isLoading ? (
-        <LoadingText>Loading…</LoadingText>
+        <EntriesList>
+          {[1, 2, 3].map(i => (
+            <EntryRow key={i}>
+              <div style={{ flex: 1, marginRight: 16 }}>
+                <Skeleton style={{ height: 16, width: '60%', marginBottom: 4 }} />
+                <Skeleton style={{ height: 12, width: '40%' }} />
+              </div>
+              <Skeleton style={{ height: 16, width: 60 }} />
+            </EntryRow>
+          ))}
+        </EntriesList>
       ) : !data?.entries.length ? (
         <EmptyState title="No transactions" description="No transactions linked to this account yet" />
       ) : (

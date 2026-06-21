@@ -127,8 +127,10 @@ const BrandText = styled.div<{ $collapsed: boolean }>`
   display: flex;
   flex-direction: column;
   opacity: ${({ $collapsed }) => $collapsed ? 0 : 1};
-  transition: opacity 200ms;
+  transition: opacity 200ms, width 200ms;
   white-space: nowrap;
+  overflow: hidden;
+  width: ${({ $collapsed }) => $collapsed ? 0 : 'auto'};
 
   .name {
     font-family: ${({ theme }) => theme.typography.fontFamily.serif};
@@ -213,8 +215,9 @@ const NavItemLink = styled(NavLink)<{ $collapsed: boolean }>`
   .label {
     white-space: nowrap;
     opacity: ${({ $collapsed }) => $collapsed ? 0 : 1};
-    transition: opacity 200ms;
+    transition: opacity 200ms, width 200ms;
     overflow: hidden;
+    width: ${({ $collapsed }) => $collapsed ? 0 : 'auto'};
   }
 
   &:hover {
@@ -353,6 +356,7 @@ export function Sidebar() {
                 <NavItemLink 
                   key={item.to} 
                   to={item.to}
+                  end={item.to === '/app'}
                   $collapsed={collapsed}
                   title={collapsed ? item.label : undefined} // Native tooltip as fallback
                 >

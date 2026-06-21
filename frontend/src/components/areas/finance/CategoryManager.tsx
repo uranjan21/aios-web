@@ -6,6 +6,7 @@ import { Trash2, Edit, Plus, PlusCircle, ChevronRight, ChevronDown, Tags } from 
 import { toast } from 'sonner';
 import styled from 'styled-components';
 import { financeApi } from '@/api/areas';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const RowActions = styled.span`
   display: flex;
@@ -77,12 +78,6 @@ const DeleteIcon = styled(Trash2)`
 const ChildrenContainer = styled.div`
   border-left: 1px solid ${({ theme }) => theme.color.border}80;
   margin-left: 0.5rem;
-`;
-
-const LoadingText = styled.p`
-  font-size: 11px;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  padding: 0.5rem;
 `;
 
 const ModalTitle = styled.span`
@@ -267,7 +262,16 @@ export const CategoryManager: React.FC = () => {
         </Button>
       }
     >
-      {isLoading ? <LoadingText>Loading...</LoadingText> : (
+      {isLoading ? (
+        <TreeContainer>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', gap: '8px' }}>
+              <Skeleton style={{ height: 16, width: 16, borderRadius: '50%' }} />
+              <Skeleton style={{ height: 16, width: '40%' }} />
+            </div>
+          ))}
+        </TreeContainer>
+      ) : (
         <TreeContainer>
           {topLevelCategories.map((c: any) => (
             <CategoryNode 

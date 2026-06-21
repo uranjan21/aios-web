@@ -7,6 +7,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Card as GlassCard } from '@ledgr/ui';
 import styled from 'styled-components'
 
+const ThemedSparkles = styled(Sparkles)`
+  color: ${({ theme }) => theme.color.accent};
+  flex-shrink: 0;
+`
 
 const SkeletonStack = styled.div`
   display: flex;
@@ -54,7 +58,7 @@ export function AiInsightCard({ area, title, className }: { area: 'finance' | 'h
       className={className}
       title={title ?? (area === 'finance' ? 'Explain This Month' : 'Explain This Week')}
       subtitle={area === 'finance' ? 'AI financial advisor analysis' : 'AI health analyst snapshot'}
-      icon={<Sparkles size={14} style={{ color: '#7c3aed', flexShrink: 0 }} />}
+      icon={<ThemedSparkles size={14} />}
       action={
         <Button
           size="sm"

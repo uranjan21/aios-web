@@ -113,8 +113,8 @@ const Input = styled.input`
 
 const STEPS = [
   { id: 'welcome', title: 'Welcome to AiOs', icon: Rocket, desc: 'Your personal AI-powered operating system for wealth, health, and business. Let’s get you set up in less than a minute.' },
-  { id: 'finance', title: 'Financial Goals', icon: TrendingUp, desc: 'What is your primary financial goal for this year?' },
-  { id: 'health', title: 'Health Baseline', icon: Activity, desc: 'Set your daily health targets.' },
+  { id: 'domains', title: '5 Core Domains', icon: Shield, desc: 'AiOs unifies Finance, Health, Career, Business, and Content into one premium dashboard.' },
+  { id: 'action', title: 'Take Action', icon: TrendingUp, desc: 'Ready to take control? Start by taking one high-value action right now.' },
   { id: 'finish', title: 'You\'re All Set', icon: CheckCircle, desc: 'Your personalized dashboard is ready. Dive in and start orchestrating your life.' }
 ]
 
@@ -173,16 +173,10 @@ export function WelcomeWizard({ onComplete }: { onComplete: () => void }) {
               <Title>{currentStep.id === 'welcome' ? `Welcome, ${user?.name?.split(' ')[0] || 'there'}` : currentStep.title}</Title>
               <Desc>{currentStep.desc}</Desc>
 
-              {currentStep.id === 'finance' && (
-                <div style={{ maxWidth: 300, margin: '0 auto' }}>
-                  <Input type="number" placeholder="Target Monthly Savings ($)" />
-                </div>
-              )}
-
-              {currentStep.id === 'health' && (
-                <div style={{ maxWidth: 300, margin: '0 auto' }}>
-                  <Input type="number" placeholder="Target Steps per Day" defaultValue={10000} />
-                  <Input type="number" placeholder="Target Water (Glasses)" defaultValue={8} />
+              {currentStep.id === 'action' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: 300, margin: '0 auto' }}>
+                  <Button variant="outline" onClick={() => { onComplete(); window.location.href = '/app/areas/finance' }}>Log your first expense</Button>
+                  <Button variant="outline" onClick={() => { onComplete(); window.location.href = '/app/agents' }}>Create your first Agent</Button>
                 </div>
               )}
             </motion.div>

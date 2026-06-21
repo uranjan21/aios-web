@@ -46,13 +46,13 @@ async def seed_default_agents() -> None:
 
 @router.get("")
 async def list_agents(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(Agent))
+    result = await db.execute(select(Agent).where(Agent.user_id == str(current_user.id)))
     return result.scalars().all()
 
 
 @router.get("/{agent_id}")
 async def get_agent(agent_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(Agent).where(Agent.task_id == agent_id))
+    result = await db.execute(select(Agent).where(Agent.task_id == agent_id, Agent.user_id == str(current_user.id)))
     agent = result.scalar_one_or_none()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -65,7 +65,7 @@ class AgentPatch(BaseModel):
 
 @router.patch("/{agent_id}")
 async def patch_agent(agent_id: str, body: AgentPatch, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(Agent).where(Agent.task_id == agent_id))
+    result = await db.execute(select(Agent).where(Agent.task_id == agent_id, Agent.user_id == str(current_user.id)))
     agent = result.scalar_one_or_none()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -85,7 +85,7 @@ async def patch_agent(agent_id: str, body: AgentPatch, current_user=Depends(get_
 @router.post("/{agent_id}/trigger")
 @limiter.limit("5/minute")
 async def trigger_agent(request: Request, agent_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(Agent).where(Agent.task_id == agent_id))
+    result = await db.execute(select(Agent).where(Agent.task_id == agent_id, Agent.user_id == str(current_user.id)))
     agent = result.scalar_one_or_none()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -96,7 +96,7 @@ async def trigger_agent(request: Request, agent_id: str, current_user=Depends(ge
     db.add(agent)
     await db.commit()
 
-    task = asyncio.create_task(_run_agent(agent_id, run_id))
+    task = asyncio.create_task(_run_agent(agent_id, run_id, str(current_user.id)))
     task.add_done_callback(_agent_task_done)
     return {"run_id": run_id}
 
@@ -106,8 +106,8 @@ def _agent_task_done(task: asyncio.Task) -> None:
         logger.error("Agent background task failed: %s", task.exception())
 
 
-async def _run_agent(task_id: str, run_id: str) -> None:
-    await _broadcast_agent({"type": "agent_started", "task_id": task_id, "run_id": run_id})
+async def _run_agent(task_id: str, run_id: str, user_id: str) -> None:
+    await _broadcast_agent({"type": "agent_started", "task_id": task_id, "run_id": run_id, "user_id": user_id})
     now = datetime.utcnow()
     run_status = "success"
     try:
@@ -119,7 +119,7 @@ async def _run_agent(task_id: str, run_id: str) -> None:
 
     async with AsyncSessionLocal() as session:
         try:
-            result = await session.execute(select(Agent).where(Agent.task_id == task_id))
+            result = await session.execute(select(Agent).where(Agent.task_id == task_id, Agent.user_id == user_id))
             agent = result.scalar_one_or_none()
             if agent:
                 agent.last_run_at = now

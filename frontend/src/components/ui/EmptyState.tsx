@@ -42,7 +42,6 @@ const IconWrapper = styled(motion.div)`
   justify-content: center;
   margin-bottom: 1.5rem;
   z-index: 1;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
 `
 
 const Title = styled.h3`

@@ -65,7 +65,7 @@ const Eyebrow = styled.span`
   font-weight: ${({ theme }) => theme.typography.fontWeight.semibold};
   text-transform: uppercase;
   letter-spacing: ${({ theme }) => theme.typography.letterSpacing.wider};
-  color: ${({ theme }) => theme.color.accent};
+  color: ${({ theme }) => theme.color.mutedForeground};
 
   &::before {
     content: '';

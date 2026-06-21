@@ -729,6 +729,7 @@ export function ChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const userScrolledUp = useRef(false)
+  const [showScrollFab, setShowScrollFab] = useState(false)
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null)
   const [renameSession, setRenameSession] = useState<{ id: string; title: string } | null>(null)
   const queryClient = useQueryClient()
@@ -869,7 +870,9 @@ export function ChatPage() {
             onScroll={() => {
               const el = scrollRef.current
               if (!el) return
-              userScrolledUp.current = el.scrollHeight - el.scrollTop - el.clientHeight > 100
+              const isUp = el.scrollHeight - el.scrollTop - el.clientHeight > 100
+              userScrolledUp.current = isUp
+              if (isUp !== showScrollFab) setShowScrollFab(isUp)
             }}
             aria-live="polite"
             aria-relevant="additions"
@@ -899,22 +902,60 @@ export function ChatPage() {
               </EmptyStateContainer>
             ) : (
               <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
-                {virtualizer.getVirtualItems().map(vItem => (
-                  <div
-                    key={vItem.key}
-                    data-index={vItem.index}
-                    ref={virtualizer.measureElement}
-                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vItem.start}px)` }}
-                  >
-                    <div style={{ padding: '8px 16px' }}>
-                      <Message message={messages[vItem.index]} />
+                {virtualizer.getVirtualItems().map(vItem => {
+                  const message = messages[vItem.index]
+                  if (!message) return null
+                  return (
+                    <div
+                      key={vItem.key}
+                      data-index={vItem.index}
+                      ref={virtualizer.measureElement}
+                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vItem.start}px)` }}
+                    >
+                      <div style={{ padding: '8px 16px' }}>
+                        <Message message={message} />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </MessagesContainer>
 
+          <AnimatePresence>
+            {showScrollFab && (
+              <motion.button
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                onClick={() => {
+                  userScrolledUp.current = false
+                  setShowScrollFab(false)
+                  virtualizer.scrollToIndex(messages.length - 1, { behavior: 'smooth' })
+                }}
+                aria-label="Scroll to bottom"
+                style={{
+                  position: 'absolute',
+                  bottom: '90px',
+                  right: '24px',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  backgroundColor: theme.color.primary,
+                  color: theme.color.primaryForeground,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: 'none',
+                  boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+                  cursor: 'pointer',
+                  zIndex: 20
+                }}
+              >
+                <ChevronDown style={{ width: '18px', height: '18px' }} />
+              </motion.button>
+            )}
+          </AnimatePresence>
         </ChatContainer>
 
         <FloatingInputContainer>

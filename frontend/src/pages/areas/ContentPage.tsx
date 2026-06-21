@@ -372,8 +372,11 @@ function EngagementWidget({ publishedItems }: { publishedItems: ContentItem[] })
 
 const StyledPublishedCard = styled(AppCard)<{ $over: boolean }>`
   background: ${({ $over }) => $over ? 'rgba(22,163,74,0.1)' : 'rgba(22,163,74,0.05)'} !important;
-  transition: all 300ms;
-  border-color: ${({ $over }) => $over ? 'rgba(22,163,74,0.4)' : 'rgba(22,163,74,0.15)'} !important;
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  border-color: ${({ $over }) => $over ? 'rgba(22,163,74,0.6)' : 'rgba(22,163,74,0.15)'} !important;
+  transform: scale(${({ $over }) => $over ? 1.02 : 1});
+  box-shadow: ${({ $over }) => $over ? '0 0 20px rgba(22,163,74,0.2)' : 'none'} !important;
+  z-index: ${({ $over }) => $over ? 10 : 1};
 `
 
 const PublishedDot = styled.div`

@@ -202,9 +202,9 @@ const AgentHeader = styled.div`
   flex-wrap: wrap;
 `;
 
-const AgentName = styled.h3`
-  font-size: 0.875rem;
-  font-weight: 700;
+const AgentName = styled.h2`
+  font-size: 14px;
+  font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
   margin: 0;
 `;

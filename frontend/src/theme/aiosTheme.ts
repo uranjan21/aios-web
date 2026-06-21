@@ -51,7 +51,7 @@ export const aiosLightTheme: AnyTheme = {
     popover: "#FFFFFF",
     popoverForeground: "#0C0A09",
     muted: "#F5F5F4",
-    mutedForeground: "#78716C",
+    mutedForeground: "#57534E",
 
     /* Brand — Premium Black + Gold Accent */
     primary: "#1C1917",

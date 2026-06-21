@@ -26,19 +26,7 @@ import { HealthLogModal } from '@/components/areas/health/HealthLogModal'
 import { PageHeader } from '@ledgr/ui'
 import { AiInsightCard } from '@/components/AiInsightCard'
 import styled, { useTheme } from 'styled-components'
-
-import Highcharts from 'highcharts'
-Highcharts.setOptions({ accessibility: { enabled: false } })
-import HighchartsReact from 'highcharts-react-official'
-
-const commonChartOptions = {
-  chart: {
-    backgroundColor: 'transparent',
-    style: { fontFamily: 'inherit' }
-  },
-  title: { text: null },
-  credits: { enabled: false }
-}
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
 
 const StyledPageWrapper = styled.div`
   min-height: 100vh;
@@ -182,38 +170,11 @@ export function HealthPage() {
 
   const weightDataProcessed = useMemo(() => {
     const days = weightRange === '7d' ? 7 : weightRange === '30d' ? 30 : 90
-    return weightLogs?.slice(0, days).reverse().map(l => [
-      new Date(l.logged_at).getTime(),
-      Number(l.value)
-    ]) ?? [];
+    return weightLogs?.slice(0, days).reverse().map(l => ({
+      date: new Date(l.logged_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      weight: Number(l.value)
+    })) ?? [];
   }, [weightLogs, weightRange])
-
-  const weightOptions = useMemo(() => ({
-    ...commonChartOptions,
-    chart: { ...commonChartOptions.chart, type: 'area', height: 180 },
-    legend: { enabled: false },
-    xAxis: {
-      type: 'datetime',
-      labels: { style: { color: theme.color.mutedForeground } }
-    },
-    yAxis: {
-      title: { text: null },
-      labels: { style: { color: theme.color.mutedForeground }, format: '{value} kg' }
-    },
-    tooltip: { valueSuffix: ' kg' },
-    series: [{
-      name: 'Weight',
-      data: weightDataProcessed,
-      color: theme.color.accent,
-      fillColor: {
-        linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
-        stops: [
-          [0, `color-mix(in srgb, ${theme.color.accent} 35%, transparent)`],
-          [1, 'transparent']
-        ]
-      }
-    }]
-  }), [theme, weightDataProcessed])
 
   if (errorStreak || errorGym) {
     return <ErrorCard message="Could not load health data" onRetry={() => { refetchStreak(); refetchGym() }} />
@@ -275,7 +236,29 @@ export function HealthPage() {
                   </div>
                 }
               >
-                {loadingWeight ? <Skeleton style={{ height: '120px' }} /> : <HighchartsReact highcharts={Highcharts} options={weightOptions} />}
+                {loadingWeight ? <Skeleton style={{ height: '180px' }} /> : (
+                  <div style={{ height: 180, width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={weightDataProcessed} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={theme.color.accent} stopOpacity={0.35}/>
+                            <stop offset="95%" stopColor={theme.color.accent} stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.color.border} />
+                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: theme.color.mutedForeground }} dy={10} minTickGap={20} />
+                        <YAxis domain={['dataMin - 2', 'dataMax + 2']} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: theme.color.mutedForeground }} tickFormatter={(val) => `${val}kg`} />
+                        <RechartsTooltip 
+                          contentStyle={{ backgroundColor: theme.color.card, border: `1px solid ${theme.color.border}`, borderRadius: '8px', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                          itemStyle={{ color: theme.color.foreground }}
+                          labelStyle={{ color: theme.color.mutedForeground, marginBottom: '4px' }}
+                        />
+                        <Area type="monotone" dataKey="weight" stroke={theme.color.accent} strokeWidth={2} fillOpacity={1} fill="url(#colorWeight)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </SectionCard>
             </StyledGridItemMain>
           </StyledDashboardGrid>
