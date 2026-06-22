@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Button } from '@ledgr/ui'
 import { toast } from 'sonner'
@@ -5,6 +6,7 @@ import { Sparkles, RefreshCw } from 'lucide-react'
 import { aiApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card as GlassCard } from '@ledgr/ui';
+import { UpgradeWall, is402 } from '@/components/UpgradeWall'
 import styled from 'styled-components'
 
 const ThemedSparkles = styled(Sparkles)`
@@ -48,9 +50,13 @@ const SkelInsightLine3 = styled(Skeleton)`
 
 /** "Explain this month/week" — one-click LLM insight card for an area page. */
 export function AiInsightCard({ area, title, className }: { area: 'finance' | 'health'; title?: string; className?: string }) {
+  const [planBlocked, setPlanBlocked] = useState(false)
   const { mutate, data, isPending, isError } = useMutation({
     mutationFn: () => aiApi.explain(area),
-    onError: () => toast.error('AI temporarily unavailable'),
+    onError: (err) => {
+      if (is402(err)) { setPlanBlocked(true); return }
+      toast.error('AI temporarily unavailable')
+    },
   })
 
   return (
@@ -71,7 +77,9 @@ export function AiInsightCard({ area, title, className }: { area: 'finance' | 'h
         </Button>
       }
     >
-      {isPending ? (
+      {planBlocked ? (
+        <UpgradeWall feature="AI area analysis" />
+      ) : isPending ? (
         <SkeletonStack>
           <SkelInsightLine1 />
           <SkelInsightLine2 />
