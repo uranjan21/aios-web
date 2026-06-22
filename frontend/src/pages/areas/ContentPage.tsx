@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button, PageHeader, AreaToolbar } from '@ledgr/ui'
+import { Button, PageHeader } from '@ledgr/ui'
 import { PenLine, LayoutDashboard, Columns3, CalendarDays, Library, Megaphone, BarChart3, Plus } from 'lucide-react'
 import styled from 'styled-components'
 import { contentApi } from '@/api/areas'
@@ -58,17 +58,15 @@ export function ContentPage() {
           eyebrow="Creator"
           title="Content"
           subtitle="Plan, draft, schedule and analyse your entire content engine in one place."
+          actions={
+            <Button variant="primary" size="sm" startIcon={<Plus size={14} />} onClick={openNew}>
+              New Content
+            </Button>
+          }
         />
 
         <AreaTabs
           defaultActiveKey="overview"
-          toolbar={
-            <AreaToolbar style={{ marginBottom: 0, marginTop: 8 }}>
-              <Button variant="primary" size="sm" startIcon={<Plus size={14} />} onClick={openNew}>
-                New Content
-              </Button>
-            </AreaToolbar>
-          }
           items={[
             {
               key: 'overview',
