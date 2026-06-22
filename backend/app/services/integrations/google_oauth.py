@@ -44,7 +44,7 @@ def _client_creds(provider: str) -> tuple[str, str]:
     raise ValueError(f"Unknown Google provider: {provider}")
 
 
-async def build_auth_url(provider: str, db) -> str:
+async def build_auth_url(provider: str, db, user_id: Optional[uuid.UUID] = None) -> str:
     """Build an OAuth authorization URL and persist the CSRF state token in the DB (H3)."""
     client_id, _ = _client_creds(provider)
     if not client_id:
@@ -56,7 +56,7 @@ async def build_auth_url(provider: str, db) -> str:
 
     from app.models.oauth_state import OAuthState
     # Naive UTC to match the oauth_states.created_at column (TIMESTAMP WITHOUT TIME ZONE).
-    db.add(OAuthState(state=state, provider=provider, created_at=datetime.utcnow()))
+    db.add(OAuthState(state=state, provider=provider, user_id=user_id, created_at=datetime.utcnow()))
     await db.commit()
 
     params = {
@@ -71,11 +71,18 @@ async def build_auth_url(provider: str, db) -> str:
     return f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
 
 
-async def validate_state(state: str, db) -> Optional[str]:
-    """Consume and validate the CSRF state token from the DB (H3)."""
+async def validate_state(state: str, db, user_id: Optional[uuid.UUID] = None) -> Optional[str]:
+    """Consume and validate the CSRF state token from the DB (H3).
+
+    When user_id is provided the state must also belong to that user, preventing
+    cross-user state token injection for the integrations callback flow.
+    """
     from app.models.oauth_state import OAuthState
     from sqlmodel import select
-    result = await db.execute(select(OAuthState).where(OAuthState.state == state))
+    query = select(OAuthState).where(OAuthState.state == state)
+    if user_id is not None:
+        query = query.where(OAuthState.user_id == user_id)
+    result = await db.execute(query)
     entry = result.scalar_one_or_none()
     if not entry:
         return None

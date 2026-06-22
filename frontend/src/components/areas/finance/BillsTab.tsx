@@ -33,7 +33,7 @@ const AutoText = styled.span`
   align-items: center;
   gap: 0.125rem;
   font-size: 10px;
-  color: #3b82f6;
+  color: ${({ theme }) => theme.color.accent};
   font-weight: 500;
   margin-left: 0.25rem;
 `

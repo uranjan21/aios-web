@@ -59,7 +59,7 @@ async def get_auth_url(provider: str, current_user=Depends(get_current_user), db
 
     if provider in GOOGLE_PROVIDERS:
         try:
-            url = await build_auth_url(provider, db)
+            url = await build_auth_url(provider, db, user_id=current_user.id)
             return {"url": url}
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
@@ -80,7 +80,7 @@ async def get_auth_url(provider: str, current_user=Depends(get_current_user), db
     # Use naive UTC to match the oauth_states.created_at column (TIMESTAMP WITHOUT
     # TIME ZONE) and the auth.py login flow — avoids naive/aware mismatch.
     state = secrets.token_urlsafe(32)
-    db.add(OAuthState(state=state, provider=provider, created_at=datetime.utcnow()))
+    db.add(OAuthState(state=state, provider=provider, user_id=current_user.id, created_at=datetime.utcnow()))
     await db.commit()
     params = {
         "client_id": client_ids[provider],
@@ -107,7 +107,7 @@ async def oauth_callback(
     if provider not in GOOGLE_PROVIDERS:
         raise HTTPException(status_code=400, detail="Callback not supported for this provider")
 
-    validated_provider = await validate_state(body.state, db)
+    validated_provider = await validate_state(body.state, db, user_id=current_user.id)
     if not validated_provider or validated_provider != provider:
         raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
 

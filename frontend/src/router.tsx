@@ -58,7 +58,8 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
   const user = useAuthStore(s => s.user)
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
   if (!isAuthenticated) return <Navigate to="/login" replace />
-  if (user && !user.is_admin) return <Navigate to="/app" replace />
+  if (!user) return null  // wait for user profile to load before checking is_admin
+  if (!user.is_admin) return <Navigate to="/app" replace />
   return <>{children}</>
 }
 

@@ -30,12 +30,14 @@ async def public_key(current_user=Depends(get_current_user)):
 
 @router.post("/subscribe")
 async def subscribe(body: SubscriptionBody, current_user=Depends(get_current_user), db=Depends(get_db)):
-    # endpoint is globally unique; look it up directly and (re)assign it to this user.
+    # Look up by (user_id, endpoint) so we never reassign another user's subscription.
     existing = (await db.execute(
-        select(PushSubscription).where(PushSubscription.endpoint == body.endpoint)
+        select(PushSubscription).where(
+            PushSubscription.endpoint == body.endpoint,
+            PushSubscription.user_id == current_user.id,
+        )
     )).scalar_one_or_none()
     if existing:
-        existing.user_id = current_user.id
         existing.p256dh = body.keys.p256dh
         existing.auth = body.keys.auth
         db.add(existing)
