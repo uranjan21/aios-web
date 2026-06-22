@@ -166,6 +166,7 @@ aios-web/
 - **health_logs entry_type CHECK**: allowed values are `gym,weight,food,meal,water,steps,body_fat,sleep,note` — adding a new type needs a migration to update the Postgres CHECK constraint
 - **CSS vars are HEX**: never `hsl(var(--x))` — use `var(--x)` or `color-mix()`
 - **Pending migration chain** (not yet applied if Docker was down): `c7d2e9f1a3b4` (splits/tags) → `d8e3f0a2b5c6` (habits) → `e9f4a1b3c6d7` (workouts) → `f0a5b2c4d7e8` (foods). Run `alembic upgrade head` to apply.
+- **Audit + CMS migration chain** (2026-06-22, single linear head): `h006` (is_admin) → `h007` (oauth_states.user_id) → `h008` (per-user composite uniques) → `h009` (content CMS expansion). Run `alembic upgrade head` to apply.
 
 ---
 
@@ -196,6 +197,29 @@ alembic upgrade head
 
 ---
 
+## Recent Updates (2026-06-22)
+
+### Content area → full Content Management System
+The Content area was rebuilt from a single Kanban tab into a complete CMS with **6 tabs**:
+- **Overview** — KPI cards (total/published/scheduled/ideas), pipeline-by-stage bar, platform-mix pie, publishing-cadence area chart, upcoming-scheduled + recently-published lists.
+- **Pipeline** — 4-column drag-and-drop Kanban (idea → in_progress → scheduled → published) via `@dnd-kit`; cards show platform, priority dot, date, metrics, tags. Click a card to open the editor.
+- **Calendar** — month grid (prev/next/today nav) plotting scheduled (dimmed) + published (solid) content on publish dates.
+- **Library** — filterable/sortable `DataTable` of everything (search + platform/status/type filters); row click opens the editor.
+- **Campaigns** — campaign/series CRUD (name, goal, description, colour stripe, date range), per-campaign item counts; items reference `campaign_id`.
+- **Analytics** — engagement KPIs (views/likes/comments/shares), content-by-platform bar, type-mix pie, top-5 performers ranked by weighted engagement.
+- **Editor**: `ContentEditorDrawer` (right-side `Sheet`) — title, platform, type, status, priority, pillar, campaign, tags, AI-drafted body (`aiApi.draft`, gated behind `require_plan("pro")` → `UpgradeWall` on 402), publish date, live URL, notes, and manual engagement metrics. Create + edit + delete in one surface.
+
+**Backend** (`backend/app/api/areas/content.py`, `models/content.py`, migration `h009`):
+- `ContentItem` extended: `body`, `tags`, `pillar`, `campaign_id` (FK, `ON DELETE SET NULL`), `priority`, `position`, `scheduled_at`, `published_at`, `url`, and metrics `views/likes/comments/shares`. Patch auto-stamps `published_at`/`publish_date` on the idea→published transition.
+- New `ContentCampaign` model + `content_campaigns` table (`UNIQUE(user_id, name)`).
+- New endpoints: campaign CRUD (`/campaigns`), `/stats` (aggregations: by_status/platform/type/month, metric totals, top performers), richer `/items` filters (content_type, campaign_id, tag, `q` search). All user-scoped.
+- Obsolete components removed: `ColumnDropZone`, `ContentCaptureModal`, `DraftModal` (superseded by the new tabs + drawer). Shared meta in `components/areas/content/contentMeta.ts`.
+
+### Three security/quality audit rounds (all pushed to `claude/aios-web-audits-jywmwh`, PR #1)
+- **Round 1 — feature/UX**: Admin panel (5 endpoints + `is_admin` migration `h006` + `require_admin` + `RequireAdmin` guard), empty states on finance tabs, landing-page rewrite, AI feature gates (`require_plan("pro")` + `UpgradeWall`/`is402`), 4 missing finance tabs wired (Goals/Loans/Investments/Bills).
+- **Round 2 — security**: `OAuthState.user_id` FK (`h007`) so integration state tokens are user-scoped; push `subscribe` scoped to `(user_id, endpoint)` (no cross-user hijack); `RequireAdmin` null-user race fixed; admin mutations rate-limited; CSP `ws:/wss:` narrowed to the configured origin; HSTS in production; `decode_access_token` now logs failures.
+- **Round 3 — isolation + correctness** (`h008`): replaced **6 global unique constraints** with per-user composites (`finance_snapshots`, `finance_categories`, `skill_inventory`, `calendar_events`, `google_fit_metrics`, `push_subscriptions`) — two users could previously block each other's inserts. Fixed `/chat/token-budget` crash (called `get_token_budget_status()` with no `user_id`). Rate-limited `/auth/me`, `/auth/profile`, `/auth/change-password`, `/auth/me DELETE`, `/chat/sessions DELETE`, `/sync/status`, `/sync/conflicts`. Removed `@ts-nocheck` from 5 page/tab files — surfaced and fixed a real bug where CareerPage `<Select onValueChange>` (ignored prop) never fired the mutation; fixed `<Skeleton active>` and untyped `PublishedDropZone`. `tsc --noEmit` clean across the frontend.
+
 ## Recent Updates (2026-06-21)
 
 - **Ship-readiness audit + isolation fixes** (`docs/SHIP_READINESS_AUDIT.md`): the earlier "multi-tenancy enforced" claim was only true for the 5 area routers. Fixed the rest this session — chat (C2), captures (C3), integrations (C1), push, and the WS handlers (C5) are now user-scoped. Integrations & agents got composite unique constraints (`UNIQUE(user_id, provider)` = migration `h002`; `UNIQUE(user_id, task_id)` = `h003`). **Run `alembic upgrade head`.**
@@ -219,8 +243,9 @@ alembic upgrade head
 - Self-serve signup UI shipped (login/signup toggle on `LoginPage` + `/signup` route). Profile + change-password screens still pending (backend endpoints exist).
 - Vault sync watcher may miss rapid successive file changes (debounce needed) — self-host mode only now.
 - FitnessTab workout goals stored in localStorage — needs backend API endpoint
+- **Content CMS metrics are manual**: `views/likes/comments/shares` are entered by hand in the editor drawer. Auto-sync from YouTube/Twitter/LinkedIn integrations is not wired yet — the Analytics tab reflects whatever is logged. Drag-reorder persists status only (not intra-column `position`); the `position` column exists but isn't yet driven by the UI.
 - F5 splits+tags: code complete, migration `c7d2e9f1a3b4` written but not verified (Docker was down at time of writing)
 
 ---
 
-**Last Updated**: 2026-06-21 | **Version**: 0.3.0
+**Last Updated**: 2026-06-22 | **Version**: 0.4.0

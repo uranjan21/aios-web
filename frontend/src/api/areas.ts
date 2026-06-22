@@ -1,7 +1,7 @@
 import { api } from './client'
 import type {
   FinanceSnapshot, FinanceExpense, HealthLog, HealthStreak,
-  SkillInventory, CareerEvent, BusinessEvent, ContentItem, JobOpportunity, BudgetLimit,
+  SkillInventory, CareerEvent, BusinessEvent, ContentItem, ContentCampaign, ContentStats, JobOpportunity, BudgetLimit,
   FinancialGoal, FinanceBill, FinanceIncome, CashFlowData, HealthGoal, NutritionToday,
   FinanceInvestment, InvestmentSummary, FinanceLoan, LoanSummary, SleepRecent, HabitItem,
   WorkoutSessionItem, WorkoutPR, FoodDbItem,
@@ -184,13 +184,34 @@ export const capturesApi = {
 }
 
 // Content
+export interface ContentItemFilters {
+  status?: string; platform?: string; content_type?: string
+  campaign_id?: string; tag?: string; q?: string
+}
+export type ContentItemInput = Partial<Omit<ContentItem, 'id' | 'position' | 'views' | 'likes' | 'comments' | 'shares'>> & {
+  views?: number; likes?: number; comments?: number; shares?: number; position?: number
+}
+export type CampaignInput = {
+  name?: string; description?: string | null; goal?: string | null; color?: string
+  status?: string; start_date?: string | null; end_date?: string | null
+}
+
 export const contentApi = {
-  items: (status?: string, platform?: string) =>
-    api.get<ContentItem[]>('/areas/content/items', { params: { status, platform } }).then(r => r.data),
-  createItem: (data: { title: string; platform: string; content_type?: string; notes?: string; idea_date?: string }) =>
+  items: (filters: ContentItemFilters = {}) =>
+    api.get<ContentItem[]>('/areas/content/items', { params: filters }).then(r => r.data),
+  createItem: (data: ContentItemInput) =>
     api.post<ContentItem>('/areas/content/items', data).then(r => r.data),
-  patchItem: (id: string, data: { title?: string; platform?: string; content_type?: string; status?: string; publish_date?: string; notes?: string }) =>
+  patchItem: (id: string, data: ContentItemInput) =>
     api.patch<ContentItem>(`/areas/content/items/${id}`, data).then(r => r.data),
   deleteItem: (id: string) => api.delete(`/areas/content/items/${id}`).then(r => r.data),
+
+  campaigns: () => api.get<ContentCampaign[]>('/areas/content/campaigns').then(r => r.data),
+  createCampaign: (data: CampaignInput) =>
+    api.post<ContentCampaign>('/areas/content/campaigns', data).then(r => r.data),
+  patchCampaign: (id: string, data: CampaignInput) =>
+    api.patch<ContentCampaign>(`/areas/content/campaigns/${id}`, data).then(r => r.data),
+  deleteCampaign: (id: string) => api.delete(`/areas/content/campaigns/${id}`).then(r => r.data),
+
+  stats: () => api.get<ContentStats>('/areas/content/stats').then(r => r.data),
   twitterQueue: () => api.get('/areas/content/twitter-queue').then(r => r.data),
 }
