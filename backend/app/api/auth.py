@@ -303,42 +303,41 @@ async def delete_account(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    """Permanently delete the authenticated user's account and all their data."""
+    """Permanently delete the authenticated user's account and all their data.
+
+    Table set is derived from the live ORM metadata (every table carrying a
+    ``user_id`` column) rather than a hand-maintained list, so it can't silently
+    rot when new user-data tables are added. Deletions run in reverse FK order.
+    Any failure rolls the whole thing back and surfaces as a 500 — we never
+    report success while leaving data behind (GDPR right to erasure).
+    """
     from sqlalchemy import text
+    from sqlmodel import SQLModel
+    import app.models  # noqa: F401 — ensure every model is registered in metadata
 
     user_id = str(current_user.id)
 
-    # Delete child tables in dependency order before removing the user row.
-    # Tables with user_id FK to users; chat_messages must precede chat_sessions.
-    _user_data_tables = [
-        "chat_messages",
-        "daily_token_usage",
-        "chat_sessions",
-        "agents",
-        "captures",
-        "integration_credentials",
-        "subscriptions",
-        "finance_expenses",
-        "finance_income",
-        "finance_accounts",
-        "finance_loans",
-        "finance_investments",
-        "health_logs",
-        "health_workouts",
-        "skill_inventory",
-        "job_applications",
-        "business_contacts",
-        "business_projects",
-        "content_items",
-        "content_ideas",
-        "vault_files",
-        "push_subscriptions",
-    ]
-    for table in _user_data_tables:
-        try:
-            await db.execute(text(f"DELETE FROM {table} WHERE user_id = :uid"), {"uid": user_id})
-        except Exception:
-            logger.debug("Skipped deletion from %s (table may not exist)", table)
+    # Only touch tables that actually exist in this database (migrations may lag).
+    existing = {
+        row[0]
+        for row in (
+            await db.execute(
+                text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+            )
+        ).all()
+    }
+
+    # reversed(sorted_tables) gives children before parents → safe for FK constraints.
+    for table in reversed(SQLModel.metadata.sorted_tables):
+        if table.name == "users":
+            continue
+        if "user_id" not in table.columns:
+            continue
+        if table.name not in existing:
+            continue
+        await db.execute(
+            text(f'DELETE FROM "{table.name}" WHERE user_id = :uid'), {"uid": user_id}
+        )
 
     result = await db.execute(select(User).where(User.id == current_user.id))
     user = result.scalar_one_or_none()

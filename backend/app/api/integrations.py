@@ -77,8 +77,10 @@ async def get_auth_url(provider: str, current_user=Depends(get_current_user), db
     }
     redirect_uri = f"{settings.allowed_origin}/integrations/{provider}/callback"
     # Generate CSRF state token and persist in DB (H3).
+    # Use naive UTC to match the oauth_states.created_at column (TIMESTAMP WITHOUT
+    # TIME ZONE) and the auth.py login flow — avoids naive/aware mismatch.
     state = secrets.token_urlsafe(32)
-    db.add(OAuthState(state=state, provider=provider, created_at=datetime.now(timezone.utc)))
+    db.add(OAuthState(state=state, provider=provider, created_at=datetime.utcnow()))
     await db.commit()
     params = {
         "client_id": client_ids[provider],

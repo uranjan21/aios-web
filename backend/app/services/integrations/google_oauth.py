@@ -55,7 +55,8 @@ async def build_auth_url(provider: str, db) -> str:
     redirect_uri = f"{settings.allowed_origin}/integrations/{provider}/callback"
 
     from app.models.oauth_state import OAuthState
-    db.add(OAuthState(state=state, provider=provider, created_at=datetime.now(timezone.utc)))
+    # Naive UTC to match the oauth_states.created_at column (TIMESTAMP WITHOUT TIME ZONE).
+    db.add(OAuthState(state=state, provider=provider, created_at=datetime.utcnow()))
     await db.commit()
 
     params = {
@@ -80,7 +81,8 @@ async def validate_state(state: str, db) -> Optional[str]:
         return None
     await db.delete(entry)
     await db.commit()
-    age = datetime.now(timezone.utc) - entry.created_at.replace(tzinfo=timezone.utc)
+    # created_at is naive UTC; compare against naive UTC now.
+    age = datetime.utcnow() - entry.created_at
     if age > timedelta(minutes=10):
         return None
     return entry.provider

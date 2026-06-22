@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, BellOff, Settings, Palette, Activity, Sparkles, Keyboard, User, CreditCard, Save, Lock } from 'lucide-react'
+import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, BellOff, Settings, Palette, Activity, Sparkles, Keyboard, User, CreditCard, Save, Lock, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { chatApi } from '@/api/chat'
@@ -600,6 +600,62 @@ function BillingSection() {
   )
 }
 
+// ── Danger zone / account deletion (GDPR right to erasure) ──────────────────────
+
+function DangerZone() {
+  const logout = useAuthStore(s => s.logout)
+  const navigate = useNavigate()
+  const [confirming, setConfirming] = useState(false)
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const deleteAccount = async () => {
+    if (text !== 'DELETE') return
+    setBusy(true)
+    try {
+      await api.delete('/auth/me')
+      toast.success('Account deleted')
+      logout()
+      navigate('/')
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      toast.error(msg ?? 'Failed to delete account')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--destructive, #b91c1c)', marginBottom: 6 }}>
+        Delete account
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--muted-foreground)', marginBottom: 10 }}>
+        Permanently erase your account and all associated data. This cannot be undone.
+      </div>
+      {!confirming ? (
+        <Button variant="destructive" size="sm" onClick={() => setConfirming(true)}>
+          <Trash2 size={12} style={{ marginRight: 4 }} /> Delete my account
+        </Button>
+      ) : (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <FormInput
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder="Type DELETE to confirm"
+            aria-label="Type DELETE to confirm account deletion"
+          />
+          <Button variant="destructive" size="sm" disabled={busy || text !== 'DELETE'} onClick={deleteAccount}>
+            Confirm
+          </Button>
+          <Button variant="ghost" size="sm" disabled={busy} onClick={() => { setConfirming(false); setText('') }}>
+            Cancel
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
@@ -753,6 +809,7 @@ export function SettingsPage() {
           <div style={{ padding: '14px 20px', fontSize: '12px', color: 'var(--muted-foreground)' }}>
             Signing out will invalidate your current session across all devices.
           </div>
+          <DangerZone />
         </GlassCard>
       </PageContent>
     </PageContainer>
