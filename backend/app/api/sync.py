@@ -39,7 +39,7 @@ async def force_sync(request: Request, current_user=Depends(get_current_user)):
     async def _resync():
         for md_file in vault.rglob("*.md"):
             rel = str(md_file.relative_to(vault))
-            await sync_engine.handle_file_change(rel, "modified")
+            await sync_engine.handle_file_change(current_user.id, rel, "modified")
 
     task = asyncio.create_task(_resync())
     task.add_done_callback(_resync_done)

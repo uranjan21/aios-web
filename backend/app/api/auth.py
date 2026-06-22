@@ -221,9 +221,19 @@ async def me(current_user=Depends(get_current_user), db=Depends(get_db)):
 
 # ── Profile update ──────────────────────────────────────────────────────
 
+_URL_RE = re.compile(r"^https?://[^\s]{1,2048}$")
+
+
 class ProfileUpdate(BaseModel):
     name: str | None = None
     picture_url: str | None = None
+
+    @field_validator("picture_url")
+    @classmethod
+    def _picture_url(cls, v: str | None) -> str | None:
+        if v is not None and v and not _URL_RE.match(v):
+            raise ValueError("picture_url must be a valid http/https URL")
+        return v
 
 
 @router.patch("/profile")
@@ -283,6 +293,61 @@ async def change_password(
     # Re-issue cookie with the new token_version so the current session stays valid.
     _issue_cookie(response, str(user.id), user.token_version)
     return {"status": "ok"}
+
+
+# ── Account deletion (GDPR right to erasure) ───────────────────────
+
+@router.delete("/me")
+async def delete_account(
+    response: Response,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """Permanently delete the authenticated user's account and all their data."""
+    from sqlalchemy import text
+
+    user_id = str(current_user.id)
+
+    # Delete child tables in dependency order before removing the user row.
+    # Tables with user_id FK to users; chat_messages must precede chat_sessions.
+    _user_data_tables = [
+        "chat_messages",
+        "daily_token_usage",
+        "chat_sessions",
+        "agents",
+        "captures",
+        "integration_credentials",
+        "subscriptions",
+        "finance_expenses",
+        "finance_income",
+        "finance_accounts",
+        "finance_loans",
+        "finance_investments",
+        "health_logs",
+        "health_workouts",
+        "skill_inventory",
+        "job_applications",
+        "business_contacts",
+        "business_projects",
+        "content_items",
+        "content_ideas",
+        "vault_files",
+        "push_subscriptions",
+    ]
+    for table in _user_data_tables:
+        try:
+            await db.execute(text(f"DELETE FROM {table} WHERE user_id = :uid"), {"uid": user_id})
+        except Exception:
+            logger.debug("Skipped deletion from %s (table may not exist)", table)
+
+    result = await db.execute(select(User).where(User.id == current_user.id))
+    user = result.scalar_one_or_none()
+    if user:
+        await db.delete(user)
+    await db.commit()
+
+    response.delete_cookie("aios_token")
+    return {"status": "deleted"}
 
 
 # ── Google OAuth login ──────────────────────────────────────────────────

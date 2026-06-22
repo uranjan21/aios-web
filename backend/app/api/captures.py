@@ -1,8 +1,9 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
 from app.core.deps import get_current_user, get_db
+from app.core.rate_limit import limiter
 from app.models.captures import Capture
 
 router = APIRouter(prefix="/api/captures", tags=["captures"])
@@ -57,7 +58,8 @@ class ParseBody(BaseModel):
 
 
 @router.post("/parse")
-async def parse_capture(body: ParseBody, current_user=Depends(get_current_user)):
+@limiter.limit("30/minute")
+async def parse_capture(request: Request, body: ParseBody, current_user=Depends(get_current_user)):
     """LLM-parse a quick-log line into a structured intent. Falls back to plain capture."""
     from app.core.config import get_settings
     from app.services.ai.nvidia_client import get_nvidia_client

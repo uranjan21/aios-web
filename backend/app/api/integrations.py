@@ -1,4 +1,5 @@
 import logging
+import secrets
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -8,6 +9,7 @@ from sqlmodel import select
 from app.core.deps import get_current_user, get_db
 from app.core.entitlements import require_plan
 from app.models.integration import IntegrationCredential
+from app.models.oauth_state import OAuthState
 from app.services.integrations.google_oauth import (
     build_auth_url,
     validate_state,
@@ -63,6 +65,7 @@ async def get_auth_url(provider: str, current_user=Depends(get_current_user), db
             raise HTTPException(status_code=400, detail=str(e))
 
     from app.core.config import get_settings
+    from urllib.parse import urlencode
     settings = get_settings()
     base_urls = {
         "notion": "https://api.notion.com/v1/oauth/authorize",
@@ -73,7 +76,17 @@ async def get_auth_url(provider: str, current_user=Depends(get_current_user), db
         "github": settings.github_client_id,
     }
     redirect_uri = f"{settings.allowed_origin}/integrations/{provider}/callback"
-    url = f"{base_urls[provider]}?client_id={client_ids[provider]}&redirect_uri={redirect_uri}&response_type=code"
+    # Generate CSRF state token and persist in DB (H3).
+    state = secrets.token_urlsafe(32)
+    db.add(OAuthState(state=state, provider=provider, created_at=datetime.now(timezone.utc)))
+    await db.commit()
+    params = {
+        "client_id": client_ids[provider],
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "state": state,
+    }
+    url = f"{base_urls[provider]}?{urlencode(params)}"
     return {"url": url}
 
 
@@ -98,9 +111,9 @@ async def oauth_callback(
 
     try:
         token_data = await exchange_code(provider, body.code)
-    except Exception as e:
+    except Exception:
         logger.exception("OAuth token exchange failed for %s", provider)
-        raise HTTPException(status_code=400, detail=f"Token exchange failed: {e}")
+        raise HTTPException(status_code=400, detail="Token exchange failed")
 
     cred = await save_tokens(current_user.id, db, provider, token_data)
 
@@ -185,9 +198,9 @@ async def sync_provider(
             count = await sync_calendar_events(current_user.id, db)
         else:
             count = await sync_fitness(current_user.id, db)
-    except Exception as e:
+    except Exception:
         logger.exception("Sync failed for %s", provider)
-        raise HTTPException(status_code=500, detail=f"Sync failed: {e}")
+        raise HTTPException(status_code=500, detail="Sync failed — check server logs")
 
     cred.updated_at = datetime.now(timezone.utc)
     db.add(cred)

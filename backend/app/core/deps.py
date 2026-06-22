@@ -59,11 +59,28 @@ async def get_current_user(
 
 
 async def ws_auth(websocket: WebSocket) -> Optional[dict]:
-    """Extract and validate JWT from WebSocket cookie. Returns user dict or None if invalid."""
+    """Extract and validate JWT from WebSocket cookie. Returns payload dict or None if invalid."""
     token = websocket.cookies.get("aios_token")
     if not token:
         return None
     payload = decode_access_token(token)
     if not payload or not payload.get("sub"):
         return None
+
+    # Mirror get_current_user's revocation check: reject revoked sessions on WS (C-1).
+    try:
+        from app.models.user import User
+        from app.db.session import AsyncSessionLocal
+        uid = uuid.UUID(payload["sub"])
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(User).where(User.id == uid))
+            user = result.scalar_one_or_none()
+        if not user:
+            return None
+        token_ver = payload.get("ver")
+        if token_ver is not None and user.token_version != token_ver:
+            return None
+    except Exception:
+        return None
+
     return payload

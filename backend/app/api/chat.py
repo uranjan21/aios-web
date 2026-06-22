@@ -55,7 +55,12 @@ async def delete_session(session_id: uuid.UUID, current_user=Depends(get_current
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
         
-    messages_result = await db.execute(select(ChatMessage).where(ChatMessage.session_id == session_id))
+    messages_result = await db.execute(
+        select(ChatMessage).where(
+            ChatMessage.session_id == session_id,
+            ChatMessage.user_id == current_user.id,
+        )
+    )
     for msg in messages_result.scalars().all():
         await db.delete(msg)
         

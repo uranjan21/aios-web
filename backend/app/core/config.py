@@ -80,6 +80,13 @@ class Settings(BaseSettings):
                 )
             if self.app_password in _INSECURE_DEFAULTS:
                 raise ValueError("APP_PASSWORD must not be a default value in production")
+        # TOKEN_ENCRYPTION_KEY is required whenever Google OAuth integrations are configured (H4).
+        # An empty key causes Fernet to raise InvalidToken on first OAuth token save.
+        if (self.gcal_client_id or self.gfit_client_id) and not self.token_encryption_key:
+            raise ValueError(
+                "TOKEN_ENCRYPTION_KEY must be set when GCAL_CLIENT_ID or GFIT_CLIENT_ID is configured. "
+                "Generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+            )
         return self
 
     model_config = ConfigDict(
