@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Input, Select, SelectItem } from '@ledgr/ui'
+import { Input, Select, SelectItem, AreaToolbar, ToolbarMeta } from '@ledgr/ui'
 import { Library, Search } from 'lucide-react'
 import styled from 'styled-components'
 import { Table } from '@/components/ui/Table'
@@ -7,16 +7,10 @@ import { StatusPill } from '@/components/lumina'
 import type { ContentItem, ContentCampaign } from '@/types'
 import { PLATFORM_META, STATUS_LABELS, STATUS_TONE, PLATFORMS, CONTENT_TYPES, platformLabel } from './contentMeta'
 
-const Filters = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-`
 const SearchWrap = styled.div`
   position: relative;
-  min-width: 200px;
-  svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: ${({ theme }) => theme.color.mutedForeground}; }
+  min-width: 180px;
+  svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: ${({ theme }) => theme.color.mutedForeground}; pointer-events: none; }
   input { padding-left: 30px; }
 `
 const TitleCell = styled.div`
@@ -33,7 +27,7 @@ const SubText = styled.span`
   color: ${({ theme }) => theme.color.mutedForeground};
   text-transform: capitalize;
 `
-const Badge = styled.span<{ $color: string; $bg: string }>`
+const PlatformBadge = styled.span<{ $color: string; $bg: string }>`
   font-size: 10px;
   font-weight: 700;
   padding: 2px 8px;
@@ -89,7 +83,7 @@ export function LibraryTab({ items, campaigns, onEdit }: {
       id: 'platform', header: 'Platform',
       cell: (row: ContentItem) => {
         const p = PLATFORM_META[row.platform] ?? { color: 'var(--muted-foreground)', bg: 'var(--muted)' }
-        return <Badge $color={p.color} $bg={p.bg}>{platformLabel(row.platform)}</Badge>
+        return <PlatformBadge $color={p.color} $bg={p.bg}>{platformLabel(row.platform)}</PlatformBadge>
       },
     },
     {
@@ -113,35 +107,35 @@ export function LibraryTab({ items, campaigns, onEdit }: {
   ]
 
   return (
-    <Table
-      title="Content Library"
-      subtitle={`${filtered.length} of ${items.length} pieces`}
-      icon={<Library size={16} />}
-      action={
-        <Filters onClick={e => e.stopPropagation()}>
-          <SearchWrap>
-            <Search size={14} />
-            <Input aria-label="Search content" placeholder="Search…" value={q} onChange={e => setQ(e.target.value)} size="sm" />
-          </SearchWrap>
-          <Select size="sm" aria-label="Platform filter" value={platform} onChange={v => setPlatform(v as string)}>
-            <SelectItem value="all">All platforms</SelectItem>
-            {PLATFORMS.map(p => <SelectItem key={p} value={p}>{PLATFORM_META[p].label}</SelectItem>)}
-          </Select>
-          <Select size="sm" aria-label="Status filter" value={status} onChange={v => setStatus(v as string)}>
-            <SelectItem value="all">All status</SelectItem>
-            {(Object.keys(STATUS_LABELS) as ContentItem['status'][]).map(s => <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>)}
-          </Select>
-          <Select size="sm" aria-label="Type filter" value={type} onChange={v => setType(v as string)}>
-            <SelectItem value="all">All types</SelectItem>
-            {CONTENT_TYPES.map(t => <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>)}
-          </Select>
-        </Filters>
-      }
-      rows={filtered}
-      columns={columns}
-      getRowKey={(row: ContentItem) => row.id}
-      onRowClick={(row: ContentItem) => onEdit(row)}
-      empty={{ icon: <Library size={20} />, title: 'No content matches', description: 'Try adjusting your filters or create new content.' }}
-    />
+    <>
+      <AreaToolbar
+        title="Content Library"
+        left={<ToolbarMeta>{filtered.length} of {items.length} pieces</ToolbarMeta>}
+      >
+        <SearchWrap>
+          <Search size={14} />
+          <Input aria-label="Search content" placeholder="Search…" value={q} onChange={e => setQ(e.target.value)} size="sm" />
+        </SearchWrap>
+        <Select size="sm" aria-label="Platform filter" value={platform} onChange={v => setPlatform(v as string)}>
+          <SelectItem value="all">All platforms</SelectItem>
+          {PLATFORMS.map(p => <SelectItem key={p} value={p}>{PLATFORM_META[p].label}</SelectItem>)}
+        </Select>
+        <Select size="sm" aria-label="Status filter" value={status} onChange={v => setStatus(v as string)}>
+          <SelectItem value="all">All status</SelectItem>
+          {(Object.keys(STATUS_LABELS) as ContentItem['status'][]).map(s => <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>)}
+        </Select>
+        <Select size="sm" aria-label="Type filter" value={type} onChange={v => setType(v as string)}>
+          <SelectItem value="all">All types</SelectItem>
+          {CONTENT_TYPES.map(t => <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>)}
+        </Select>
+      </AreaToolbar>
+      <Table
+        rows={filtered}
+        columns={columns}
+        getRowKey={(row: ContentItem) => row.id}
+        onRowClick={(row: ContentItem) => onEdit(row)}
+        empty={{ icon: <Library size={20} />, title: 'No content matches', description: 'Try adjusting your filters or create new content.' }}
+      />
+    </>
   )
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Card as SectionCard, Dialog, Input, Textarea, Button, ConfirmDialog } from '@ledgr/ui'
+import { Card, Dialog, Input, Textarea, Button, ConfirmDialog } from '@ledgr/ui'
 import { Megaphone, Plus, Pencil, Trash2, Target, Layers } from 'lucide-react'
 import { toast } from 'sonner'
 import styled from 'styled-components'
@@ -15,13 +15,8 @@ const Grid = styled.div`
   @media (min-width: 640px) { grid-template-columns: repeat(2, 1fr); }
   @media (min-width: 1100px) { grid-template-columns: repeat(3, 1fr); }
 `
-const CampaignCard = styled.div<{ $color: string }>`
+const CampaignCard = styled(Card)<{ $color: string }>`
   position: relative;
-  background: ${({ theme }) => theme.color.card};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 14px;
-  padding: 18px;
-  padding-left: 22px;
   overflow: hidden;
   &::before {
     content: '';
@@ -31,6 +26,9 @@ const CampaignCard = styled.div<{ $color: string }>`
     background: ${({ $color }) => $color};
   }
   &:hover .campaign-actions { opacity: 1; }
+  && {
+    padding: 18px 18px 14px 22px;
+  }
 `
 const CampaignHead = styled.div`
   display: flex;
@@ -163,7 +161,7 @@ export function CampaignsTab() {
   const setForm = (patch: Partial<typeof BLANK>) => setDialog(d => ({ ...d, form: { ...d.form, ...patch } }))
 
   return (
-    <SectionCard
+    <Card
       title="Campaigns & Series"
       subtitle="Group related content into themed campaigns with goals"
       icon={<Megaphone size={16} />}
@@ -176,7 +174,7 @@ export function CampaignsTab() {
       ) : (
         <Grid>
           {campaigns.map(c => (
-            <CampaignCard key={c.id} $color={c.color}>
+            <CampaignCard key={c.id} $color={c.color} size="none">
               <CampaignHead>
                 <CampaignName>{c.name}</CampaignName>
                 <Actions className="campaign-actions">
@@ -245,6 +243,6 @@ export function CampaignsTab() {
         confirmLabel="Delete"
         onConfirm={() => { remove.mutate(confirmDel.id); setConfirmDel({ open: false, id: '' }) }}
       />
-    </SectionCard>
+    </Card>
   )
 }

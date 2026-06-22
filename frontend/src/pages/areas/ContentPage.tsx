@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button, PageHeader } from '@ledgr/ui'
+import { Button, PageHeader, AreaToolbar } from '@ledgr/ui'
 import { PenLine, LayoutDashboard, Columns3, CalendarDays, Library, Megaphone, BarChart3, Plus } from 'lucide-react'
 import styled from 'styled-components'
 import { contentApi } from '@/api/areas'
@@ -20,11 +20,6 @@ const TabLabel = styled.span`
   display: inline-flex;
   align-items: center;
   gap: 6px;
-`
-const Toolbar = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  padding: 8px 0 4px;
 `
 
 export function ContentPage() {
@@ -68,11 +63,11 @@ export function ContentPage() {
         <AreaTabs
           defaultActiveKey="overview"
           toolbar={
-            <Toolbar>
+            <AreaToolbar style={{ marginBottom: 0, marginTop: 8 }}>
               <Button variant="primary" size="sm" startIcon={<Plus size={14} />} onClick={openNew}>
                 New Content
               </Button>
-            </Toolbar>
+            </AreaToolbar>
           }
           items={[
             {

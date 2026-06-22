@@ -3,6 +3,7 @@ import { useDraggable } from '@dnd-kit/core'
 import { motion } from 'framer-motion'
 import { Calendar, MessageCircle, Heart, Eye } from 'lucide-react'
 import styled from 'styled-components'
+import { Card as UiCard } from '@ledgr/ui'
 import type { ContentItem } from '@/types'
 import { PLATFORM_META, PRIORITY_META, parseTags } from './contentMeta'
 
@@ -10,17 +11,17 @@ const Root = styled(motion.div)`
   position: relative;
 `
 
-const Card = styled.div<{ $dragging?: boolean }>`
-  background: ${({ theme }) => theme.color.card};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 12px;
-  padding: 12px;
+const DragCard = styled(UiCard)<{ $dragging?: boolean }>`
   cursor: grab;
   user-select: none;
   touch-action: none;
   opacity: ${({ $dragging }) => ($dragging ? 0.4 : 1)};
   transition: border-color 120ms, box-shadow 120ms;
+  && {
+    padding: 12px;
+  }
   &:hover {
+    transform: none;
     border-color: ${({ theme }) => theme.color.accent};
     box-shadow: ${({ theme }) => theme.shadow.sm};
   }
@@ -113,8 +114,9 @@ export const ContentCard = forwardRef<HTMLDivElement, Props>(function ContentCar
 
   return (
     <Root layout initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.16 }}>
-      <Card
+      <DragCard
         ref={dnd?.setNodeRef}
+        size="none"
         style={style}
         $dragging={isDragging}
         onClick={() => onClick?.(item)}
@@ -138,7 +140,7 @@ export const ContentCard = forwardRef<HTMLDivElement, Props>(function ContentCar
         {tags.length > 0 && (
           <Tags>{tags.slice(0, 3).map(t => <Tag key={t}>{t}</Tag>)}</Tags>
         )}
-      </Card>
+      </DragCard>
     </Root>
   )
 })
