@@ -2,7 +2,7 @@ from functools import lru_cache
 
 import secrets
 
-from pydantic import model_validator, Field
+from pydantic import model_validator, Field, ConfigDict
 from pydantic_settings import BaseSettings
 
 _INSECURE_DEFAULTS = {"change-me-in-production", "changeme", "secret", ""}
@@ -82,9 +82,10 @@ class Settings(BaseSettings):
                 raise ValueError("APP_PASSWORD must not be a default value in production")
         return self
 
-    class Config:
-        env_file = (".env", "../.env")  # works whether run from backend/ or aios-web/
-        case_sensitive = False
+    model_config = ConfigDict(
+        env_file=(".env", "../.env"),  # works whether run from backend/ or aios-web/
+        case_sensitive=False,
+    )
 
 
 @lru_cache

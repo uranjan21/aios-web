@@ -51,13 +51,13 @@ async def list_integrations(current_user=Depends(get_current_user), db=Depends(g
 
 
 @router.get("/{provider}/auth-url", dependencies=[Depends(require_plan("pro"))])
-async def get_auth_url(provider: str, current_user=Depends(get_current_user)):
+async def get_auth_url(provider: str, current_user=Depends(get_current_user), db=Depends(get_db)):
     if provider not in PROVIDERS:
         raise HTTPException(status_code=404, detail="Unknown provider")
 
     if provider in GOOGLE_PROVIDERS:
         try:
-            url = build_auth_url(provider)
+            url = await build_auth_url(provider, db)
             return {"url": url}
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
@@ -92,7 +92,7 @@ async def oauth_callback(
     if provider not in GOOGLE_PROVIDERS:
         raise HTTPException(status_code=400, detail="Callback not supported for this provider")
 
-    validated_provider = validate_state(body.state)
+    validated_provider = await validate_state(body.state, db)
     if not validated_provider or validated_provider != provider:
         raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
 

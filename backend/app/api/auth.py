@@ -1,11 +1,12 @@
 import secrets
+import uuid
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
 import re
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, field_validator
 from sqlmodel import select
 
@@ -21,13 +22,13 @@ def _validate_email(value: str) -> str:
 from app.core.config import get_settings
 from app.core.deps import get_current_user, get_db
 from app.core.rate_limit import limiter
-from app.core.security import create_access_token, hash_password, verify_password
+from app.core.security import create_access_token, decode_access_token, hash_password, verify_password
 from app.models.user import User
+from app.models.oauth_state import OAuthState
 from app.services.integrations.google_oauth import (
     GOOGLE_AUTH_URL,
     GOOGLE_TOKEN_URL,
     GOOGLE_USERINFO_URL,
-    _pending_states,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -35,9 +36,12 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 # ── Helpers ─────────────────────────────────────────────────────────────
 
-def _issue_cookie(response: Response, user_id: str):
+def _issue_cookie(response: Response, user_id: str, token_version: int = 1):
     settings = get_settings()
-    token = create_access_token({"sub": user_id}, expires_delta=timedelta(days=30))
+    token = create_access_token(
+        {"sub": user_id, "ver": token_version},
+        expires_delta=timedelta(days=30),
+    )
     response.set_cookie(
         key="aios_token",
         value=token,
@@ -85,7 +89,7 @@ async def login(request: Request, body: LoginRequest, response: Response, db=Dep
         else:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    _issue_cookie(response, str(user.id))
+    _issue_cookie(response, str(user.id), user.token_version)
     return {"status": "ok", "user": _user_dict(user)}
 
 
@@ -155,7 +159,7 @@ async def signup(request: Request, body: SignupRequest, response: Response, db=D
 
     await _seed_new_user(user.id)
 
-    _issue_cookie(response, str(user.id))
+    _issue_cookie(response, str(user.id), user.token_version)
     return {"status": "ok", "user": _user_dict(user)}
 
 
@@ -180,8 +184,27 @@ async def _seed_new_user(user_id) -> None:
 # ── Logout ──────────────────────────────────────────────────────────────
 
 @router.post("/logout")
-async def logout(response: Response):
+async def logout(
+    response: Response,
+    aios_token: str | None = Cookie(default=None),
+    db=Depends(get_db),
+):
     response.delete_cookie("aios_token")
+    # Increment token_version to revoke all outstanding JWTs for this user (H4).
+    if aios_token:
+        payload = decode_access_token(aios_token)
+        if payload and payload.get("sub"):
+            try:
+                uid = uuid.UUID(payload["sub"])
+                result = await db.execute(select(User).where(User.id == uid))
+                user = result.scalar_one_or_none()
+                if user:
+                    user.token_version += 1
+                    user.updated_at = datetime.utcnow()
+                    db.add(user)
+                    await db.commit()
+            except Exception:
+                pass  # Never block logout due to revocation errors
     return {"status": "ok"}
 
 
@@ -211,7 +234,10 @@ async def update_profile(body: ProfileUpdate, current_user=Depends(get_current_u
         raise HTTPException(status_code=401, detail="User not found")
 
     if body.name is not None:
-        user.name = body.name.strip()
+        name = body.name.strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Name cannot be empty")
+        user.name = name
     if body.picture_url is not None:
         user.picture_url = body.picture_url
     user.updated_at = datetime.utcnow()
@@ -236,7 +262,12 @@ class ChangePasswordRequest(BaseModel):
 
 
 @router.post("/change-password")
-async def change_password(body: ChangePasswordRequest, current_user=Depends(get_current_user), db=Depends(get_db)):
+async def change_password(
+    body: ChangePasswordRequest,
+    response: Response,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
     result = await db.execute(select(User).where(User.id == current_user.id))
     user = result.scalar_one_or_none()
     if not user:
@@ -244,16 +275,20 @@ async def change_password(body: ChangePasswordRequest, current_user=Depends(get_
     if not user.password_hash or not verify_password(body.current, user.password_hash):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     user.password_hash = hash_password(body.new)
+    user.token_version += 1  # revoke all other active sessions (H4)
     user.updated_at = datetime.utcnow()
     db.add(user)
     await db.commit()
+    await db.refresh(user)
+    # Re-issue cookie with the new token_version so the current session stays valid.
+    _issue_cookie(response, str(user.id), user.token_version)
     return {"status": "ok"}
 
 
 # ── Google OAuth login ──────────────────────────────────────────────────
 
 @router.get("/google/url")
-async def google_login_url():
+async def google_login_url(db=Depends(get_db)):
     settings = get_settings()
     client_id = settings.gcal_client_id
     if not client_id:
@@ -261,7 +296,10 @@ async def google_login_url():
 
     state = secrets.token_urlsafe(32)
     redirect_uri = f"{settings.allowed_origin}/auth/google/callback"
-    _pending_states[state] = {"provider": "auth", "created": datetime.utcnow()}
+
+    # Store state in DB so it survives multi-worker / pod-restart scenarios (H3).
+    db.add(OAuthState(state=state, provider="auth", created_at=datetime.utcnow()))
+    await db.commit()
 
     params = {
         "client_id": client_id,
@@ -285,10 +323,14 @@ class GoogleCallbackBody(BaseModel):
 async def google_login_callback(
     request: Request, body: GoogleCallbackBody, response: Response, db=Depends(get_db)
 ):
-    entry = _pending_states.pop(body.state, None)
-    if not entry:
+    # Validate and consume the state token from DB (H3).
+    result = await db.execute(select(OAuthState).where(OAuthState.state == body.state))
+    entry = result.scalar_one_or_none()
+    if not entry or entry.provider != "auth":
         raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
-    age = datetime.utcnow() - entry["created"]
+    age = datetime.utcnow() - entry.created_at
+    await db.delete(entry)
+    await db.commit()
     if age > timedelta(minutes=10):
         raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
 
@@ -352,5 +394,5 @@ async def google_login_callback(
         await db.commit()
         await db.refresh(user)
 
-    _issue_cookie(response, str(user.id))
+    _issue_cookie(response, str(user.id), user.token_version)
     return {"status": "ok", "user": _user_dict(user)}

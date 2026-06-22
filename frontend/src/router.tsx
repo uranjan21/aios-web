@@ -6,7 +6,6 @@ import { PageTransition } from '@/components/PageTransition'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuthStore } from '@/stores/authStore'
 import { api } from '@/api/client'
-import { PlaceholderPage } from '@/pages/areas/Placeholders'
 
 // Lazy-load all pages for code splitting
 const LoginPage = lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })))

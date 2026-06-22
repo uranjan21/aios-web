@@ -4,6 +4,7 @@ from typing import AsyncGenerator, Optional
 
 from fastapi import Cookie, Depends, HTTPException, WebSocket, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from app.core.security import decode_access_token
 from app.db.session import get_session
@@ -38,7 +39,21 @@ async def get_current_user(
     try:
         user_id = uuid.UUID(sub)
     except ValueError:
-        user_id = sub
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token claims")
+
+    # Confirm user still exists and token hasn't been revoked (H4).
+    from app.models.user import User
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
+    token_ver = payload.get("ver")
+    if token_ver is not None and user.token_version != token_ver:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired — please log in again",
+        )
 
     return CurrentUser(id=user_id, token=aios_token)
 

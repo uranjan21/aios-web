@@ -148,12 +148,11 @@ export function PricingPage() {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
   const { billing_enabled: billingEnabled } = useFeatures()
 
-  // Pro CTA: send anonymous visitors to signup; authed users into Stripe Checkout.
-  const handleProCta = async () => {
+  const handlePlanCta = async (plan: 'pro' | 'household') => {
     if (!isAuthenticated) { navigate('/signup'); return }
     if (!billingEnabled) { navigate('/app/settings'); return }
     try {
-      const { url } = await billingApi.checkout('pro')
+      const { url } = await billingApi.checkout(plan)
       window.location.href = url
     } catch {
       navigate('/app/settings')
@@ -208,8 +207,25 @@ export function PricingPage() {
               <li><Check size={16} /> Business & Career Modules</li>
               <li><Check size={16} /> Custom AI Prompts</li>
             </FeatureList>
-            <Button variant="primary" size="lg" style={{ marginTop: 'auto' }} onClick={handleProCta}>
+            <Button variant="primary" size="lg" style={{ marginTop: 'auto' }} onClick={() => handlePlanCta('pro')}>
               {isAuthenticated ? 'Upgrade to Pro' : 'Start 14-Day Free Trial'}
+            </Button>
+          </PricingCard>
+
+          <PricingCard initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <PlanName>Household</PlanName>
+            <PlanPrice>$24<span>/mo</span></PlanPrice>
+            <PlanDesc>One subscription, up to 5 household members — perfect for families.</PlanDesc>
+            <FeatureList>
+              <li><Check size={16} /> Everything in Pro</li>
+              <li><Check size={16} /> Up to 5 Household Members</li>
+              <li><Check size={16} /> Shared Dashboard & Goals</li>
+              <li><Check size={16} /> Combined Finance Overview</li>
+              <li><Shield size={16} /> Family Health Tracking</li>
+              <li><Zap size={16} /> Priority Support</li>
+            </FeatureList>
+            <Button variant="outline" size="lg" style={{ marginTop: 'auto' }} onClick={() => handlePlanCta('household')}>
+              {isAuthenticated ? 'Upgrade to Household' : 'Get Started'}
             </Button>
           </PricingCard>
         </PricingGrid>
