@@ -4,15 +4,16 @@ from decimal import Decimal
 from enum import Enum
 from typing import Optional
 from sqlmodel import SQLModel, Field, Column, Relationship
-from sqlalchemy import Text, Numeric
+from sqlalchemy import Text, Numeric, UniqueConstraint
 
 
 class FinanceSnapshot(SQLModel, table=True):
     __tablename__ = "finance_snapshots"
+    __table_args__ = (UniqueConstraint("user_id", "snapshot_month", name="uq_snapshot_user_month"),)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
-    snapshot_month: date = Field(unique=True, nullable=False)
+    snapshot_month: date = Field(nullable=False)
     salary: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2)))
     take_home: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2)))
     net_worth: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2)))
@@ -44,9 +45,10 @@ class Account(SQLModel, table=True):
 
 class Category(SQLModel, table=True):
     __tablename__ = "finance_categories"
+    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_category_user_name"),)
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
-    name: str = Field(nullable=False, unique=True)
+    name: str = Field(nullable=False)
     parent_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_categories.id")
     icon: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)

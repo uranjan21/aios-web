@@ -96,7 +96,7 @@ async def patch_session(session_id: uuid.UUID, body: ChatSessionPatch, current_u
 
 @router.get("/token-budget")
 async def token_budget(current_user=Depends(get_current_user)):
-    return await get_token_budget_status()
+    return await get_token_budget_status(current_user.id)
 
 
 async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:

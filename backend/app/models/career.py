@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 from sqlmodel import SQLModel, Field, Column
-from sqlalchemy import Text
+from sqlalchemy import Text, UniqueConstraint
 
 
 class CareerEvent(SQLModel, table=True):
@@ -22,10 +22,11 @@ class CareerEvent(SQLModel, table=True):
 
 class SkillInventory(SQLModel, table=True):
     __tablename__ = "skill_inventory"
+    __table_args__ = (UniqueConstraint("user_id", "skill_name", name="uq_skill_user_name"),)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
-    skill_name: str = Field(unique=True, nullable=False)
+    skill_name: str = Field(nullable=False)
     category: str = Field(nullable=False)
     level: str = Field(nullable=False)
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))

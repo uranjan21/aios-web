@@ -7,7 +7,7 @@ import re
 
 import httpx
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from sqlmodel import select
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -227,7 +227,7 @@ _URL_RE = re.compile(r"^https?://[^\s]{1,2048}$")
 
 
 class ProfileUpdate(BaseModel):
-    name: str | None = None
+    name: str | None = Field(default=None, max_length=200)
     picture_url: str | None = None
 
     @field_validator("picture_url")
@@ -239,7 +239,8 @@ class ProfileUpdate(BaseModel):
 
 
 @router.patch("/profile")
-async def update_profile(body: ProfileUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
+@limiter.limit("10/minute")
+async def update_profile(request: Request, body: ProfileUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(select(User).where(User.id == current_user.id))
     user = result.scalar_one_or_none()
     if not user:
@@ -274,7 +275,9 @@ class ChangePasswordRequest(BaseModel):
 
 
 @router.post("/change-password")
+@limiter.limit("5/minute")
 async def change_password(
+    request: Request,
     body: ChangePasswordRequest,
     response: Response,
     current_user=Depends(get_current_user),
@@ -300,7 +303,9 @@ async def change_password(
 # ── Account deletion (GDPR right to erasure) ───────────────────────
 
 @router.delete("/me")
+@limiter.limit("2/minute")
 async def delete_account(
+    request: Request,
     response: Response,
     current_user=Depends(get_current_user),
     db=Depends(get_db),
