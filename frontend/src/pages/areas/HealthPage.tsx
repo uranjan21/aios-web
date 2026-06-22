@@ -103,8 +103,8 @@ const StyledFastingWrapper = styled.div`
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
   border-radius: 0.75rem;
-  background-color: rgba(var(--primary-rgb, 249, 115, 22), 0.05);
-  border: 1px solid rgba(var(--primary-rgb, 249, 115, 22), 0.1);
+  background-color: ${({ theme }) => theme.color.accent}0d;
+  border: 1px solid ${({ theme }) => theme.color.accent}1a;
 `;
 
 const StyledFastingLabel = styled.span`
