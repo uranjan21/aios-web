@@ -1,10 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Dialog, Button } from '@ledgr/ui'
 import { toast } from 'sonner'
 import { Copy, RefreshCw, Sparkles } from 'lucide-react'
 import { aiApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
+import { UpgradeWall, is402 } from '@/components/UpgradeWall'
 import styled from 'styled-components'
 
 const IdeaLabel = styled.div`
@@ -67,14 +68,18 @@ export function DraftModal({ open, onClose, title, platform }: {
   title: string
   platform: string
 }) {
+  const [planBlocked, setPlanBlocked] = useState(false)
   const { mutate, data, isPending, reset } = useMutation({
     mutationFn: () => aiApi.draft(title, platform),
-    onError: () => toast.error('AI temporarily unavailable'),
+    onError: (err) => {
+      if (is402(err)) { setPlanBlocked(true); return }
+      toast.error('AI temporarily unavailable')
+    },
   })
 
   // Reset draft when modal closes so next open starts fresh
   useEffect(() => {
-    if (!open) reset()
+    if (!open) { reset(); setPlanBlocked(false) }
   }, [open, reset])
 
   const copy = async () => {
@@ -87,7 +92,9 @@ export function DraftModal({ open, onClose, title, platform }: {
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }} title="AI Draft" size="lg">
       <IdeaLabel>Idea: <strong>{title}</strong> · {platform}</IdeaLabel>
 
-      {isPending ? (
+      {planBlocked ? (
+        <UpgradeWall feature="AI content drafts" />
+      ) : isPending ? (
         <SkeletonStack>
           {[90, 75, 85, 60, 80].map((w, i) => (
             <Skeleton key={i} style={{ height: 14, width: `${w}%` }} />

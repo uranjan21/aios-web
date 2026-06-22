@@ -3,6 +3,7 @@
 `stripe` is imported lazily so the app runs without the package installed; billing
 is inert until STRIPE_SECRET_KEY + a price id are configured (settings.billing_enabled).
 """
+import asyncio
 import logging
 import uuid
 from datetime import datetime
@@ -60,7 +61,13 @@ async def _ensure_customer(db, user: User, sub: Subscription) -> str:
     if sub.stripe_customer_id:
         return sub.stripe_customer_id
     stripe = _stripe()
-    customer = stripe.Customer.create(email=user.email, name=user.name, metadata={"user_id": str(user.id)})
+    # Run sync Stripe SDK call in a thread to avoid blocking the asyncio event loop (M-1).
+    customer = await asyncio.to_thread(
+        stripe.Customer.create,
+        email=user.email,
+        name=user.name,
+        metadata={"user_id": str(user.id)},
+    )
     sub.stripe_customer_id = customer["id"]
     sub.updated_at = datetime.utcnow()
     db.add(sub)
@@ -78,7 +85,8 @@ async def create_checkout_session(db, user: User, plan: str, success_url: str, c
     stripe = _stripe()
     sub = await get_or_create_subscription(db, user.id)
     customer_id = await _ensure_customer(db, user, sub)
-    session = stripe.checkout.Session.create(
+    session = await asyncio.to_thread(
+        stripe.checkout.Session.create,
         mode="subscription",
         customer=customer_id,
         line_items=[{"price": price_id, "quantity": 1}],
@@ -95,7 +103,11 @@ async def create_portal_session(db, user: User, return_url: str) -> str:
     if not sub or not sub.stripe_customer_id:
         raise RuntimeError("No billing account for this user")
     stripe = _stripe()
-    session = stripe.billing_portal.Session.create(customer=sub.stripe_customer_id, return_url=return_url)
+    session = await asyncio.to_thread(
+        stripe.billing_portal.Session.create,
+        customer=sub.stripe_customer_id,
+        return_url=return_url,
+    )
     return session["url"]
 
 
@@ -130,8 +142,32 @@ async def _apply_subscription_object(db, obj: dict) -> None:
     await db.commit()
 
 
+# In-process idempotency cache: event_id → monotonic timestamp (L-5).
+# Prevents duplicate processing within a single server lifetime.
+# Not durable across restarts — use a DB table for full production guarantees.
+import time as _time
+_seen_events: dict[str, float] = {}
+
+
+def _is_duplicate_event(event_id: str) -> bool:
+    now = _time.monotonic()
+    # Evict entries older than 24 h to bound memory.
+    expired = [k for k, ts in list(_seen_events.items()) if now - ts > 86_400]
+    for k in expired:
+        del _seen_events[k]
+    if event_id in _seen_events:
+        return True
+    _seen_events[event_id] = now
+    return False
+
+
 async def handle_webhook_event(db, event: dict) -> None:
     """Process a verified Stripe webhook event."""
+    event_id = event.get("id", "")
+    if event_id and _is_duplicate_event(event_id):
+        logger.info("Skipping duplicate Stripe event %s", event_id)
+        return
+
     etype = event.get("type", "")
     obj = event.get("data", {}).get("object", {})
 
@@ -143,7 +179,7 @@ async def handle_webhook_event(db, event: dict) -> None:
         if sub_id:
             try:
                 stripe = _stripe()
-                full = stripe.Subscription.retrieve(sub_id)
+                full = await asyncio.to_thread(stripe.Subscription.retrieve, sub_id)
                 await _apply_subscription_object(db, full)
             except Exception as e:  # pragma: no cover - network
                 logger.error("Failed to retrieve subscription %s: %s", sub_id, e)

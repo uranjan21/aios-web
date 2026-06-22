@@ -1,6 +1,7 @@
 import { aiApi } from "@/api/areas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { UpgradeWall, is402 } from "@/components/UpgradeWall";
 import { Button, Card } from "@ledgr/ui";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -554,6 +555,7 @@ const HeaderRight = styled.div`
 
 export function OverviewInsightCard() {
   const [mode, setMode] = useState<Mode>("overview");
+  const [planBlocked, setPlanBlocked] = useState(false);
 
   // Life Overview — invalidate if cached from a different day
   const [overviewCache, setOverviewCache] = useState<InsightSnapshot | null>(() => {
@@ -575,7 +577,10 @@ export function OverviewInsightCard() {
       return result;
     },
     onSuccess: (r) => setOverviewCache(r),
-    onError: () => toast.error("AI temporarily unavailable"),
+    onError: (err) => {
+      if (is402(err)) { setPlanBlocked(true); return }
+      toast.error("AI temporarily unavailable")
+    },
   });
 
   // Daily Brief
@@ -590,7 +595,10 @@ export function OverviewInsightCard() {
       writeJson(BRIEF_KEY, c);
       setBriefCache(c);
     },
-    onError: () => toast.error("Could not generate daily brief"),
+    onError: (err) => {
+      if (is402(err)) { setPlanBlocked(true); return }
+      toast.error("Could not generate daily brief")
+    },
   });
 
   const overviewData    = overviewMutation.data ?? overviewCache;
@@ -667,8 +675,11 @@ export function OverviewInsightCard() {
       }
     >
 
+      {/* ── Plan blocked ── */}
+      {planBlocked && <UpgradeWall feature="AI daily brief and insights" style={{ margin: '8px 0' }} />}
+
       {/* ── Life Overview ── */}
-      {mode === "overview" &&
+      {!planBlocked && mode === "overview" &&
         (overviewPending && !overviewData ? (
           <OverviewSkeleton />
         ) : overviewData ? (
@@ -687,7 +698,7 @@ export function OverviewInsightCard() {
         ))}
 
       {/* ── Daily Brief ── */}
-      {mode === "brief" &&
+      {!planBlocked && mode === "brief" &&
         (briefPending ? (
           <EmptyState 
             icon={<BookOpen size={32} />} 

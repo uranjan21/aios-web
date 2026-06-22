@@ -35,9 +35,6 @@ SCOPES_BY_PROVIDER = {
     ],
 }
 
-_pending_states: dict[str, dict] = {}
-
-
 def _client_creds(provider: str) -> tuple[str, str]:
     settings = get_settings()
     if provider == "gcal":
@@ -47,7 +44,8 @@ def _client_creds(provider: str) -> tuple[str, str]:
     raise ValueError(f"Unknown Google provider: {provider}")
 
 
-def build_auth_url(provider: str) -> str:
+async def build_auth_url(provider: str, db) -> str:
+    """Build an OAuth authorization URL and persist the CSRF state token in the DB (H3)."""
     client_id, _ = _client_creds(provider)
     if not client_id:
         raise ValueError(f"{provider.upper()}_CLIENT_ID is not configured")
@@ -56,7 +54,10 @@ def build_auth_url(provider: str) -> str:
     state = secrets.token_urlsafe(32)
     redirect_uri = f"{settings.allowed_origin}/integrations/{provider}/callback"
 
-    _pending_states[state] = {"provider": provider, "created": datetime.now(timezone.utc)}
+    from app.models.oauth_state import OAuthState
+    # Naive UTC to match the oauth_states.created_at column (TIMESTAMP WITHOUT TIME ZONE).
+    db.add(OAuthState(state=state, provider=provider, created_at=datetime.utcnow()))
+    await db.commit()
 
     params = {
         "client_id": client_id,
@@ -70,14 +71,21 @@ def build_auth_url(provider: str) -> str:
     return f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
 
 
-def validate_state(state: str) -> Optional[str]:
-    entry = _pending_states.pop(state, None)
+async def validate_state(state: str, db) -> Optional[str]:
+    """Consume and validate the CSRF state token from the DB (H3)."""
+    from app.models.oauth_state import OAuthState
+    from sqlmodel import select
+    result = await db.execute(select(OAuthState).where(OAuthState.state == state))
+    entry = result.scalar_one_or_none()
     if not entry:
         return None
-    age = datetime.now(timezone.utc) - entry["created"]
+    await db.delete(entry)
+    await db.commit()
+    # created_at is naive UTC; compare against naive UTC now.
+    age = datetime.utcnow() - entry.created_at
     if age > timedelta(minutes=10):
         return None
-    return entry["provider"]
+    return entry.provider
 
 
 async def exchange_code(provider: str, code: str) -> dict:

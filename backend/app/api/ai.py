@@ -3,12 +3,14 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlmodel import select, desc
 
 from app.core.deps import get_current_user, get_db
+from app.core.entitlements import require_plan
+from app.core.rate_limit import limiter
 from app.services.ai.insights import generate_text
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -90,7 +92,8 @@ async def _health_facts(db, user_id: str) -> str:
 
 
 @router.post("/explain")
-async def explain_area(body: ExplainBody, current_user=Depends(get_current_user), db=Depends(get_db)):
+@limiter.limit("10/minute")
+async def explain_area(request: Request, body: ExplainBody, current_user=Depends(get_current_user), db=Depends(get_db), _plan=Depends(require_plan("pro"))):
     if body.area == "finance":
         facts = await _finance_facts(db, str(current_user.id))
         system = ("You are a sharp, friendly personal finance coach for a single user in India (amounts in INR ₹). "
@@ -116,7 +119,8 @@ class SkillGapBody(BaseModel):
 
 
 @router.post("/skill-gap")
-async def skill_gap(body: SkillGapBody, current_user=Depends(get_current_user), db=Depends(get_db)):
+@limiter.limit("10/minute")
+async def skill_gap(request: Request, body: SkillGapBody, current_user=Depends(get_current_user), db=Depends(get_db), _plan=Depends(require_plan("pro"))):
     from app.models.career import SkillInventory
 
     skills = (await db.execute(select(SkillInventory).where(SkillInventory.user_id == str(current_user.id)))).scalars().all()
@@ -136,7 +140,8 @@ async def skill_gap(body: SkillGapBody, current_user=Depends(get_current_user), 
 
 
 @router.post("/daily-brief")
-async def daily_brief(current_user=Depends(get_current_user), db=Depends(get_db)):
+@limiter.limit("5/minute")
+async def daily_brief(request: Request, current_user=Depends(get_current_user), db=Depends(get_db), _plan=Depends(require_plan("pro"))):
     """Generate a structured daily brief from cross-domain context."""
     now = datetime.utcnow()
     weekday = now.strftime("%A")
@@ -174,7 +179,8 @@ class DraftBody(BaseModel):
 
 
 @router.post("/draft")
-async def draft_content(body: DraftBody, current_user=Depends(get_current_user)):
+@limiter.limit("10/minute")
+async def draft_content(request: Request, body: DraftBody, current_user=Depends(get_current_user), _plan=Depends(require_plan("pro"))):
     platform_rules = {
         "twitter": "a punchy 5-8 tweet thread; first tweet is a scroll-stopping hook; each tweet under 280 chars",
         "linkedin": "a LinkedIn post: strong 1-line hook, short paragraphs, line breaks for rhythm, light CTA at the end",

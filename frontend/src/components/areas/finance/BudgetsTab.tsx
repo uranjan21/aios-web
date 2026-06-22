@@ -302,6 +302,7 @@ export function BudgetsTab() {
         rows={visibleBudgets}
         columns={columns}
         getRowKey={row => row.category}
+        empty={{ icon: <Gauge size={20} />, title: 'No budgets yet', description: 'Set a monthly limit per category to keep spending on track.' }}
       />
       <TableFooter>
         <span>Total Monthly Limit</span>

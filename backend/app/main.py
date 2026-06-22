@@ -28,6 +28,7 @@ from app.api.captures import router as captures_router
 from app.api.push import router as push_router
 from app.api.ai import router as ai_router
 from app.api.billing import router as billing_router
+from app.api.admin import router as admin_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -217,6 +218,7 @@ def create_app() -> FastAPI:
     app.include_router(push_router)
     app.include_router(ai_router)
     app.include_router(billing_router)
+    app.include_router(admin_router)
 
     return app
 

@@ -9,10 +9,12 @@ logger = logging.getLogger(__name__)
 
 _CSP = (
     "default-src 'self'; "
-    "connect-src 'self' ws: wss:; "
+    # Allow WebSocket connections + the two external APIs used by the pricing page
+    # for IP-based currency detection (ipapi.co) and exchange rates (open.er-api.com).
+    "connect-src 'self' ws: wss: https://ipapi.co https://open.er-api.com; "
     "script-src 'self' 'unsafe-inline'; "
     "style-src 'self' 'unsafe-inline'; "
-    "img-src 'self' data: blob:; "
+    "img-src 'self' data: blob: https:; "
     "font-src 'self' data:;"
 )
 

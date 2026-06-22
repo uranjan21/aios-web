@@ -317,6 +317,7 @@ export function InvestmentsTab() {
         rows={visibleHoldings}
         columns={columns}
         getRowKey={row => row.id}
+        empty={{ icon: <TrendingUp size={20} />, title: 'No holdings yet', description: 'Track stocks, mutual funds, and crypto to monitor your portfolio performance.' }}
       />
       {summary && (
         <SummaryGrid>

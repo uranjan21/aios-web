@@ -1,11 +1,106 @@
+import { useEffect, useState } from 'react'
 import styled from 'styled-components'
 import { motion } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@ledgr/ui'
-import { Check, Shield, Zap } from 'lucide-react'
+import { Check, Shield, Zap, Globe } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useFeatures } from '@/hooks/useFeatures'
 import { billingApi } from '@/api/billing'
+
+// ── Currency detection ────────────────────────────────────────────────────────
+
+interface CurrencyInfo {
+  code: string
+  rate: number
+  country: string
+  locale: string
+}
+
+const USD: CurrencyInfo = { code: 'USD', rate: 1, country: '', locale: 'en-US' }
+const SESSION_KEY = 'aios_pricing_currency'
+
+const LOCALE_MAP: Record<string, string> = {
+  USD: 'en-US', EUR: 'en-DE', GBP: 'en-GB', INR: 'en-IN', JPY: 'ja-JP',
+  CAD: 'en-CA', AUD: 'en-AU', CHF: 'de-CH', CNY: 'zh-CN', BRL: 'pt-BR',
+  MXN: 'es-MX', SGD: 'en-SG', HKD: 'zh-HK', KRW: 'ko-KR', SEK: 'sv-SE',
+  NOK: 'nb-NO', DKK: 'da-DK', PLN: 'pl-PL', AED: 'ar-AE', SAR: 'ar-SA',
+  ZAR: 'en-ZA', NGN: 'en-NG', PKR: 'ur-PK', BDT: 'bn-BD', IDR: 'id-ID',
+  MYR: 'ms-MY', PHP: 'fil-PH', THB: 'th-TH', VND: 'vi-VN', TRY: 'tr-TR',
+  ILS: 'he-IL', CLP: 'es-CL', COP: 'es-CO', PEN: 'es-PE', ARS: 'es-AR',
+}
+
+function usePricingCurrency() {
+  const [currency, setCurrency] = useState<CurrencyInfo>(USD)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Serve from cache if fresh (1 hour TTL)
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY)
+      if (raw) {
+        const { ts, data } = JSON.parse(raw)
+        if (Date.now() - ts < 3_600_000) {
+          setCurrency(data)
+          setLoading(false)
+          return
+        }
+      }
+    } catch { /* ignore */ }
+
+    let cancelled = false
+
+    async function detect() {
+      try {
+        // Step 1 — country + currency code from IP
+        const geoRes = await fetch('https://ipapi.co/json/', {
+          signal: AbortSignal.timeout(5000),
+        })
+        if (!geoRes.ok) throw new Error('geo')
+        const geo = await geoRes.json()
+        const code = (geo.currency as string)?.toUpperCase()
+        const country = (geo.country_name as string) ?? ''
+
+        if (!code || code === 'USD') return
+
+        // Step 2 — exchange rate (USD → local)
+        const rateRes = await fetch('https://open.er-api.com/v6/latest/USD', {
+          signal: AbortSignal.timeout(5000),
+        })
+        if (!rateRes.ok) throw new Error('rate')
+        const rateData = await rateRes.json()
+        const rate: number | undefined = rateData.rates?.[code]
+
+        if (!cancelled && rate) {
+          const info: CurrencyInfo = { code, rate, country, locale: LOCALE_MAP[code] ?? 'en-US' }
+          setCurrency(info)
+          try {
+            sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ts: Date.now(), data: info }))
+          } catch { /* quota */ }
+        }
+      } catch { /* fall through to USD */ } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    detect()
+    return () => { cancelled = true }
+  }, [])
+
+  function format(usdAmount: number): string {
+    const localAmount = usdAmount === 0 ? 0 : usdAmount * currency.rate
+    const noDecimals = localAmount >= 10 || ['JPY', 'KRW', 'VND', 'IDR', 'CLP'].includes(currency.code)
+    return new Intl.NumberFormat(currency.locale, {
+      style: 'currency',
+      currency: currency.code,
+      maximumFractionDigits: noDecimals ? 0 : 2,
+    }).format(localAmount)
+  }
+
+  return { currency, loading, format }
+}
+
+// ── Styled components ─────────────────────────────────────────────────────────
 
 const PageWrapper = styled.div`
   min-height: 100vh;
@@ -58,6 +153,19 @@ const TitleSection = styled.div`
   }
 `
 
+const CurrencyBadge = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  background: ${({ theme }) => theme.color.muted};
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: 9999px;
+  padding: 4px 12px;
+  margin-top: 12px;
+`
+
 const PricingGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -104,9 +212,10 @@ const PlanPrice = styled.div`
   font-size: 3.5rem;
   font-weight: 700;
   font-family: ${({ theme }) => theme.typography.fontFamily.serif};
-  margin-bottom: 1rem;
+  margin-bottom: 0.25rem;
   display: flex;
   align-items: baseline;
+  line-height: 1;
 
   span {
     font-size: 1rem;
@@ -114,6 +223,13 @@ const PlanPrice = styled.div`
     color: ${({ theme }) => theme.color.mutedForeground};
     font-weight: 400;
   }
+`
+
+const UsdNote = styled.div`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-bottom: 1rem;
+  opacity: 0.75;
 `
 
 const PlanDesc = styled.p`
@@ -143,17 +259,21 @@ const FeatureList = styled.ul`
   }
 `
 
+// ── Page ─────────────────────────────────────────────────────────────────────
+
 export function PricingPage() {
   const navigate = useNavigate()
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
   const { billing_enabled: billingEnabled } = useFeatures()
+  const { currency, loading, format } = usePricingCurrency()
 
-  // Pro CTA: send anonymous visitors to signup; authed users into Stripe Checkout.
-  const handleProCta = async () => {
+  const isUSD = currency.code === 'USD'
+
+  const handlePlanCta = async (plan: 'pro' | 'household') => {
     if (!isAuthenticated) { navigate('/signup'); return }
     if (!billingEnabled) { navigate('/app/settings'); return }
     try {
-      const { url } = await billingApi.checkout('pro')
+      const { url } = await billingApi.checkout(plan)
       window.location.href = url
     } catch {
       navigate('/app/settings')
@@ -179,12 +299,22 @@ export function PricingPage() {
         <TitleSection>
           <h1>Simple, transparent pricing</h1>
           <p>Invest in the operating system for your life.</p>
+          {!loading && !isUSD && currency.country && (
+            <CurrencyBadge>
+              <Globe size={13} />
+              Showing prices in {currency.code} for {currency.country}
+            </CurrencyBadge>
+          )}
         </TitleSection>
 
         <PricingGrid>
+          {/* Starter */}
           <PricingCard initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <PlanName>Starter</PlanName>
-            <PlanPrice>$0<span>/mo</span></PlanPrice>
+            <PlanPrice>
+              {loading ? '$0' : format(0)}<span>/mo</span>
+            </PlanPrice>
+            {!isUSD && <UsdNote>Free forever</UsdNote>}
             <PlanDesc>Perfect for getting started with life management.</PlanDesc>
             <FeatureList>
               <li><Check size={16} /> Basic Finance Tracking</li>
@@ -197,9 +327,13 @@ export function PricingPage() {
             </Button>
           </PricingCard>
 
+          {/* Pro */}
           <PricingCard $highlight initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <PlanName>Pro</PlanName>
-            <PlanPrice>$12<span>/mo</span></PlanPrice>
+            <PlanPrice>
+              {loading ? '$12' : format(12)}<span>/mo</span>
+            </PlanPrice>
+            {!isUSD && !loading && <UsdNote>≈ $12 USD · billed in USD</UsdNote>}
             <PlanDesc>Everything you need to master your wealth, health, and business.</PlanDesc>
             <FeatureList>
               <li><Check size={16} /> Unlimited Finance Tracking</li>
@@ -208,8 +342,29 @@ export function PricingPage() {
               <li><Check size={16} /> Business & Career Modules</li>
               <li><Check size={16} /> Custom AI Prompts</li>
             </FeatureList>
-            <Button variant="primary" size="lg" style={{ marginTop: 'auto' }} onClick={handleProCta}>
+            <Button variant="primary" size="lg" style={{ marginTop: 'auto' }} onClick={() => handlePlanCta('pro')}>
               {isAuthenticated ? 'Upgrade to Pro' : 'Start 14-Day Free Trial'}
+            </Button>
+          </PricingCard>
+
+          {/* Household */}
+          <PricingCard initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <PlanName>Household</PlanName>
+            <PlanPrice>
+              {loading ? '$24' : format(24)}<span>/mo</span>
+            </PlanPrice>
+            {!isUSD && !loading && <UsdNote>≈ $24 USD · billed in USD</UsdNote>}
+            <PlanDesc>One subscription, up to 5 household members — perfect for families.</PlanDesc>
+            <FeatureList>
+              <li><Check size={16} /> Everything in Pro</li>
+              <li><Check size={16} /> Up to 5 Household Members</li>
+              <li><Check size={16} /> Shared Dashboard & Goals</li>
+              <li><Check size={16} /> Combined Finance Overview</li>
+              <li><Shield size={16} /> Family Health Tracking</li>
+              <li><Zap size={16} /> Priority Support</li>
+            </FeatureList>
+            <Button variant="outline" size="lg" style={{ marginTop: 'auto' }} onClick={() => handlePlanCta('household')}>
+              {isAuthenticated ? 'Upgrade to Household' : 'Get Started'}
             </Button>
           </PricingCard>
         </PricingGrid>

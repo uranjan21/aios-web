@@ -57,9 +57,9 @@ async def create_checkout(body: CheckoutBody, current_user=Depends(get_current_u
         url = await billing.create_checkout_session(db, user, body.plan, success_url, cancel_url)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
+    except Exception:
         logger.exception("Checkout session creation failed")
-        raise HTTPException(status_code=502, detail=f"Could not start checkout: {e}")
+        raise HTTPException(status_code=502, detail="Could not start checkout — please try again")
     return {"url": url}
 
 
@@ -70,9 +70,9 @@ async def create_portal(current_user=Depends(get_current_user), db=Depends(get_d
     user = await _load_user(db, current_user.id)
     try:
         url = await billing.create_portal_session(db, user, return_url=f"{settings.allowed_origin}/app/settings")
-    except Exception as e:
+    except Exception:
         logger.exception("Portal session creation failed")
-        raise HTTPException(status_code=502, detail=f"Could not open billing portal: {e}")
+        raise HTTPException(status_code=502, detail="Could not open billing portal — please try again")
     return {"url": url}
 
 

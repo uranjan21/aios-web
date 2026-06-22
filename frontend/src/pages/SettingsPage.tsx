@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
-import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, BellOff, Settings, Palette, Activity, Sparkles, Keyboard, User, CreditCard } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
+import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, BellOff, Settings, Palette, Activity, Sparkles, Keyboard, User, CreditCard, Save, Lock, Trash2, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { chatApi } from '@/api/chat'
@@ -54,6 +54,8 @@ const SECTION_META: Record<string, { icon: React.ReactNode; subtitle: string }> 
   'AI Usage': { icon: <Sparkles size={16} />, subtitle: 'Token spend and model usage this period' },
   'Keyboard Shortcuts': { icon: <Keyboard size={16} />, subtitle: 'Quick reference for in-app shortcuts' },
   Billing: { icon: <CreditCard size={16} />, subtitle: 'Manage subscription and billing' },
+  Profile: { icon: <User size={16} />, subtitle: 'Your name and avatar' },
+  Security: { icon: <Lock size={16} />, subtitle: 'Change your password' },
   Account: { icon: <User size={16} />, subtitle: 'Sign-out and account-level controls' },
 }
 
@@ -391,6 +393,149 @@ function VaultSyncRow() {
   )
 }
 
+// ── Shared form input ─────────────────────────────────────────────────────────
+
+const FormInput = styled.input`
+  font-size: 13px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid ${({ theme }) => theme.color.border};
+  background: ${({ theme }) => theme.color.background};
+  color: ${({ theme }) => theme.color.foreground};
+  outline: none;
+  min-width: 200px;
+  transition: border-color 120ms;
+  &:focus { border-color: ${({ theme }) => theme.color.accent}; }
+  &::placeholder { color: ${({ theme }) => theme.color.mutedForeground}; }
+`
+
+// ── Profile section ──────────────────────────────────────────────────────────
+
+function ProfileSection() {
+  const { user, setUser } = useAuthStore()
+  const [name, setName] = useState(user?.name ?? '')
+  const [busy, setBusy] = useState(false)
+
+  // Keep local state in sync if user changes externally
+  const prevName = useRef(user?.name ?? '')
+  useEffect(() => {
+    if (user?.name && user.name !== prevName.current) {
+      setName(user.name)
+      prevName.current = user.name
+    }
+  }, [user?.name])
+
+  const save = async () => {
+    if (!name.trim()) return
+    setBusy(true)
+    try {
+      const { data } = await api.patch('/auth/profile', { name: name.trim() })
+      setUser(data)
+      toast.success('Profile updated')
+    } catch {
+      toast.error('Failed to update profile')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const dirty = name.trim() !== (user?.name ?? '')
+
+  return (
+    <Section title="Profile" delay={300}>
+      <Row label="Display name">
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <FormInput
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && dirty && save()}
+            placeholder="Your name"
+            maxLength={80}
+          />
+          {dirty && (
+            <Button size="sm" variant="primary" onClick={save} disabled={busy}>
+              <Save size={12} style={{ marginRight: 4 }} /> Save
+            </Button>
+          )}
+        </div>
+      </Row>
+      <Row label="Email">
+        <span style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>{user?.email ?? '—'}</span>
+      </Row>
+      <Row label="Sign-in method">
+        <span style={{ fontSize: 13, color: 'var(--muted-foreground)', textTransform: 'capitalize' }}>
+          {user?.auth_provider ?? '—'}
+        </span>
+      </Row>
+    </Section>
+  )
+}
+
+// ── Security / change password ────────────────────────────────────────────────
+
+function SecuritySection() {
+  const { user, logout } = useAuthStore()
+  const navigate = useNavigate()
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  // Only email-auth users can change password; Google users have no local password.
+  if (user?.auth_provider !== 'email') return null
+
+  const submit = async () => {
+    if (!current || next.length < 8) return
+    setBusy(true)
+    try {
+      await api.post('/auth/change-password', { current, new: next })
+      toast.success('Password changed — please log in again')
+      setCurrent('')
+      setNext('')
+      // Backend re-issues the cookie but the logout flow is safer UX
+      setTimeout(() => { logout(); navigate('/login') }, 1500)
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      toast.error(msg ?? 'Failed to change password')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Section title="Security" delay={300}>
+      <Row label="Current password">
+        <FormInput
+          type="password"
+          value={current}
+          onChange={e => setCurrent(e.target.value)}
+          placeholder="Current password"
+          autoComplete="current-password"
+        />
+      </Row>
+      <Row label="New password">
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <FormInput
+            type="password"
+            value={next}
+            onChange={e => setNext(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && submit()}
+            placeholder="Min. 8 characters"
+            autoComplete="new-password"
+          />
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={submit}
+            disabled={busy || !current || next.length < 8}
+          >
+            <Lock size={12} style={{ marginRight: 4 }} /> Update
+          </Button>
+        </div>
+      </Row>
+    </Section>
+  )
+}
+
 // ── Billing (M1) ────────────────────────────────────────────────────────────────
 
 function BillingSection() {
@@ -455,11 +600,68 @@ function BillingSection() {
   )
 }
 
+// ── Danger zone / account deletion (GDPR right to erasure) ──────────────────────
+
+function DangerZone() {
+  const logout = useAuthStore(s => s.logout)
+  const navigate = useNavigate()
+  const [confirming, setConfirming] = useState(false)
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const deleteAccount = async () => {
+    if (text !== 'DELETE') return
+    setBusy(true)
+    try {
+      await api.delete('/auth/me')
+      toast.success('Account deleted')
+      logout()
+      navigate('/')
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      toast.error(msg ?? 'Failed to delete account')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--destructive, #b91c1c)', marginBottom: 6 }}>
+        Delete account
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--muted-foreground)', marginBottom: 10 }}>
+        Permanently erase your account and all associated data. This cannot be undone.
+      </div>
+      {!confirming ? (
+        <Button variant="destructive" size="sm" onClick={() => setConfirming(true)}>
+          <Trash2 size={12} style={{ marginRight: 4 }} /> Delete my account
+        </Button>
+      ) : (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <FormInput
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder="Type DELETE to confirm"
+            aria-label="Type DELETE to confirm account deletion"
+          />
+          <Button variant="destructive" size="sm" disabled={busy || text !== 'DELETE'} onClick={deleteAccount}>
+            Confirm
+          </Button>
+          <Button variant="ghost" size="sm" disabled={busy} onClick={() => { setConfirming(false); setText('') }}>
+            Cancel
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
   const queryClient = useQueryClient()
   const logout = useAuthStore(s => s.logout)
+  const user = useAuthStore(s => s.user)
   const navigate = useNavigate()
   const { theme, setTheme } = useUIStore()
 
@@ -586,6 +788,30 @@ export function SettingsPage() {
           }
         </Section>
 
+        {user?.is_admin && (
+          <GlassCard
+            variant="glass"
+            title="Admin Panel"
+            subtitle="Manage users, plans, and system overview"
+            icon={<Shield size={16} />}
+            noPadding
+            fadeIn="up"
+            delay={300}
+          >
+            <div style={{ padding: '14px 20px' }}>
+              <Link to="/app/admin">
+                <Button size="sm" variant="primary">
+                  <Shield size={12} style={{ marginRight: 4 }} /> Open Admin Panel
+                </Button>
+              </Link>
+            </div>
+          </GlassCard>
+        )}
+
+        <ProfileSection />
+
+        <SecuritySection />
+
         <BillingSection />
 
         <GlassCard
@@ -602,8 +828,9 @@ export function SettingsPage() {
           delay={300}
         >
           <div style={{ padding: '14px 20px', fontSize: '12px', color: 'var(--muted-foreground)' }}>
-            Logged in as personal administrator. All config files and data are stored locally in your vault.
+            Signing out will invalidate your current session across all devices.
           </div>
+          <DangerZone />
         </GlassCard>
       </PageContent>
     </PageContainer>

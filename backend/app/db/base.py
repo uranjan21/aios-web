@@ -12,3 +12,4 @@ from app.models.chat import ChatSession, ChatMessage, DailyTokenUsage  # noqa
 from app.models.integration import IntegrationCredential  # noqa
 from app.models.google_sync import CalendarEvent, GoogleFitMetric  # noqa
 from app.models.agent import Agent  # noqa
+from app.models.oauth_state import OAuthState  # noqa

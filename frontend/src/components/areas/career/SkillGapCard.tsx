@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Sparkles, Target } from 'lucide-react'
 import { aiApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
+import { UpgradeWall, is402 } from '@/components/UpgradeWall'
 import styled from 'styled-components'
 
 import { Card } from '@ledgr/ui'
@@ -59,10 +60,14 @@ const StyledTarget = styled(Target)`
 /** AI skill-gap analysis — target role vs logged skills → strengths / gaps / 90-day plan. */
 export function SkillGapCard() {
   const [role, setRole] = useState('')
+  const [planBlocked, setPlanBlocked] = useState(false)
 
   const { mutate, data, isPending } = useMutation({
     mutationFn: () => aiApi.skillGap(role.trim()),
-    onError: () => toast.error('AI temporarily unavailable'),
+    onError: (err) => {
+      if (is402(err)) { setPlanBlocked(true); return }
+      toast.error('AI temporarily unavailable')
+    },
   })
 
   return (
@@ -99,7 +104,9 @@ export function SkillGapCard() {
           }}
         />
       </InputRow>
-      {isPending ? (
+      {planBlocked ? (
+        <UpgradeWall feature="AI skill-gap analysis" />
+      ) : isPending ? (
         <SkeletonStack>
           <SkeletonLineFull />
           <SkeletonLineLong />

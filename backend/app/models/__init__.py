@@ -12,3 +12,4 @@ from app.models.agent import Agent
 from app.models.career import CareerEvent, SkillInventory, JobOpportunity
 from app.models.push import PushSubscription
 from app.models.billing import Subscription
+from app.models.oauth_state import OAuthState
