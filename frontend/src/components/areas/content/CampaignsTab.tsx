@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, Dialog, Input, Textarea, Button, ConfirmDialog } from '@ledgr/ui'
-import { Megaphone, Plus, Pencil, Trash2, Target, Layers } from 'lucide-react'
+import { Pencil, Trash2, Target, Layers } from 'lucide-react'
 import { toast } from 'sonner'
 import styled from 'styled-components'
 import { contentApi } from '@/api/areas'
@@ -121,7 +121,10 @@ const COLORS = ['#CA8A04', '#0A66C2', '#7c3aed', '#16a34a', '#dc2626', '#0284c7'
 
 const BLANK = { id: '', name: '', description: '', goal: '', color: COLORS[0], start_date: '', end_date: '' }
 
-export function CampaignsTab() {
+export function CampaignsTab({ onRegisterNew }: {
+  /** Lets the shared page-level toolbar trigger this tab's "New Campaign" dialog. */
+  onRegisterNew?: (open: () => void) => void
+}) {
   const queryClient = useQueryClient()
   const { data: campaigns, isLoading } = useQuery({ queryKey: ['content', 'campaigns'], queryFn: contentApi.campaigns })
 
@@ -160,13 +163,11 @@ export function CampaignsTab() {
 
   const setForm = (patch: Partial<typeof BLANK>) => setDialog(d => ({ ...d, form: { ...d.form, ...patch } }))
 
+  // Expose the opener so the shared page-level toolbar's "New Campaign" can fire it.
+  useEffect(() => { onRegisterNew?.(openNew) }, [onRegisterNew])
+
   return (
-    <Card
-      title="Campaigns & Series"
-      subtitle="Group related content into themed campaigns with goals"
-      icon={<Megaphone size={16} />}
-      action={<Button variant="primary" size="sm" startIcon={<Plus size={13} />} onClick={openNew}>New Campaign</Button>}
-    >
+    <>
       {isLoading ? (
         <Grid>{[1, 2, 3].map(i => <Skeleton key={i} style={{ height: 140, borderRadius: 14 }} />)}</Grid>
       ) : !campaigns || campaigns.length === 0 ? (
@@ -243,6 +244,6 @@ export function CampaignsTab() {
         confirmLabel="Delete"
         onConfirm={() => { remove.mutate(confirmDel.id); setConfirmDel({ open: false, id: '' }) }}
       />
-    </Card>
+    </>
   )
 }

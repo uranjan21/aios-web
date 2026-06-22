@@ -1,27 +1,11 @@
-import { useMemo, useState } from 'react'
-import dayjs from 'dayjs'
-import { Card as SectionCard, Button } from '@ledgr/ui'
-import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
+import { useMemo } from 'react'
+import dayjs, { Dayjs } from 'dayjs'
+import { Card as SectionCard } from '@ledgr/ui'
+import { CalendarDays } from 'lucide-react'
 import styled from 'styled-components'
 import type { ContentItem } from '@/types'
 import { PLATFORM_META } from './contentMeta'
 
-const Toolbar = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-`
-const MonthLabel = styled.div`
-  font-size: 16px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.color.foreground};
-  font-family: 'Playfair Display', Georgia, serif;
-`
-const Nav = styled.div`
-  display: flex;
-  gap: 8px;
-`
 const Weekdays = styled.div`
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -97,12 +81,11 @@ const Swatch = styled.span<{ $solid?: boolean }>`
   opacity: ${({ $solid }) => ($solid ? 1 : 0.55)};
 `
 
-export function CalendarTab({ items, onEdit }: {
+export function CalendarTab({ items, cursor, onEdit }: {
   items: ContentItem[]
+  cursor: Dayjs
   onEdit: (item: ContentItem) => void
 }) {
-  const [cursor, setCursor] = useState(dayjs())
-
   const byDate = useMemo(() => {
     const map: Record<string, ContentItem[]> = {}
     for (const it of items) {
@@ -133,15 +116,6 @@ export function CalendarTab({ items, onEdit }: {
       subtitle="Scheduled and published content by date"
       icon={<CalendarDays size={16} />}
     >
-      <Toolbar>
-        <MonthLabel>{cursor.format('MMMM YYYY')}</MonthLabel>
-        <Nav>
-          <Button variant="outline" size="sm" onClick={() => setCursor(c => c.subtract(1, 'month'))}><ChevronLeft size={14} /></Button>
-          <Button variant="ghost" size="sm" onClick={() => setCursor(dayjs())}>Today</Button>
-          <Button variant="outline" size="sm" onClick={() => setCursor(c => c.add(1, 'month'))}><ChevronRight size={14} /></Button>
-        </Nav>
-      </Toolbar>
-
       <Weekdays>
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <Weekday key={d}>{d}</Weekday>)}
       </Weekdays>
