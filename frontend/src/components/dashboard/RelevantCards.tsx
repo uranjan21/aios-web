@@ -447,7 +447,7 @@ export function DomainPulseCard() {
   const { data: netWorth } = useQuery({ queryKey: ['finance', 'net-worth'], queryFn: financeApi.netWorth, staleTime: 60_000 })
   const { data: streak } = useQuery({ queryKey: ['health', 'streak'], queryFn: healthApi.streak, staleTime: 60_000 })
   const { data: career } = useQuery({ queryKey: ['career', 'summary'], queryFn: careerApi.summary, staleTime: 60_000 })
-  const { data: business } = useQuery({ queryKey: ['business', 'summary'], queryFn: businessApi.summary, staleTime: 60_000 })
+  const { data: business } = useQuery({ queryKey: ['business', 'summary'], queryFn: () => businessApi.summary(), staleTime: 60_000 })
   const { data: content } = useQuery({ queryKey: ['content', 'items'], queryFn: () => contentApi.items(), staleTime: 60_000 })
 
   const thisMonth = content

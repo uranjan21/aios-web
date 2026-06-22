@@ -67,7 +67,7 @@ const FormActions = styled.div`
   justify-content: flex-end;
 `
 
-function NewEventForm({ onClose }: { onClose: () => void }) {
+function NewEventForm({ onClose, businessId }: { onClose: () => void, businessId?: string }) {
   const [eventType, setEventType] = useState('feature_shipped')
   const [mrr, setMrr] = useState('')
   const [title, setTitle] = useState('')
@@ -81,6 +81,7 @@ function NewEventForm({ onClose }: { onClose: () => void }) {
         title: title.trim(),
         description: description?.trim() || undefined,
         mrr: mrr ? parseFloat(mrr) : undefined,
+        business_id: businessId,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['business'] })
@@ -218,13 +219,13 @@ const StyledEventSkeleton = styled(Skeleton)`
   width: 100%;
 `
 
-export function EventsTab() {
+export function EventsTab({ businessId }: { businessId?: string }) {
   const [showForm, setShowForm] = useState(false)
   const [eventTypeFilter, setEventTypeFilter] = useState('all')
 
   const { data: events, isLoading } = useQuery({
-    queryKey: ['business', 'events'],
-    queryFn: businessApi.events,
+    queryKey: ['business', 'events', businessId],
+    queryFn: () => businessApi.events(businessId),
   })
 
   const filteredEvents = events?.filter(event => eventTypeFilter === 'all' || event.event_type === eventTypeFilter)
@@ -260,7 +261,7 @@ export function EventsTab() {
   return (
     <TabContainer>
       <AnimatePresence>
-        {showForm && <NewEventForm onClose={() => setShowForm(false)} />}
+        {showForm && <NewEventForm onClose={() => setShowForm(false)} businessId={businessId} />}
       </AnimatePresence>
 
       <Card

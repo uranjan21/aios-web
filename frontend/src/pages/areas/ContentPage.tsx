@@ -146,14 +146,23 @@ export function ContentPage() {
         />
 
         <AreaTabs
+<<<<<<< Updated upstream
           activeKey={tab}
           onChange={setTab}
           toolbar={toolbar}
+=======
+          defaultActiveKey="overview"
+>>>>>>> Stashed changes
           items={[
             {
               key: 'overview',
               label: <TabLabel><LayoutDashboard size={14} /> Overview</TabLabel>,
               children: <OverviewTab items={allItems} isLoading={isLoading} onEdit={openEdit} />,
+            },
+            {
+              key: 'campaigns',
+              label: <TabLabel><Megaphone size={14} /> Campaigns</TabLabel>,
+              children: <CampaignsTab />,
             },
             {
               key: 'pipeline',
@@ -171,11 +180,14 @@ export function ContentPage() {
               children: <LibraryTab rows={libraryRows} total={allItems.length} campaigns={allCampaigns} onEdit={openEdit} />,
             },
             {
+<<<<<<< Updated upstream
               key: 'campaigns',
               label: <TabLabel><Megaphone size={14} /> Campaigns</TabLabel>,
               children: <CampaignsTab onRegisterNew={(fn) => { campaignNewRef.current = fn }} />,
             },
             {
+=======
+>>>>>>> Stashed changes
               key: 'analytics',
               label: <TabLabel><BarChart3 size={14} /> Analytics</TabLabel>,
               children: <AnalyticsTab />,

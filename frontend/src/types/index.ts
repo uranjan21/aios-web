@@ -117,8 +117,21 @@ export interface CareerEvent {
   skill_level: string | null
 }
 
+export type BusinessType = 'saas' | 'agency' | 'ecommerce' | 'content' | 'freelance'
+
+export interface Business {
+  id: string
+  name: string
+  business_type: BusinessType
+  status: 'active' | 'archived'
+  description: string | null
+  color: string
+  created_at: string
+}
+
 export interface BusinessEvent {
   id: string
+  business_id: string | null
   occurred_at: string
   product: string
   event_type: string

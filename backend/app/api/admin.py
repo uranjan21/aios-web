@@ -16,7 +16,7 @@ from app.models.billing import Subscription
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
-VALID_PLANS = {"free", "pro", "household"}
+VALID_PLANS = {"free", "pro", "pro_plus", "household"}
 VALID_STATUSES = {"active", "trialing", "past_due", "canceled"}
 
 
@@ -33,6 +33,7 @@ def _user_row(user: User, sub: Optional[Subscription]) -> dict:
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "plan": sub.plan if sub else "free",
         "plan_status": sub.status if sub else "active",
+        "addons": sub.addons if sub else [],
         "stripe_customer_id": sub.stripe_customer_id if sub else None,
         "current_period_end": sub.current_period_end.isoformat() if sub and sub.current_period_end else None,
     }
@@ -81,6 +82,7 @@ async def list_users(
 class PlanOverride(BaseModel):
     plan: str
     status: str = "active"
+    addons: Optional[list[str]] = []
 
 
 @router.patch("/users/{user_id}/plan")
@@ -104,11 +106,12 @@ async def override_plan(
 
     sub = (await db.execute(select(Subscription).where(Subscription.user_id == user_id))).scalar_one_or_none()
     if sub is None:
-        sub = Subscription(user_id=user_id, plan=body.plan, status=body.status)
+        sub = Subscription(user_id=user_id, plan=body.plan, status=body.status, addons=body.addons)
         db.add(sub)
     else:
         sub.plan = body.plan
         sub.status = body.status
+        sub.addons = body.addons
         sub.updated_at = datetime.utcnow()
         db.add(sub)
 
@@ -197,6 +200,12 @@ async def system_stats(_=Depends(require_admin), db=Depends(get_db)):
         )
     )).scalar_one()
 
+    pro_plus_count = (await db.execute(
+        select(func.count()).select_from(Subscription).where(
+            Subscription.plan == "pro_plus", Subscription.status.in_(["active", "trialing"])
+        )
+    )).scalar_one()
+
     household_count = (await db.execute(
         select(func.count()).select_from(Subscription).where(
             Subscription.plan == "household", Subscription.status.in_(["active", "trialing"])
@@ -205,7 +214,8 @@ async def system_stats(_=Depends(require_admin), db=Depends(get_db)):
 
     return {
         "total_users": total_users,
-        "free_users": total_users - pro_count - household_count,
+        "free_users": total_users - pro_count - pro_plus_count - household_count,
         "pro_users": pro_count,
+        "pro_plus_users": pro_plus_count,
         "household_users": household_count,
     }

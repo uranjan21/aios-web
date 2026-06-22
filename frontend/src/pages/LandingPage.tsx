@@ -372,7 +372,7 @@ const CompareSection = styled(SectionWrap)`
 
 const CompareTable = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: 16px;
   overflow: hidden;
@@ -415,7 +415,7 @@ const PriceCards = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 1.5rem;
-  max-width: 900px;
+  max-width: 1100px;
   margin: 2rem auto 0;
 `
 
@@ -568,14 +568,14 @@ const AI_FEATURES = [
 ]
 
 const COMPARE_ROWS = [
-  { label: 'All 5 life domains', free: true, pro: true },
-  { label: 'Transaction tracking', free: true, pro: true },
-  { label: 'Budget alerts', free: true, pro: true },
-  { label: 'AI Daily Brief', free: false, pro: true },
-  { label: 'Skill gap analysis', free: false, pro: true },
-  { label: 'AI content drafts', free: false, pro: true },
-  { label: 'Autonomous agents', free: false, pro: true },
-  { label: 'Priority support', free: false, pro: true },
+  { label: 'Basic Finance, Health, Career', free: true, pro: true, pro_plus: true },
+  { label: 'Unlimited entries & connections', free: false, pro: true, pro_plus: true },
+  { label: 'AI Chat Assistant', free: false, pro: true, pro_plus: true },
+  { label: 'Autonomous Agents', free: false, pro: true, pro_plus: true },
+  { label: 'Business Add-on Access', free: false, pro: false, pro_plus: true },
+  { label: 'Content Add-on Access', free: false, pro: false, pro_plus: true },
+  { label: 'Custom AI Prompts', free: false, pro: false, pro_plus: true },
+  { label: 'Priority Support', free: false, pro: false, pro_plus: true },
 ]
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -708,13 +708,15 @@ export function LandingPage() {
         </SectionSubtitle>
         <CompareTable>
           <CompareHeader>Feature</CompareHeader>
-          <CompareHeader>Free</CompareHeader>
+          <CompareHeader>Starter (Free)</CompareHeader>
           <CompareHeader $highlight>Pro</CompareHeader>
+          <CompareHeader $highlight>Pro Plus</CompareHeader>
           {COMPARE_ROWS.map(r => (
             <>
               <CompareRow key={`label-${r.label}`}><Layers size={13} style={{ opacity: 0.5 }} />{r.label}</CompareRow>
               <CompareRow key={`free-${r.label}`}>{r.free ? <Check size={14} className="yes" /> : <span className="no">—</span>}</CompareRow>
-              <CompareRow key={`pro-${r.label}`} $highlight><Check size={14} className="yes" /></CompareRow>
+              <CompareRow key={`pro-${r.label}`} $highlight>{r.pro ? <Check size={14} className="yes" /> : <span className="no">—</span>}</CompareRow>
+              <CompareRow key={`pro_plus-${r.label}`} $highlight>{r.pro_plus ? <Check size={14} className="yes" /> : <span className="no">—</span>}</CompareRow>
             </>
           ))}
         </CompareTable>
@@ -726,23 +728,36 @@ export function LandingPage() {
         <SectionTitle>Simple, transparent pricing.</SectionTitle>
         <PriceCards>
           <PriceCard>
-            <PriceName>Free</PriceName>
+            <PriceName>Starter</PriceName>
             <PriceAmount>₹0</PriceAmount>
             <PricePer>forever</PricePer>
             <PriceFeats>
-              {['All 5 life domains', 'Unlimited transactions', 'Budget & goal tracking', 'Health & career tools', 'Basic chat assistant'].map(f => (
+              {['Basic Finance, Health, Career', 'Limited to 50 items/mo', '1 Bank Connection'].map(f => (
                 <PriceFeat key={f}><Check size={13} style={{ color: 'var(--accent)' }} />{f}</PriceFeat>
               ))}
             </PriceFeats>
             <Button variant="outline" fullWidth onClick={() => navigate('/signup')}>Get started</Button>
           </PriceCard>
+          <PriceCard>
+            <PriceName style={{ color: 'rgba(255,255,255,0.7)' }}>Pro</PriceName>
+            <PriceAmount>₹999</PriceAmount>
+            <PricePer>per month (₹12 USD equivalent)</PricePer>
+            <PriceFeats>
+              {['Unlimited Finance & Health', 'Unlimited Bank Connections', 'AI Chat Assistant', 'Autonomous Agents'].map(f => (
+                <PriceFeat key={f}><Check size={13} style={{ color: 'var(--accent)' }} />{f}</PriceFeat>
+              ))}
+            </PriceFeats>
+            <Button variant="secondary" fullWidth onClick={() => navigate('/signup')}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Start free trial <ArrowRight size={14} /></span>
+            </Button>
+          </PriceCard>
           <PriceCard $featured>
             <PriceBadge>Most popular</PriceBadge>
-            <PriceName style={{ color: 'rgba(255,255,255,0.7)' }}>Pro</PriceName>
-            <PriceAmount>₹499</PriceAmount>
-            <PricePer>per month</PricePer>
+            <PriceName style={{ color: 'rgba(255,255,255,0.7)' }}>Pro Plus</PriceName>
+            <PriceAmount>₹1699</PriceAmount>
+            <PricePer>per month (₹20 USD equivalent)</PricePer>
             <PriceFeats>
-              {['Everything in Free', 'AI Daily Brief', 'Spending anomaly alerts', 'Skill gap analysis', 'AI content drafts', 'Autonomous agents', 'Priority support'].map(f => (
+              {['Everything in Pro', 'Optional Business Add-on', 'Optional Content Add-on', 'Custom Prompts', 'Priority Processing'].map(f => (
                 <PriceFeat key={f}><Check size={13} style={{ color: 'var(--accent)' }} />{f}</PriceFeat>
               ))}
             </PriceFeats>

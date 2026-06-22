@@ -21,12 +21,12 @@ const ACCENT_HEX: Record<string, string> = {
 
 
 
-function MrrTrendCard() {
+function MrrTrendCard({ businessId }: { businessId?: string }) {
   const theme = useTheme()
   const [mrrPeriod, setMrrPeriod] = useState('6m')
   const { data: history } = useQuery({
-    queryKey: ['business', 'mrr-history'],
-    queryFn: businessApi.mrrHistory,
+    queryKey: ['business', 'mrr-history', businessId],
+    queryFn: () => businessApi.mrrHistory(businessId),
   })
 
   if (!history || history.length < 2) return null
@@ -171,10 +171,10 @@ const StatusBanner = styled.div<{ $positive: boolean }>`
   gap: 8px;
 `
 
-export function SummaryTab() {
+export function SummaryTab({ businessId }: { businessId?: string }) {
   const { data: summary, isLoading } = useQuery({
-    queryKey: ['business', 'summary'],
-    queryFn: businessApi.summary,
+    queryKey: ['business', 'summary', businessId],
+    queryFn: () => businessApi.summary(businessId),
   })
 
   if (isLoading) {
@@ -221,7 +221,7 @@ export function SummaryTab() {
         />
       </TileGrid>
 
-      <MrrTrendCard />
+      <MrrTrendCard businessId={businessId} />
 
       <StatusBanner $positive={mrr > 0}>
         <Badge tone={mrr > 0 ? "success" : "warning"} size="sm">

@@ -33,6 +33,10 @@ const Empty = styled.div`
   color: ${({ theme }) => theme.color.mutedForeground};
   padding: 32px;
   text-align: center;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `
 const PerfList = styled.div`
   display: flex;
@@ -107,7 +111,7 @@ export function AnalyticsTab() {
       <KpiCell><KpiCard label="Shares" icon={Share2} sub="Amplification" loading={isLoading} value={totals.shares.toLocaleString('en-IN')} /></KpiCell>
 
       <Half>
-        <SectionCard title="Content by Platform" subtitle="Where you publish most" icon={<PieIcon size={16} />}>
+        <SectionCard title="Content by Platform" subtitle="Where you publish most" icon={<PieIcon size={16} />} style={{ height: '100%' }}>
           {isLoading ? <Skeleton style={{ height: 260 }} /> : platformPerf.length === 0 ? (
             <Empty>No data yet — publish content with metrics to see analytics.</Empty>
           ) : (
@@ -129,7 +133,7 @@ export function AnalyticsTab() {
       </Half>
 
       <Half>
-        <SectionCard title="Content Type Mix" subtitle="Formats you produce" icon={<PieIcon size={16} />}>
+        <SectionCard title="Content Type Mix" subtitle="Formats you produce" icon={<PieIcon size={16} />} style={{ height: '100%' }}>
           {isLoading ? <Skeleton style={{ height: 260 }} /> : typeData.length === 0 ? (
             <Empty>No content types tagged yet.</Empty>
           ) : (
@@ -148,7 +152,7 @@ export function AnalyticsTab() {
       </Half>
 
       <Half>
-        <SectionCard title="Top Performers" subtitle="Your highest-engagement published content" icon={<Trophy size={16} />}>
+        <SectionCard title="Top Performers" subtitle="Your highest-engagement published content" icon={<Trophy size={16} />} style={{ height: '100%' }}>
           {isLoading ? <Skeleton style={{ height: 200 }} /> : performers.length === 0 ? (
             <Empty>No published content with metrics yet. Log views/likes on published pieces to rank them.</Empty>
           ) : (

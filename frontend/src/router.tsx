@@ -63,6 +63,8 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+import { useSubscription } from '@/hooks/useSubscription'
+
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
   const logout = useAuthStore(s => s.logout)
@@ -78,6 +80,52 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated, logout, setUser])
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
+function RequirePlan({ children, allowed }: { children: React.ReactNode, allowed: string[] }) {
+  const { data: sub, isLoading } = useSubscription()
+  const user = useAuthStore(s => s.user)
+
+  if (isLoading) return <PageLoader />
+  if (user?.is_admin) return <>{children}</>
+
+  const currentPlan = sub?.plan || 'free'
+  if (!allowed.includes(currentPlan)) {
+    return <Navigate to="/pricing" replace />
+  }
+  return <>{children}</>
+}
+
+function RequireArea({ children, area }: { children: React.ReactNode, area: string }) {
+  const { data: sub, isLoading } = useSubscription()
+  const user = useAuthStore(s => s.user)
+
+  if (isLoading) return <PageLoader />
+  if (user?.is_admin) return <>{children}</>
+
+  const currentPlan = sub?.plan || 'free'
+  const addons = sub?.addons || []
+
+  // Household plan gets access to everything by default if owner bought them, 
+  // but wait, Household users need to buy their own add-ons according to the grille-me answer.
+  // So Household is treated just like Pro in terms of add-ons, or they get them if they have the add-on.
+
+  // Free, Pro, Pro Plus, Household all have basic access to finance, health, career
+  if (['finance', 'health', 'career'].includes(area)) {
+    return <>{children}</>
+  }
+
+  // Business and Content require either the specific add-on OR they might be included in some other way.
+  // Pro Plus base tier has them as add-ons.
+  // So if area is 'business', they need 'business' in addons.
+  if (['business', 'content'].includes(area)) {
+    if (addons.includes(area)) {
+      return <>{children}</>
+    }
+    return <Navigate to="/pricing" replace />
+  }
+
   return <>{children}</>
 }
 
@@ -116,24 +164,24 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorBoundary />,
     children: [
       { index: true, element: <Page><DashboardPage /></Page> },
-      { path: 'chat', element: <Page><ChatPage /></Page> },
-      { path: 'chat/:sessionId', element: <Page><ChatPage /></Page> },
-      { path: 'agents', element: <Page><AgentsPage /></Page> },
+      { path: 'chat', element: <Page><RequirePlan allowed={['pro', 'pro_plus', 'household']}><ChatPage /></RequirePlan></Page> },
+      { path: 'chat/:sessionId', element: <Page><RequirePlan allowed={['pro', 'pro_plus', 'household']}><ChatPage /></RequirePlan></Page> },
+      { path: 'agents', element: <Page><RequirePlan allowed={['pro', 'pro_plus', 'household']}><AgentsPage /></RequirePlan></Page> },
       
       // Finance Area
-      { path: 'areas/finance', element: <Page><FinancePage /></Page> },
+      { path: 'areas/finance', element: <Page><RequireArea area="finance"><FinancePage /></RequireArea></Page> },
 
       // Health Area
-      { path: 'areas/health', element: <Page><HealthPage /></Page> },
+      { path: 'areas/health', element: <Page><RequireArea area="health"><HealthPage /></RequireArea></Page> },
 
       // Career Area
-      { path: 'areas/career', element: <Page><CareerPage /></Page> },
+      { path: 'areas/career', element: <Page><RequireArea area="career"><CareerPage /></RequireArea></Page> },
 
       // Business Area
-      { path: 'areas/business', element: <Page><BusinessPage /></Page> },
+      { path: 'areas/business', element: <Page><RequireArea area="business"><BusinessPage /></RequireArea></Page> },
 
       // Content Area
-      { path: 'areas/content', element: <Page><ContentPage /></Page> },
+      { path: 'areas/content', element: <Page><RequireArea area="content"><ContentPage /></RequireArea></Page> },
       
       // System
       { path: 'integrations', element: <Page><IntegrationsPage /></Page> },

@@ -40,6 +40,10 @@ const EmptyNote = styled.div`
   color: ${({ theme }) => theme.color.mutedForeground};
   padding: 24px;
   text-align: center;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `
 
 export function OverviewTab({ items, isLoading, onEdit }: {
@@ -96,7 +100,7 @@ export function OverviewTab({ items, isLoading, onEdit }: {
       <KpiCell><KpiCard label="Ideas" icon={Lightbulb} sub="In the backlog" loading={statsLoading} value={counts.idea ?? 0} /></KpiCell>
 
       <Half>
-        <SectionCard title="Pipeline by Stage" subtitle="How much content sits in each stage" icon={<TrendingUp size={16} />}>
+        <SectionCard title="Pipeline by Stage" subtitle="How much content sits in each stage" icon={<TrendingUp size={16} />} style={{ height: '100%' }}>
           {statsLoading ? <Skeleton style={{ height: 240 }} /> : (
             <ChartBox>
               <ResponsiveContainer width="100%" height="100%">
@@ -114,7 +118,7 @@ export function OverviewTab({ items, isLoading, onEdit }: {
       </Half>
 
       <Half>
-        <SectionCard title="Platform Mix" subtitle="Distribution across channels" icon={<TrendingUp size={16} />}>
+        <SectionCard title="Platform Mix" subtitle="Distribution across channels" icon={<TrendingUp size={16} />} style={{ height: '100%' }}>
           {statsLoading ? <Skeleton style={{ height: 240 }} /> : platformData.length === 0 ? (
             <EmptyNote>No content yet — create your first piece to see the breakdown.</EmptyNote>
           ) : (
@@ -133,7 +137,7 @@ export function OverviewTab({ items, isLoading, onEdit }: {
       </Half>
 
       <Half>
-        <SectionCard title="Publishing Cadence" subtitle="Pieces published per month" icon={<TrendingUp size={16} />}>
+        <SectionCard title="Publishing Cadence" subtitle="Pieces published per month" icon={<TrendingUp size={16} />} style={{ height: '100%' }}>
           {statsLoading ? <Skeleton style={{ height: 240 }} /> : cadenceData.length === 0 ? (
             <EmptyNote>Nothing published yet — your cadence shows up here once you ship.</EmptyNote>
           ) : (
@@ -159,7 +163,7 @@ export function OverviewTab({ items, isLoading, onEdit }: {
       </Half>
 
       <Half>
-        <SectionCard title="Upcoming Scheduled" subtitle="Next pieces queued to publish" icon={<CalendarClock size={16} />}>
+        <SectionCard title="Upcoming Scheduled" subtitle="Next pieces queued to publish" icon={<CalendarClock size={16} />} style={{ height: '100%' }}>
           {isLoading ? <Skeleton style={{ height: 120 }} /> : upcoming.length === 0 ? (
             <EmptyNote>Nothing scheduled. Move ideas into Scheduled to plan your calendar.</EmptyNote>
           ) : (
@@ -169,7 +173,7 @@ export function OverviewTab({ items, isLoading, onEdit }: {
       </Half>
 
       <Half>
-        <SectionCard title="Recently Published" subtitle="Your latest live content" icon={<Clock size={16} />}>
+        <SectionCard title="Recently Published" subtitle="Your latest live content" icon={<Clock size={16} />} style={{ height: '100%' }}>
           {isLoading ? <Skeleton style={{ height: 120 }} /> : recent.length === 0 ? (
             <EmptyNote>No published content yet.</EmptyNote>
           ) : (

@@ -1,7 +1,7 @@
 import { api } from './client'
 import type {
   FinanceSnapshot, FinanceExpense, HealthLog, HealthStreak,
-  SkillInventory, CareerEvent, BusinessEvent, ContentItem, ContentCampaign, ContentStats, JobOpportunity, BudgetLimit,
+  SkillInventory, CareerEvent, Business, BusinessEvent, ContentItem, ContentCampaign, ContentStats, JobOpportunity, BudgetLimit,
   FinancialGoal, FinanceBill, FinanceIncome, CashFlowData, HealthGoal, NutritionToday,
   FinanceInvestment, InvestmentSummary, FinanceLoan, LoanSummary, SleepRecent, HabitItem,
   WorkoutSessionItem, WorkoutPR, FoodDbItem,
@@ -156,11 +156,17 @@ export const careerApi = {
 
 // Business
 export const businessApi = {
-  events: () => api.get<BusinessEvent[]>('/areas/business/events').then(r => r.data),
-  createEvent: (data: { event_type: string; title: string; description?: string; mrr?: number; product?: string; occurred_at?: string }) =>
+  list: () => api.get<Business[]>('/areas/business/').then(r => r.data),
+  create: (data: { name: string; business_type: string; description?: string; color?: string }) =>
+    api.post<Business>('/areas/business/', data).then(r => r.data),
+  update: (id: string, data: Partial<{ name: string; business_type: string; status: string; description: string | null; color: string }>) =>
+    api.patch<Business>(`/areas/business/${id}`, data).then(r => r.data),
+  delete: (id: string) => api.delete(`/areas/business/${id}`).then(r => r.data),
+  events: (business_id?: string) => api.get<BusinessEvent[]>('/areas/business/events', { params: { business_id } }).then(r => r.data),
+  createEvent: (data: { event_type: string; title: string; description?: string; mrr?: number; product?: string; business_id?: string; occurred_at?: string }) =>
     api.post<BusinessEvent>('/areas/business/events', data).then(r => r.data),
-  summary: () => api.get('/areas/business/summary').then(r => r.data),
-  mrrHistory: () => api.get<{ date: string; mrr: number; title: string }[]>('/areas/business/mrr-history').then(r => r.data),
+  summary: (business_id?: string) => api.get('/areas/business/summary', { params: { business_id } }).then(r => r.data),
+  mrrHistory: (business_id?: string) => api.get<{ date: string; mrr: number; title: string }[]>('/areas/business/mrr-history', { params: { business_id } }).then(r => r.data),
 }
 
 // Captures (quick log inbox)

@@ -33,11 +33,13 @@ async def get_my_subscription(current_user=Depends(get_current_user), db=Depends
     sub = await billing.get_subscription(db, current_user.id)
     plan = sub.plan if sub else "free"
     status_ = sub.status if sub else "active"
+    addons = sub.addons if sub and sub.addons else []
     return {
         "plan": plan,
         "status": status_,
         "current_period_end": sub.current_period_end.isoformat() if sub and sub.current_period_end else None,
         "features": PLAN_FEATURES.get(plan, PLAN_FEATURES["free"]),
+        "addons": addons,
         "billing_enabled": settings.billing_enabled,
     }
 

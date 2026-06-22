@@ -1,464 +1,122 @@
 import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Rocket, History, Plus, Activity, TrendingUp, LayoutDashboard, Calendar, BarChart3, Bot, Search, Bell, PlusCircle } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { useUIStore } from '@/stores/uiStore'
-import { motion } from 'framer-motion'
-import styled from 'styled-components'
-import { Timeline } from 'antd'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Button, Badge, Select, Input } from '@ledgr/ui'
-import { AreaTabs } from '@/components/ui/AreaTabs'
-import { EventsTab } from '@/components/areas/business/EventsTab'
-import { SummaryTab } from '@/components/areas/business/SummaryTab'
-import { BusinessLogModal } from '@/components/areas/business/BusinessLogModal'
+import { Rocket, Plus, Briefcase } from 'lucide-react'
 import { PageContainer, PageContent } from '@/components/layout/PageLayout'
+import { PageHeader, Button, Card as GlassCard, Badge } from '@ledgr/ui'
+import { EmptyState } from '@/components/EmptyState'
+import styled from 'styled-components'
 
 import { businessApi } from '@/api/areas'
-import { formatDate } from '@/lib/utils'
-import { EmptyState } from '@/components/EmptyState'
-import { PageHeader } from '@ledgr/ui'
-import { IconBadge } from '@/components/lumina';
-import { Card as GlassCard } from '@ledgr/ui';
+import { Business } from '@/types'
+import { BusinessDetailView } from '@/components/areas/business/BusinessDetailView'
+import { CreateBusinessModal } from '@/components/areas/business/CreateBusinessModal'
+import { Skeleton } from '@/components/ui/skeleton'
+import { motion } from 'framer-motion'
 
-const EVENT_TYPE_COLORS: Record<string, string> = {
-  feature_shipped: 'success',
-  decision: 'info',
-  revenue: 'warning',
-  blocker: 'destructive',
-  milestone: 'accent',
-  note: 'neutral',
-}
-
-
-
-const ActionButtonContent = styled.div`
-  font-size: 12px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-`
-
-const DashboardLayout = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  width: 100%;
-`
-
-const DashboardContent = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-`
-
-const MetricsGrid = styled.div`
+const Grid = styled.div`
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 1rem;
-`
-
-const MetricCard = styled.div`
-  grid-column: span 12 / span 12;
-  @media (min-width: 768px) {
-    grid-column: span 4 / span 4;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1.5rem;
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  margin-top: 2rem;
 `
 
-const MetricLabel = styled.div`
-  font-size: 14px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  margin-bottom: 0.25rem;
-`
-
-const MetricValuePrimary = styled.div`
-  font-size: 24px;
-  color: ${({ theme }) => theme.color?.foreground || 'inherit'};
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-`
-
-const MetricValueSecondary = styled.div<{ $truncate?: boolean }>`
-  color: ${({ theme }) => theme.color?.foreground || 'inherit'};
-  font-weight: 500;
-  ${({ $truncate }) => $truncate && `
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  `}
-`
-
-const TimelineWrapper = styled.div`
-  margin-top: 0.5rem;
-`
-
-const TimelineItemHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.5rem;
-`
-
-const TimelineContentCol = styled.div`
+const BusinessCardContent = styled.div`
   display: flex;
   flex-direction: column;
-`
-
-const TimelineTitleRow = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-`
-
-const TimelineBadgeContainer = styled.div`
-  margin: 0;
-  font-size: 10px;
-  line-height: 1.25;
-  padding: 0 0.25rem;
-  border-color: transparent;
-  background-color: color-mix(in srgb, var(--muted) 50%, transparent);
-  border-radius: 9999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-`
-
-const TimelineTitle = styled.span`
-  font-size: 11px;
-  font-weight: 500;
-  color: ${({ theme }) => theme.color?.foreground || 'inherit'};
-`
-
-const TimelineDescription = styled.div`
-  font-size: 11px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  margin-top: 0.25rem;
-  line-height: 1.375;
-`
-
-const TimelineDate = styled.div`
-  font-size: 11px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  white-space: nowrap;
-  margin-top: 0.125rem;
-`
-
-const AnimatedTimelineItem = styled(motion.div)`
-  padding: 0.375rem 0.5rem;
-  border-radius: 6px;
-  margin-bottom: 0.25rem;
-  transition: all 0.2s ease;
-  &:hover {
-    background: color-mix(in srgb, var(--muted) 30%, transparent);
-  }
-`
-
-const RunwayHeader = styled.div`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-`
-
-const RunwayLabel = styled.div`
-  font-size: 10px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.25rem;
-`
-
-const RunwayValue = styled.div`
-  font-size: 14px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-`
-
-const RunwayStatusContainer = styled.div<{ $isHealthy: boolean }>`
-  margin-top: 0.75rem;
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  border: 1px solid;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  
-  background-color: ${({ $isHealthy }) => $isHealthy ? 'color-mix(in srgb, var(--kpi-emerald) 10%, transparent)' : 'color-mix(in srgb, var(--kpi-red) 10%, transparent)'};
-  border-color: ${({ $isHealthy }) => $isHealthy ? 'color-mix(in srgb, var(--kpi-emerald) 20%, transparent)' : 'color-mix(in srgb, var(--kpi-red) 20%, transparent)'};
-`
-
-const RunwayStatusLabel = styled.div`
-  font-size: 10px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  margin-bottom: 0.125rem;
-`
-
-const RunwayStatusValue = styled.div<{ $isHealthy: boolean }>`
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: ${({ $isHealthy }) => $isHealthy ? 'var(--kpi-emerald)' : 'var(--kpi-red)'};
-`
-
-const RunwayStatusUnit = styled.span`
-  font-size: 10px;
-  font-weight: 400;
-  opacity: 0.7;
-`
-
-const RunwayMessageWrapper = styled.div`
-  text-align: right;
-  max-width: 120px;
-`
-
-const RunwayMessage = styled.span`
-  font-size: 10px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  line-height: 1.25;
-  display: block;
-`
-
-const CalculatorInputs = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 12px;
-  margin-top: 12px;
-  margin-bottom: 12px;
 `
 
-const CalcLabel = styled.label`
-  font-size: 11px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+const BusinessDescription = styled.div`
+  font-size: 14px;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+  min-height: 42px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 `
-
-function RunwayCalculator() {
-  const [cash, setCash] = useState(50000)
-  const [burnRate, setBurnRate] = useState(5000)
-  const [runwayPeriod, setRunwayPeriod] = useState('monthly')
-
-  const multiplier = runwayPeriod === 'quarterly' ? 3 : 1
-  const adjustedBurnRate = burnRate * multiplier
-  const runwayValue = adjustedBurnRate > 0 ? (cash / adjustedBurnRate).toFixed(1) : '∞'
-  const runwayUnit = runwayPeriod === 'quarterly' ? 'quarters' : 'months'
-  const isHealthy = burnRate === 0 || (cash / burnRate) > 6
-
-  return (
-    <GlassCard
-      title="Runway Calculator"
-      subtitle="Burn rate and operational cash forecast"
-      icon={<TrendingUp size={16} color="var(--muted-foreground)" />}
-      action={
-        <Select
-          size="sm"
-          fullWidth={false}
-          options={[
-            { label: 'Monthly Scope', value: 'monthly' },
-            { label: 'Quarterly Scope', value: 'quarterly' },
-          ]}
-          value={runwayPeriod}
-          onChange={(val) => setRunwayPeriod(val as string)}
-          aria-label="Scope period"
-        />
-      }
-      hoverable
-      fadeIn="up"
-    >
-      <CalculatorInputs>
-        <CalcLabel htmlFor="runway-cash">
-          Current Cash (₹)
-          <Input
-            id="runway-cash"
-            type="number"
-            value={cash}
-            onChange={(e: any) => setCash(Number(e.target.value) || 0)}
-            size="sm"
-          />
-        </CalcLabel>
-        <CalcLabel htmlFor="runway-burn">
-          Monthly Burn (₹)
-          <Input
-            id="runway-burn"
-            type="number"
-            value={burnRate}
-            onChange={(e: any) => setBurnRate(Number(e.target.value) || 0)}
-            size="sm"
-          />
-        </CalcLabel>
-      </CalculatorInputs>
-
-      <RunwayStatusContainer $isHealthy={isHealthy}>
-        <div>
-          <RunwayStatusLabel>Estimated Runway</RunwayStatusLabel>
-          <RunwayStatusValue $isHealthy={isHealthy}>
-            {runwayValue} <RunwayStatusUnit>{runwayUnit}</RunwayStatusUnit>
-          </RunwayStatusValue>
-        </div>
-        <RunwayMessageWrapper>
-          <RunwayMessage>
-            {isHealthy ? 'Looking solid!' : 'Warning: Low runway.'}
-          </RunwayMessage>
-        </RunwayMessageWrapper>
-      </RunwayStatusContainer>
-    </GlassCard>
-  )
-}
 
 export function BusinessPage() {
-  const [isLogModalOpen, setIsLogModalOpen] = useState(false)
-  const [eventTypeFilter, setEventTypeFilter] = useState('all')
-  const navigate = useNavigate()
-  const { setCmdPaletteOpen, setCaptureModalOpen } = useUIStore()
-  const { data: events, isLoading: loadingEvents } = useQuery({ queryKey: ['business', 'events'], queryFn: businessApi.events })
-  const { data: summary, isLoading: loadingSummary } = useQuery({ queryKey: ['business', 'summary'], queryFn: businessApi.summary })
+  const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+
+  const { data: businesses, isLoading } = useQuery({
+    queryKey: ['business', 'list'],
+    queryFn: businessApi.list,
+  })
+
+  if (selectedBusiness) {
+    return <BusinessDetailView business={selectedBusiness} onBack={() => setSelectedBusiness(null)} />
+  }
 
   return (
     <PageContainer>
       <PageContent>
-      <PageHeader
-        icon={<Rocket />}
-        eyebrow="Ventures"
-        title="Business"
-        subtitle="Metrics, milestones and the event timeline — track your venture in one place."
-      />
-      <AreaTabs
-        defaultActiveKey="1"
-        items={[
-          {
-            key: '1',
-            label: <><LayoutDashboard size={14} /> Dashboard</>,
-            children: (
-              <DashboardLayout>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <PageHeader
+            icon={<Briefcase />}
+            eyebrow="Portfolio"
+            title="Your Businesses"
+            subtitle="Manage all your ventures, side-hustles, and projects from a single hub."
+          />
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Plus size={16} style={{ marginRight: '8px' }} />
+            New Business
+          </Button>
+        </div>
 
-                {/* Main content */}
-                <DashboardContent>
-                  <GlassCard
-                    title="Ledgr"
-                    subtitle="SaaS accounting for Indian freelancers"
-                    icon={<Rocket size={16} />}
-                    action={<Badge tone="info">Building</Badge>}
-                    hoverable
-                    fadeIn="up"
-                  >
-                    <MetricsGrid>
-                      <MetricCard>
-                        <div>
-                          <MetricLabel>MRR</MetricLabel>
-                          {loadingSummary ? <Skeleton style={{ height: '28px', width: '96px' }} /> : (
-                            <MetricValuePrimary>
-                              <span>₹</span>
-                              <span>{(summary?.mrr ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </MetricValuePrimary>
-                          )}
-                        </div>
-                      </MetricCard>
-                      <MetricCard>
-                        <MetricLabel>Last Feature</MetricLabel>
-                        {loadingSummary ? <Skeleton style={{ height: '24px', width: '128px' }} /> : <MetricValueSecondary $truncate>{summary?.last_feature ?? '—'}</MetricValueSecondary>}
-                      </MetricCard>
-                      <MetricCard>
-                        <MetricLabel>Shipped At</MetricLabel>
-                        {loadingSummary ? <Skeleton style={{ height: '24px', width: '128px' }} /> : <MetricValueSecondary>{formatDate(summary?.last_feature_at)}</MetricValueSecondary>}
-                      </MetricCard>
-                    </MetricsGrid>
-                  </GlassCard>
-
-                  <GlassCard
-                    title="Event Timeline"
-                    subtitle="Venture milestones, decisions, and feature releases"
-                    icon={<History size={16} color="var(--muted-foreground)" />}
-                    action={
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Select
-                          size="sm"
-                          fullWidth={false}
-                          options={[
-                            { label: 'All Events', value: 'all' },
-                            { label: 'Feature Shipped', value: 'feature_shipped' },
-                            { label: 'Decision', value: 'decision' },
-                            { label: 'Revenue', value: 'revenue' },
-                            { label: 'Blocker', value: 'blocker' },
-                            { label: 'Milestone', value: 'milestone' },
-                            { label: 'Note', value: 'note' },
-                          ]}
-                          value={eventTypeFilter}
-                          onChange={(val) => setEventTypeFilter(val as string)}
-                          aria-label="Filter events by type"
-                        />
-                        <Button size="sm" onClick={() => setIsLogModalOpen(true)}>
-                          <ActionButtonContent>
-                            <Plus size={12} />
-                            <span>Log Event</span>
-                          </ActionButtonContent>
-                        </Button>
-                      </div>
-                    }
-                    hoverable
-                    fadeIn="up"
-                    delay={100}
-                  >
-                    {loadingEvents ? <Skeleton style={{ height: 180 }} /> : events?.length ? (
-                      <TimelineWrapper>
-                        <Timeline
-                          items={events
-                            .filter(e => eventTypeFilter === 'all' || e.event_type === eventTypeFilter)
-                            .map((e: any, i: number) => ({
-                              color: EVENT_TYPE_COLORS[e.event_type] || 'blue',
-                              children: (
-                                <AnimatedTimelineItem initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
-                                  <TimelineItemHeader>
-                                    <TimelineContentCol>
-                                      <TimelineTitleRow>
-                                        <TimelineBadgeContainer>
-                                          <Badge tone={(EVENT_TYPE_COLORS[e.event_type] || 'neutral') as any}>{e.event_type.replace('_', ' ')}</Badge>
-                                        </TimelineBadgeContainer>
-                                        <TimelineTitle>{e.title}</TimelineTitle>
-                                      </TimelineTitleRow>
-                                      {e.description && <TimelineDescription>{e.description}</TimelineDescription>}
-                                    </TimelineContentCol>
-                                    <TimelineDate>{formatDate(e.occurred_at)}</TimelineDate>
-                                  </TimelineItemHeader>
-                                </AnimatedTimelineItem>
-                              )
-                            }))}
-                        />
-                      </TimelineWrapper>
-                    ) : (
-                      <EmptyState
-                        icon={History}
-                        title="No events"
-                        description="Log your business milestones."
-                        action={{ label: "Add Entry", onClick: () => setIsLogModalOpen(true) }}
-                      />
-                    )}
-                  </GlassCard>
-                </DashboardContent>
-
-                <RunwayCalculator />
-              </DashboardLayout>
-            ),
-          },
-          {
-            key: '2',
-            label: <><Calendar size={14} /> Events</>,
-            children: <EventsTab />,
-          },
-          {
-            key: '3',
-            label: <><BarChart3 size={14} /> Summary</>,
-            children: <SummaryTab />,
-          },
-        ]}
-      />
-      <BusinessLogModal open={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} />
+        {isLoading ? (
+          <Grid>
+            <Skeleton style={{ height: 200, borderRadius: 12 }} />
+            <Skeleton style={{ height: 200, borderRadius: 12 }} />
+            <Skeleton style={{ height: 200, borderRadius: 12 }} />
+          </Grid>
+        ) : businesses && businesses.length > 0 ? (
+          <Grid>
+            {businesses.map((business, i) => (
+              <motion.div
+                key={business.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+                onClick={() => setSelectedBusiness(business)}
+                style={{ cursor: 'pointer', height: '100%' }}
+              >
+                <GlassCard
+                  title={business.name}
+                  icon={<Rocket color={business.color || "var(--primary)"} size={20} />}
+                  hoverable
+                  style={{ height: '100%' }}
+                  action={<Badge tone="neutral" style={{ textTransform: 'capitalize' }}>{business.business_type}</Badge>}
+                >
+                  <BusinessCardContent>
+                    <BusinessDescription>
+                      {business.description || 'No description provided.'}
+                    </BusinessDescription>
+                  </BusinessCardContent>
+                </GlassCard>
+              </motion.div>
+            ))}
+          </Grid>
+        ) : (
+          <div style={{ marginTop: '3rem' }}>
+            <EmptyState
+              icon={Briefcase}
+              title="No businesses yet"
+              description="Start tracking your first venture or side hustle."
+              action={{ label: "Create Business", onClick: () => setIsCreateModalOpen(true) }}
+            />
+          </div>
+        )}
       </PageContent>
+      <CreateBusinessModal open={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
     </PageContainer>
   )
 }

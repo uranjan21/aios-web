@@ -199,6 +199,16 @@ alembic upgrade head
 
 ## Recent Updates (2026-06-22)
 
+### Subscription Tiers and RBAC Enforcement
+The system now enforces a 4-tier subscription model with specific area and feature gating:
+- **Starter (Free)**: Basic access to Finance, Health, and Career. Features limited by usage caps (e.g. 50 items/mo, 1 bank account).
+- **Pro ($12/mo)**: Unlimited Finance, Health, and Career. Unlocks premium features (Chat Assistant, Agents, advanced analytics, custom prompts).
+- **Pro Plus ($20/mo)**: Everything in Pro. Base tier required to purchase advanced modules as add-ons: Business (+$10/mo) and Content (+$10/mo).
+- **Household ($24/mo)**: Pro features for 5 members + shared features. Add-ons must be purchased separately per member.
+
+**Backend Implementation**: Added `addons` JSON column to `Subscription` model (`b88ba8bcced2`). Admin API updated to handle the `pro_plus` plan and assign add-ons. Backend `require_plan` dependency updated to automatically bypass all paywall checks for `is_admin = True` users.
+**Frontend Implementation**: Introduced `RequirePlan` and `RequireArea` wrapper components in `router.tsx` to handle routing-level RBAC (with automatic bypass for admin users). Updated `PricingPage.tsx` and `LandingPage.tsx` to display all 4 tiers accurately.
+
 ### Content area → full Content Management System
 The Content area was rebuilt from a single Kanban tab into a complete CMS with **6 tabs**:
 - **Overview** — KPI cards (total/published/scheduled/ideas), pipeline-by-stage bar, platform-mix pie, publishing-cadence area chart, upcoming-scheduled + recently-published lists.
@@ -219,6 +229,13 @@ The Content area was rebuilt from a single Kanban tab into a complete CMS with *
 - **Round 1 — feature/UX**: Admin panel (5 endpoints + `is_admin` migration `h006` + `require_admin` + `RequireAdmin` guard), empty states on finance tabs, landing-page rewrite, AI feature gates (`require_plan("pro")` + `UpgradeWall`/`is402`), 4 missing finance tabs wired (Goals/Loans/Investments/Bills).
 - **Round 2 — security**: `OAuthState.user_id` FK (`h007`) so integration state tokens are user-scoped; push `subscribe` scoped to `(user_id, endpoint)` (no cross-user hijack); `RequireAdmin` null-user race fixed; admin mutations rate-limited; CSP `ws:/wss:` narrowed to the configured origin; HSTS in production; `decode_access_token` now logs failures.
 - **Round 3 — isolation + correctness** (`h008`): replaced **6 global unique constraints** with per-user composites (`finance_snapshots`, `finance_categories`, `skill_inventory`, `calendar_events`, `google_fit_metrics`, `push_subscriptions`) — two users could previously block each other's inserts. Fixed `/chat/token-budget` crash (called `get_token_budget_status()` with no `user_id`). Rate-limited `/auth/me`, `/auth/profile`, `/auth/change-password`, `/auth/me DELETE`, `/chat/sessions DELETE`, `/sync/status`, `/sync/conflicts`. Removed `@ts-nocheck` from 5 page/tab files — surfaced and fixed a real bug where CareerPage `<Select onValueChange>` (ignored prop) never fired the mutation; fixed `<Skeleton active>` and untyped `PublishedDropZone`. `tsc --noEmit` clean across the frontend.
+
+### Business area → Multi-Business Portfolio Hub
+The Business area was completely refactored from a monolithic single-business dashboard into a dynamic, multi-tenant Portfolio Hub:
+- **Portfolio Hub View**: Default view shows a grid of active businesses.
+- **Business Creation**: A "Create Business" modal allows users to create isolated entities with custom name, `business_type` (SaaS, Agency, E-commerce, Content, Freelance), description, and theme color.
+- **Dynamic Detail Views**: Clicking a business routes to `BusinessDetailView`, which conditionally renders entirely different sets of `<AreaTabs>` tailored to the `business_type` (e.g., `SaasTabs`, `AgencyTabs`, `EcommerceTabs`).
+- **Backend Isolation**: `Business` and `BusinessEvent` models fully support `business_id`. Endpoints (`/areas/business/`, `/areas/business/events`, `/areas/business/summary`, `/areas/business/mrr-history`) conditionally filter data to the specific business, allowing users to track independent MRR, feature shipments, and events across multiple businesses without data bleeding.
 
 ## Recent Updates (2026-06-21)
 
@@ -249,3 +266,4 @@ The Content area was rebuilt from a single Kanban tab into a complete CMS with *
 ---
 
 **Last Updated**: 2026-06-22 | **Version**: 0.4.0
+

@@ -168,7 +168,7 @@ const CurrencyBadge = styled.div`
 
 const PricingGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 2rem;
   align-items: flex-start;
 `
@@ -269,7 +269,7 @@ export function PricingPage() {
 
   const isUSD = currency.code === 'USD'
 
-  const handlePlanCta = async (plan: 'pro' | 'household') => {
+  const handlePlanCta = async (plan: 'pro' | 'pro_plus' | 'household') => {
     if (!isAuthenticated) { navigate('/signup'); return }
     if (!billingEnabled) { navigate('/app/settings'); return }
     try {
@@ -315,10 +315,11 @@ export function PricingPage() {
               {loading ? '$0' : format(0)}<span>/mo</span>
             </PlanPrice>
             {!isUSD && <UsdNote>Free forever</UsdNote>}
-            <PlanDesc>Perfect for getting started with life management.</PlanDesc>
+            <PlanDesc>Perfect for getting started with basic life management.</PlanDesc>
             <FeatureList>
               <li><Check size={16} /> Basic Finance Tracking</li>
-              <li><Check size={16} /> Health Logs</li>
+              <li><Check size={16} /> Basic Health Logs</li>
+              <li><Check size={16} /> Basic Career Tracking</li>
               <li><Check size={16} /> Up to 50 items/month</li>
               <li><Check size={16} /> 1 Connected Bank Account</li>
             </FeatureList>
@@ -328,40 +329,59 @@ export function PricingPage() {
           </PricingCard>
 
           {/* Pro */}
-          <PricingCard $highlight initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <PricingCard initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <PlanName>Pro</PlanName>
             <PlanPrice>
               {loading ? '$12' : format(12)}<span>/mo</span>
             </PlanPrice>
             {!isUSD && !loading && <UsdNote>≈ $12 USD · billed in USD</UsdNote>}
-            <PlanDesc>Everything you need to master your wealth, health, and business.</PlanDesc>
+            <PlanDesc>Everything you need for advanced wealth and health mastery.</PlanDesc>
             <FeatureList>
-              <li><Check size={16} /> Unlimited Finance Tracking</li>
-              <li><Check size={16} /> Advanced AI Agent Access</li>
+              <li><Check size={16} /> Unlimited Finance & Health</li>
+              <li><Check size={16} /> AI Chat Assistant</li>
+              <li><Check size={16} /> Advanced AI Agents</li>
               <li><Check size={16} /> Unlimited Bank Connections</li>
-              <li><Check size={16} /> Business & Career Modules</li>
-              <li><Check size={16} /> Custom AI Prompts</li>
+              <li><Check size={16} /> Premium Reports & Analytics</li>
             </FeatureList>
             <Button variant="primary" size="lg" style={{ marginTop: 'auto' }} onClick={() => handlePlanCta('pro')}>
               {isAuthenticated ? 'Upgrade to Pro' : 'Start 14-Day Free Trial'}
             </Button>
           </PricingCard>
 
+          {/* Pro Plus */}
+          <PricingCard $highlight initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <PlanName>Pro Plus</PlanName>
+            <PlanPrice>
+              {loading ? '$20' : format(20)}<span>/mo</span>
+            </PlanPrice>
+            {!isUSD && !loading && <UsdNote>≈ $20 USD · billed in USD</UsdNote>}
+            <PlanDesc>For entrepreneurs and creators building their empire.</PlanDesc>
+            <FeatureList>
+              <li><Check size={16} /> Everything in Pro</li>
+              <li><Check size={16} /> Optional Business Add-on (+$10/mo)</li>
+              <li><Check size={16} /> Optional Content Add-on (+$10/mo)</li>
+              <li><Check size={16} /> Advanced Custom AI Prompts</li>
+              <li><Zap size={16} /> Priority Processing</li>
+            </FeatureList>
+            <Button variant="primary" size="lg" style={{ marginTop: 'auto' }} onClick={() => handlePlanCta('pro_plus')}>
+              {isAuthenticated ? 'Upgrade to Pro Plus' : 'Start 14-Day Free Trial'}
+            </Button>
+          </PricingCard>
+
           {/* Household */}
-          <PricingCard initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <PricingCard initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
             <PlanName>Household</PlanName>
             <PlanPrice>
               {loading ? '$24' : format(24)}<span>/mo</span>
             </PlanPrice>
             {!isUSD && !loading && <UsdNote>≈ $24 USD · billed in USD</UsdNote>}
-            <PlanDesc>One subscription, up to 5 household members — perfect for families.</PlanDesc>
+            <PlanDesc>One subscription, up to 5 household members.</PlanDesc>
             <FeatureList>
-              <li><Check size={16} /> Everything in Pro</li>
-              <li><Check size={16} /> Up to 5 Household Members</li>
+              <li><Check size={16} /> Pro features for 5 members</li>
               <li><Check size={16} /> Shared Dashboard & Goals</li>
               <li><Check size={16} /> Combined Finance Overview</li>
               <li><Shield size={16} /> Family Health Tracking</li>
-              <li><Zap size={16} /> Priority Support</li>
+              <li><Check size={16} /> Add-ons purchased separately</li>
             </FeatureList>
             <Button variant="outline" size="lg" style={{ marginTop: 'auto' }} onClick={() => handlePlanCta('household')}>
               {isAuthenticated ? 'Upgrade to Household' : 'Get Started'}

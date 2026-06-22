@@ -32,6 +32,8 @@ def require_plan(min_plan: str):
         settings = get_settings()
         if not settings.billing_enabled:
             return
+        if current_user.is_admin:
+            return
         from app.services.billing.service import get_subscription
         sub = await get_subscription(db, current_user.id)
         effective = sub.plan if (sub and sub.status in ACTIVE_STATUSES) else "free"
