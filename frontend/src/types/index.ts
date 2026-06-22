@@ -127,15 +127,62 @@ export interface BusinessEvent {
   mrr: number | null
 }
 
+export type ContentPlatform = 'linkedin' | 'twitter' | 'instagram' | 'youtube' | 'blog'
+export type ContentStatus = 'idea' | 'in_progress' | 'scheduled' | 'published' | 'archived'
+export type ContentPriority = 'low' | 'medium' | 'high'
+
 export interface ContentItem {
   id: string
   title: string
-  platform: 'linkedin' | 'twitter' | 'instagram' | 'youtube' | 'blog'
-  status: 'idea' | 'in_progress' | 'scheduled' | 'published' | 'archived'
+  platform: ContentPlatform
+  status: ContentStatus
+  content_type: string | null
+  priority: ContentPriority
+  body: string | null
+  notes: string | null
+  tags: string | null
+  pillar: string | null
+  campaign_id: string | null
+  position: number
   idea_date: string | null
   publish_date: string | null
-  content_type: string | null
-  notes: string | null
+  scheduled_at: string | null
+  published_at: string | null
+  url: string | null
+  views: number
+  likes: number
+  comments: number
+  shares: number
+  created_at?: string
+  updated_at?: string
+}
+
+export interface ContentCampaign {
+  id: string
+  name: string
+  description: string | null
+  goal: string | null
+  color: string
+  status: 'active' | 'completed' | 'archived'
+  start_date: string | null
+  end_date: string | null
+  item_count: number
+  created_at?: string
+  updated_at?: string
+}
+
+export interface ContentStats {
+  total: number
+  by_status: Record<string, number>
+  by_platform: Record<string, number>
+  by_type: Record<string, number>
+  by_month: Record<string, number>
+  totals: { views: number; likes: number; comments: number; shares: number }
+  published_count: number
+  top_performers: Array<{
+    id: string; title: string; platform: ContentPlatform
+    views: number; likes: number; comments: number; shares: number
+  }>
 }
 
 export interface Integration {

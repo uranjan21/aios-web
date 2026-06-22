@@ -46,6 +46,7 @@ const StatLabel = styled.div`
 `
 
 function StatsSection() {
+  const theme = useTheme()
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'stats'],
     queryFn: adminApi.stats,
@@ -69,7 +70,7 @@ function StatsSection() {
     <StatsGrid>
       <StatCard><StatValue>{data.total_users}</StatValue><StatLabel>Total Users</StatLabel></StatCard>
       <StatCard><StatValue>{data.free_users}</StatValue><StatLabel>Free</StatLabel></StatCard>
-      <StatCard><StatValue style={{ color: 'var(--accent)' }}>{data.pro_users}</StatValue><StatLabel>Pro</StatLabel></StatCard>
+      <StatCard><StatValue style={{ color: theme.color.accent }}>{data.pro_users}</StatValue><StatLabel>Pro</StatLabel></StatCard>
       <StatCard><StatValue>{data.household_users}</StatValue><StatLabel>Household</StatLabel></StatCard>
     </StatsGrid>
   )

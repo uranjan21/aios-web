@@ -1,12 +1,15 @@
 import hashlib
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import jwt
-from jwt.exceptions import PyJWTError
+from jwt.exceptions import ExpiredSignatureError, PyJWTError
 
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
@@ -24,7 +27,11 @@ def decode_access_token(token: str) -> Optional[dict]:
     settings = get_settings()
     try:
         return jwt.decode(token, settings.app_secret_key, algorithms=[ALGORITHM])
-    except PyJWTError:
+    except ExpiredSignatureError:
+        logger.debug("JWT token expired")
+        return None
+    except PyJWTError as exc:
+        logger.warning("JWT decode failed: %s", exc)
         return None
 
 

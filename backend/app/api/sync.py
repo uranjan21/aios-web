@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/status")
-async def sync_status(current_user=Depends(get_current_user)):
+@limiter.limit("20/minute")
+async def sync_status(request: Request, current_user=Depends(get_current_user)):
     return await sync_engine.get_sync_status(current_user.id)
 
 
@@ -52,7 +53,8 @@ def _resync_done(task: asyncio.Task) -> None:
 
 
 @router.get("/conflicts")
-async def list_conflicts(current_user=Depends(get_current_user)):
+@limiter.limit("20/minute")
+async def list_conflicts(request: Request, current_user=Depends(get_current_user)):
     from sqlmodel import select
     from app.models.vault import VaultConflict, VaultFile
     from app.db.session import AsyncSessionLocal

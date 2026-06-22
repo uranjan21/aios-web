@@ -2,10 +2,11 @@ import json
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from sqlmodel import select, desc
 
 from app.core.deps import get_current_user, get_db
+from app.core.rate_limit import limiter
 from app.db.session import AsyncSessionLocal
 from app.models.chat import ChatSession, ChatMessage
 from app.services.chat.agent import stream_chat_response
@@ -47,7 +48,8 @@ async def get_session(session_id: uuid.UUID, current_user=Depends(get_current_us
 
 
 @router.delete("/sessions/{session_id}")
-async def delete_session(session_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+@limiter.limit("10/minute")
+async def delete_session(request: Request, session_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(
         select(ChatSession).where(ChatSession.id == session_id, ChatSession.user_id == current_user.id)
     )
@@ -96,7 +98,7 @@ async def patch_session(session_id: uuid.UUID, body: ChatSessionPatch, current_u
 
 @router.get("/token-budget")
 async def token_budget(current_user=Depends(get_current_user)):
-    return await get_token_budget_status()
+    return await get_token_budget_status(current_user.id)
 
 
 async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:

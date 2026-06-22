@@ -4,11 +4,12 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlmodel import select, func
 
 from app.core.deps import get_db, require_admin
+from app.core.rate_limit import limiter
 from app.models.user import User
 from app.models.billing import Subscription
 
@@ -83,7 +84,9 @@ class PlanOverride(BaseModel):
 
 
 @router.patch("/users/{user_id}/plan")
+@limiter.limit("20/minute")
 async def override_plan(
+    request: Request,
     user_id: uuid.UUID,
     body: PlanOverride,
     _=Depends(require_admin),
@@ -120,7 +123,9 @@ class AdminToggle(BaseModel):
 
 
 @router.patch("/users/{user_id}/admin")
+@limiter.limit("20/minute")
 async def toggle_admin(
+    request: Request,
     user_id: uuid.UUID,
     body: AdminToggle,
     current_admin=Depends(require_admin),
@@ -144,7 +149,9 @@ async def toggle_admin(
 
 
 @router.delete("/users/{user_id}")
+@limiter.limit("10/minute")
 async def admin_delete_user(
+    request: Request,
     user_id: uuid.UUID,
     current_admin=Depends(require_admin),
     db=Depends(get_db),

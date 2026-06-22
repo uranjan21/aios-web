@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { BookOpen, History, Plus, Briefcase, ExternalLink, LayoutDashboard, Map, Target, Bot, Search, Bell, PlusCircle, Activity } from 'lucide-react'
@@ -221,7 +220,7 @@ function SkillRow({ skill }: { skill: SkillInventory }) {
         <SkillName>{skill.skill_name}</SkillName>
         <SkillCat>{skill.category}</SkillCat>
       </SkillInfo>
-      <Select value={skill.level} onValueChange={(level: any) => patch(level)} size="sm" style={{ minWidth: 110 }} aria-label="Skill level">
+      <Select value={skill.level} onChange={(level) => patch(level as SkillInventory['level'])} size="sm" style={{ minWidth: 110 }} aria-label="Skill level">
         {(Object.keys(LEVEL_LABELS) as SkillInventory['level'][]).map(l => (
           <SelectItem key={l} value={l}>
             <Badge tone={LEVEL_COLORS[l]}>{LEVEL_LABELS[l]}</Badge>
@@ -252,7 +251,7 @@ function OpportunityRow({ opp }: { opp: JobOpportunity }) {
             <ExternalLink size={14} />
           </a>
         )}
-        <Select value={opp.status} onValueChange={(val: any) => patch(val)} style={{ minWidth: 120 }} aria-label="Opportunity status">
+        <Select value={opp.status} onChange={(val) => patch(val as OpportunityStatus)} style={{ minWidth: 120 }} aria-label="Opportunity status">
           {Object.keys(OPP_STATUS_COLORS).map(s => (
             <SelectItem key={s} value={s}>
               <Badge tone={OPP_STATUS_COLORS[s as OpportunityStatus]}>{s.charAt(0).toUpperCase() + s.slice(1)}</Badge>
