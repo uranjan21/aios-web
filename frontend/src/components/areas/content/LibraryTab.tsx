@@ -1,18 +1,11 @@
-import { useMemo, useState } from 'react'
-import { Input, Select, SelectItem, AreaToolbar, ToolbarMeta } from '@ledgr/ui'
-import { Library, Search } from 'lucide-react'
+import { useMemo } from 'react'
+import { Library } from 'lucide-react'
 import styled from 'styled-components'
 import { Table } from '@/components/ui/Table'
 import { StatusPill } from '@/components/lumina'
 import type { ContentItem, ContentCampaign } from '@/types'
-import { PLATFORM_META, STATUS_LABELS, STATUS_TONE, PLATFORMS, CONTENT_TYPES, platformLabel } from './contentMeta'
+import { PLATFORM_META, STATUS_LABELS, STATUS_TONE, platformLabel } from './contentMeta'
 
-const SearchWrap = styled.div`
-  position: relative;
-  min-width: 180px;
-  svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: ${({ theme }) => theme.color.mutedForeground}; pointer-events: none; }
-  input { padding-left: 30px; }
-`
 const TitleCell = styled.div`
   display: flex;
   flex-direction: column;
@@ -42,32 +35,21 @@ const Num = styled.span`
   color: ${({ theme }) => theme.color.foreground};
 `
 
-export function LibraryTab({ items, campaigns, onEdit }: {
-  items: ContentItem[]
+/**
+ * Presentational Library table. Filtering + the shared toolbar live in
+ * ContentPage (single page-level AreaToolbar); this tab only renders rows.
+ */
+export function LibraryTab({ rows, total, campaigns, onEdit }: {
+  rows: ContentItem[]
+  total: number
   campaigns: ContentCampaign[]
   onEdit: (item: ContentItem) => void
 }) {
-  const [q, setQ] = useState('')
-  const [platform, setPlatform] = useState('all')
-  const [status, setStatus] = useState('all')
-  const [type, setType] = useState('all')
-
   const campaignName = useMemo(() => {
     const m: Record<string, string> = {}
     for (const c of campaigns) m[c.id] = c.name
     return m
   }, [campaigns])
-
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase()
-    return items.filter(i => {
-      if (platform !== 'all' && i.platform !== platform) return false
-      if (status !== 'all' && i.status !== status) return false
-      if (type !== 'all' && i.content_type !== type) return false
-      if (term && !(`${i.title} ${i.body ?? ''} ${i.tags ?? ''}`.toLowerCase().includes(term))) return false
-      return true
-    })
-  }, [items, q, platform, status, type])
 
   const columns = [
     {
@@ -107,35 +89,16 @@ export function LibraryTab({ items, campaigns, onEdit }: {
   ]
 
   return (
-    <>
-      <AreaToolbar
-        title="Content Library"
-        left={<ToolbarMeta>{filtered.length} of {items.length} pieces</ToolbarMeta>}
-      >
-        <SearchWrap>
-          <Search size={14} />
-          <Input aria-label="Search content" placeholder="Search…" value={q} onChange={e => setQ(e.target.value)} size="sm" />
-        </SearchWrap>
-        <Select size="sm" aria-label="Platform filter" value={platform} onChange={v => setPlatform(v as string)}>
-          <SelectItem value="all">All platforms</SelectItem>
-          {PLATFORMS.map(p => <SelectItem key={p} value={p}>{PLATFORM_META[p].label}</SelectItem>)}
-        </Select>
-        <Select size="sm" aria-label="Status filter" value={status} onChange={v => setStatus(v as string)}>
-          <SelectItem value="all">All status</SelectItem>
-          {(Object.keys(STATUS_LABELS) as ContentItem['status'][]).map(s => <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>)}
-        </Select>
-        <Select size="sm" aria-label="Type filter" value={type} onChange={v => setType(v as string)}>
-          <SelectItem value="all">All types</SelectItem>
-          {CONTENT_TYPES.map(t => <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>)}
-        </Select>
-      </AreaToolbar>
-      <Table
-        rows={filtered}
-        columns={columns}
-        getRowKey={(row: ContentItem) => row.id}
-        onRowClick={(row: ContentItem) => onEdit(row)}
-        empty={{ icon: <Library size={20} />, title: 'No content matches', description: 'Try adjusting your filters or create new content.' }}
-      />
-    </>
+    <Table
+      rows={rows}
+      columns={columns}
+      getRowKey={(row: ContentItem) => row.id}
+      onRowClick={(row: ContentItem) => onEdit(row)}
+      empty={{
+        icon: <Library size={20} />,
+        title: total === 0 ? 'No content yet' : 'No content matches',
+        description: total === 0 ? 'Create your first piece to fill the library.' : 'Try adjusting your filters above.',
+      }}
+    />
   )
 }
