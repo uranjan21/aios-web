@@ -328,6 +328,7 @@ export function GoalsTab() {
           rows={visibleGoals}
           columns={columns}
           getRowKey={row => row.id}
+          empty={{ icon: <Target size={20} />, title: 'No goals yet', description: 'Create a savings goal to track your progress.', action: <Button size="sm" variant="primary" onClick={() => {}}>Add Goal</Button> }}
         />
 
         <Dialog

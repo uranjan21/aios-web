@@ -377,6 +377,7 @@ export function LoansTab() {
           rows={visibleLoans}
           columns={columns}
           getRowKey={(row: any) => row.id}
+          empty={{ icon: <Landmark size={20} />, title: 'No loans tracked', description: 'Add a home loan, car loan, or personal loan to monitor your EMI and payoff progress.' }}
         />
         {summary && (
           <SummaryRow>

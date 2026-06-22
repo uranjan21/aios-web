@@ -224,7 +224,12 @@ export function HealthPage() {
                   </div>
                 }
               >
-                {loadingWeight ? <Skeleton style={{ height: '180px' }} /> : (
+                {loadingWeight ? <Skeleton style={{ height: '180px' }} /> : !weightDataProcessed.length ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 180, gap: 8 }}>
+                    <Scale size={24} style={{ color: 'var(--muted-foreground)' }} />
+                    <span style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>No weight logs yet — log your first weight entry to see progression.</span>
+                  </div>
+                ) : (
                   <div style={{ height: 180, width: '100%' }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={weightDataProcessed} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
