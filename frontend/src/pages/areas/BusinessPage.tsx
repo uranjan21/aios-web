@@ -13,6 +13,7 @@ import { AreaTabs } from '@/components/ui/AreaTabs'
 import { EventsTab } from '@/components/areas/business/EventsTab'
 import { SummaryTab } from '@/components/areas/business/SummaryTab'
 import { BusinessLogModal } from '@/components/areas/business/BusinessLogModal'
+import { PageContainer, PageContent } from '@/components/layout/PageLayout'
 
 import { businessApi } from '@/api/areas'
 import { formatDate } from '@/lib/utils'
@@ -30,19 +31,7 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
   note: 'neutral',
 }
 
-const PageWrapper = styled.div`
-  min-height: 100vh;
-  background-color: var(--page-bg);
-  padding: 1rem;
-  @media (min-width: 768px) {
-    padding: 1.5rem;
-  }
-`
 
-const PageContainer = styled.div`
-  margin: 0 auto;
-  max-width: 1200px;
-`
 
 const ActionButtonContent = styled.div`
   font-size: 12px;
@@ -332,8 +321,8 @@ export function BusinessPage() {
   const { data: summary, isLoading: loadingSummary } = useQuery({ queryKey: ['business', 'summary'], queryFn: businessApi.summary })
 
   return (
-    <PageWrapper>
-      <PageContainer>
+    <PageContainer>
+      <PageContent>
       <PageHeader
         icon={<Rocket />}
         eyebrow="Ventures"
@@ -470,7 +459,7 @@ export function BusinessPage() {
         ]}
       />
       <BusinessLogModal open={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} />
-      </PageContainer>
-    </PageWrapper>
+      </PageContent>
+    </PageContainer>
   )
 }

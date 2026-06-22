@@ -69,13 +69,14 @@ class FinanceExpense(SQLModel, table=True):
 
 
 class BudgetLimit(SQLModel, table=True):
-    """Monthly spending cap per category. One row per category."""
+    """Monthly spending cap per category. One row per (user, category)."""
     __tablename__ = "budget_limits"
 
+    user_id: uuid.UUID = Field(foreign_key="users.id", primary_key=True, nullable=False)
     category: str = Field(primary_key=True, nullable=False)
     monthly_limit: Decimal = Field(sa_column=Column(Numeric(10, 2), nullable=False))
-    alert_80_period: Optional[str] = Field(default=None)  # "YYYY-MM" the 80% alert last fired
-    alert_100_period: Optional[str] = Field(default=None)  # "YYYY-MM" the 100% alert last fired
+    alert_80_period: Optional[str] = Field(default=None)
+    alert_100_period: Optional[str] = Field(default=None)
     updated_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
 
 

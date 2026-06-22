@@ -7,6 +7,7 @@ import { useUIStore } from '@/stores/uiStore'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import styled from 'styled-components'
+import { PageContainer, PageContent } from '@/components/layout/PageLayout'
 import { Timeline } from 'antd'
 import { Button, Badge, Select, SelectItem } from '@ledgr/ui'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -45,18 +46,6 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
 }
 
 // ── Layout ─────────────────────────────────────────────────────────────────────
-
-const PageRoot = styled.div`
-  min-height: 100vh;
-  background: ${({ theme }) => theme.color.background};
-  padding: 16px;
-  @media (min-width: 768px) { padding: 24px; }
-`
-
-const PageContent = styled.div`
-  margin: 0 auto;
-  max-width: 1200px;
-`
 
 const StyledSkeleton = styled(Skeleton)<{ $height: string }>`
   height: ${({ $height }) => $height};
@@ -313,7 +302,7 @@ export function CareerPage() {
   const inPlay = opportunities?.filter(o => ['interview', 'offer'].includes(o.status)).length ?? 0
 
   return (
-    <PageRoot>
+    <PageContainer>
       <PageContent>
         <PageHeader
           icon={<Briefcase />}
@@ -488,6 +477,6 @@ export function CareerPage() {
         />
         <CareerLogModal open={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} />
       </PageContent>
-    </PageRoot>
+    </PageContainer>
   )
 }

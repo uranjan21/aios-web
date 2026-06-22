@@ -26,6 +26,7 @@ import { PageHeader } from '@ledgr/ui'
 import { AreaTabs } from '@/components/ui/AreaTabs'
 import type { ContentItem } from '@/types'
 import styled from 'styled-components'
+import { PageContainer, PageContent } from '@/components/layout/PageLayout'
 
 const PIPELINE_COLS: ContentItem['status'][] = ['idea', 'in_progress', 'scheduled']
 
@@ -55,11 +56,6 @@ const PageRoot = styled.div`
   background: ${({ theme }) => theme.color.background};
   padding: 16px;
   @media (min-width: 768px) { padding: 24px; }
-`
-
-const PageContent = styled.div`
-  margin: 0 auto;
-  max-width: 1200px;
 `
 
 const PipelineGrid = styled.div`
@@ -539,7 +535,7 @@ export function ContentPage() {
   }
 
   return (
-    <PageRoot>
+    <PageContainer>
       <PageContent>
         <PageHeader
           icon={<PenLine />}
@@ -676,6 +672,6 @@ export function ContentPage() {
           }}
         />
       </PageContent>
-    </PageRoot>
+    </PageContainer>
   )
 }

@@ -222,7 +222,7 @@ export function LandingPage() {
           ) : (
             <>
               <Link to="/login">Sign in</Link>
-              <Button variant="primary" onClick={() => navigate('/login')}>Get Started</Button>
+              <Button variant="primary" onClick={() => navigate('/signup')}>Get Started</Button>
             </>
           )}
         </HeaderNav>
@@ -242,7 +242,7 @@ export function LandingPage() {
             Finance, health, career, and business — orchestrated by AI agents in one premium, unified workspace. 
           </HeroSubtitle>
           <ButtonGroup>
-            <Button variant="primary" size="lg" onClick={() => navigate('/login')}>
+            <Button variant="primary" size="lg" onClick={() => navigate('/signup')}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 Start your journey <ChevronRight size={16} />
               </span>

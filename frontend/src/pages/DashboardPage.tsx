@@ -10,19 +10,9 @@ import {
 import { UnifiedSchedulePanel } from "@/components/dashboard/UnifiedSchedulePanel";
 import { useState } from "react";
 import styled from "styled-components";
+import { PageContainer, PageContent } from "@/components/layout/PageLayout";
 
-const Container = styled.div`
-  min-height: 100vh;
-  background: ${({ theme }) => theme.color.background};
-  padding: 16px;
-  @media (min-width: 768px) {
-    padding: 24px;
-  }
-`;
-
-const Inner = styled.div`
-  max-width: 1440px;
-  margin: 0 auto;
+const DashboardGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
   gap: 20px;
@@ -114,9 +104,10 @@ export function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
 
   return (
-    <Container>
-      <Inner>
-        <LeftColumn>
+    <PageContainer>
+      <PageContent>
+        <DashboardGrid>
+          <LeftColumn>
           <HeroBlock>
             <GreetingHero />
             <OverviewInsightCard />
@@ -158,7 +149,8 @@ export function DashboardPage() {
             />
           </RightCardFill>
         </RightColumn>
-      </Inner>
-    </Container>
+        </DashboardGrid>
+      </PageContent>
+    </PageContainer>
   );
 }

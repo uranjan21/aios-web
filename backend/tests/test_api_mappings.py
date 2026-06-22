@@ -314,6 +314,14 @@ def test_api_mappings():
         ("GET", "/api/sync/conflicts"),
         ("POST", "/api/sync/conflicts/{}/resolve"),
         ("GET", "/health"),
+        # Called inline from pages (LoginPage), not via an api/ module, so the
+        # mapping scanner doesn't see them. signup UI shipped (M3); profile +
+        # change-password screens still pending.
+        ("POST", "/api/auth/signup"),
+        ("PATCH", "/api/auth/profile"),
+        ("POST", "/api/auth/change-password"),
+        # Stripe calls this server-to-server; never a frontend caller.
+        ("POST", "/api/billing/webhook"),
     }
     for key, route in backend_routes.items():
         method, path = key

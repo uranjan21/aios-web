@@ -16,7 +16,7 @@ from app.core.rate_limit import limiter
 from app.api.auth import router as auth_router
 from app.api.sync import router as sync_router, sync_ws_handler
 from app.api.chat import router as chat_router, chat_ws_handler
-from app.api.agents import router as agents_router, agents_ws_handler, seed_default_agents
+from app.api.agents import router as agents_router, agents_ws_handler
 from app.services.agents.scheduler import start_scheduler, stop_scheduler
 from app.api.integrations import router as integrations_router
 from app.api.areas.finance import router as finance_router
@@ -27,6 +27,7 @@ from app.api.areas.content import router as content_router
 from app.api.captures import router as captures_router
 from app.api.push import router as push_router
 from app.api.ai import router as ai_router
+from app.api.billing import router as billing_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,29 +49,46 @@ async def lifespan(app: FastAPI):
 
     logger.info("AIOS Web backend starting — vault: %s", settings.vault_path)
 
-    try:
-        await seed_default_agents()
-    except Exception as e:
-        logger.warning("Failed to seed default agents (non-fatal): %s", e)
-
     await start_scheduler()
 
     from pathlib import Path
     vault_path = Path(settings.vault_path)
-    if vault_path.exists():
+    if not settings.vault_sync_enabled:
+        logger.info("Vault sync disabled (VAULT_SYNC_ENABLED=false) — watcher not started")
+    elif vault_path.exists():
         from app.services.vault_sync.watcher import VaultWatcher
         from app.services.vault_sync.sync_engine import handle_file_change
+        from app.db.session import AsyncSessionLocal
+        from app.models.user import User
+        from sqlmodel import select as sql_select
 
-        _watcher = VaultWatcher(settings.vault_path, handle_file_change)
+        async def _get_vault_user_id():
+            """Return the first registered user's id for vault association."""
+            async with AsyncSessionLocal() as s:
+                result = await s.execute(sql_select(User).limit(1))
+                user = result.scalar_one_or_none()
+                return user.id if user else None
+
+        async def _file_change_callback(rel_path: str, change_type: str) -> None:
+            uid = await _get_vault_user_id()
+            if uid is None:
+                return
+            await handle_file_change(uid, rel_path, change_type)
+
+        _watcher = VaultWatcher(settings.vault_path, _file_change_callback)
         loop = asyncio.get_running_loop()
         _watcher.start(loop)
         logger.info("Vault watcher started")
 
         async def _initial_scan():
+            uid = await _get_vault_user_id()
+            if uid is None:
+                logger.info("Initial vault scan skipped — no users registered yet")
+                return
             count = 0
             for md_file in vault_path.rglob("*.md"):
                 rel = str(md_file.relative_to(vault_path))
-                await handle_file_change(rel, "modified")
+                await handle_file_change(uid, rel, "modified")
                 count += 1
             logger.info("Initial vault scan complete: %d files", count)
 
@@ -149,13 +167,25 @@ def create_app() -> FastAPI:
             status_code=200 if db_ok else 503,
         )
 
+    @app.get("/api/features")
+    async def features():
+        """Public feature flags so the frontend can hide self-host-only features."""
+        return {
+            "vault_sync": settings.vault_sync_enabled,
+            "billing_enabled": settings.billing_enabled,
+            "stripe_publishable_key": settings.stripe_publishable_key,
+        }
+
     @app.websocket("/ws/sync")
     async def ws_sync(websocket: WebSocket):
+        if not settings.vault_sync_enabled:
+            await websocket.close(code=1008)
+            return
         user = await ws_auth(websocket)
         if not user:
             await websocket.close(code=1008)
             return
-        await sync_ws_handler(websocket)
+        await sync_ws_handler(websocket, user["sub"])
 
     @app.websocket("/ws/chat")
     async def ws_chat(websocket: WebSocket):
@@ -163,7 +193,7 @@ def create_app() -> FastAPI:
         if not user:
             await websocket.close(code=1008)
             return
-        await chat_ws_handler(websocket)
+        await chat_ws_handler(websocket, user["sub"])
 
     @app.websocket("/ws/agents")
     async def ws_agents(websocket: WebSocket):
@@ -171,7 +201,7 @@ def create_app() -> FastAPI:
         if not user:
             await websocket.close(code=1008)
             return
-        await agents_ws_handler(websocket)
+        await agents_ws_handler(websocket, user["sub"])
 
     app.include_router(auth_router)
     app.include_router(sync_router)
@@ -186,6 +216,7 @@ def create_app() -> FastAPI:
     app.include_router(captures_router)
     app.include_router(push_router)
     app.include_router(ai_router)
+    app.include_router(billing_router)
 
     return app
 

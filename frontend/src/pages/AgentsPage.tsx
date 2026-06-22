@@ -2,6 +2,7 @@ import { agentsApi } from "@/api/agents";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageContainer, PageContent } from "@/components/layout/PageLayout";
 import { formatRelativeTime } from "@/lib/utils";
 import type { Agent } from "@/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -96,14 +97,6 @@ const pulseGlow = keyframes`
   100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pulse-color) 0%, transparent); }
 `;
 
-const PageContainer = styled.div`
-  padding: 1.25rem 1.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
-  color: ${({ theme }) => theme.color?.foreground || "var(--foreground)"};
-  min-height: calc(100vh - 64px);
-  background: ${({ theme }) => theme.color?.background || "var(--page-bg)"};
-`;
 
 const AgentSkeleton = styled(Skeleton)`
   height: 64px;
@@ -620,6 +613,7 @@ export function AgentsPage() {
 
   return (
     <PageContainer>
+      <PageContent>
       <SpinGlobal />
       <PageHeader
         title="Agents"
@@ -671,6 +665,7 @@ export function AgentsPage() {
           </TableShell>
         </AgentsGrid>
       )}
+      </PageContent>
     </PageContainer>
   );
 }

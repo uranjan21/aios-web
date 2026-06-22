@@ -26,22 +26,10 @@ import { HealthLogModal } from '@/components/areas/health/HealthLogModal'
 import { PageHeader } from '@ledgr/ui'
 import { AiInsightCard } from '@/components/AiInsightCard'
 import styled, { useTheme } from 'styled-components'
+import { PageContainer, PageContent } from '@/components/layout/PageLayout'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
 
-const StyledPageWrapper = styled.div`
-  min-height: 100vh;
-  background-color: var(--page-bg);
-  padding: 1rem;
-  
-  @media (min-width: 768px) {
-    padding: 1.5rem;
-  }
-`;
 
-const StyledContentWrapper = styled.div`
-  margin: 0 auto;
-  max-width: 1200px;
-`;
 
 const StyledDashboardGrid = styled.div`
   display: grid;
@@ -181,8 +169,8 @@ export function HealthPage() {
   }
 
   return (
-    <StyledPageWrapper>
-      <StyledContentWrapper>
+    <PageContainer>
+      <PageContent>
       <PageHeader
         icon={<Heart />}
         eyebrow="Wellness"
@@ -270,7 +258,7 @@ export function HealthPage() {
         { key: '5', label: <StyledTabLabel><History size={14} /> History</StyledTabLabel>, children: <HistoryTab onLogClick={() => setIsLogModalOpen(true)} /> },
       ]} />
       <HealthLogModal open={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} />
-      </StyledContentWrapper>
-    </StyledPageWrapper>
+      </PageContent>
+    </PageContainer>
   )
 }

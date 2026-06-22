@@ -393,8 +393,20 @@ const FEATURES = [
   { icon: Zap, title: 'Agents', desc: 'Automated workflows that run on schedule' },
 ]
 
-export function LoginPage() {
+type AuthMode = 'login' | 'signup'
+
+/** Pull a human-readable message out of a FastAPI error response. */
+function errorMessage(err: any, fallback: string): string {
+  const detail = err?.response?.data?.detail
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail) && detail[0]?.msg) return detail[0].msg
+  return fallback
+}
+
+export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode }) {
   const theme = useTheme()
+  const [mode, setMode] = useState<AuthMode>(initialMode)
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -404,6 +416,13 @@ export function LoginPage() {
   const navigate = useNavigate()
   const setAuthenticated = useAuthStore(s => s.setAuthenticated)
   const setUser = useAuthStore(s => s.setUser)
+
+  const isSignup = mode === 'signup'
+
+  const toggleMode = () => {
+    setError('')
+    setMode(m => (m === 'login' ? 'signup' : 'login'))
+  }
 
   const handleGoogleLogin = async () => {
     setGoogleLoading(true)
@@ -419,15 +438,21 @@ export function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSignup && password.length < 8) {
+      setError('Password must be at least 8 characters')
+      return
+    }
     setLoading(true)
     setError('')
     try {
-      const { data } = await api.post('/auth/login', { email, password })
+      const { data } = isSignup
+        ? await api.post('/auth/signup', { name, email, password })
+        : await api.post('/auth/login', { email, password })
       setAuthenticated(true)
       if (data.user) setUser(data.user)
       navigate('/app')
-    } catch {
-      setError('Invalid passphrase')
+    } catch (err) {
+      setError(errorMessage(err, isSignup ? 'Could not create account' : 'Invalid email or password'))
     } finally {
       setLoading(false)
     }
@@ -484,12 +509,29 @@ export function LoginPage() {
           <LoginCard
             as="form"
             onSubmit={handleSubmit}
-            title="Welcome back"
-            subtitle="Enter your passphrase to continue"
+            title={isSignup ? 'Create your account' : 'Welcome back'}
+            subtitle={isSignup ? 'Start running your life on AIOS' : 'Sign in to continue'}
             icon={<Shield size={16} />}
             action={<StatusPill label="Secure" tone="primary" />}
             style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
           >
+            {isSignup && (
+              <div>
+                <FieldLabel htmlFor="signup-name">Name</FieldLabel>
+                <Input
+                  id="signup-name"
+                  type="text"
+                  placeholder="Your name"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  autoFocus
+                  required
+                  fullWidth
+                  size="lg"
+                />
+              </div>
+            )}
+
             <div>
               <FieldLabel htmlFor="login-email">Email</FieldLabel>
               <Input
@@ -498,7 +540,7 @@ export function LoginPage() {
                 placeholder="you@example.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                autoFocus
+                autoFocus={!isSignup}
                 required
                 fullWidth
                 size="lg"
@@ -506,12 +548,12 @@ export function LoginPage() {
             </div>
 
             <div>
-              <FieldLabel htmlFor="login-password">Passphrase</FieldLabel>
+              <FieldLabel htmlFor="login-password">Password</FieldLabel>
               <PasswordWrap>
                 <Input
                   id="login-password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your passphrase"
+                  placeholder={isSignup ? 'At least 8 characters' : 'Enter your password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
@@ -535,10 +577,12 @@ export function LoginPage() {
               type="submit"
               variant="primary"
               size="lg"
-              disabled={loading || !email || !password}
+              disabled={loading || !email || !password || (isSignup && !name)}
               style={{ width: '100%', justifyContent: 'center' }}
             >
-              {loading ? 'Unlocking…' : <><span>Enter</span><ArrowRight size={16} /></>}
+              {loading
+                ? (isSignup ? 'Creating account…' : 'Signing in…')
+                : <><span>{isSignup ? 'Create account' : 'Sign in'}</span><ArrowRight size={16} /></>}
             </Button>
 
             <Divider>or</Divider>
@@ -549,14 +593,11 @@ export function LoginPage() {
               disabled={googleLoading}
             >
               <GoogleIcon />
-              {googleLoading ? 'Redirecting…' : 'Continue with Google'}
+              {googleLoading ? 'Redirecting…' : `Continue with Google`}
             </GoogleBtn>
 
-            <DemoLink
-              type="button"
-              onClick={() => { setEmail('demo@aios.dev'); setPassword('demo1234') }}
-            >
-              Use demo credentials
+            <DemoLink type="button" onClick={toggleMode}>
+              {isSignup ? 'Already have an account? Sign in' : 'New to AIOS? Create an account'}
             </DemoLink>
           </LoginCard>
 
@@ -568,7 +609,7 @@ export function LoginPage() {
             ))}
           </MobileDomains>
 
-          <FooterNote>Single-user instance · End-to-end encrypted</FooterNote>
+          <FooterNote>Your data, encrypted · Private by design</FooterNote>
           <LegalLinks>
             <Link to="/privacy-policy">Privacy</Link>
             <Link to="/terms-of-service">Terms</Link>

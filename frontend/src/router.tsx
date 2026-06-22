@@ -86,6 +86,7 @@ export const router = createBrowserRouter([
   { path: '/', element: <Page><LandingPage /></Page>, errorElement: <RouteErrorBoundary /> },
   { path: '/pricing', element: <Page><PricingPage /></Page>, errorElement: <RouteErrorBoundary /> },
   { path: '/login', element: <Page><LoginPage /></Page>, errorElement: <RouteErrorBoundary /> },
+  { path: '/signup', element: <Page><LoginPage initialMode="signup" /></Page>, errorElement: <RouteErrorBoundary /> },
   { path: '/auth/google/callback', element: <Page><GoogleAuthCallbackPage /></Page>, errorElement: <RouteErrorBoundary /> },
   {
     element: <Page><LegalLayout /></Page>,

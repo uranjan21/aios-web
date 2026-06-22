@@ -18,6 +18,11 @@ def get_scheduler() -> AsyncIOScheduler:
     return _scheduler
 
 
+def _job_id(task_id: str, user_id) -> str:
+    """Scheduler job id — unique per (user, task) so users don't overwrite each other."""
+    return f"{task_id}:{user_id}"
+
+
 async def _run_global_job(module_name: str, func_name: str) -> None:
     from app.models.user import User
     from sqlmodel import select
@@ -73,7 +78,7 @@ async def start_scheduler() -> None:
                     _dispatch,
                     trigger=CronTrigger.from_crontab(agent.cron_expression, timezone="UTC"),
                     args=[agent.task_id, agent.user_id],
-                    id=agent.task_id,
+                    id=_job_id(agent.task_id, agent.user_id),
                     replace_existing=True,
                     misfire_grace_time=300,
                 )
@@ -142,13 +147,14 @@ def reschedule_agent(task_id: str, cron_expression: str, is_active: bool, user_i
     scheduler = get_scheduler()
     if not scheduler.running:
         return
+    job_id = _job_id(task_id, user_id)
     if is_active:
         try:
             scheduler.add_job(
                 _dispatch,
                 trigger=CronTrigger.from_crontab(cron_expression, timezone="UTC"),
                 args=[task_id, user_id],
-                id=task_id,
+                id=job_id,
                 replace_existing=True,
                 misfire_grace_time=300,
             )
@@ -156,7 +162,7 @@ def reschedule_agent(task_id: str, cron_expression: str, is_active: bool, user_i
             logger.warning("reschedule_agent %s failed: %s", task_id, e)
     else:
         try:
-            scheduler.remove_job(task_id)
+            scheduler.remove_job(job_id)
         except Exception:
             pass  # job may not exist yet
 

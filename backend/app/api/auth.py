@@ -2,10 +2,21 @@ import secrets
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
+import re
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlmodel import select
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _validate_email(value: str) -> str:
+    email = value.strip().lower()
+    if not _EMAIL_RE.match(email):
+        raise ValueError("Invalid email address")
+    return email
 
 from app.core.config import get_settings
 from app.core.deps import get_current_user, get_db
@@ -62,10 +73,12 @@ async def login(request: Request, body: LoginRequest, response: Response, db=Dep
     user = result.scalar_one_or_none()
 
     if not user or not user.password_hash or not verify_password(body.password, user.password_hash):
-        # Fallback: check legacy env-var credentials for backward compat
+        # Fallback: legacy env-var credentials — DEV ONLY. Never honored in production
+        # so a forgotten APP_EMAIL/APP_PASSWORD can't become a live admin backdoor.
         settings = get_settings()
         if (
-            secrets.compare_digest(body.email, settings.app_email)
+            settings.environment != "production"
+            and secrets.compare_digest(body.email, settings.app_email)
             and secrets.compare_digest(body.password, settings.app_password)
         ):
             user = await _get_or_create_legacy_user(db, settings)
@@ -101,6 +114,26 @@ class SignupRequest(BaseModel):
     name: str
     password: str
 
+    @field_validator("email")
+    @classmethod
+    def _email(cls, v: str) -> str:
+        return _validate_email(v)
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, v: str) -> str:
+        name = v.strip()
+        if not name:
+            raise ValueError("Name is required")
+        return name
+
+    @field_validator("password")
+    @classmethod
+    def _password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
+
 
 @router.post("/signup")
 @limiter.limit("5/minute")
@@ -120,8 +153,28 @@ async def signup(request: Request, body: SignupRequest, response: Response, db=D
     await db.commit()
     await db.refresh(user)
 
+    await _seed_new_user(user.id)
+
     _issue_cookie(response, str(user.id))
     return {"status": "ok", "user": _user_dict(user)}
+
+
+async def _seed_new_user(user_id) -> None:
+    """Provision a new user (default agents + free subscription). Non-fatal on failure."""
+    try:
+        from app.api.agents import seed_default_agents_for_user
+        await seed_default_agents_for_user(user_id)
+    except Exception:  # pragma: no cover - provisioning must never block signup
+        import logging
+        logging.getLogger(__name__).warning("Default agent seeding failed for %s", user_id, exc_info=True)
+    try:
+        from app.db.session import AsyncSessionLocal
+        from app.services.billing.service import get_or_create_subscription
+        async with AsyncSessionLocal() as session:
+            await get_or_create_subscription(session, user_id)
+    except Exception:  # pragma: no cover
+        import logging
+        logging.getLogger(__name__).warning("Free subscription seeding failed for %s", user_id, exc_info=True)
 
 
 # ── Logout ──────────────────────────────────────────────────────────────
@@ -136,7 +189,7 @@ async def logout(response: Response):
 
 @router.get("/me")
 async def me(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(User).where(User.id == current_user["user_id"]))
+    result = await db.execute(select(User).where(User.id == current_user.id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
@@ -152,7 +205,7 @@ class ProfileUpdate(BaseModel):
 
 @router.patch("/profile")
 async def update_profile(body: ProfileUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(User).where(User.id == current_user["user_id"]))
+    result = await db.execute(select(User).where(User.id == current_user.id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
@@ -174,10 +227,17 @@ class ChangePasswordRequest(BaseModel):
     current: str
     new: str
 
+    @field_validator("new")
+    @classmethod
+    def _new(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
+
 
 @router.post("/change-password")
 async def change_password(body: ChangePasswordRequest, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(User).where(User.id == current_user["user_id"]))
+    result = await db.execute(select(User).where(User.id == current_user.id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
@@ -279,6 +339,7 @@ async def google_login_callback(
         db.add(user)
         await db.commit()
         await db.refresh(user)
+        await _seed_new_user(user.id)
     else:
         if guser.get("picture") and user.picture_url != guser["picture"]:
             user.picture_url = guser["picture"]

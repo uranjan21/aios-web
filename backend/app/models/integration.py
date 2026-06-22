@@ -2,17 +2,21 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional, Any, List
 from sqlmodel import SQLModel, Field, Column
-from sqlalchemy import JSON, ARRAY, Text
+from sqlalchemy import JSON, ARRAY, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 import sqlalchemy as sa
 
 
 class IntegrationCredential(SQLModel, table=True):
     __tablename__ = "integration_credentials"
+    # One credential per (user, provider) — NOT one per provider globally.
+    __table_args__ = (
+        UniqueConstraint("user_id", "provider", name="uq_integration_user_provider"),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
-    provider: str = Field(unique=True, nullable=False)
+    provider: str = Field(nullable=False)
     access_token_encrypted: Optional[str] = Field(default=None, sa_column=Column(Text))
     refresh_token_encrypted: Optional[str] = Field(default=None, sa_column=Column(Text))
     token_expires_at: Optional[datetime] = None

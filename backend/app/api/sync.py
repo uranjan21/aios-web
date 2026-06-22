@@ -7,17 +7,25 @@ from enum import Enum
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
+from app.core.config import get_settings
 from app.core.deps import get_current_user
 from app.core.rate_limit import limiter
 from app.services.vault_sync import sync_engine
 
-router = APIRouter(prefix="/api/sync", tags=["sync"])
+
+def _require_vault_sync() -> None:
+    """Vault sync is a single-tenant / self-host feature; 404 when disabled in hosted mode."""
+    if not get_settings().vault_sync_enabled:
+        raise HTTPException(status_code=404, detail="Vault sync is not available")
+
+
+router = APIRouter(prefix="/api/sync", tags=["sync"], dependencies=[Depends(_require_vault_sync)])
 logger = logging.getLogger(__name__)
 
 
 @router.get("/status")
 async def sync_status(current_user=Depends(get_current_user)):
-    return await sync_engine.get_sync_status()
+    return await sync_engine.get_sync_status(current_user.id)
 
 
 @router.post("/force")
@@ -54,6 +62,7 @@ async def list_conflicts(current_user=Depends(get_current_user)):
             select(VaultConflict, VaultFile)
             .join(VaultFile, VaultFile.id == VaultConflict.file_id)
             .where(VaultConflict.resolved_at.is_(None))
+            .where(VaultConflict.user_id == current_user.id)
         )
         rows = result.all()
 
@@ -88,7 +97,10 @@ async def resolve_conflict(
 
     async with AsyncSessionLocal() as session:
         result = await session.execute(
-            select(VaultConflict).where(VaultConflict.id == conflict_id)
+            select(VaultConflict).where(
+                VaultConflict.id == conflict_id,
+                VaultConflict.user_id == current_user.id,
+            )
         )
         conflict = result.scalar_one_or_none()
         if not conflict:
@@ -120,10 +132,14 @@ async def resolve_conflict(
     return {"status": "resolved"}
 
 
-async def sync_ws_handler(websocket: WebSocket) -> None:
+async def sync_ws_handler(websocket: WebSocket, user_id: str) -> None:
     await websocket.accept()
 
     async def send_event(event: dict) -> None:
+        # Only forward events scoped to this user (or unscoped/system events).
+        event_user = event.get("user_id")
+        if event_user is not None and str(event_user) != str(user_id):
+            return
         await websocket.send_text(json.dumps(event))
 
     sync_engine.register_sync_subscriber(send_event)

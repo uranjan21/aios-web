@@ -1,6 +1,6 @@
 import styled, { keyframes, useTheme } from 'styled-components'
 import { useRef, useEffect, useState } from 'react'
-import { Button, Dialog, ConfirmDialog, Input, Stack } from '@ledgr/ui'
+import { Button, Dialog, ConfirmDialog, Input, Stack, Spinner } from '@ledgr/ui'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
@@ -54,15 +54,6 @@ const StreamingCursor = styled.span`
     vertical-align: text-bottom;
     margin-left: 2px;
   }
-`
-
-const spin = keyframes`
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-`
-
-const SpinningLoader = styled(Loader2)`
-  animation: ${spin} 1s linear infinite;
 `
 
 const ToolCallContainer = styled.div`
@@ -175,7 +166,7 @@ function ToolCallBlock({ tool, input, result, affected }: {
         <Icon style={{ width: '12px', height: '12px', flexShrink: 0, color }} aria-hidden="true" />
         <ToolCallTitle>{summary(input)}</ToolCallTitle>
         {result === undefined
-          ? <SpinningLoader style={{ width: '12px', height: '12px', marginLeft: 'auto', flexShrink: 0 }} />
+          ? <div style={{ marginLeft: 'auto', flexShrink: 0, display: 'flex' }}><Spinner size="xs" tone="muted" /></div>
           : affected && affected.length > 0
           ? <ToolCallStatusText $success>✓ saved</ToolCallStatusText>
           : <ToolCallStatusText>done</ToolCallStatusText>
@@ -375,7 +366,7 @@ function Message({ message }: { message: ReturnType<typeof useChat>['messages'][
   )
 }
 
-const PageContainer = styled.div`
+const ChatLayout = styled.div`
   position: absolute;
   inset: 0;
   display: flex;
@@ -795,7 +786,7 @@ export function ChatPage() {
   const budgetPct = tokenInfo ? Math.round((1 - tokenInfo.daily_remaining / 200_000) * 100) : null
 
   return (
-    <PageContainer>
+    <ChatLayout>
       <SidebarContainer>
         <SidebarHeader>
           <SidebarTitle>Chat History</SidebarTitle>
@@ -806,7 +797,7 @@ export function ChatPage() {
         <SessionList>
           {sessions === undefined ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', color: theme.color.mutedForeground }}>
-              <SpinningLoader style={{ width: '12px', height: '12px' }} />
+              <Spinner size="xs" tone="muted" />
               <span style={{ fontSize: '12px' }}>Loading sessions…</span>
             </div>
           ) : sessions.length === 0 ? (
@@ -880,7 +871,7 @@ export function ChatPage() {
           >
             {loadingMessages ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '12px' }}>
-                <SpinningLoader style={{ width: '32px', height: '32px', color: theme.color.primary }} />
+                <Spinner size="lg" tone="primary" />
                 <span style={{ fontSize: '14px', color: theme.color.mutedForeground }}>Loading messages…</span>
               </div>
             ) : messages.length === 0 ? (
@@ -986,7 +977,7 @@ export function ChatPage() {
             aria-label="Send message"
             style={{ flexShrink: 0, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            {!isStreaming ? <Send style={{ width: '16px', height: '16px' }} /> : <SpinningLoader style={{ width: '16px', height: '16px' }} />}
+            {!isStreaming ? <Send style={{ width: '16px', height: '16px' }} /> : <Spinner size="sm" tone="inherit" />}
           </Button>
         </FloatingInputContainer>
       </MainChatArea>
@@ -1028,6 +1019,6 @@ export function ChatPage() {
           setDeleteSessionId(null)
         }}
       />
-    </PageContainer>
+    </ChatLayout>
   )
 }

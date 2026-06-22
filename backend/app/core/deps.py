@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import dataclass
 from typing import AsyncGenerator, Optional
 
 from fastapi import Cookie, Depends, HTTPException, WebSocket, status
@@ -6,6 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_access_token
 from app.db.session import get_session
+
+
+@dataclass
+class CurrentUser:
+    id: uuid.UUID | str
+    token: str
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -16,7 +23,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def get_current_user(
     aios_token: str | None = Cookie(default=None),
     db: AsyncSession = Depends(get_db),
-):
+) -> CurrentUser:
     if not aios_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
@@ -33,7 +40,7 @@ async def get_current_user(
     except ValueError:
         user_id = sub
 
-    return {"user_id": user_id, "token": aios_token}
+    return CurrentUser(id=user_id, token=aios_token)
 
 
 async def ws_auth(websocket: WebSocket) -> Optional[dict]:

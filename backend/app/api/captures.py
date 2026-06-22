@@ -14,7 +14,7 @@ class CaptureCreate(BaseModel):
 
 @router.post("", status_code=201)
 async def create_capture(body: CaptureCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    capture = Capture(raw_text=body.raw_text.strip())
+    capture = Capture(raw_text=body.raw_text.strip(), user_id=current_user.id)
     db.add(capture)
     await db.commit()
     await db.refresh(capture)
@@ -24,7 +24,9 @@ async def create_capture(body: CaptureCreate, current_user=Depends(get_current_u
 @router.get("")
 async def list_captures(current_user=Depends(get_current_user), db=Depends(get_db)):
     from sqlmodel import select, desc
-    result = await db.execute(select(Capture).order_by(desc(Capture.created_at)).limit(50))
+    result = await db.execute(
+        select(Capture).where(Capture.user_id == current_user.id).order_by(desc(Capture.created_at)).limit(50)
+    )
     return result.scalars().all()
 
 

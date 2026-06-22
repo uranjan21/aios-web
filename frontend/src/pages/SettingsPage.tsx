@@ -5,31 +5,17 @@ import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, 
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { chatApi } from '@/api/chat'
+import { billingApi } from '@/api/billing'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useVaultSync } from '@/hooks/useVaultSync'
+import { useFeatures } from '@/hooks/useFeatures'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ProgressBar } from '@/components/lumina';
 import { Card as GlassCard, PageHeader, Select } from '@ledgr/ui';
 import { Button } from '@/components/ui/button'
 import styled, { useTheme } from 'styled-components'
-
-// ── Layout ─────────────────────────────────────────────────────────────────────
-
-const PageRoot = styled.div`
-  min-height: 100vh;
-  background: ${({ theme }) => theme.color.background};
-  padding: 16px;
-  @media (min-width: 768px) { padding: 24px; }
-`
-
-const PageContent = styled.div`
-  margin: 0 auto;
-  max-width: 680px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-`
+import { PageContainer, PageContent } from '@/components/layout/PageLayout'
 
 // ── Row ───────────────────────────────────────────────────────────────────────
 
@@ -381,11 +367,15 @@ const SyncStatusText = styled.span<{ $state: string }>`
 `
 
 function VaultSyncRow() {
+  const { vault_sync: vaultSyncEnabled } = useFeatures()
   const { state, lastSynced } = useVaultSync()
   const stateLabel = {
     synced: 'Synced', syncing: 'Syncing…', conflict: 'Conflict',
     error: 'Sync error', disconnected: 'Disconnected',
   }[state] ?? state
+
+  // Vault sync is a self-host-only feature; hidden in hosted SaaS mode.
+  if (!vaultSyncEnabled) return null
 
   return (
     <Row label="Vault Sync">
@@ -398,6 +388,70 @@ function VaultSyncRow() {
         </span>
       )}
     </Row>
+  )
+}
+
+// ── Billing (M1) ────────────────────────────────────────────────────────────────
+
+function BillingSection() {
+  const { billing_enabled: billingEnabled } = useFeatures()
+  const [busy, setBusy] = useState(false)
+  const { data, isLoading } = useQuery({
+    queryKey: ['billing', 'subscription'],
+    queryFn: () => billingApi.subscription(),
+    enabled: billingEnabled,
+    staleTime: 60_000,
+  })
+
+  // Billing is a hosted feature; hidden entirely when Stripe isn't configured.
+  if (!billingEnabled) return null
+
+  const plan = data?.plan ?? 'free'
+  const isPaid = plan !== 'free'
+  const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1)
+  const statusSuffix = data?.status && data.status !== 'active' ? ` · ${data.status}` : ''
+
+  const startCheckout = async () => {
+    setBusy(true)
+    try {
+      const { url } = await billingApi.checkout('pro')
+      window.location.href = url
+    } catch {
+      toast.error('Could not start checkout')
+      setBusy(false)
+    }
+  }
+
+  const openPortal = async () => {
+    setBusy(true)
+    try {
+      const { url } = await billingApi.portal()
+      window.location.href = url
+    } catch {
+      toast.error('Could not open billing portal')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Section title="Billing" delay={300}>
+      <Row label="Current plan">
+        <span style={{ fontSize: 13, fontWeight: 600 }}>
+          {isLoading ? '…' : `${planLabel}${statusSuffix}`}
+        </span>
+      </Row>
+      <Row label={isPaid ? 'Manage subscription' : 'Unlock all domains, AI & integrations'}>
+        {isPaid ? (
+          <Button size="sm" variant="outline" onClick={openPortal} disabled={busy}>
+            <CreditCard size={14} style={{ marginRight: 4 }} /> Manage billing
+          </Button>
+        ) : (
+          <Button size="sm" variant="primary" onClick={startCheckout} disabled={busy}>
+            Upgrade to Pro
+          </Button>
+        )}
+      </Row>
+    </Section>
   )
 }
 
@@ -417,8 +471,18 @@ export function SettingsPage() {
     finally { logout(); navigate('/login') }
   }
 
+  // Returning from Stripe Checkout — confirm and refresh the subscription.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('billing') === 'success') {
+      toast.success('Subscription active — welcome to Pro!')
+      queryClient.invalidateQueries({ queryKey: ['billing', 'subscription'] })
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [queryClient])
+
   return (
-    <PageRoot>
+    <PageContainer>
       <PageContent>
         <PageHeader title="Settings" subtitle="Preferences, integrations and account management." icon={<Settings />} eyebrow="SYSTEM" />
 
@@ -522,18 +586,7 @@ export function SettingsPage() {
           }
         </Section>
 
-        <Section
-          title="Billing"
-          delay={300}
-          action={
-            <Button size="sm" onClick={() => navigate('/pricing')}>
-              Upgrade Plan
-            </Button>
-          }
-        >
-          <Row label="Current Plan"><span style={{ fontSize: 13, color: 'var(--foreground)', fontWeight: 500 }}>Starter (Free)</span></Row>
-          <Row label="Next Billing Date"><span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>N/A</span></Row>
-        </Section>
+        <BillingSection />
 
         <GlassCard
           variant="glass"
@@ -553,6 +606,6 @@ export function SettingsPage() {
           </div>
         </GlassCard>
       </PageContent>
-    </PageRoot>
+    </PageContainer>
   )
 }

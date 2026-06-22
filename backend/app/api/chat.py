@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 async def list_sessions(current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(
         select(ChatSession)
+        .where(ChatSession.user_id == current_user.id)
         .where(ChatSession.is_archived == False)
         .order_by(desc(ChatSession.last_message_at))
         .limit(50)
@@ -27,15 +28,17 @@ async def list_sessions(current_user=Depends(get_current_user), db=Depends(get_d
 
 
 @router.get("/sessions/{session_id}")
-async def get_session(session_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
-    session_result = await db.execute(select(ChatSession).where(ChatSession.id == session_id))
+async def get_session(session_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    session_result = await db.execute(
+        select(ChatSession).where(ChatSession.id == session_id, ChatSession.user_id == current_user.id)
+    )
     session = session_result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
     messages_result = await db.execute(
         select(ChatMessage)
-        .where(ChatMessage.session_id == session_id)
+        .where(ChatMessage.session_id == session_id, ChatMessage.user_id == current_user.id)
         .order_by(ChatMessage.created_at)
         .limit(100)
     )
@@ -44,8 +47,10 @@ async def get_session(session_id: str, current_user=Depends(get_current_user), d
 
 
 @router.delete("/sessions/{session_id}")
-async def delete_session(session_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(ChatSession).where(ChatSession.id == session_id))
+async def delete_session(session_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(
+        select(ChatSession).where(ChatSession.id == session_id, ChatSession.user_id == current_user.id)
+    )
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -65,8 +70,10 @@ class ChatSessionPatch(BaseModel):
     is_archived: bool | None = None
 
 @router.patch("/sessions/{session_id}")
-async def patch_session(session_id: str, body: ChatSessionPatch, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(ChatSession).where(ChatSession.id == session_id))
+async def patch_session(session_id: uuid.UUID, body: ChatSessionPatch, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(
+        select(ChatSession).where(ChatSession.id == session_id, ChatSession.user_id == current_user.id)
+    )
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -87,7 +94,7 @@ async def token_budget(current_user=Depends(get_current_user)):
     return await get_token_budget_status()
 
 
-async def chat_ws_handler(websocket: WebSocket) -> None:
+async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
     await websocket.accept()
 
     try:
@@ -103,7 +110,7 @@ async def chat_ws_handler(websocket: WebSocket) -> None:
 
             if not session_id_str:
                 async with AsyncSessionLocal() as session:
-                    new_session = ChatSession()
+                    new_session = ChatSession(user_id=user_id)
                     session.add(new_session)
                     await session.commit()
                     await session.refresh(new_session)
@@ -115,11 +122,22 @@ async def chat_ws_handler(websocket: WebSocket) -> None:
                     await websocket.send_text(json.dumps({"type": "error", "message": "Invalid session ID"}))
                     continue
 
+                # Verify the session belongs to this user before reading/writing it.
+                async with AsyncSessionLocal() as session:
+                    owned = await session.execute(
+                        select(ChatSession.id).where(
+                            ChatSession.id == session_id, ChatSession.user_id == user_id
+                        )
+                    )
+                    if owned.scalar_one_or_none() is None:
+                        await websocket.send_text(json.dumps({"type": "error", "message": "Session not found"}))
+                        continue
+
             # Load newest 20 messages in chronological order
             async with AsyncSessionLocal() as session:
                 history_result = await session.execute(
                     select(ChatMessage)
-                    .where(ChatMessage.session_id == session_id)
+                    .where(ChatMessage.session_id == session_id, ChatMessage.user_id == user_id)
                     .order_by(desc(ChatMessage.created_at))
                     .limit(20)
                 )
@@ -133,6 +151,7 @@ async def chat_ws_handler(websocket: WebSocket) -> None:
 
             async with AsyncSessionLocal() as session:
                 session.add(ChatMessage(
+                    user_id=user_id,
                     session_id=session_id,
                     role="user",
                     content=user_content,
@@ -150,6 +169,7 @@ async def chat_ws_handler(websocket: WebSocket) -> None:
                 if full_response:
                     async with AsyncSessionLocal() as session:
                         session.add(ChatMessage(
+                            user_id=user_id,
                             session_id=session_id,
                             role="assistant",
                             content=full_response,

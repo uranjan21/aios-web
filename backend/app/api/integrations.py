@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlmodel import select
 
 from app.core.deps import get_current_user, get_db
+from app.core.entitlements import require_plan
 from app.models.integration import IntegrationCredential
 from app.services.integrations.google_oauth import (
     build_auth_url,
@@ -32,7 +33,9 @@ GOOGLE_PROVIDERS = {"gcal", "gfit"}
 
 @router.get("")
 async def list_integrations(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(IntegrationCredential))
+    result = await db.execute(
+        select(IntegrationCredential).where(IntegrationCredential.user_id == current_user.id)
+    )
     existing = {r.provider: r for r in result.scalars().all()}
 
     out = []
@@ -47,7 +50,7 @@ async def list_integrations(current_user=Depends(get_current_user), db=Depends(g
     return out
 
 
-@router.get("/{provider}/auth-url")
+@router.get("/{provider}/auth-url", dependencies=[Depends(require_plan("pro"))])
 async def get_auth_url(provider: str, current_user=Depends(get_current_user)):
     if provider not in PROVIDERS:
         raise HTTPException(status_code=404, detail="Unknown provider")
@@ -99,7 +102,7 @@ async def oauth_callback(
         logger.exception("OAuth token exchange failed for %s", provider)
         raise HTTPException(status_code=400, detail=f"Token exchange failed: {e}")
 
-    cred = await save_tokens(db, provider, token_data)
+    cred = await save_tokens(current_user.id, db, provider, token_data)
 
     return {
         "status": "connected",
@@ -118,7 +121,10 @@ async def get_status(
         raise HTTPException(status_code=404, detail="Unknown provider")
 
     result = await db.execute(
-        select(IntegrationCredential).where(IntegrationCredential.provider == provider)
+        select(IntegrationCredential).where(
+            IntegrationCredential.user_id == current_user.id,
+            IntegrationCredential.provider == provider,
+        )
     )
     cred = result.scalar_one_or_none()
     if not cred:
@@ -138,7 +144,12 @@ async def disconnect(provider: str, current_user=Depends(get_current_user), db=D
     if provider not in PROVIDERS:
         raise HTTPException(status_code=404, detail="Unknown provider")
 
-    result = await db.execute(select(IntegrationCredential).where(IntegrationCredential.provider == provider))
+    result = await db.execute(
+        select(IntegrationCredential).where(
+            IntegrationCredential.user_id == current_user.id,
+            IntegrationCredential.provider == provider,
+        )
+    )
     cred = result.scalar_one_or_none()
     if cred:
         cred.status = "disconnected"
@@ -160,7 +171,10 @@ async def sync_provider(
         raise HTTPException(status_code=400, detail="Sync not supported for this provider")
 
     result = await db.execute(
-        select(IntegrationCredential).where(IntegrationCredential.provider == provider)
+        select(IntegrationCredential).where(
+            IntegrationCredential.user_id == current_user.id,
+            IntegrationCredential.provider == provider,
+        )
     )
     cred = result.scalar_one_or_none()
     if not cred or cred.status != "connected":
@@ -168,9 +182,9 @@ async def sync_provider(
 
     try:
         if provider == "gcal":
-            count = await sync_calendar_events(db)
+            count = await sync_calendar_events(current_user.id, db)
         else:
-            count = await sync_fitness(db)
+            count = await sync_fitness(current_user.id, db)
     except Exception as e:
         logger.exception("Sync failed for %s", provider)
         raise HTTPException(status_code=500, detail=f"Sync failed: {e}")
@@ -184,7 +198,12 @@ async def sync_provider(
 
 @router.get("/{provider}/test")
 async def test_connection(provider: str, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(IntegrationCredential).where(IntegrationCredential.provider == provider))
+    result = await db.execute(
+        select(IntegrationCredential).where(
+            IntegrationCredential.user_id == current_user.id,
+            IntegrationCredential.provider == provider,
+        )
+    )
     cred = result.scalar_one_or_none()
     if not cred or cred.status != "connected":
         return {"ok": False, "details": "Not connected"}
@@ -198,7 +217,7 @@ async def get_calendar_events(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    events = await get_stored_events(db, date_from=date_from, date_to=date_to)
+    events = await get_stored_events(current_user.id, db, date_from=date_from, date_to=date_to)
     return {"events": events, "count": len(events)}
 
 
@@ -209,5 +228,5 @@ async def get_fitness_metrics(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    metrics = await get_stored_metrics(db, date_from=date_from, date_to=date_to)
+    metrics = await get_stored_metrics(current_user.id, db, date_from=date_from, date_to=date_to)
     return {"metrics": metrics, "count": len(metrics)}

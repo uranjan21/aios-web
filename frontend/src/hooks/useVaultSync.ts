@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/client'
+import { useFeatures } from '@/hooks/useFeatures'
 import type { VaultSyncStatus } from '@/types'
 
 type SyncState = 'synced' | 'syncing' | 'conflict' | 'error' | 'disconnected'
@@ -17,6 +18,7 @@ export function useVaultSync(): UseSyncResult {
   const [conflicts, setConflicts] = useState<VaultSyncStatus['conflicts']>([])
   const wsRef = useRef<WebSocket | null>(null)
   const queryClient = useQueryClient()
+  const { vault_sync: vaultSyncEnabled } = useFeatures()
 
   const isMounted = useRef(true)
 
@@ -59,6 +61,11 @@ export function useVaultSync(): UseSyncResult {
   }, [queryClient])
 
   useEffect(() => {
+    // Vault sync is a self-host-only feature; skip entirely when disabled.
+    if (!vaultSyncEnabled) {
+      setState('disconnected')
+      return
+    }
     isMounted.current = true
     connect()
     // Seed lastSynced/conflicts from the REST status so the chip doesn't show
@@ -78,7 +85,7 @@ export function useVaultSync(): UseSyncResult {
       isMounted.current = false
       wsRef.current?.close()
     }
-  }, [connect])
+  }, [connect, vaultSyncEnabled])
 
   return { state, lastSynced, conflicts }
 }

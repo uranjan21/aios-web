@@ -11,21 +11,9 @@ import { AccountsTab } from '@/components/areas/finance/AccountsTab'
 import { BudgetTab } from '@/components/areas/finance/BudgetTab'
 
 import styled from 'styled-components'
+import { PageContainer, PageContent } from '@/components/layout/PageLayout'
 
-const PageContainer = styled.div`
-  min-height: 100vh;
-  background-color: ${({ theme }) => theme.color.background};
-  padding: 1rem;
 
-  @media (min-width: 768px) {
-    padding: 1.5rem;
-  }
-`
-
-const ContentWrapper = styled.div`
-  margin: 0 auto;
-  max-width: 1200px;
-`
 
 export function FinancePage() {
   const [activeKey, setActiveKey] = useState('1')
@@ -40,7 +28,7 @@ export function FinancePage() {
 
   return (
     <PageContainer>
-      <ContentWrapper>
+      <PageContent>
         <PageHeader
           icon={<IndianRupee />}
           eyebrow="Money"
@@ -52,7 +40,7 @@ export function FinancePage() {
           onChange={setActiveKey}
           items={items}
         />
-      </ContentWrapper>
+      </PageContent>
     </PageContainer>
   )
 }

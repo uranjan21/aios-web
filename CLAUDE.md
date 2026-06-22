@@ -198,6 +198,11 @@ alembic upgrade head
 
 ## Recent Updates (2026-06-21)
 
+- **Ship-readiness audit + isolation fixes** (`docs/SHIP_READINESS_AUDIT.md`): the earlier "multi-tenancy enforced" claim was only true for the 5 area routers. Fixed the rest this session — chat (C2), captures (C3), integrations (C1), push, and the WS handlers (C5) are now user-scoped. Integrations & agents got composite unique constraints (`UNIQUE(user_id, provider)` = migration `h002`; `UNIQUE(user_id, task_id)` = `h003`). **Run `alembic upgrade head`.**
+- **Vault sync descoped from hosted SaaS**: it is single-tenant (one shared `vault_path`, globally-unique `VaultFile.path`). Gated behind `VAULT_SYNC_ENABLED` (default `true` for self-host; set `false` in hosted prod). Backend 404s/closes WS when off; frontend hides the UI via `GET /api/features`.
+- **Agents are now real + per-user**: `_run_agent` calls `services/agents/runners.py` (LLM over the user's own data), default agents seed per-user on signup + startup backfill, scheduler job ids are `{task_id}:{user_id}`. Fixed a latent `_broadcast_agent(user_id, event)` mismatch that was crashing digest/anomaly/budget/recurring jobs.
+- **Auth hardening**: legacy env-credential login backdoor ignored in production (H1); `EmailStr`-style + 8-char password validation (H5); `ENVIRONMENT` documented in `.env.example` (H2).
+- **Isolation tests + signup + billing**: `backend/tests/test_isolation.py` (multi-tenant guardrail) + fixed test harness; self-serve signup UI (login/signup toggle + `/signup`); Stripe billing scaffold (Subscription model migration `h004`, `/api/billing/*`, `require_plan()` entitlements, Settings + Pricing wiring). Backend suite 32 passing. Run `uv sync` for `stripe`.
 - **Legal Pages**: Added `PrivacyPolicyPage`, `TermsOfServicePage`, and `SupportPage` in `frontend/src/pages/legal/` with public routing and footer links on the login page.
 - **Google Integrations**: Implemented Google OAuth flow (`GoogleAuthCallbackPage`), added `google_sync` models and tables (`g001`), and created integration services for Google Calendar and Google Fit (`google_calendar.py`, `google_fit.py`).
 - **UI Refactoring**: Cleaned up finance components by removing deprecated `FinanceStats` and `WalletWidgets`. Consolidated `FilterBar` and `StyledIcon`.
@@ -208,8 +213,11 @@ alembic upgrade head
 
 ## Known Issues / Backlog
 
-- Google OAuth creates user records automatically on first login; email/password signup endpoint added
-- Vault sync watcher may miss rapid successive file changes (debounce needed)
+- **Multi-tenant isolation tests** live in `backend/tests/test_isolation.py` (11 tests, "user A can't see user B's rows" for chat/captures/integrations/agents). Keep them green and extend them when adding any user-data endpoint. Test harness uses in-memory SQLite (StaticPool) and excludes the pgvector vault tables.
+- **Auth still open**: OAuth `state` is an in-process dict (breaks on >1 worker — needs Redis, H3); JWT has no revocation/refresh (logout only clears the cookie, H4).
+- **Billing scaffolded (M1)** — Stripe Checkout/Portal/webhook, `Subscription` model (migration `h004`), Free/Pro/Household entitlements via `app/core/entitlements.py` `require_plan()` (no-op until `billing_enabled`). **OFF until `STRIPE_SECRET_KEY` + `STRIPE_PRICE_PRO` set + `uv sync` (installs `stripe`).** Gating applied to agent-trigger + integration auth-url. Pricing page still needs a Household card.
+- Self-serve signup UI shipped (login/signup toggle on `LoginPage` + `/signup` route). Profile + change-password screens still pending (backend endpoints exist).
+- Vault sync watcher may miss rapid successive file changes (debounce needed) — self-host mode only now.
 - FitnessTab workout goals stored in localStorage — needs backend API endpoint
 - F5 splits+tags: code complete, migration `c7d2e9f1a3b4` written but not verified (Docker was down at time of writing)
 

@@ -20,7 +20,9 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql+asyncpg://localhost:5432/aios_web"
 
-    # Vault
+    # Vault — single-tenant / self-host feature. Disable in hosted multi-tenant SaaS:
+    # the vault is a single shared filesystem and is NOT isolated per user.
+    vault_sync_enabled: bool = True
     vault_path: str = "/tmp/vault"
     vault_watch_interval_seconds: int = 5
 
@@ -56,6 +58,18 @@ class Settings(BaseSettings):
     # Rate limiting
     rate_limit_chat_per_min: int = 20
     rate_limit_global_per_min: int = 120
+
+    # Billing (Stripe) — billing is OFF until a secret key + Pro price id are set.
+    stripe_secret_key: str = ""
+    stripe_publishable_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_pro: str = ""
+    stripe_price_household: str = ""
+
+    @property
+    def billing_enabled(self) -> bool:
+        """True only when Stripe is configured. Entitlement checks no-op when False."""
+        return bool(self.stripe_secret_key and self.stripe_price_pro)
 
     @model_validator(mode="after")
     def validate_secrets(self) -> "Settings":

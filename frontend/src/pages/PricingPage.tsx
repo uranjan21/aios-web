@@ -4,6 +4,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@ledgr/ui'
 import { Check, Shield, Zap } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
+import { useFeatures } from '@/hooks/useFeatures'
+import { billingApi } from '@/api/billing'
 
 const PageWrapper = styled.div`
   min-height: 100vh;
@@ -144,6 +146,19 @@ const FeatureList = styled.ul`
 export function PricingPage() {
   const navigate = useNavigate()
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+  const { billing_enabled: billingEnabled } = useFeatures()
+
+  // Pro CTA: send anonymous visitors to signup; authed users into Stripe Checkout.
+  const handleProCta = async () => {
+    if (!isAuthenticated) { navigate('/signup'); return }
+    if (!billingEnabled) { navigate('/app/settings'); return }
+    try {
+      const { url } = await billingApi.checkout('pro')
+      window.location.href = url
+    } catch {
+      navigate('/app/settings')
+    }
+  }
 
   return (
     <PageWrapper>
@@ -177,7 +192,7 @@ export function PricingPage() {
               <li><Check size={16} /> Up to 50 items/month</li>
               <li><Check size={16} /> 1 Connected Bank Account</li>
             </FeatureList>
-            <Button variant="outline" size="lg" style={{ marginTop: 'auto' }} onClick={() => navigate('/login')}>
+            <Button variant="outline" size="lg" style={{ marginTop: 'auto' }} onClick={() => navigate('/signup')}>
               Get Started for Free
             </Button>
           </PricingCard>
@@ -193,8 +208,8 @@ export function PricingPage() {
               <li><Check size={16} /> Business & Career Modules</li>
               <li><Check size={16} /> Custom AI Prompts</li>
             </FeatureList>
-            <Button variant="primary" size="lg" style={{ marginTop: 'auto' }} onClick={() => navigate('/login')}>
-              Start 14-Day Free Trial
+            <Button variant="primary" size="lg" style={{ marginTop: 'auto' }} onClick={handleProCta}>
+              {isAuthenticated ? 'Upgrade to Pro' : 'Start 14-Day Free Trial'}
             </Button>
           </PricingCard>
         </PricingGrid>
