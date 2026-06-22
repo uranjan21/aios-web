@@ -7,6 +7,7 @@ import {
 import { AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import styled from 'styled-components'
+import { Card as UiCard } from '@ledgr/ui'
 import { contentApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ContentItem, ContentStatus } from '@/types'
@@ -21,16 +22,18 @@ const Board = styled.div`
   @media (min-width: 1200px) { grid-template-columns: repeat(4, 1fr); }
 `
 
-const Column = styled.div<{ $over: boolean }>`
+const Column = styled(UiCard)<{ $over: boolean }>`
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px;
-  border-radius: 14px;
   min-height: 360px;
-  background: ${({ theme, $over }) => ($over ? `${theme.color.accent}14` : `${theme.color.muted}4d`)};
-  border: 1px solid ${({ theme, $over }) => ($over ? `${theme.color.accent}55` : 'transparent')};
+  overflow: visible;
   transition: background 150ms, border-color 150ms;
+  && {
+    padding: 12px;
+    background: ${({ theme, $over }) => ($over ? `${theme.color.accent}14` : `${theme.color.muted}4d`)};
+    border-color: ${({ theme, $over }) => ($over ? `${theme.color.accent}55` : 'transparent')};
+  }
 `
 
 const ColHeader = styled.div`
@@ -78,7 +81,7 @@ function DropColumn({ status, items, isLoading, activeId, onClick }: {
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status })
   return (
-    <Column ref={setNodeRef} $over={isOver}>
+    <Column ref={setNodeRef} size="none" $over={isOver}>
       <ColHeader>
         <ColTitle>{STATUS_LABELS[status]}</ColTitle>
         <Count>{items.length}</Count>
