@@ -18,5 +18,6 @@ class User(SQLModel, table=True):
     auth_provider: str = Field(default="email")
     password_hash: Optional[str] = Field(default=None)
     token_version: int = Field(default=1, nullable=False)
+    is_admin: bool = Field(default=False, nullable=False)
     created_at: datetime = Field(default_factory=_utcnow, nullable=False)
     updated_at: datetime = Field(default_factory=_utcnow, nullable=False)

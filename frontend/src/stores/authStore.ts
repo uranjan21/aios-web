@@ -7,6 +7,7 @@ export interface UserProfile {
   name: string
   picture_url: string | null
   auth_provider: string
+  is_admin?: boolean
 }
 
 interface AuthState {

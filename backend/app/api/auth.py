@@ -59,6 +59,7 @@ def _user_dict(user: User) -> dict:
         "name": user.name,
         "picture_url": user.picture_url,
         "auth_provider": user.auth_provider,
+        "is_admin": bool(user.is_admin),
         "created_at": user.created_at.isoformat() if user.created_at else None,
     }
 
@@ -104,6 +105,7 @@ async def _get_or_create_legacy_user(db, settings) -> User:
         name="Admin",
         auth_provider="email",
         password_hash=hash_password(settings.app_password),
+        is_admin=True,
     )
     db.add(user)
     await db.commit()

@@ -14,6 +14,7 @@ from app.db.session import get_session
 class CurrentUser:
     id: uuid.UUID | str
     token: str
+    is_admin: bool = False
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -55,7 +56,14 @@ async def get_current_user(
             detail="Session expired — please log in again",
         )
 
-    return CurrentUser(id=user_id, token=aios_token)
+    return CurrentUser(id=user_id, token=aios_token, is_admin=bool(user.is_admin))
+
+
+def require_admin(current_user=Depends(get_current_user)):
+    """Dependency that 403s for non-admin users."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return current_user
 
 
 async def ws_auth(websocket: WebSocket) -> Optional[dict]:

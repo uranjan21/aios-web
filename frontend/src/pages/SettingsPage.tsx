@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
-import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, BellOff, Settings, Palette, Activity, Sparkles, Keyboard, User, CreditCard, Save, Lock, Trash2 } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
+import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, BellOff, Settings, Palette, Activity, Sparkles, Keyboard, User, CreditCard, Save, Lock, Trash2, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { chatApi } from '@/api/chat'
@@ -661,6 +661,7 @@ function DangerZone() {
 export function SettingsPage() {
   const queryClient = useQueryClient()
   const logout = useAuthStore(s => s.logout)
+  const user = useAuthStore(s => s.user)
   const navigate = useNavigate()
   const { theme, setTheme } = useUIStore()
 
@@ -786,6 +787,26 @@ export function SettingsPage() {
             ))
           }
         </Section>
+
+        {user?.is_admin && (
+          <GlassCard
+            variant="glass"
+            title="Admin Panel"
+            subtitle="Manage users, plans, and system overview"
+            icon={<Shield size={16} />}
+            noPadding
+            fadeIn="up"
+            delay={300}
+          >
+            <div style={{ padding: '14px 20px' }}>
+              <Link to="/app/admin">
+                <Button size="sm" variant="primary">
+                  <Shield size={12} style={{ marginRight: 4 }} /> Open Admin Panel
+                </Button>
+              </Link>
+            </div>
+          </GlassCard>
+        )}
 
         <ProfileSection />
 

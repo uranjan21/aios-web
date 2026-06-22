@@ -24,6 +24,7 @@ const ContentPage = lazy(() => import('@/pages/areas/ContentPage').then(m => ({ 
 
 const LandingPage = lazy(() => import('@/pages/LandingPage').then(m => ({ default: m.LandingPage })))
 const PricingPage = lazy(() => import('@/pages/PricingPage').then(m => ({ default: m.PricingPage })))
+const AdminPage = lazy(() => import('@/pages/AdminPage').then(m => ({ default: m.AdminPage })))
 
 // Guide Pages
 const GuideLayout = lazy(() => import('@/pages/guide/GuideLayout').then(m => ({ default: m.GuideLayout })))
@@ -51,6 +52,14 @@ function PageLoader() {
       </div>
     </div>
   )
+}
+
+function RequireAdmin({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore(s => s.user)
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (user && !user.is_admin) return <Navigate to="/app" replace />
+  return <>{children}</>
 }
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -129,6 +138,7 @@ export const router = createBrowserRouter([
       { path: 'integrations', element: <Page><IntegrationsPage /></Page> },
       { path: 'integrations/:provider/callback', element: <Page><OAuthCallbackPage /></Page> },
       { path: 'settings', element: <Page><SettingsPage /></Page> },
+      { path: 'admin', element: <Page><RequireAdmin><AdminPage /></RequireAdmin></Page> },
       
       // Guide
       { 
