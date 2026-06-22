@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, forwardRef, useMemo } from 'react'
 import dayjs from 'dayjs'
@@ -421,7 +420,14 @@ const PublishedSkeleton = styled(Skeleton)`
   width: 100%;
 `
 
-function PublishedDropZone({ items, isLoading, activeId, onEdit, onSchedule, onDelete }) {
+function PublishedDropZone({ items, isLoading, activeId, onEdit, onSchedule, onDelete }: {
+  items: ContentItem[]
+  isLoading: boolean
+  activeId: string | null
+  onEdit: (id: string, cur: string) => void
+  onSchedule: (id: string, cur: string | null) => void
+  onDelete: (id: string) => void
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: 'published' })
   return (
     <StyledPublishedCard

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Rocket, History, Plus, Activity, TrendingUp, LayoutDashboard, Calendar, BarChart3, Bot, Search, Bell, PlusCircle } from 'lucide-react'
@@ -405,7 +404,7 @@ export function BusinessPage() {
                     fadeIn="up"
                     delay={100}
                   >
-                    {loadingEvents ? <Skeleton active /> : events?.length ? (
+                    {loadingEvents ? <Skeleton style={{ height: 180 }} /> : events?.length ? (
                       <TimelineWrapper>
                         <Timeline
                           items={events

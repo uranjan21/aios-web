@@ -213,7 +213,8 @@ async def logout(
 # ── Current user ────────────────────────────────────────────────────────
 
 @router.get("/me")
-async def me(current_user=Depends(get_current_user), db=Depends(get_db)):
+@limiter.limit("30/minute")
+async def me(request: Request, current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(select(User).where(User.id == current_user.id))
     user = result.scalar_one_or_none()
     if not user:
