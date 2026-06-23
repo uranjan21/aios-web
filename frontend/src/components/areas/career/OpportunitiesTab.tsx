@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@/components/ui/Popconfirm'
-import { Input, Select, SelectItem, Button, Badge, SegmentedControl, HeaderActionPortal } from '@ledgr/ui'
+import { Input, Select, Button, Badge, SegmentedControl, HeaderActionPortal } from '@ledgr/ui'
 import { Plus, ExternalLink, Trash2, Briefcase, XCircle } from 'lucide-react'
 import {
   DndContext, DragOverlay, PointerSensor, KeyboardSensor,
@@ -331,17 +331,13 @@ function OppRow({ opp }: { opp: JobOpportunity }) {
           <Select
             value={opp.status}
             size="sm"
-            onValueChange={v => patchMutation.mutate(v as any)}
+            onChange={(v) => patchMutation.mutate(v as OpportunityStatus)}
+            options={STATUS_ORDER.map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
+            placeholder="Status…"
             disabled={patchMutation.isPending}
             style={{ width: 110 }}
             aria-label="Opportunity status"
-          >
-            {STATUS_ORDER.map(s => (
-              <SelectItem key={s} value={s}>
-                <Badge tone={STATUS_COLORS[s]}>{s}</Badge>
-              </SelectItem>
-            ))}
-          </Select>
+          />
           {opp.applied_date && (
             <OppMetaText>Applied {format(new Date(opp.applied_date), 'MMM d')}</OppMetaText>
           )}
@@ -403,9 +399,14 @@ function AddForm({ onClose }: { onClose: () => void }) {
         <FormGrid2>
           <FormField>
             <FormLabel htmlFor="opp-status">Status</FormLabel>
-            <Select id="opp-status" value={status} onValueChange={(val: any) => setStatus(val)} aria-label="Opportunity status">
-              {STATUS_ORDER.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-            </Select>
+            <Select
+              id="opp-status"
+              value={status}
+              onChange={(val) => setStatus(val as OpportunityStatus)}
+              options={STATUS_ORDER.map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
+              placeholder="Choose status…"
+              aria-label="Opportunity status"
+            />
           </FormField>
           <FormField>
             <FormLabel htmlFor="opp-url">URL</FormLabel>

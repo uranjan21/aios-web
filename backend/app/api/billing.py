@@ -7,12 +7,30 @@ from sqlmodel import select
 
 from app.core.config import get_settings
 from app.core.deps import get_current_user, get_db
-from app.core.entitlements import PLAN_FEATURES
+from app.core.entitlements import (
+    PLAN_FEATURES, AREA_MODULES, SERVICE_MODULES, BUNDLE_KEY, get_entitled_modules,
+)
 from app.models.user import User
 from app.services.billing import service as billing
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/billing", tags=["billing"])
+
+# Modules that bill metered AI usage on top of their flat price.
+_METERED = {"chat", "agents"}
+
+
+@router.get("/catalog")
+async def get_catalog():
+    """Structural catalog of purchasable modules (drives the manage-modules UI).
+    Display prices live in the frontend `lib/pricing.ts`; entitlement keys here."""
+    def _mod(key: str, kind: str) -> dict:
+        return {"key": key, "kind": kind, "metered": key in _METERED}
+    return {
+        "modules": [_mod(k, "area") for k in AREA_MODULES]
+        + [_mod(k, "service") for k in SERVICE_MODULES],
+        "bundle_key": BUNDLE_KEY,
+    }
 
 
 def _require_billing():
@@ -34,14 +52,59 @@ async def get_my_subscription(current_user=Depends(get_current_user), db=Depends
     plan = sub.plan if sub else "free"
     status_ = sub.status if sub else "active"
     addons = sub.addons if sub and sub.addons else []
+    entitled = sorted(await get_entitled_modules(db, current_user))
     return {
         "plan": plan,
         "status": status_,
         "current_period_end": sub.current_period_end.isoformat() if sub and sub.current_period_end else None,
         "features": PLAN_FEATURES.get(plan, PLAN_FEATURES["free"]),
         "addons": addons,
+        # Modular fields (Phase 1) — `entitled` is the resolved access set.
+        "modules": (sub.modules if sub and sub.modules else []),
+        "bundle": bool(sub.bundle) if sub else False,
+        "free_area": (sub.free_area if sub else None),
+        "entitled": entitled,
         "billing_enabled": settings.billing_enabled,
     }
+
+
+@router.get("/usage")
+async def get_my_usage(current_user=Depends(get_current_user), db=Depends(get_db)):
+    """Metered AI usage this month: used / included / overage / billable."""
+    from app.services.billing.usage import monthly_summary
+    return await monthly_summary(db, current_user)
+
+
+class ModulesBody(BaseModel):
+    modules: list[str] = []
+    bundle: bool = False
+
+
+@router.post("/modules")
+async def set_my_modules(body: ModulesBody, current_user=Depends(get_current_user), db=Depends(get_db)):
+    """Set the desired owned-module set. When billing is on and paid modules are
+    selected, returns a Stripe `checkout_url`; otherwise applies immediately."""
+    user = await _load_user(db, current_user.id)
+    try:
+        return await billing.set_modules(db, user, body.modules, body.bundle)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        logger.exception("Updating modules failed")
+        raise HTTPException(status_code=502, detail="Could not update modules — please try again")
+
+
+class FreeAreaBody(BaseModel):
+    area: str | None = None
+
+
+@router.post("/free-area")
+async def set_my_free_area(body: FreeAreaBody, current_user=Depends(get_current_user), db=Depends(get_db)):
+    """Pick/change the single free area (entitlement-only, no billing event)."""
+    if body.area is not None and body.area not in AREA_MODULES:
+        raise HTTPException(status_code=400, detail="free_area must be one of the area modules")
+    sub = await billing.set_free_area(db, current_user.id, body.area)
+    return {"free_area": sub.free_area}
 
 
 class CheckoutBody(BaseModel):

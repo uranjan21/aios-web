@@ -2,7 +2,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket
+from fastapi import Depends, FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
@@ -10,6 +10,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.core.config import get_settings
 from app.core.deps import ws_auth
+from app.core.entitlements import require_module, ws_entitled
 from app.core.middleware import SecurityHeadersMiddleware, RequestLoggingMiddleware
 from app.core.rate_limit import limiter
 
@@ -194,6 +195,9 @@ def create_app() -> FastAPI:
         if not user:
             await websocket.close(code=1008)
             return
+        if not await ws_entitled(user["sub"], "chat"):
+            await websocket.close(code=1008)
+            return
         await chat_ws_handler(websocket, user["sub"])
 
     @app.websocket("/ws/agents")
@@ -202,18 +206,23 @@ def create_app() -> FastAPI:
         if not user:
             await websocket.close(code=1008)
             return
+        if not await ws_entitled(user["sub"], "agents"):
+            await websocket.close(code=1008)
+            return
         await agents_ws_handler(websocket, user["sub"])
 
     app.include_router(auth_router)
     app.include_router(sync_router)
-    app.include_router(chat_router)
-    app.include_router(agents_router)
-    app.include_router(integrations_router)
-    app.include_router(finance_router)
-    app.include_router(health_router)
-    app.include_router(career_router)
-    app.include_router(business_router)
-    app.include_router(content_router)
+    # Module gating (Phase 0): every area + service router is entitlement-gated
+    # server-side. Inert until billing is enabled, so dev/self-host is unchanged.
+    app.include_router(chat_router, dependencies=[Depends(require_module("chat"))])
+    app.include_router(agents_router, dependencies=[Depends(require_module("agents"))])
+    app.include_router(integrations_router, dependencies=[Depends(require_module("integrations"))])
+    app.include_router(finance_router, dependencies=[Depends(require_module("finance"))])
+    app.include_router(health_router, dependencies=[Depends(require_module("health"))])
+    app.include_router(career_router, dependencies=[Depends(require_module("career"))])
+    app.include_router(business_router, dependencies=[Depends(require_module("business"))])
+    app.include_router(content_router, dependencies=[Depends(require_module("content"))])
     app.include_router(captures_router)
     app.include_router(push_router)
     app.include_router(ai_router)

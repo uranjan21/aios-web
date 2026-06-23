@@ -65,11 +65,17 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str = ""
     stripe_price_pro: str = ""
     stripe_price_household: str = ""
+    # Modular pricing (Phase 1): JSON map of module/bundle key → Stripe price id,
+    # e.g. {"finance":"price_…","everything":"price_…","ai_usage":"price_…"}.
+    stripe_module_prices: dict[str, str] = {}
+    # Metered AI (Phase 2): free AI actions per calendar month. Past this, Chat/
+    # Agents owners are billed for overage; everyone else is hard-capped.
+    ai_free_monthly_credits: int = 200
 
     @property
     def billing_enabled(self) -> bool:
         """True only when Stripe is configured. Entitlement checks no-op when False."""
-        return bool(self.stripe_secret_key and self.stripe_price_pro)
+        return bool(self.stripe_secret_key and (self.stripe_price_pro or self.stripe_module_prices))
 
     @model_validator(mode="after")
     def validate_secrets(self) -> "Settings":

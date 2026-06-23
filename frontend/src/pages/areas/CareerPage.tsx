@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import styled from 'styled-components'
 import { PageContainer, PageContent } from '@/components/layout/PageLayout'
 import { Timeline } from 'antd'
-import { Button, Badge, Select, SelectItem } from '@ledgr/ui'
+import { Button, Badge, Select } from '@ledgr/ui'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AreaTabs } from '@/components/ui/AreaTabs'
 import { RoadmapTab } from '@/components/areas/career/RoadmapTab'
@@ -220,13 +220,14 @@ function SkillRow({ skill }: { skill: SkillInventory }) {
         <SkillName>{skill.skill_name}</SkillName>
         <SkillCat>{skill.category}</SkillCat>
       </SkillInfo>
-      <Select value={skill.level} onChange={(level) => patch(level as SkillInventory['level'])} size="sm" style={{ minWidth: 110 }} aria-label="Skill level">
-        {(Object.keys(LEVEL_LABELS) as SkillInventory['level'][]).map(l => (
-          <SelectItem key={l} value={l}>
-            <Badge tone={LEVEL_COLORS[l]}>{LEVEL_LABELS[l]}</Badge>
-          </SelectItem>
-        ))}
-      </Select>
+      <Select
+        value={skill.level}
+        onChange={(level) => patch(level as SkillInventory['level'])}
+        options={(Object.keys(LEVEL_LABELS) as SkillInventory['level'][]).map(l => ({ value: l, label: LEVEL_LABELS[l] }))}
+        size="sm"
+        style={{ minWidth: 110 }}
+        aria-label="Skill level"
+      />
     </SkillRowRoot>
   )
 }
@@ -251,13 +252,13 @@ function OpportunityRow({ opp }: { opp: JobOpportunity }) {
             <ExternalLink size={14} />
           </a>
         )}
-        <Select value={opp.status} onChange={(val) => patch(val as OpportunityStatus)} style={{ minWidth: 120 }} aria-label="Opportunity status">
-          {Object.keys(OPP_STATUS_COLORS).map(s => (
-            <SelectItem key={s} value={s}>
-              <Badge tone={OPP_STATUS_COLORS[s as OpportunityStatus]}>{s.charAt(0).toUpperCase() + s.slice(1)}</Badge>
-            </SelectItem>
-          ))}
-        </Select>
+        <Select
+          value={opp.status}
+          onChange={(val) => patch(val as OpportunityStatus)}
+          options={Object.keys(OPP_STATUS_COLORS).map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
+          style={{ minWidth: 120 }}
+          aria-label="Opportunity status"
+        />
       </OppActions>
     </OppRowRoot>
   )

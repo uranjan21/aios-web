@@ -10,6 +10,7 @@ from sqlmodel import select, desc
 
 from app.core.deps import get_current_user, get_db
 from app.core.entitlements import require_plan
+from app.services.billing.usage import enforce_ai_quota, record_ai_usage
 from app.core.rate_limit import limiter
 from app.services.ai.insights import generate_text
 
@@ -93,7 +94,7 @@ async def _health_facts(db, user_id: str) -> str:
 
 @router.post("/explain")
 @limiter.limit("10/minute")
-async def explain_area(request: Request, body: ExplainBody, current_user=Depends(get_current_user), db=Depends(get_db), _plan=Depends(require_plan("pro"))):
+async def explain_area(request: Request, body: ExplainBody, current_user=Depends(get_current_user), db=Depends(get_db), _plan=Depends(require_plan("pro")), _quota=Depends(enforce_ai_quota())):
     if body.area == "finance":
         facts = await _finance_facts(db, str(current_user.id))
         system = ("You are a sharp, friendly personal finance coach for a single user in India (amounts in INR ₹). "
@@ -108,6 +109,7 @@ async def explain_area(request: Request, body: ExplainBody, current_user=Depends
 
     try:
         text = await generate_text(system, facts, max_tokens=400)
+        await record_ai_usage(db, current_user.id, 1, "insights")
         return {"text": text, "facts": facts}
     except Exception as e:
         logger.warning("Explain failed: %s", e)
@@ -120,7 +122,7 @@ class SkillGapBody(BaseModel):
 
 @router.post("/skill-gap")
 @limiter.limit("10/minute")
-async def skill_gap(request: Request, body: SkillGapBody, current_user=Depends(get_current_user), db=Depends(get_db), _plan=Depends(require_plan("pro"))):
+async def skill_gap(request: Request, body: SkillGapBody, current_user=Depends(get_current_user), db=Depends(get_db), _plan=Depends(require_plan("pro")), _quota=Depends(enforce_ai_quota())):
     from app.models.career import SkillInventory
 
     skills = (await db.execute(select(SkillInventory).where(SkillInventory.user_id == str(current_user.id)))).scalars().all()
@@ -133,6 +135,7 @@ async def skill_gap(request: Request, body: SkillGapBody, current_user=Depends(g
 
     try:
         text = await generate_text(system, user, max_tokens=700)
+        await record_ai_usage(db, current_user.id, 1, "insights")
         return {"text": text}
     except Exception as e:
         logger.warning("Skill-gap failed: %s", e)
@@ -141,7 +144,7 @@ async def skill_gap(request: Request, body: SkillGapBody, current_user=Depends(g
 
 @router.post("/daily-brief")
 @limiter.limit("5/minute")
-async def daily_brief(request: Request, current_user=Depends(get_current_user), db=Depends(get_db), _plan=Depends(require_plan("pro"))):
+async def daily_brief(request: Request, current_user=Depends(get_current_user), db=Depends(get_db), _plan=Depends(require_plan("pro")), _quota=Depends(enforce_ai_quota())):
     """Generate a structured daily brief from cross-domain context."""
     now = datetime.utcnow()
     weekday = now.strftime("%A")
@@ -166,6 +169,7 @@ async def daily_brief(request: Request, current_user=Depends(get_current_user), 
 
     try:
         text = await generate_text(system, facts, max_tokens=450)
+        await record_ai_usage(db, current_user.id, 1, "insights")
         return {"text": text, "generated_at": now.isoformat()}
     except Exception as e:
         logger.warning("Daily brief failed: %s", e)
@@ -180,7 +184,7 @@ class DraftBody(BaseModel):
 
 @router.post("/draft")
 @limiter.limit("10/minute")
-async def draft_content(request: Request, body: DraftBody, current_user=Depends(get_current_user), _plan=Depends(require_plan("pro"))):
+async def draft_content(request: Request, body: DraftBody, current_user=Depends(get_current_user), db=Depends(get_db), _plan=Depends(require_plan("pro")), _quota=Depends(enforce_ai_quota())):
     platform_rules = {
         "twitter": "a punchy 5-8 tweet thread; first tweet is a scroll-stopping hook; each tweet under 280 chars",
         "linkedin": "a LinkedIn post: strong 1-line hook, short paragraphs, line breaks for rhythm, light CTA at the end",
@@ -195,6 +199,7 @@ async def draft_content(request: Request, body: DraftBody, current_user=Depends(
 
     try:
         text = await generate_text(system, user, max_tokens=800)
+        await record_ai_usage(db, current_user.id, 1, "insights")
         return {"text": text}
     except Exception as e:
         logger.warning("Draft failed: %s", e)

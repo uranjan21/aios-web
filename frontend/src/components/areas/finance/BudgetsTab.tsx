@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@/components/ui/Popconfirm'
-import { Button, Select, SelectItem, Input, DataTable, SegmentedControl, Card } from '@ledgr/ui'
+import { Button, Select, Input, DataTable, SegmentedControl, Card } from '@ledgr/ui'
 import { Trash2, PencilLine, Gauge } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { formatCurrency } from '@/lib/utils'
@@ -278,10 +278,15 @@ export function BudgetsTab() {
         <FormContainer>
           <FormLayout onSubmit={e => { e.preventDefault(); upsertMutation.mutate({ category: formCategory, monthly_limit: formLimit }) }}>
             <SelectWrapper>
-              <Select placeholder="Category" disabled={!!editing} value={formCategory} onChange={(v) => setFormCategory(v as string)} aria-label="Budget category">
-                {CATEGORIES.filter(c => !budgets?.some(b => b.category === c) || (editing && c === editing.category))
-                  .map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </Select>
+              <Select
+                placeholder="Category"
+                disabled={!!editing}
+                value={formCategory}
+                onChange={(v) => setFormCategory(String(v))}
+                options={CATEGORIES
+                  .filter(c => !budgets?.some(b => b.category === c) || (editing && c === editing.category))
+                  .map(c => ({ value: c, label: c }))}
+              />
             </SelectWrapper>
             <InputWrapper>
               <Input type="number" startAdornment="₹" placeholder="Limit" min="1" value={formLimit} onChange={(e) => setFormLimit(e.target.value)} required aria-label="Budget limit" />

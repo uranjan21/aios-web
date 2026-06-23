@@ -48,6 +48,12 @@ async def _run_global_job(module_name: str, func_name: str) -> None:
         logger.error("Global job %s failed to get users: %s", func_name, e)
 
 
+async def _run_billing_usage_report() -> None:
+    """APScheduler entry — batch metered AI usage to Stripe."""
+    from app.services.billing.usage import run_usage_report_job
+    await run_usage_report_job()
+
+
 async def _dispatch(task_id: str, user_id: uuid.UUID) -> None:
     """Called by APScheduler — fires the agent run pipeline."""
     from app.api.agents import _run_agent
@@ -129,6 +135,15 @@ async def start_scheduler() -> None:
             trigger=CronTrigger(minute="*/30", timezone="UTC"),
             args=["app.services.integrations._sync_job", "run_google_sync"],
             id="google_sync",
+            replace_existing=True,
+            misfire_grace_time=1800,
+        )
+
+        # Hourly at :15 — batch metered AI usage to Stripe (Phase 2).
+        scheduler.add_job(
+            _run_billing_usage_report,
+            trigger=CronTrigger(minute=15, timezone="UTC"),
+            id="billing_usage_report",
             replace_existing=True,
             misfire_grace_time=1800,
         )

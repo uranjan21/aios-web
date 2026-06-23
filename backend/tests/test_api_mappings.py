@@ -291,7 +291,11 @@ def test_api_mappings():
                             if key_param:
                                 f_query_params.append(key_param)
                 else:
-                    f_query_params = extract_query_params_from_ts_args(ep['func_args'])
+                    # `params: <var>` where <var> is typed by a *named* interface
+                    # (e.g. `filters: ContentItemFilters`) — its keys aren't inline,
+                    # so we can't statically resolve them. Skip rather than mistake
+                    # the argument name for a query param (per "if we can parse them").
+                    f_query_params = []
             else:
                 match = re.search(r'params\s*:\s*\{\s*([^}]+)\s*\}', ep['payload'])
                 if match:

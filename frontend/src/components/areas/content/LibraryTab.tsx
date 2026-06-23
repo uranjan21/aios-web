@@ -90,7 +90,6 @@ export function LibraryTab({ rows, total, campaigns, onEdit }: {
 
   return (
     <Table
-<<<<<<< Updated upstream
       rows={rows}
       columns={columns}
       getRowKey={(row: ContentItem) => row.id}
@@ -100,35 +99,6 @@ export function LibraryTab({ rows, total, campaigns, onEdit }: {
         title: total === 0 ? 'No content yet' : 'No content matches',
         description: total === 0 ? 'Create your first piece to fill the library.' : 'Try adjusting your filters above.',
       }}
-=======
-      title="Content Library"
-      subtitle={`${filtered.length} of ${items.length} pieces`}
-      action={
-        <>
-          <SearchWrap>
-            <Search size={14} />
-            <Input aria-label="Search content" placeholder="Search…" value={q} onChange={e => setQ(e.target.value)} size="sm" />
-          </SearchWrap>
-          <Select size="sm" aria-label="Platform filter" value={platform} onChange={v => setPlatform(v as string)} options={[
-            { value: 'all', label: 'All platforms' },
-            ...PLATFORMS.map(p => ({ value: p, label: PLATFORM_META[p].label }))
-          ]} />
-          <Select size="sm" aria-label="Status filter" value={status} onChange={v => setStatus(v as string)} options={[
-            { value: 'all', label: 'All status' },
-            ...(Object.keys(STATUS_LABELS) as ContentItem['status'][]).map(s => ({ value: s, label: STATUS_LABELS[s] }))
-          ]} />
-          <Select size="sm" aria-label="Type filter" value={type} onChange={v => setType(v as string)} options={[
-            { value: 'all', label: 'All types' },
-            ...CONTENT_TYPES.map(t => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }))
-          ]} />
-        </>
-      }
-      rows={filtered}
-      columns={columns}
-      getRowKey={(row: ContentItem) => row.id}
-      onRowClick={(row: ContentItem) => onEdit(row)}
-      empty={{ icon: <Library size={20} />, title: 'No content matches', description: 'Try adjusting your filters or create new content.' }}
->>>>>>> Stashed changes
     />
   )
 }

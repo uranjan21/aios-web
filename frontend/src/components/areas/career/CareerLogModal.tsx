@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Dialog, Input, Select, SelectItem, Button, SegmentedControl, Textarea } from '@ledgr/ui'
+import { Dialog, Input, Select, Button, SegmentedControl, Textarea } from '@ledgr/ui'
 import { toast } from 'sonner'
 import { careerApi } from '@/api/areas'
 import type { SkillInventory, OpportunityStatus } from '@/types'
@@ -83,9 +83,13 @@ function MilestoneForm({ onClose }: { onClose: () => void }) {
   return (
     <form onSubmit={e => { e.preventDefault(); mutate() }}>
       <TwoColGrid>
-        <Select value={eventType} onValueChange={setEventType} required aria-label="Event type">
-          {Object.entries(EVENT_TYPE_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
-        </Select>
+        <Select
+          value={eventType}
+          onChange={(val) => setEventType(String(val))}
+          options={Object.entries(EVENT_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }))}
+          placeholder="Choose event type…"
+          aria-label="Event type"
+        />
         <Input placeholder="What did you achieve?" value={title} onChange={(e: any) => setTitle(e.target.value)} required aria-label="Milestone title" />
       </TwoColGrid>
       <FormGroup>
@@ -130,11 +134,13 @@ function OpportunityForm({ onClose }: { onClose: () => void }) {
         <Input placeholder="Role" value={role} onChange={(e: any) => setRole(e.target.value)} required aria-label="Role title" />
       </HalfGrid>
       <TwoColGrid>
-        <Select value={status} onValueChange={setStatus} required aria-label="Opportunity status">
-          {Object.keys(OPP_STATUS_COLORS).map(s => (
-            <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>
-          ))}
-        </Select>
+        <Select
+          value={status}
+          onChange={(val) => setStatus(String(val))}
+          options={Object.keys(OPP_STATUS_COLORS).map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
+          placeholder="Choose status…"
+          aria-label="Opportunity status"
+        />
         <Input placeholder="Job posting URL (optional)" value={url} onChange={(e: any) => setUrl(e.target.value)} aria-label="Job posting URL" />
       </TwoColGrid>
       <FormFooter>
@@ -179,11 +185,13 @@ function SkillForm({ onClose }: { onClose: () => void }) {
         <Input placeholder="Category (e.g. technical, soft skill)" value={category} onChange={(e: any) => setCategory(e.target.value)} required aria-label="Skill category" />
       </HalfGrid>
       <TwoColGrid>
-        <Select value={level} onValueChange={setLevel} required aria-label="Skill proficiency level">
-          {(Object.keys(LEVEL_LABELS) as SkillInventory['level'][]).map(l => (
-            <SelectItem key={l} value={l}>{LEVEL_LABELS[l]}</SelectItem>
-          ))}
-        </Select>
+        <Select
+          value={level}
+          onChange={(val) => setLevel(String(val))}
+          options={(Object.keys(LEVEL_LABELS) as SkillInventory['level'][]).map(l => ({ value: l, label: LEVEL_LABELS[l] }))}
+          placeholder="Choose proficiency level…"
+          aria-label="Skill proficiency level"
+        />
         <Input placeholder="Notes (optional)" value={notes} onChange={(e: any) => setNotes(e.target.value)} aria-label="Notes" />
       </TwoColGrid>
       <FormFooter>

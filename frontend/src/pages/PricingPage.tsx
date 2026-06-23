@@ -1,104 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import styled from 'styled-components'
 import { motion } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@ledgr/ui'
-import { Check, Shield, Zap, Globe } from 'lucide-react'
+import { Check, Globe, Sparkles, Zap, Info } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
-import { useFeatures } from '@/hooks/useFeatures'
+import { usePricingCurrency } from '@/hooks/usePricingCurrency'
 import { billingApi } from '@/api/billing'
-
-// ── Currency detection ────────────────────────────────────────────────────────
-
-interface CurrencyInfo {
-  code: string
-  rate: number
-  country: string
-  locale: string
-}
-
-const USD: CurrencyInfo = { code: 'USD', rate: 1, country: '', locale: 'en-US' }
-const SESSION_KEY = 'aios_pricing_currency'
-
-const LOCALE_MAP: Record<string, string> = {
-  USD: 'en-US', EUR: 'en-DE', GBP: 'en-GB', INR: 'en-IN', JPY: 'ja-JP',
-  CAD: 'en-CA', AUD: 'en-AU', CHF: 'de-CH', CNY: 'zh-CN', BRL: 'pt-BR',
-  MXN: 'es-MX', SGD: 'en-SG', HKD: 'zh-HK', KRW: 'ko-KR', SEK: 'sv-SE',
-  NOK: 'nb-NO', DKK: 'da-DK', PLN: 'pl-PL', AED: 'ar-AE', SAR: 'ar-SA',
-  ZAR: 'en-ZA', NGN: 'en-NG', PKR: 'ur-PK', BDT: 'bn-BD', IDR: 'id-ID',
-  MYR: 'ms-MY', PHP: 'fil-PH', THB: 'th-TH', VND: 'vi-VN', TRY: 'tr-TR',
-  ILS: 'he-IL', CLP: 'es-CL', COP: 'es-CO', PEN: 'es-PE', ARS: 'es-AR',
-}
-
-function usePricingCurrency() {
-  const [currency, setCurrency] = useState<CurrencyInfo>(USD)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    // Serve from cache if fresh (1 hour TTL)
-    try {
-      const raw = sessionStorage.getItem(SESSION_KEY)
-      if (raw) {
-        const { ts, data } = JSON.parse(raw)
-        if (Date.now() - ts < 3_600_000) {
-          setCurrency(data)
-          setLoading(false)
-          return
-        }
-      }
-    } catch { /* ignore */ }
-
-    let cancelled = false
-
-    async function detect() {
-      try {
-        // Step 1 — country + currency code from IP
-        const geoRes = await fetch('https://ipapi.co/json/', {
-          signal: AbortSignal.timeout(5000),
-        })
-        if (!geoRes.ok) throw new Error('geo')
-        const geo = await geoRes.json()
-        const code = (geo.currency as string)?.toUpperCase()
-        const country = (geo.country_name as string) ?? ''
-
-        if (!code || code === 'USD') return
-
-        // Step 2 — exchange rate (USD → local)
-        const rateRes = await fetch('https://open.er-api.com/v6/latest/USD', {
-          signal: AbortSignal.timeout(5000),
-        })
-        if (!rateRes.ok) throw new Error('rate')
-        const rateData = await rateRes.json()
-        const rate: number | undefined = rateData.rates?.[code]
-
-        if (!cancelled && rate) {
-          const info: CurrencyInfo = { code, rate, country, locale: LOCALE_MAP[code] ?? 'en-US' }
-          setCurrency(info)
-          try {
-            sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ts: Date.now(), data: info }))
-          } catch { /* quota */ }
-        }
-      } catch { /* fall through to USD */ } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    detect()
-    return () => { cancelled = true }
-  }, [])
-
-  function format(usdAmount: number): string {
-    const localAmount = usdAmount === 0 ? 0 : usdAmount * currency.rate
-    const noDecimals = localAmount >= 10 || ['JPY', 'KRW', 'VND', 'IDR', 'CLP'].includes(currency.code)
-    return new Intl.NumberFormat(currency.locale, {
-      style: 'currency',
-      currency: currency.code,
-      maximumFractionDigits: noDecimals ? 0 : 2,
-    }).format(localAmount)
-  }
-
-  return { currency, loading, format }
-}
+import {
+  PRICING_MODULES, MODULE_PRICE, BUNDLE_PRICE, TOTAL_MODULES,
+  BUNDLE_SAVINGS, FREE_BASE_BLURB, computeMonthly, isBundlePriced,
+} from '@/lib/pricing'
 
 // ── Styled components ─────────────────────────────────────────────────────────
 
@@ -125,31 +37,31 @@ const Logo = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
-
   .accent { color: ${({ theme }) => theme.color.accent}; }
 `
 
 const Content = styled.main`
   flex: 1;
   padding: 4rem 2rem;
-  max-width: 1000px;
+  max-width: 1080px;
   margin: 0 auto;
   width: 100%;
 `
 
 const TitleSection = styled.div`
   text-align: center;
-  margin-bottom: 4rem;
+  margin-bottom: 3rem;
 
   h1 {
     font-family: ${({ theme }) => theme.typography.fontFamily.serif};
-    font-size: 3.5rem;
+    font-size: clamp(2.25rem, 5vw, 3.5rem);
     margin-bottom: 1rem;
   }
-
   p {
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     color: ${({ theme }) => theme.color.mutedForeground};
+    max-width: 540px;
+    margin: 0 auto;
   }
 `
 
@@ -166,118 +78,241 @@ const CurrencyBadge = styled.div`
   margin-top: 12px;
 `
 
-const PricingGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 2rem;
-  align-items: flex-start;
-`
-
-const PricingCard = styled(motion.div)<{ $highlight?: boolean }>`
-  background-color: ${({ theme }) => theme.color.card};
-  border: 2px solid ${({ theme, $highlight }) => $highlight ? theme.color.accent : theme.color.border};
-  border-radius: 24px;
-  padding: 3rem 2rem;
+const FreeBanner = styled.div`
   display: flex;
-  flex-direction: column;
-  position: relative;
-  box-shadow: ${({ theme, $highlight }) => $highlight ? theme.shadow.lg : theme.shadow.sm};
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: ${({ theme }) => theme.color.muted};
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 2rem;
 
-  ${({ $highlight, theme }) => $highlight && `
-    &::before {
-      content: 'Most Popular';
-      position: absolute;
-      top: -12px;
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: ${theme.color.accent};
-      color: #fff;
-      padding: 4px 12px;
-      border-radius: 9999px;
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-  `}
+  .lead { display: flex; align-items: center; gap: 0.75rem; }
+  .lead strong { font-size: 1rem; }
+  .lead span { font-size: 13px; color: ${({ theme }) => theme.color.mutedForeground}; }
 `
 
-const PlanName = styled.h3`
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
+const Layout = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: start;
+
+  @media (min-width: 880px) {
+    grid-template-columns: 1.6fr 1fr;
+  }
 `
 
-const PlanPrice = styled.div`
-  font-size: 3.5rem;
+const Panel = styled.div`
+  background: ${({ theme }) => theme.color.card};
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: 20px;
+  padding: 1.75rem;
+`
+
+const GroupLabel = styled.div`
+  font-size: 12px;
   font-weight: 700;
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
-  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin: 1.5rem 0 0.75rem;
+  &:first-child { margin-top: 0; }
+`
+
+const ModuleGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+`
+
+const ModuleTile = styled.button<{ $selected: boolean }>`
+  text-align: left;
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 14px;
+  cursor: pointer;
+  background: ${({ theme, $selected }) => ($selected ? `${theme.color.accent}14` : theme.color.background)};
+  border: 1.5px solid ${({ theme, $selected }) => ($selected ? theme.color.accent : theme.color.border)};
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:hover { border-color: ${({ theme }) => theme.color.accent}; }
+  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.accent}; outline-offset: 2px; }
+
+  .ico {
+    width: 34px; height: 34px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: ${({ theme, $selected }) => ($selected ? theme.color.accent : theme.color.muted)};
+    color: ${({ theme, $selected }) => ($selected ? '#fff' : theme.color.mutedForeground)};
+  }
+  .body { min-width: 0; flex: 1; }
+  .row { display: flex; align-items: center; gap: 6px; }
+  .name { font-weight: 600; font-size: 14px; }
+  .price { font-size: 12px; color: ${({ theme }) => theme.color.mutedForeground}; }
+  .desc { font-size: 12px; color: ${({ theme }) => theme.color.mutedForeground}; margin-top: 2px; line-height: 1.35; }
+  .meter { font-size: 10px; font-weight: 600; color: ${({ theme }) => theme.color.accent}; }
+  .tick { color: ${({ theme }) => theme.color.accent}; flex-shrink: 0; opacity: ${({ $selected }) => ($selected ? 1 : 0)}; }
+`
+
+const Summary = styled.div`
+  background: ${({ theme }) => theme.color.card};
+  border: 2px solid ${({ theme }) => theme.color.accent};
+  border-radius: 20px;
+  padding: 1.75rem;
+  position: sticky;
+  top: 1.5rem;
+  box-shadow: ${({ theme }) => theme.shadow.lg};
+`
+
+const TotalRow = styled.div`
   display: flex;
   align-items: baseline;
-  line-height: 1;
-
-  span {
-    font-size: 1rem;
-    font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-    color: ${({ theme }) => theme.color.mutedForeground};
-    font-weight: 400;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+  .amount {
+    font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1;
   }
+  .per { font-size: 1rem; color: ${({ theme }) => theme.color.mutedForeground}; }
 `
 
 const UsdNote = styled.div`
   font-size: 11px;
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-bottom: 1rem;
-  opacity: 0.75;
+  opacity: 0.8;
 `
 
-const PlanDesc = styled.p`
+const SummaryMeta = styled.div`
+  font-size: 13px;
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-bottom: 2rem;
-  line-height: 1.5;
+  margin-bottom: 1rem;
 `
 
-const FeatureList = styled.ul`
-  list-style: none;
-  padding: 0;
-  margin: 0 0 2rem 0;
+const SaveHint = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.color.accent};
+  background: ${({ theme }) => `${theme.color.accent}14`};
+  border-radius: 9999px;
+  padding: 4px 10px;
+  margin-bottom: 1rem;
+`
+
+const BundleButton = styled.button<{ $active: boolean }>`
+  width: 100%;
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: ${({ theme, $active }) => ($active ? theme.color.primary : theme.color.muted)};
+  color: ${({ theme, $active }) => ($active ? '#fff' : theme.color.foreground)};
+  border: 1px solid ${({ theme, $active }) => ($active ? 'transparent' : theme.color.border)};
+  &:hover { border-color: ${({ theme }) => theme.color.primary}; }
+`
 
-  li {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 0.9375rem;
+const MeteredNote = styled.div`
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid ${({ theme }) => theme.color.border};
+  svg { flex-shrink: 0; margin-top: 1px; color: ${({ theme }) => theme.color.accent}; }
+`
 
-    svg {
-      color: ${({ theme }) => theme.color.accent};
-      flex-shrink: 0;
-    }
-  }
+const FootNote = styled.p`
+  text-align: center;
+  font-size: 13px;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin-top: 2.5rem;
 `
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
+const AREAS = PRICING_MODULES.filter(m => m.group === 'area')
+const SERVICES = PRICING_MODULES.filter(m => m.group === 'service')
+
 export function PricingPage() {
   const navigate = useNavigate()
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
-  const { billing_enabled: billingEnabled } = useFeatures()
   const { currency, loading, format } = usePricingCurrency()
-
   const isUSD = currency.code === 'USD'
 
-  const handlePlanCta = async (plan: 'pro' | 'pro_plus' | 'household') => {
+  // Selected module keys — the single piece of page state everything derives from.
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(['finance']))
+
+  const count = selected.size
+  const bundled = isBundlePriced(count)
+  const monthly = computeMonthly(count)
+  const allSelected = count === TOTAL_MODULES
+  const meteredSelected = PRICING_MODULES.some(m => m.metered && selected.has(m.key))
+
+  const toggle = (key: string) =>
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+
+  const toggleEverything = () =>
+    setSelected(allSelected ? new Set() : new Set(PRICING_MODULES.map(m => m.key)))
+
+  const [submitting, setSubmitting] = useState(false)
+
+  // Set the chosen modules. When the selection is "bundle-priced" (≥ the bundle
+  // cost), buy the bundle so the displayed price matches what Stripe charges.
+  const handleCta = async () => {
     if (!isAuthenticated) { navigate('/signup'); return }
-    if (!billingEnabled) { navigate('/app/settings'); return }
+    setSubmitting(true)
     try {
-      const { url } = await billingApi.checkout(plan)
-      window.location.href = url
+      const { checkout_url } = await billingApi.setModules([...selected], bundled)
+      if (checkout_url) { window.location.href = checkout_url; return }
+      navigate('/app/settings?billing=success')
     } catch {
       navigate('/app/settings')
+    } finally {
+      setSubmitting(false)
     }
+  }
+
+  const renderTile = (m: typeof PRICING_MODULES[number]) => {
+    const on = selected.has(m.key)
+    const Icon = m.icon
+    return (
+      <ModuleTile key={m.key} type="button" $selected={on} onClick={() => toggle(m.key)} aria-pressed={on}>
+        <span className="ico"><Icon size={18} /></span>
+        <span className="body">
+          <span className="row">
+            <span className="name">{m.label}</span>
+            <span className="price">· {loading ? `$${MODULE_PRICE}` : format(MODULE_PRICE)}/mo</span>
+          </span>
+          <span className="desc">{m.desc}</span>
+          {m.metered && <span className="meter">+ metered AI</span>}
+        </span>
+        <Check size={16} className="tick" />
+      </ModuleTile>
+    )
   }
 
   return (
@@ -297,8 +332,8 @@ export function PricingPage() {
 
       <Content>
         <TitleSection>
-          <h1>Simple, transparent pricing</h1>
-          <p>Invest in the operating system for your life.</p>
+          <h1>Pay only for what you use</h1>
+          <p>Start free with one area. Add modules at {loading ? `$${MODULE_PRICE}` : format(MODULE_PRICE)}/mo each — or unlock everything for {loading ? `$${BUNDLE_PRICE}` : format(BUNDLE_PRICE)}/mo.</p>
           {!loading && !isUSD && currency.country && (
             <CurrencyBadge>
               <Globe size={13} />
@@ -307,87 +342,62 @@ export function PricingPage() {
           )}
         </TitleSection>
 
-        <PricingGrid>
-          {/* Starter */}
-          <PricingCard initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <PlanName>Starter</PlanName>
-            <PlanPrice>
-              {loading ? '$0' : format(0)}<span>/mo</span>
-            </PlanPrice>
-            {!isUSD && <UsdNote>Free forever</UsdNote>}
-            <PlanDesc>Perfect for getting started with basic life management.</PlanDesc>
-            <FeatureList>
-              <li><Check size={16} /> Basic Finance Tracking</li>
-              <li><Check size={16} /> Basic Health Logs</li>
-              <li><Check size={16} /> Basic Career Tracking</li>
-              <li><Check size={16} /> Up to 50 items/month</li>
-              <li><Check size={16} /> 1 Connected Bank Account</li>
-            </FeatureList>
-            <Button variant="outline" size="lg" style={{ marginTop: 'auto' }} onClick={() => navigate('/signup')}>
-              Get Started for Free
-            </Button>
-          </PricingCard>
+        <FreeBanner>
+          <div className="lead">
+            <Check size={18} style={{ color: 'var(--accent)' }} />
+            <div>
+              <strong>Free forever</strong> &nbsp;<span>{FREE_BASE_BLURB} · no card required</span>
+            </div>
+          </div>
+          <Button variant="outline" onClick={() => navigate('/signup')}>Start free</Button>
+        </FreeBanner>
 
-          {/* Pro */}
-          <PricingCard initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <PlanName>Pro</PlanName>
-            <PlanPrice>
-              {loading ? '$12' : format(12)}<span>/mo</span>
-            </PlanPrice>
-            {!isUSD && !loading && <UsdNote>≈ $12 USD · billed in USD</UsdNote>}
-            <PlanDesc>Everything you need for advanced wealth and health mastery.</PlanDesc>
-            <FeatureList>
-              <li><Check size={16} /> Unlimited Finance & Health</li>
-              <li><Check size={16} /> AI Chat Assistant</li>
-              <li><Check size={16} /> Advanced AI Agents</li>
-              <li><Check size={16} /> Unlimited Bank Connections</li>
-              <li><Check size={16} /> Premium Reports & Analytics</li>
-            </FeatureList>
-            <Button variant="primary" size="lg" style={{ marginTop: 'auto' }} onClick={() => handlePlanCta('pro')}>
-              {isAuthenticated ? 'Upgrade to Pro' : 'Start 14-Day Free Trial'}
-            </Button>
-          </PricingCard>
+        <Layout>
+          <Panel>
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+              <GroupLabel>Life areas</GroupLabel>
+              <ModuleGrid>{AREAS.map(renderTile)}</ModuleGrid>
+              <GroupLabel>AI &amp; services</GroupLabel>
+              <ModuleGrid>{SERVICES.map(renderTile)}</ModuleGrid>
+            </motion.div>
+          </Panel>
 
-          {/* Pro Plus */}
-          <PricingCard $highlight initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-            <PlanName>Pro Plus</PlanName>
-            <PlanPrice>
-              {loading ? '$20' : format(20)}<span>/mo</span>
-            </PlanPrice>
-            {!isUSD && !loading && <UsdNote>≈ $20 USD · billed in USD</UsdNote>}
-            <PlanDesc>For entrepreneurs and creators building their empire.</PlanDesc>
-            <FeatureList>
-              <li><Check size={16} /> Everything in Pro</li>
-              <li><Check size={16} /> Optional Business Add-on (+$10/mo)</li>
-              <li><Check size={16} /> Optional Content Add-on (+$10/mo)</li>
-              <li><Check size={16} /> Advanced Custom AI Prompts</li>
-              <li><Zap size={16} /> Priority Processing</li>
-            </FeatureList>
-            <Button variant="primary" size="lg" style={{ marginTop: 'auto' }} onClick={() => handlePlanCta('pro_plus')}>
-              {isAuthenticated ? 'Upgrade to Pro Plus' : 'Start 14-Day Free Trial'}
-            </Button>
-          </PricingCard>
+          <Summary>
+            <SummaryMeta>{count === 0 ? 'No modules selected' : `${count} of ${TOTAL_MODULES} module${count === 1 ? '' : 's'}`}</SummaryMeta>
+            <TotalRow>
+              <span className="amount">{loading ? `$${monthly}` : format(monthly)}</span>
+              <span className="per">/mo</span>
+            </TotalRow>
+            {!isUSD && !loading && <UsdNote>≈ ${monthly} USD · billed in USD</UsdNote>}
 
-          {/* Household */}
-          <PricingCard initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-            <PlanName>Household</PlanName>
-            <PlanPrice>
-              {loading ? '$24' : format(24)}<span>/mo</span>
-            </PlanPrice>
-            {!isUSD && !loading && <UsdNote>≈ $24 USD · billed in USD</UsdNote>}
-            <PlanDesc>One subscription, up to 5 household members.</PlanDesc>
-            <FeatureList>
-              <li><Check size={16} /> Pro features for 5 members</li>
-              <li><Check size={16} /> Shared Dashboard & Goals</li>
-              <li><Check size={16} /> Combined Finance Overview</li>
-              <li><Shield size={16} /> Family Health Tracking</li>
-              <li><Check size={16} /> Add-ons purchased separately</li>
-            </FeatureList>
-            <Button variant="outline" size="lg" style={{ marginTop: 'auto' }} onClick={() => handlePlanCta('household')}>
-              {isAuthenticated ? 'Upgrade to Household' : 'Get Started'}
+            {bundled && !allSelected && (
+              <SaveHint><Sparkles size={13} /> You're at the Everything price — add the rest free</SaveHint>
+            )}
+            {!bundled && count > 0 && count >= TOTAL_MODULES - 2 && (
+              <SaveHint><Sparkles size={13} /> Everything saves {loading ? `$${BUNDLE_SAVINGS}` : format(BUNDLE_SAVINGS)}/mo</SaveHint>
+            )}
+
+            <BundleButton type="button" $active={allSelected} onClick={toggleEverything}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Zap size={14} /> Everything — all {TOTAL_MODULES} modules
+              </span>
+              <span>{loading ? `$${BUNDLE_PRICE}` : format(BUNDLE_PRICE)}/mo</span>
+            </BundleButton>
+
+            <Button variant="primary" size="lg" fullWidth onClick={handleCta} loading={submitting} disabled={count === 0 || submitting}>
+              {isAuthenticated ? 'Choose these modules' : 'Start free · add modules anytime'}
             </Button>
-          </PricingCard>
-        </PricingGrid>
+
+            {meteredSelected && (
+              <MeteredNote>
+                <Info size={14} />
+                <span>AI Chat &amp; Agents include a free monthly usage cap. Heavy AI use is billed per token on top of the module price.</span>
+              </MeteredNote>
+            )}
+          </Summary>
+        </Layout>
+
+        <FootNote>Switch modules anytime — changes are prorated. Cancel whenever you like.</FootNote>
       </Content>
     </PageWrapper>
   )

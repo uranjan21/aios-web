@@ -78,6 +78,10 @@ async def run_agent_task(task_id: str, user_id: uuid.UUID) -> str:
 
     try:
         text = await generate_text(system, facts, max_tokens=500)
+        # Meter the agent run (owners get overage billing; see services/billing/usage).
+        from app.services.billing.usage import record_ai_usage
+        async with AsyncSessionLocal() as session:
+            await record_ai_usage(session, user_id, units=1, source="agents")
     except Exception as e:
         logger.warning("Agent %s LLM call failed, returning facts only: %s", task_id, e)
         text = facts

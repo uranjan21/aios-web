@@ -540,6 +540,7 @@ function SecuritySection() {
 
 function BillingSection() {
   const { billing_enabled: billingEnabled } = useFeatures()
+  const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
   const { data, isLoading } = useQuery({
     queryKey: ['billing', 'subscription'],
@@ -547,25 +548,26 @@ function BillingSection() {
     enabled: billingEnabled,
     staleTime: 60_000,
   })
+  const { data: usage } = useQuery({
+    queryKey: ['billing', 'usage'],
+    queryFn: () => billingApi.usage(),
+    enabled: billingEnabled,
+    staleTime: 60_000,
+  })
 
   // Billing is a hosted feature; hidden entirely when Stripe isn't configured.
   if (!billingEnabled) return null
 
-  const plan = data?.plan ?? 'free'
-  const isPaid = plan !== 'free'
-  const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1)
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+  const bundle = data?.bundle ?? false
+  const modules = data?.modules ?? []
+  const hasPaid = bundle || modules.length > 0
+  const ownedLabel = bundle
+    ? 'Everything · all modules'
+    : modules.length
+      ? modules.map(cap).join(', ')
+      : 'Free tier'
   const statusSuffix = data?.status && data.status !== 'active' ? ` · ${data.status}` : ''
-
-  const startCheckout = async () => {
-    setBusy(true)
-    try {
-      const { url } = await billingApi.checkout('pro')
-      window.location.href = url
-    } catch {
-      toast.error('Could not start checkout')
-      setBusy(false)
-    }
-  }
 
   const openPortal = async () => {
     setBusy(true)
@@ -579,23 +581,43 @@ function BillingSection() {
   }
 
   return (
-    <Section title="Billing" delay={300}>
-      <Row label="Current plan">
+    <Section title="Billing & modules" delay={300}>
+      {data?.status === 'past_due' && (
+        <Row label="⚠ Payment failed — access continues briefly while we retry">
+          <Button size="sm" variant="primary" onClick={openPortal} disabled={busy}>
+            <CreditCard size={14} style={{ marginRight: 4 }} /> Update card
+          </Button>
+        </Row>
+      )}
+      <Row label="Your modules">
         <span style={{ fontSize: 13, fontWeight: 600 }}>
-          {isLoading ? '…' : `${planLabel}${statusSuffix}`}
+          {isLoading ? '…' : `${ownedLabel}${statusSuffix}`}
         </span>
       </Row>
-      <Row label={isPaid ? 'Manage subscription' : 'Unlock all domains, AI & integrations'}>
-        {isPaid ? (
+      <Row label="Pick the modules you pay for">
+        <Button size="sm" variant="primary" onClick={() => navigate('/pricing')}>
+          Manage modules
+        </Button>
+      </Row>
+      {usage && (
+        <Row label="AI usage this month">
+          <span style={{ fontSize: 13, fontWeight: 600 }}>
+            {usage.used} / {usage.included}
+            {usage.overage > 0 && (
+              <span style={{ fontWeight: 400, opacity: 0.75 }}>
+                {usage.metered ? ` · +${usage.overage} billed` : ` · ${usage.overage} over cap`}
+              </span>
+            )}
+          </span>
+        </Row>
+      )}
+      {hasPaid && (
+        <Row label="Payment method & invoices">
           <Button size="sm" variant="outline" onClick={openPortal} disabled={busy}>
             <CreditCard size={14} style={{ marginRight: 4 }} /> Manage billing
           </Button>
-        ) : (
-          <Button size="sm" variant="primary" onClick={startCheckout} disabled={busy}>
-            Upgrade to Pro
-          </Button>
-        )}
-      </Row>
+        </Row>
+      )}
     </Section>
   )
 }

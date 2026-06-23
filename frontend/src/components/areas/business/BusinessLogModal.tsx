@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Dialog, Input, Select, SelectItem, Button, Textarea } from '@ledgr/ui'
+import { Dialog, Input, Select, Button, Textarea } from '@ledgr/ui'
 import { toast } from 'sonner'
 import { businessApi } from '@/api/areas'
 import styled from 'styled-components'
@@ -78,11 +78,13 @@ export function BusinessLogModal({ open, onClose }: { open: boolean; onClose: ()
     <Dialog open={open} onOpenChange={handleOpenChange} title="Log Business Event">
       <Form onSubmit={e => { e.preventDefault(); mutate() }}>
         <FormGrid>
-          <Select value={eventType} onValueChange={setEventType} aria-label="Event type">
-            {Object.keys(EVENT_TYPE_COLORS).map(t => (
-              <SelectItem key={t} value={t}>{t.replace('_', ' ')}</SelectItem>
-            ))}
-          </Select>
+          <Select
+            value={eventType}
+            onChange={(val) => setEventType(String(val))}
+            options={Object.keys(EVENT_TYPE_COLORS).map(t => ({ value: t, label: t.replace(/_/g, ' ') }))}
+            placeholder="Choose event type…"
+            aria-label="Event type"
+          />
           <Input placeholder="Event Title" value={title} onChange={(e: any) => setTitle(e.target.value)} required aria-label="Event title" />
         </FormGrid>
         <FormGroup>

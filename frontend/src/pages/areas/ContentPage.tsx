@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import dayjs, { Dayjs } from 'dayjs'
-import { Button, PageHeader, AreaToolbar, ToolbarMeta, Input, Select, SelectItem } from '@ledgr/ui'
+import { Button, PageHeader, AreaToolbar, ToolbarMeta, Input, Select } from '@ledgr/ui'
 import {
   PenLine, LayoutDashboard, Columns3, CalendarDays, Library, Megaphone, BarChart3,
   Plus, Search, ChevronLeft, ChevronRight,
@@ -100,18 +100,36 @@ export function ContentPage() {
           <Search size={14} />
           <Input aria-label="Search content" placeholder="Search…" value={q} onChange={e => setQ(e.target.value)} size="sm" />
         </SearchWrap>
-        <Select size="sm" aria-label="Platform filter" value={platform} onChange={v => setPlatform(v as string)}>
-          <SelectItem value="all">All platforms</SelectItem>
-          {PLATFORMS.map(p => <SelectItem key={p} value={p}>{PLATFORM_META[p].label}</SelectItem>)}
-        </Select>
-        <Select size="sm" aria-label="Status filter" value={status} onChange={v => setStatus(v as string)}>
-          <SelectItem value="all">All status</SelectItem>
-          {(Object.keys(STATUS_LABELS) as ContentItem['status'][]).map(s => <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>)}
-        </Select>
-        <Select size="sm" aria-label="Type filter" value={type} onChange={v => setType(v as string)}>
-          <SelectItem value="all">All types</SelectItem>
-          {CONTENT_TYPES.map(t => <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>)}
-        </Select>
+        <Select
+          size="sm"
+          aria-label="Platform filter"
+          value={platform}
+          onChange={v => setPlatform(String(v))}
+          options={[
+            { value: 'all', label: 'All platforms' },
+            ...PLATFORMS.map(p => ({ value: p, label: PLATFORM_META[p].label })),
+          ]}
+        />
+        <Select
+          size="sm"
+          aria-label="Status filter"
+          value={status}
+          onChange={v => setStatus(String(v))}
+          options={[
+            { value: 'all', label: 'All status' },
+            ...(Object.keys(STATUS_LABELS) as ContentItem['status'][]).map(s => ({ value: s, label: STATUS_LABELS[s] })),
+          ]}
+        />
+        <Select
+          size="sm"
+          aria-label="Type filter"
+          value={type}
+          onChange={v => setType(String(v))}
+          options={[
+            { value: 'all', label: 'All types' },
+            ...CONTENT_TYPES.map(t => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) })),
+          ]}
+        />
       </AreaToolbar>
     )
   } else if (tab === 'calendar') {
@@ -146,13 +164,9 @@ export function ContentPage() {
         />
 
         <AreaTabs
-<<<<<<< Updated upstream
           activeKey={tab}
           onChange={setTab}
           toolbar={toolbar}
-=======
-          defaultActiveKey="overview"
->>>>>>> Stashed changes
           items={[
             {
               key: 'overview',
@@ -162,7 +176,7 @@ export function ContentPage() {
             {
               key: 'campaigns',
               label: <TabLabel><Megaphone size={14} /> Campaigns</TabLabel>,
-              children: <CampaignsTab />,
+              children: <CampaignsTab onRegisterNew={(fn) => { campaignNewRef.current = fn }} />,
             },
             {
               key: 'pipeline',
@@ -180,14 +194,6 @@ export function ContentPage() {
               children: <LibraryTab rows={libraryRows} total={allItems.length} campaigns={allCampaigns} onEdit={openEdit} />,
             },
             {
-<<<<<<< Updated upstream
-              key: 'campaigns',
-              label: <TabLabel><Megaphone size={14} /> Campaigns</TabLabel>,
-              children: <CampaignsTab onRegisterNew={(fn) => { campaignNewRef.current = fn }} />,
-            },
-            {
-=======
->>>>>>> Stashed changes
               key: 'analytics',
               label: <TabLabel><BarChart3 size={14} /> Analytics</TabLabel>,
               children: <AnalyticsTab />,

@@ -119,11 +119,20 @@ const StyledCard = styled.div<{
 
 export const CardHeader = styled.div<{ $inset?: boolean }>`
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   padding-bottom: 12px;
   margin-bottom: 16px;
+  
+  flex-wrap: wrap;
+  gap: 12px;
+  
+  @media (min-width: 640px) {
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
   /* When the parent Card has no padding, the header needs its own horizontal
      inset so icon/title don't sit flush at the card edge. */
   ${({ $inset }) => $inset && css`
@@ -136,13 +145,19 @@ export const CardHeader = styled.div<{ $inset?: boolean }>`
 
 export const TitleGroup = styled.div`
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 
   & svg {
     width: 16px;
     height: 16px;
     flex-shrink: 0;
+    margin-top: 2px;
+  }
+  
+  @media (min-width: 640px) {
+    align-items: center;
+    & svg { margin-top: 0; }
   }
 `;
 
@@ -162,6 +177,11 @@ export const CardSubtitle = styled.p`
   font-size: 11px;
   color: ${({ theme }) => theme.color.mutedForeground};
   line-height: 1.2;
+  
+  display: none;
+  @media (min-width: 640px) {
+    display: block;
+  }
 `;
 
 export const CardDescription = styled.p`

@@ -43,6 +43,19 @@ const BusinessDescription = styled.div`
   overflow: hidden;
 `
 
+const HeaderWrap = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+  
+  @media (min-width: 640px) {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+`
+
 export function BusinessPage() {
   const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -59,7 +72,7 @@ export function BusinessPage() {
   return (
     <PageContainer>
       <PageContent>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <HeaderWrap>
           <PageHeader
             icon={<Briefcase />}
             eyebrow="Portfolio"
@@ -70,7 +83,7 @@ export function BusinessPage() {
             <Plus size={16} style={{ marginRight: '8px' }} />
             New Business
           </Button>
-        </div>
+        </HeaderWrap>
 
         {isLoading ? (
           <Grid>

@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import styled, { keyframes } from 'styled-components'
 import { motion } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
@@ -7,6 +8,8 @@ import {
   Bot, Shield, BarChart3, Check, Star, ArrowRight, Globe, Lock, Layers,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
+import { usePricingCurrency } from '@/hooks/usePricingCurrency'
+import { MODULE_PRICE, BUNDLE_PRICE, TOTAL_MODULES, FREE_BASE_BLURB } from '@/lib/pricing'
 
 // ── Animations ───────────────────────────────────────────────────────────────
 
@@ -372,7 +375,7 @@ const CompareSection = styled(SectionWrap)`
 
 const CompareTable = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr;
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: 16px;
   overflow: hidden;
@@ -486,6 +489,12 @@ const PriceFeat = styled.li`
   svg { flex-shrink: 0; margin-top: 2px; }
 `
 
+const PriceUsdNote = styled.div`
+  font-size: 11px;
+  opacity: 0.6;
+  margin-bottom: 1.5rem;
+`
+
 // ── Final CTA ─────────────────────────────────────────────────────────────────
 
 const FinalCTA = styled.section`
@@ -568,14 +577,14 @@ const AI_FEATURES = [
 ]
 
 const COMPARE_ROWS = [
-  { label: 'Basic Finance, Health, Career', free: true, pro: true, pro_plus: true },
-  { label: 'Unlimited entries & connections', free: false, pro: true, pro_plus: true },
-  { label: 'AI Chat Assistant', free: false, pro: true, pro_plus: true },
-  { label: 'Autonomous Agents', free: false, pro: true, pro_plus: true },
-  { label: 'Business Add-on Access', free: false, pro: false, pro_plus: true },
-  { label: 'Content Add-on Access', free: false, pro: false, pro_plus: true },
-  { label: 'Custom AI Prompts', free: false, pro: false, pro_plus: true },
-  { label: 'Priority Support', free: false, pro: false, pro_plus: true },
+  { label: 'Dashboard + 1 area of your choice', free: true, paid: true },
+  { label: 'All 5 life areas (Finance, Health, Career, Business, Content)', free: false, paid: true },
+  { label: 'Unlimited entries & bank connections', free: false, paid: true },
+  { label: 'AI Chat Assistant', free: false, paid: true },
+  { label: 'Autonomous Agents', free: false, paid: true },
+  { label: 'Integrations (Google, banks & syncs)', free: false, paid: true },
+  { label: 'Pay only for the modules you enable', free: false, paid: true },
+  { label: 'Switch modules anytime — prorated', free: false, paid: true },
 ]
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -585,6 +594,8 @@ const fade = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }
 export function LandingPage() {
   const navigate = useNavigate()
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+  const { currency, loading, format } = usePricingCurrency()
+  const isUSD = currency.code === 'USD'
 
   return (
     <PageWrapper>
@@ -702,22 +713,20 @@ export function LandingPage() {
       {/* ── Feature comparison ── */}
       <CompareSection>
         <SectionLabel>Plans</SectionLabel>
-        <SectionTitle>Free is genuinely useful. Pro is life-changing.</SectionTitle>
+        <SectionTitle>Free is genuinely useful. Everything is life-changing.</SectionTitle>
         <SectionSubtitle style={{ margin: '0 auto 0' }}>
-          Start free, upgrade when you want the AI layer.
+          Start free with one area, then add only the modules you want.
         </SectionSubtitle>
         <CompareTable>
           <CompareHeader>Feature</CompareHeader>
-          <CompareHeader>Starter (Free)</CompareHeader>
-          <CompareHeader $highlight>Pro</CompareHeader>
-          <CompareHeader $highlight>Pro Plus</CompareHeader>
+          <CompareHeader>Free</CompareHeader>
+          <CompareHeader $highlight>Everything</CompareHeader>
           {COMPARE_ROWS.map(r => (
-            <>
-              <CompareRow key={`label-${r.label}`}><Layers size={13} style={{ opacity: 0.5 }} />{r.label}</CompareRow>
-              <CompareRow key={`free-${r.label}`}>{r.free ? <Check size={14} className="yes" /> : <span className="no">—</span>}</CompareRow>
-              <CompareRow key={`pro-${r.label}`} $highlight>{r.pro ? <Check size={14} className="yes" /> : <span className="no">—</span>}</CompareRow>
-              <CompareRow key={`pro_plus-${r.label}`} $highlight>{r.pro_plus ? <Check size={14} className="yes" /> : <span className="no">—</span>}</CompareRow>
-            </>
+            <Fragment key={r.label}>
+              <CompareRow><Layers size={13} style={{ opacity: 0.5 }} />{r.label}</CompareRow>
+              <CompareRow>{r.free ? <Check size={14} className="yes" /> : <span className="no">—</span>}</CompareRow>
+              <CompareRow $highlight>{r.paid ? <Check size={14} className="yes" /> : <span className="no">—</span>}</CompareRow>
+            </Fragment>
           ))}
         </CompareTable>
       </CompareSection>
@@ -725,39 +734,43 @@ export function LandingPage() {
       {/* ── Pricing preview ── */}
       <PricingWrap>
         <SectionLabel>Pricing</SectionLabel>
-        <SectionTitle>Simple, transparent pricing.</SectionTitle>
+        <SectionTitle>Pay only for what you use.</SectionTitle>
         <PriceCards>
           <PriceCard>
-            <PriceName>Starter</PriceName>
-            <PriceAmount>₹0</PriceAmount>
-            <PricePer>forever</PricePer>
+            <PriceName>Free</PriceName>
+            <PriceAmount>{loading ? '$0' : format(0)}</PriceAmount>
+            <PricePer>forever · no card required</PricePer>
             <PriceFeats>
-              {['Basic Finance, Health, Career', 'Limited to 50 items/mo', '1 Bank Connection'].map(f => (
+              {[FREE_BASE_BLURB, 'Core tracking & logging', 'Upgrade a module anytime'].map(f => (
                 <PriceFeat key={f}><Check size={13} style={{ color: 'var(--accent)' }} />{f}</PriceFeat>
               ))}
             </PriceFeats>
             <Button variant="outline" fullWidth onClick={() => navigate('/signup')}>Get started</Button>
           </PriceCard>
           <PriceCard>
-            <PriceName style={{ color: 'rgba(255,255,255,0.7)' }}>Pro</PriceName>
-            <PriceAmount>₹999</PriceAmount>
-            <PricePer>per month (₹12 USD equivalent)</PricePer>
+            <PriceName style={{ color: 'rgba(255,255,255,0.7)' }}>Per module</PriceName>
+            <PriceAmount>{loading ? `$${MODULE_PRICE}` : format(MODULE_PRICE)}</PriceAmount>
+            {!isUSD && !loading
+              ? <PriceUsdNote>≈ ${MODULE_PRICE} USD · per module / mo</PriceUsdNote>
+              : <PricePer>per module · per month</PricePer>}
             <PriceFeats>
-              {['Unlimited Finance & Health', 'Unlimited Bank Connections', 'AI Chat Assistant', 'Autonomous Agents'].map(f => (
+              {['Enable any of 8 modules', 'Areas + AI Chat, Agents, Integrations', 'Switch anytime — prorated', 'Metered AI on top of usage'].map(f => (
                 <PriceFeat key={f}><Check size={13} style={{ color: 'var(--accent)' }} />{f}</PriceFeat>
               ))}
             </PriceFeats>
-            <Button variant="secondary" fullWidth onClick={() => navigate('/signup')}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Start free trial <ArrowRight size={14} /></span>
+            <Button variant="secondary" fullWidth onClick={() => navigate('/pricing')}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Build your plan <ArrowRight size={14} /></span>
             </Button>
           </PriceCard>
           <PriceCard $featured>
-            <PriceBadge>Most popular</PriceBadge>
-            <PriceName style={{ color: 'rgba(255,255,255,0.7)' }}>Pro Plus</PriceName>
-            <PriceAmount>₹1699</PriceAmount>
-            <PricePer>per month (₹20 USD equivalent)</PricePer>
+            <PriceBadge>Best value</PriceBadge>
+            <PriceName style={{ color: 'rgba(255,255,255,0.7)' }}>Everything</PriceName>
+            <PriceAmount>{loading ? `$${BUNDLE_PRICE}` : format(BUNDLE_PRICE)}</PriceAmount>
+            {!isUSD && !loading
+              ? <PriceUsdNote>≈ ${BUNDLE_PRICE} USD · per month</PriceUsdNote>
+              : <PricePer>per month</PricePer>}
             <PriceFeats>
-              {['Everything in Pro', 'Optional Business Add-on', 'Optional Content Add-on', 'Custom Prompts', 'Priority Processing'].map(f => (
+              {[`All ${TOTAL_MODULES} modules unlocked`, 'Every life area + AI services', 'Cheaper than 6 modules à la carte', 'Free monthly AI usage cap included'].map(f => (
                 <PriceFeat key={f}><Check size={13} style={{ color: 'var(--accent)' }} />{f}</PriceFeat>
               ))}
             </PriceFeats>
@@ -768,7 +781,7 @@ export function LandingPage() {
         </PriceCards>
         <div style={{ marginTop: '1.5rem', fontSize: 13, color: 'var(--muted-foreground)' }}>
           <Link to="/pricing" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
-            See full pricing & Household plan →
+            Build your plan & see all modules →
           </Link>
         </div>
       </PricingWrap>

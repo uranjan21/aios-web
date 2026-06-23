@@ -12,12 +12,58 @@ from typing import Optional
 from sqlmodel import select
 
 from app.core.config import get_settings
+from app.core.entitlements import ALL_MODULES, BUNDLE_KEY, GRACE_STATUSES
 from app.models.billing import Subscription
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
 VALID_PLANS = {"free", "pro", "household"}
+
+
+def _price_for_module(key: str) -> Optional[str]:
+    """Stripe price id for a module/bundle key, from STRIPE_MODULE_PRICES."""
+    return get_settings().stripe_module_prices.get(key)
+
+
+def _module_for_price(price_id: Optional[str]) -> Optional[str]:
+    """Reverse map: Stripe price id → module/bundle key."""
+    if not price_id:
+        return None
+    for key, pid in get_settings().stripe_module_prices.items():
+        if pid == price_id:
+            return key
+    return None
+
+
+def _desired_line_items(desired_modules: set[str], bundle: bool) -> list[dict]:
+    """Build Stripe line items for the desired entitlement.
+
+    Bundle collapses to a single 'everything' price. Modules with no configured
+    price are skipped (logged) so a partial catalog can't block checkout.
+    """
+    if bundle:
+        price = _price_for_module(BUNDLE_KEY)
+        if not price:
+            raise RuntimeError(f"No Stripe price configured for '{BUNDLE_KEY}'")
+        items = [{"price": price, "quantity": 1}]
+    else:
+        items = []
+        for key in sorted(desired_modules & set(ALL_MODULES)):
+            price = _price_for_module(key)
+            if price:
+                items.append({"price": price, "quantity": 1})
+            else:
+                logger.warning("No Stripe price for module '%s' — skipping", key)
+
+    # Attach the metered AI usage item when the user owns a metered module, so the
+    # Phase-2 reporting job has a subscription item to push usage to. Metered
+    # prices carry no quantity.
+    owns_metered = bundle or bool({"chat", "agents"} & desired_modules)
+    ai_price = _price_for_module("ai_usage")
+    if owns_metered and ai_price:
+        items.append({"price": ai_price})
+    return items
 
 
 def _stripe():
@@ -111,6 +157,92 @@ async def create_portal_session(db, user: User, return_url: str) -> str:
     return session["url"]
 
 
+async def set_free_area(db, user_id: uuid.UUID, area: Optional[str]) -> Subscription:
+    """Pick/change the single free area. Entitlement-only — no Stripe event."""
+    sub = await get_or_create_subscription(db, user_id)
+    sub.free_area = area if (area in ALL_MODULES) else None
+    sub.updated_at = datetime.utcnow()
+    db.add(sub)
+    await db.commit()
+    await db.refresh(sub)
+    return sub
+
+
+async def set_modules(db, user: User, modules, bundle: bool) -> dict:
+    """Set the desired owned-module set.
+
+    Billing off (self-host/dev) → persist directly (free, no payment). Billing on
+    → reconcile via Stripe; the *local* `modules` are then updated by the webhook
+    once Stripe confirms. Returns `{"checkout_url": str | None, ...}`.
+    """
+    settings = get_settings()
+    desired = set(ALL_MODULES) if bundle else (set(modules) & set(ALL_MODULES))
+    sub = await get_or_create_subscription(db, user.id)
+
+    if not settings.billing_enabled:
+        sub.modules = sorted(desired)
+        sub.bundle = bool(bundle)
+        sub.status = "active"
+        sub.updated_at = datetime.utcnow()
+        db.add(sub)
+        await db.commit()
+        await db.refresh(sub)
+        return {"checkout_url": None, "modules": sub.modules, "bundle": sub.bundle}
+
+    return await reconcile_subscription(db, user, sub, desired, bundle)
+
+
+async def reconcile_subscription(db, user: User, sub: Subscription, desired_modules: set[str], bundle: bool) -> dict:
+    """Bring the user's Stripe subscription in line with the desired entitlement.
+
+    No Stripe sub yet → a Checkout Session (captures the card + creates the sub).
+    Existing sub → diff `SubscriptionItem`s (prorated add/remove). The local
+    `modules` column is rebuilt from the resulting webhook, not here.
+
+    NOTE: the existing-subscription diff path is only exercised with live Stripe
+    (test-mode keys) — there is no offline unit coverage for it.
+    """
+    settings = get_settings()
+    stripe = _stripe()
+    customer_id = await _ensure_customer(db, user, sub)
+    desired_items = _desired_line_items(desired_modules, bundle)
+    if not desired_items:
+        raise ValueError("No billable modules selected")
+
+    if not sub.stripe_subscription_id:
+        session = await asyncio.to_thread(
+            stripe.checkout.Session.create,
+            mode="subscription",
+            customer=customer_id,
+            line_items=desired_items,
+            success_url=f"{settings.allowed_origin}/app/settings?billing=success",
+            cancel_url=f"{settings.allowed_origin}/pricing",
+            client_reference_id=str(user.id),
+            allow_promotion_codes=True,
+        )
+        return {"checkout_url": session["url"]}
+
+    # Existing subscription → diff items against the desired price set.
+    current = await asyncio.to_thread(stripe.Subscription.retrieve, sub.stripe_subscription_id)
+    current_items = {
+        (it.get("price") or {}).get("id"): it.get("id")
+        for it in current.get("items", {}).get("data", [])
+    }
+    desired_prices = {li["price"] for li in desired_items}
+
+    for price_id in desired_prices - set(current_items):
+        await asyncio.to_thread(
+            stripe.SubscriptionItem.create,
+            subscription=sub.stripe_subscription_id, price=price_id, proration_behavior="create_prorations",
+        )
+    for price_id, item_id in current_items.items():
+        if price_id not in desired_prices and item_id:
+            await asyncio.to_thread(
+                stripe.SubscriptionItem.delete, item_id, proration_behavior="create_prorations",
+            )
+    return {"checkout_url": None}
+
+
 async def _apply_subscription_object(db, obj: dict) -> None:
     """Update the local Subscription row from a Stripe subscription object."""
     customer_id = obj.get("customer")
@@ -126,17 +258,32 @@ async def _apply_subscription_object(db, obj: dict) -> None:
     status = obj.get("status", "active")
     sub.status = status
     sub.stripe_subscription_id = obj.get("id")
-    # Derive plan from the first line item's price
-    try:
-        price_id = obj["items"]["data"][0]["price"]["id"]
-        sub.plan = _plan_for_price(price_id) if status in ("active", "trialing") else "free"
-    except (KeyError, IndexError, TypeError):
-        pass
+
+    # Rebuild the owned module set from ALL line items (not just the first), so a
+    # multi-module subscription is represented faithfully. `past_due` keeps modules
+    # (grace) so dunning doesn't revoke access mid-retry.
+    active = status in GRACE_STATUSES
+    owned: set[str] = set()
+    bundle = False
+    for item in obj.get("items", {}).get("data", []) or []:
+        key = _module_for_price((item.get("price") or {}).get("id"))
+        if key == BUNDLE_KEY:
+            bundle = True
+        elif key in ALL_MODULES:
+            owned.add(key)
+
+    if active:
+        sub.bundle = bundle
+        sub.modules = sorted(ALL_MODULES) if bundle else sorted(owned)
+    else:
+        sub.bundle = False
+        sub.modules = []
+    # Keep the legacy `plan` roughly in sync for any back-compat display.
+    sub.plan = "household" if (active and bundle) else ("pro" if (active and owned) else "free")
+
     period_end = obj.get("current_period_end")
     if period_end:
         sub.current_period_end = datetime.utcfromtimestamp(period_end)
-    if status in ("canceled", "incomplete_expired", "unpaid"):
-        sub.plan = "free"
     sub.updated_at = datetime.utcnow()
     db.add(sub)
     await db.commit()

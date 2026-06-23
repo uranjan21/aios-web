@@ -41,9 +41,9 @@ def _isolation_tables():
     from app.models.integration import IntegrationCredential
     from app.models.agent import Agent
     from app.models.push import PushSubscription
-    from app.models.billing import Subscription
+    from app.models.billing import Subscription, AIUsageRecord
     return [m.__table__ for m in (
-        User, ChatSession, ChatMessage, Capture, IntegrationCredential, Agent, PushSubscription, Subscription
+        User, ChatSession, ChatMessage, Capture, IntegrationCredential, Agent, PushSubscription, Subscription, AIUsageRecord
     )]
 
 

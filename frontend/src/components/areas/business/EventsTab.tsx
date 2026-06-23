@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Timeline } from 'antd'
-import { Button, Input, Select, SelectItem, Textarea, Badge, Card } from '@ledgr/ui'
+import { Button, Input, Select, Textarea, Badge, Card } from '@ledgr/ui'
 import { Plus, History, ListChecks } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import styled from 'styled-components'
@@ -105,11 +105,14 @@ function NewEventForm({ onClose, businessId }: { onClose: () => void, businessId
       <FormGrid>
         <div>
           <FormLabel htmlFor="evt-type">Type</FormLabel>
-          <Select id="evt-type" value={eventType} onValueChange={setEventType} required aria-label="Event type">
-            {Object.entries(EVENT_TYPE_LABELS).map(([v, l]) => (
-              <SelectItem key={v} value={v}>{l}</SelectItem>
-            ))}
-          </Select>
+          <Select
+            id="evt-type"
+            value={eventType}
+            onChange={(val) => setEventType(String(val))}
+            options={Object.entries(EVENT_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }))}
+            placeholder="Choose event type…"
+            aria-label="Event type"
+          />
         </div>
         <div>
           <FormLabel htmlFor="evt-mrr">MRR (optional)</FormLabel>

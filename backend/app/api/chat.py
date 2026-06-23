@@ -182,6 +182,10 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
                             content=full_response,
                         ))
                         await session.commit()
+                    # Meter one AI action per completed response (Phase 2).
+                    from app.services.billing.usage import record_ai_usage
+                    async with AsyncSessionLocal() as session:
+                        await record_ai_usage(session, user_id, units=1, source="chat")
 
     except WebSocketDisconnect:
         pass

@@ -35,11 +35,19 @@ const Shell = styled.div<{ $fullWidth: boolean }>`
   box-shadow: ${({ theme }) => theme.shadow.xs};
   margin-bottom: 16px;
   min-height: 44px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  &::-webkit-scrollbar { display: none; }
   flex-shrink: 0;
   width: 100%;
+  
+  /* Wrap on mobile */
+  flex-wrap: wrap;
+  height: auto;
+  
+  @media (min-width: 640px) {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
+  }
 `
 
 // ── Sections ──────────────────────────────────────────────────────────────────
@@ -50,6 +58,11 @@ const LeftSlot = styled.div`
   gap: 8px;
   flex-shrink: 0;
   min-width: 0;
+  
+  flex-wrap: wrap;
+  @media (min-width: 640px) {
+    flex-wrap: nowrap;
+  }
 `
 
 export const ToolbarTitle = styled.span`
@@ -57,6 +70,11 @@ export const ToolbarTitle = styled.span`
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
   white-space: nowrap;
+
+  /* Hide subtexts (ToolbarMeta typically sits next to it in 'left' slot) 
+     Wait, ToolbarMeta is a separate component. 
+     The user requested hiding subtext OR wrapping. 
+     We are wrapping the whole toolbar, so no need to hide here unless it's too squished. */
 `
 
 export const ToolbarDivider = styled.div`
@@ -73,6 +91,11 @@ const RightSlot = styled.div`
   gap: 8px;
   margin-left: auto;
   flex-shrink: 0;
+  
+  flex-wrap: wrap;
+  @media (min-width: 640px) {
+    flex-wrap: nowrap;
+  }
 `
 
 // ── Convenience sub-components ────────────────────────────────────────────────
@@ -82,6 +105,11 @@ export const ToolbarMeta = styled.span`
   font-size: 11px;
   color: ${({ theme }) => theme.color.mutedForeground};
   white-space: nowrap;
+
+  display: none;
+  @media (min-width: 640px) {
+    display: inline;
+  }
 `
 
 /** Icon button slot — pill shape, white bg, thin border */

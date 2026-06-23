@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Sheet, Input, Textarea, Select, SelectItem, Button } from '@ledgr/ui'
+import { Sheet, Input, Textarea, Select, Button } from '@ledgr/ui'
 import { toast } from 'sonner'
 import { WandSparkles, Save, Trash2, BarChart3 } from 'lucide-react'
 import styled from 'styled-components'
@@ -215,34 +215,50 @@ export function ContentEditorDrawer({ open, item, campaigns, onClose }: {
         <Row>
           <Field>
             <Label>Platform</Label>
-            <Select aria-label="Platform" value={form.platform} onChange={v => set('platform', v as ContentItem['platform'])}>
-              {PLATFORMS.map(p => <SelectItem key={p} value={p}>{PLATFORM_META[p].label}</SelectItem>)}
-            </Select>
+            <Select
+              aria-label="Platform"
+              value={form.platform}
+              onChange={v => set('platform', v as ContentItem['platform'])}
+              placeholder="Choose platform…"
+              options={PLATFORMS.map(p => ({ value: p, label: PLATFORM_META[p].label }))}
+            />
           </Field>
           <Field>
             <Label>Type</Label>
-            <Select aria-label="Content type" value={form.content_type} onChange={v => set('content_type', v as string)}>
-              {CONTENT_TYPES.map(t => <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>)}
-            </Select>
+            <Select
+              aria-label="Content type"
+              value={form.content_type}
+              onChange={v => set('content_type', String(v))}
+              placeholder="Choose type…"
+              options={CONTENT_TYPES.map(t => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }))}
+            />
           </Field>
         </Row>
 
         <Row>
           <Field>
             <Label>Status</Label>
-            <Select aria-label="Status" value={form.status} onChange={v => set('status', v as ContentStatus)}>
-              {(Object.keys(STATUS_LABELS) as ContentStatus[]).map(s => (
-                <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
-              ))}
-            </Select>
+            <Select
+              aria-label="Status"
+              value={form.status}
+              onChange={v => set('status', v as ContentStatus)}
+              placeholder="Choose status…"
+              options={(Object.keys(STATUS_LABELS) as ContentStatus[]).map(s => ({ value: s, label: STATUS_LABELS[s] }))}
+            />
           </Field>
           <Field>
             <Label>Priority</Label>
-            <Select aria-label="Priority" value={form.priority} onChange={v => set('priority', v as ContentItem['priority'])}>
-              <SelectItem value="low">Low</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="high">High</SelectItem>
-            </Select>
+            <Select
+              aria-label="Priority"
+              value={form.priority}
+              onChange={v => set('priority', v as ContentItem['priority'])}
+              placeholder="Choose priority…"
+              options={[
+                { value: 'low', label: 'Low' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'high', label: 'High' },
+              ]}
+            />
           </Field>
         </Row>
 
@@ -253,10 +269,16 @@ export function ContentEditorDrawer({ open, item, campaigns, onClose }: {
           </Field>
           <Field>
             <Label>Campaign</Label>
-            <Select aria-label="Campaign" value={form.campaign_id} onChange={v => set('campaign_id', v as string)}>
-              <SelectItem value="">— None —</SelectItem>
-              {campaigns.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-            </Select>
+            <Select
+              aria-label="Campaign"
+              value={form.campaign_id}
+              onChange={v => set('campaign_id', String(v))}
+              placeholder="No campaign"
+              options={[
+                { value: '', label: '— None —' },
+                ...campaigns.map(c => ({ value: c.id, label: c.name })),
+              ]}
+            />
           </Field>
         </Row>
 

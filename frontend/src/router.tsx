@@ -83,50 +83,22 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-function RequirePlan({ children, allowed }: { children: React.ReactNode, allowed: string[] }) {
+/**
+ * Module-based route guard (Phase 1). Reads the backend-resolved `entitled` set
+ * — the single source of truth that already honours admins and billing-disabled
+ * installs (both return all modules). This is UX only; the backend's
+ * `require_module` is the real enforcement.
+ */
+function RequireModule({ children, module }: { children: React.ReactNode, module: string }) {
   const { data: sub, isLoading } = useSubscription()
   const user = useAuthStore(s => s.user)
 
   if (isLoading) return <PageLoader />
   if (user?.is_admin) return <>{children}</>
 
-  const currentPlan = sub?.plan || 'free'
-  if (!allowed.includes(currentPlan)) {
-    return <Navigate to="/pricing" replace />
-  }
-  return <>{children}</>
-}
-
-function RequireArea({ children, area }: { children: React.ReactNode, area: string }) {
-  const { data: sub, isLoading } = useSubscription()
-  const user = useAuthStore(s => s.user)
-
-  if (isLoading) return <PageLoader />
-  if (user?.is_admin) return <>{children}</>
-
-  const currentPlan = sub?.plan || 'free'
-  const addons = sub?.addons || []
-
-  // Household plan gets access to everything by default if owner bought them, 
-  // but wait, Household users need to buy their own add-ons according to the grille-me answer.
-  // So Household is treated just like Pro in terms of add-ons, or they get them if they have the add-on.
-
-  // Free, Pro, Pro Plus, Household all have basic access to finance, health, career
-  if (['finance', 'health', 'career'].includes(area)) {
-    return <>{children}</>
-  }
-
-  // Business and Content require either the specific add-on OR they might be included in some other way.
-  // Pro Plus base tier has them as add-ons.
-  // So if area is 'business', they need 'business' in addons.
-  if (['business', 'content'].includes(area)) {
-    if (addons.includes(area)) {
-      return <>{children}</>
-    }
-    return <Navigate to="/pricing" replace />
-  }
-
-  return <>{children}</>
+  const entitled = sub?.entitled ?? []
+  if (entitled.includes(module)) return <>{children}</>
+  return <Navigate to="/pricing" replace />
 }
 
 function Page({ children }: { children: React.ReactNode }) {
@@ -164,27 +136,27 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorBoundary />,
     children: [
       { index: true, element: <Page><DashboardPage /></Page> },
-      { path: 'chat', element: <Page><RequirePlan allowed={['pro', 'pro_plus', 'household']}><ChatPage /></RequirePlan></Page> },
-      { path: 'chat/:sessionId', element: <Page><RequirePlan allowed={['pro', 'pro_plus', 'household']}><ChatPage /></RequirePlan></Page> },
-      { path: 'agents', element: <Page><RequirePlan allowed={['pro', 'pro_plus', 'household']}><AgentsPage /></RequirePlan></Page> },
-      
+      { path: 'chat', element: <Page><RequireModule module="chat"><ChatPage /></RequireModule></Page> },
+      { path: 'chat/:sessionId', element: <Page><RequireModule module="chat"><ChatPage /></RequireModule></Page> },
+      { path: 'agents', element: <Page><RequireModule module="agents"><AgentsPage /></RequireModule></Page> },
+
       // Finance Area
-      { path: 'areas/finance', element: <Page><RequireArea area="finance"><FinancePage /></RequireArea></Page> },
+      { path: 'areas/finance', element: <Page><RequireModule module="finance"><FinancePage /></RequireModule></Page> },
 
       // Health Area
-      { path: 'areas/health', element: <Page><RequireArea area="health"><HealthPage /></RequireArea></Page> },
+      { path: 'areas/health', element: <Page><RequireModule module="health"><HealthPage /></RequireModule></Page> },
 
       // Career Area
-      { path: 'areas/career', element: <Page><RequireArea area="career"><CareerPage /></RequireArea></Page> },
+      { path: 'areas/career', element: <Page><RequireModule module="career"><CareerPage /></RequireModule></Page> },
 
       // Business Area
-      { path: 'areas/business', element: <Page><RequireArea area="business"><BusinessPage /></RequireArea></Page> },
+      { path: 'areas/business', element: <Page><RequireModule module="business"><BusinessPage /></RequireModule></Page> },
 
       // Content Area
-      { path: 'areas/content', element: <Page><RequireArea area="content"><ContentPage /></RequireArea></Page> },
+      { path: 'areas/content', element: <Page><RequireModule module="content"><ContentPage /></RequireModule></Page> },
       
       // System
-      { path: 'integrations', element: <Page><IntegrationsPage /></Page> },
+      { path: 'integrations', element: <Page><RequireModule module="integrations"><IntegrationsPage /></RequireModule></Page> },
       { path: 'integrations/:provider/callback', element: <Page><OAuthCallbackPage /></Page> },
       { path: 'settings', element: <Page><SettingsPage /></Page> },
       { path: 'admin', element: <Page><RequireAdmin><AdminPage /></RequireAdmin></Page> },

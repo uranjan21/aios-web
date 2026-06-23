@@ -10,7 +10,7 @@ import { format } from 'date-fns'
 import type { FoodDbItem } from '@/types'
 import { Card as GlassCard } from '@ledgr/ui';
 import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
-import { Dialog, Button, Input, Select, SelectItem, Card, HeaderActionPortal, SegmentedControl } from '@ledgr/ui'
+import { Dialog, Button, Input, Select, Card, HeaderActionPortal, SegmentedControl } from '@ledgr/ui'
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack']
 
@@ -634,9 +634,14 @@ export function NutritionTab() {
           </StyledFormGroup>
           <StyledFormGroup>
             <StyledLabel htmlFor="nut-meal-type">Meal Type</StyledLabel>
-            <Select id="nut-meal-type" size="sm" value={formState.meal_type} onChange={(v: any) => setFormState(p => ({ ...p, meal_type: v }))}>
-              {MEAL_TYPES.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-            </Select>
+            <Select
+              id="nut-meal-type"
+              size="sm"
+              value={formState.meal_type}
+              onChange={(v) => setFormState(p => ({ ...p, meal_type: String(v) }))}
+              options={MEAL_TYPES.map(m => ({ value: m, label: m }))}
+              placeholder="Meal type"
+            />
           </StyledFormGroup>
           <StyledFormGrid>
             <StyledFormGroup>

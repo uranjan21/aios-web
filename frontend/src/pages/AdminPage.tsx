@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Shield, Users, Search, ChevronLeft, ChevronRight, Trash2, Crown, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import styled, { useTheme } from 'styled-components'
-import { PageHeader, Card as GlassCard } from '@ledgr/ui'
+import { PageHeader, Card as GlassCard, Select } from '@ledgr/ui'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { adminApi, AdminUser } from '@/api/admin'
@@ -189,7 +189,6 @@ function PlanSelect({ user, onDone }: { user: AdminUser; onDone: () => void }) {
   const [plan, setPlan] = useState(user.plan)
   const [status, setStatus] = useState(user.plan_status)
   const [open, setOpen] = useState(false)
-  const theme = useTheme()
 
   const mut = useMutation({
     mutationFn: () => adminApi.overridePlan(user.id, plan, status),
@@ -214,20 +213,18 @@ function PlanSelect({ user, onDone }: { user: AdminUser; onDone: () => void }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 160 }}>
       <div style={{ display: 'flex', gap: 4 }}>
-        <select
+        <Select
           value={plan}
-          onChange={e => setPlan(e.target.value)}
-          style={{ fontSize: 12, padding: '4px 6px', borderRadius: 6, border: `1px solid ${theme.color.border}`, background: theme.color.background, color: theme.color.foreground, flex: 1 }}
-        >
-          {PLANS.map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <select
+          onChange={(val) => setPlan(String(val))}
+          options={PLANS.map(p => ({ value: p, label: p }))}
+          placeholder="Plan"
+        />
+        <Select
           value={status}
-          onChange={e => setStatus(e.target.value)}
-          style={{ fontSize: 12, padding: '4px 6px', borderRadius: 6, border: `1px solid ${theme.color.border}`, background: theme.color.background, color: theme.color.foreground }}
-        >
-          {['active', 'trialing', 'past_due', 'canceled'].map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
+          onChange={(val) => setStatus(String(val))}
+          options={['active', 'trialing', 'past_due', 'canceled'].map(s => ({ value: s, label: s }))}
+          placeholder="Status"
+        />
       </div>
       <div style={{ display: 'flex', gap: 4 }}>
         <Button size="sm" variant="primary" onClick={() => mut.mutate()} disabled={mut.isPending} style={{ flex: 1 }}>
