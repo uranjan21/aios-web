@@ -110,6 +110,81 @@ const ThemeBtn = styled.button<{ $active: boolean }>`
   &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 2px; }
 `
 
+// ── Palette picker ────────────────────────────────────────────────────────────
+
+const PaletteLabel = styled.div`
+  font-size: 13px;
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.foreground};
+  padding: 14px 20px 0;
+`
+
+const PaletteGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 10px;
+  padding: 4px 20px 16px;
+`
+
+const PaletteBtn = styled.button<{ $active: boolean }>`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  border: 1px solid ${({ theme, $active }) => $active ? theme.color.accent : theme.color.border};
+  background: ${({ theme, $active }) => $active ? theme.color.muted : 'transparent'};
+  cursor: pointer;
+  transition: all 120ms;
+  &:hover { border-color: ${({ theme }) => theme.color.accent}; }
+  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 2px; }
+`
+
+const SwatchStack = styled.div`
+  display: flex;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  overflow: hidden;
+  width: 100%;
+  height: 28px;
+  box-shadow: ${({ theme }) => theme.shadow.xs};
+`
+
+const SwatchChip = styled.div<{ $color: string }>`
+  flex: 1;
+  background: ${({ $color }) => $color};
+`
+
+const PaletteName = styled.span<{ $active: boolean }>`
+  font-size: 11px;
+  font-weight: ${({ $active }) => $active ? 600 : 500};
+  color: ${({ theme, $active }) => $active ? theme.color.foreground : theme.color.mutedForeground};
+  text-align: center;
+`
+
+function PalettePicker() {
+  const { palette, setPalette } = useUIStore()
+  return (
+    <PaletteGrid>
+      {PALETTES.map(p => (
+        <PaletteBtn
+          key={p.id}
+          type="button"
+          $active={palette === p.id}
+          aria-pressed={palette === p.id}
+          aria-label={`${p.label} palette`}
+          onClick={() => setPalette(p.id)}
+        >
+          <SwatchStack>
+            {p.swatch.map((c, i) => <SwatchChip key={i} $color={c} />)}
+          </SwatchStack>
+          <PaletteName $active={palette === p.id}>{p.label}</PaletteName>
+        </PaletteBtn>
+      ))}
+    </PaletteGrid>
+  )
+}
+
 // ── Kbd ───────────────────────────────────────────────────────────────────────
 
 const KbdEl = styled.kbd`
@@ -411,12 +486,12 @@ const FormInput = styled.input`
 // ── Appearance section ────────────────────────────────────────────────────────
 
 function AppearanceSection() {
-  const { theme, setTheme } = useUIStore()
+  const { theme, setTheme, setPalette } = useUIStore()
   return (
     <Section
       title="Appearance"
       action={
-        <Button size="sm" variant="ghost" onClick={() => setTheme('light')}>
+        <Button size="sm" variant="ghost" onClick={() => { setTheme('light'); setPalette('monochrome') }}>
           Reset
         </Button>
       }
@@ -431,6 +506,8 @@ function AppearanceSection() {
           </ThemeBtn>
         </ThemeSwitcher>
       </Row>
+      <PaletteLabel>Color palette</PaletteLabel>
+      <PalettePicker />
     </Section>
   )
 }

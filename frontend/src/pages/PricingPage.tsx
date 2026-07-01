@@ -150,7 +150,7 @@ const ModuleTile = styled.button<{ $selected: boolean }>`
     display: grid;
     place-items: center;
     background: ${({ theme, $selected }) => ($selected ? theme.color.accent : theme.color.muted)};
-    color: ${({ theme, $selected }) => ($selected ? '#fff' : theme.color.mutedForeground)};
+    color: ${({ theme, $selected }) => ($selected ? theme.color.accentForeground : theme.color.mutedForeground)};
   }
   .body { min-width: 0; flex: 1; }
   .row { display: flex; align-items: center; gap: 6px; }
@@ -224,7 +224,7 @@ const BundleButton = styled.button<{ $active: boolean }>`
   font-weight: 600;
   cursor: pointer;
   background: ${({ theme, $active }) => ($active ? theme.color.primary : theme.color.muted)};
-  color: ${({ theme, $active }) => ($active ? '#fff' : theme.color.foreground)};
+  color: ${({ theme, $active }) => ($active ? theme.color.primaryForeground : theme.color.foreground)};
   border: 1px solid ${({ theme, $active }) => ($active ? 'transparent' : theme.color.border)};
   &:hover { border-color: ${({ theme }) => theme.color.primary}; }
 `

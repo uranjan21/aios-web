@@ -176,7 +176,7 @@ const AdminBadge = styled.span`
   gap: 3px;
   font-size: 10px;
   font-weight: 700;
-  color: #fff;
+  color: ${({ theme }) => theme.color.primaryForeground};
   background: ${({ theme }) => theme.color.primary};
   padding: 2px 6px;
   border-radius: 20px;

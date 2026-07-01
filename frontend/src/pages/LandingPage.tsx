@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import styled, { keyframes } from 'styled-components'
+import styled, { keyframes, useTheme } from 'styled-components'
 import { motion } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@ledgr/ui'
@@ -320,7 +320,7 @@ const AiTitle = styled.h2`
   font-family: ${({ theme }) => theme.typography.fontFamily.serif};
   font-size: clamp(1.75rem, 4vw, 2.75rem);
   font-weight: 700;
-  color: #fff;
+  color: ${({ theme }) => theme.color.primaryForeground};
   margin-bottom: 1rem;
   max-width: 700px;
   margin-inline: auto;
@@ -328,7 +328,7 @@ const AiTitle = styled.h2`
 
 const AiSubtitle = styled.p`
   font-size: 1.05rem;
-  color: rgba(255,255,255,0.65);
+  color: ${({ theme }) => theme.color.primaryForeground}A6;
   max-width: 520px;
   margin: 0 auto 2.5rem;
   line-height: 1.65;
@@ -343,8 +343,8 @@ const AiGrid = styled.div`
 `
 
 const AiCard = styled.div`
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: ${({ theme }) => theme.color.primaryForeground}0F;
+  border: 1px solid ${({ theme }) => theme.color.primaryForeground}1A;
   border-radius: 14px;
   padding: 1.5rem;
   text-align: left;
@@ -353,7 +353,7 @@ const AiCard = styled.div`
 const AiCardTitle = styled.div`
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: ${({ theme }) => theme.color.primaryForeground};
   margin-bottom: 6px;
   display: flex;
   align-items: center;
@@ -363,7 +363,7 @@ const AiCardTitle = styled.div`
 
 const AiCardDesc = styled.div`
   font-size: 13px;
-  color: rgba(255,255,255,0.55);
+  color: ${({ theme }) => theme.color.primaryForeground}8C;
   line-height: 1.55;
 `
 
@@ -387,7 +387,7 @@ const CompareTable = styled.div`
 const CompareHeader = styled.div<{ $highlight?: boolean }>`
   padding: 1.5rem;
   background: ${({ theme, $highlight }) => $highlight ? theme.color.primary : theme.color.card};
-  color: ${({ $highlight }) => $highlight ? '#fff' : 'inherit'};
+  color: ${({ theme, $highlight }) => $highlight ? theme.color.primaryForeground : 'inherit'};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   font-weight: 700;
   font-size: 15px;
@@ -424,7 +424,7 @@ const PriceCards = styled.div`
 
 const PriceCard = styled.div<{ $featured?: boolean }>`
   background: ${({ theme, $featured }) => $featured ? theme.color.primary : theme.color.card};
-  color: ${({ $featured }) => $featured ? '#fff' : 'inherit'};
+  color: ${({ theme, $featured }) => $featured ? theme.color.primaryForeground : 'inherit'};
   border: 1px solid ${({ theme, $featured }) => $featured ? 'transparent' : theme.color.border};
   border-radius: 16px;
   padding: 2rem;
@@ -438,7 +438,7 @@ const PriceBadge = styled.div`
   left: 50%;
   transform: translateX(-50%);
   background: ${({ theme }) => theme.color.accent};
-  color: #fff;
+  color: ${({ theme }) => theme.color.accentForeground};
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -539,7 +539,7 @@ const DOMAINS = [
     icon: <TrendingUp size={22} />,
     name: 'Finance',
     desc: 'Your complete money command center.',
-    feats: ['Transactions & split bills', 'Budgets & spending alerts', 'Investment portfolio', 'Loan EMI tracker', 'Goals & savings plans'],
+    feats: ['Transactions & categories', 'Budgets & spending alerts', 'Investment portfolio', 'Loan EMI tracker', 'Goals & savings plans'],
   },
   {
     icon: <Activity size={22} />,
@@ -596,6 +596,7 @@ export function LandingPage() {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
   const { currency, loading, format } = usePricingCurrency()
   const isUSD = currency.code === 'USD'
+  const theme = useTheme()
 
   return (
     <PageWrapper>
@@ -649,8 +650,8 @@ export function LandingPage() {
       <StatsStrip>
         {[
           { num: '5', label: 'Life domains' },
-          { num: '36+', label: 'Data tables tracked' },
-          { num: '6', label: 'AI agent types' },
+          { num: '41+', label: 'Data tables tracked' },
+          { num: '8', label: 'AI agent types' },
           { num: '100%', label: 'Data isolation' },
         ].map(s => (
           <StatItem key={s.label}>
@@ -692,7 +693,7 @@ export function LandingPage() {
       {/* ── AI Section ── */}
       <AiSection>
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
-          <SectionLabel style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center' }}>AI-first</SectionLabel>
+          <SectionLabel style={{ color: `${theme.color.primaryForeground}80`, textAlign: 'center' }}>AI-first</SectionLabel>
           <AiTitle>Not just a dashboard. An AI co-pilot for your life.</AiTitle>
           <AiSubtitle>
             Agents that analyse your real data, run on a schedule, and surface insights you'd never find on your own.
@@ -748,7 +749,7 @@ export function LandingPage() {
             <Button variant="outline" fullWidth onClick={() => navigate('/signup')}>Get started</Button>
           </PriceCard>
           <PriceCard>
-            <PriceName style={{ color: 'rgba(255,255,255,0.7)' }}>Per module</PriceName>
+            <PriceName>Per module</PriceName>
             <PriceAmount>{loading ? `$${MODULE_PRICE}` : format(MODULE_PRICE)}</PriceAmount>
             {!isUSD && !loading
               ? <PriceUsdNote>≈ ${MODULE_PRICE} USD · per module / mo</PriceUsdNote>
@@ -764,7 +765,7 @@ export function LandingPage() {
           </PriceCard>
           <PriceCard $featured>
             <PriceBadge>Best value</PriceBadge>
-            <PriceName style={{ color: 'rgba(255,255,255,0.7)' }}>Everything</PriceName>
+            <PriceName style={{ color: `${theme.color.primaryForeground}B3` }}>Everything</PriceName>
             <PriceAmount>{loading ? `$${BUNDLE_PRICE}` : format(BUNDLE_PRICE)}</PriceAmount>
             {!isUSD && !loading
               ? <PriceUsdNote>≈ ${BUNDLE_PRICE} USD · per month</PriceUsdNote>

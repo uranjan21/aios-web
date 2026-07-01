@@ -54,13 +54,21 @@ const sharedFontFamily = {
   mono: '"DM Sans", monospace',
 } as const;
 
-function buildTheme(base: AnyTheme, colors: PaletteColors, mode: 'light' | 'dark'): AnyTheme {
+function buildTheme(base: AnyTheme, colors: PaletteColors, chrome: PaletteColors, mode: 'light' | 'dark'): AnyTheme {
   return {
     ...base,
     shadow: mode === 'dark' ? flatShadowDark : flatShadowLight,
     radii: sharedRadii,
     typography: { ...base.typography, fontFamily: sharedFontFamily },
     color: colors,
+    // Sidebar chrome is intentionally always-dark regardless of light/dark mode
+    // (see Sidebar.tsx) — sourced from the palette's dark colors so it still
+    // repaints with the selected palette instead of a hardcoded black+gold.
+    chrome: {
+      bg: chrome.card,
+      border: chrome.muted,
+      fg: chrome.foreground,
+    },
   };
 }
 
@@ -68,7 +76,7 @@ function buildTheme(base: AnyTheme, colors: PaletteColors, mode: 'light' | 'dark
 export function getTheme(paletteId: string, mode: 'light' | 'dark'): AnyTheme {
   const palette = getPalette(paletteId);
   const base = mode === 'dark' ? darkTheme : lightTheme;
-  return buildTheme(base, mode === 'dark' ? palette.dark : palette.light, mode);
+  return buildTheme(base, mode === 'dark' ? palette.dark : palette.light, palette.dark, mode);
 }
 
 // Back-compat named exports (default "monochrome" palette) for any stray imports.

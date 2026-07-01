@@ -293,7 +293,7 @@ export function BodySleepTab() {
         <KpiGrid $cols={5}>
           <KpiCard label="Weight" icon={Scale} color="primary" sub="Latest body weight" loading={loadingWeight} value={latestWeight != null ? `${latestWeight} kg` : '—'} />
           <KpiCard label="Body Fat" icon={Percent} color="purple" sub="Estimated body fat %" loading={loadingBodyFat} value={latestBodyFat != null ? `${latestBodyFat}%` : '—'} />
-          <KpiCard label="BMI" icon={Ruler} color="emerald" sub="Body mass index" loading={loadingGoals} value={bmi != null ? bmi.toFixed(1) : 'Set height & weight'} />
+          <KpiCard label="BMI" icon={Ruler} color="emerald" sub={bmi != null ? 'Body mass index' : 'Set height & weight in Settings'} loading={loadingGoals} value={bmi != null ? bmi.toFixed(1) : '—'} />
           <KpiCard label="Last Night" icon={Moon} color="indigo" sub="Last logged sleep duration" loading={loadingSleep} value={lastNight != null ? `${lastNight}h` : '—'} />
           <KpiCard label="7-Day Avg" icon={Clock} color="primary" sub="Average sleep this week" loading={loadingSleep} value={`${weeklyAvg}h`} />
         </KpiGrid>
@@ -304,8 +304,8 @@ export function BodySleepTab() {
             subtitle="Recent body composition logs over time"
             icon={<LineChartIcon size={16} />}
             action={
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }} onClick={(e) => e.stopPropagation()}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, color: 'var(--muted-foreground)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 24 }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 10, color: 'var(--muted-foreground)' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <span style={{ width: 8, height: 8, borderRadius: 999, background: theme.color.accent }} /> Weight
                   </span>
@@ -356,8 +356,8 @@ export function BodySleepTab() {
             subtitle="Hours slept per day vs your target"
             icon={<BarChart3 size={16} />}
             action={
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }} onClick={(e) => e.stopPropagation()}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, color: 'var(--muted-foreground)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 24 }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 10, color: 'var(--muted-foreground)' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <span style={{ width: 8, height: 8, borderRadius: 2, background: theme.color.accent }} /> At/above target
                   </span>

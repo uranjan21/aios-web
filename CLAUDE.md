@@ -6,6 +6,27 @@ A full-stack personal life-management OS — Finance, Health, Career, Business, 
 
 ---
 
+## 📍 Progress Snapshot (auto-synced)
+
+**Last synced:** 2026-07-01
+
+**Shipped:**
+- 3 rounds of multi-tenancy/security audits closed the original IDOR + isolation leaks; a full 9-domain backend re-audit (2026-06-30) + Opus second pass (2026-07-01) verified the fixes and caught one more (uncapped agent LLM spend, now gated).
+- Pivoted billing from fixed 4-tier to modular pay-per-module ($5/module, $29 bundle) — Phases 0-3 (entitlement gating, Stripe multi-item billing, metered AI, dunning) are code-complete; only live-Stripe test-mode verification remains.
+- Content area rebuilt into a full 6-tab CMS; Business area rebuilt into a multi-business Portfolio Hub.
+- "Premium Black + Gold" design system (@ledgr/ui) locked and rolled out app-wide.
+- Backend suite: 53 tests passing. `tsc`/`pnpm build` clean.
+
+**Uncommitted right now:** health tab, sidebar, admin/landing/pricing/settings pages, and theme files are dirty in the working tree (post the theme-palette-system commit `a06efb9`).
+
+**Next up** (see `docs/PRODUCT_ROADMAP.md`):
+- Verify Stripe billing end-to-end with test-mode keys; drop legacy `plan`/`addons` columns once verified.
+- Phase 2 — Engagement: Daily Executive Briefing, logging-streak heatmap, make the 8 scheduled agents actually useful (or hide them).
+- Phase 3 — the actual moat: the cross-domain Synergy Engine (nightly correlation job → AI Discoveries feed). Nothing built yet.
+- Backlog carried forward: OAuth state needs Redis (breaks on >1 worker), JWT has no revocation, Content CMS metrics are manual-entry only.
+
+---
+
 ## Stack
 
 - **Frontend**: React 18 + TypeScript + Vite + **@ledgr/ui** (component library at `ledgr-ui/`) + styled-components + Ant Design (complex widgets only — Tabs, DatePicker, Segmented)
@@ -348,5 +369,5 @@ The Business area was completely refactored from a monolithic single-business da
 
 ---
 
-**Last Updated**: 2026-06-22 | **Version**: 0.4.0 | Pricing: pivoting to dynamic/modular hybrid (planned — see `docs/DYNAMIC_PRICING_PLAN.md`)
+**Last Updated**: 2026-07-01 | **Version**: 0.4.0 | Pricing: pivoting to dynamic/modular hybrid (planned — see `docs/DYNAMIC_PRICING_PLAN.md`)
 

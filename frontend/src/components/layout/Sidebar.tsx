@@ -11,15 +11,12 @@ import styled, { css } from 'styled-components'
 // import { Tooltip } from '@ledgr/ui' // Assumed available, otherwise use native title or Radix
 
 /**
- * Fixed dark-chrome palette. The sidebar is intentionally dark in BOTH light and
- * dark themes, so these are hardcoded rather than theme tokens — do NOT swap to
- * theme.color.primary/card, which resolve to near-white in dark mode and would
- * make the sidebar turn white (the original dark-mode contrast bug).
+ * The sidebar is intentionally dark chrome in BOTH light and dark app modes —
+ * do NOT swap to theme.color.primary/card, which resolve to near-white in
+ * dark mode and would make the sidebar turn white (the original dark-mode
+ * contrast bug). Instead it reads theme.chrome.*, which aiosTheme.ts derives
+ * from the active palette's dark colors, so it still repaints per palette.
  */
-const CHROME_BG = '#1C1917'
-const CHROME_BORDER = '#292524'
-const CHROME_FG = '#FAFAF9'
-
 const SidebarRoot = styled.aside<{ $collapsed: boolean; $mobileOpen?: boolean }>`
   position: relative;
   display: flex;
@@ -27,8 +24,8 @@ const SidebarRoot = styled.aside<{ $collapsed: boolean; $mobileOpen?: boolean }>
   width: ${({ $collapsed }) => ($collapsed ? '64px' : '224px')};
   height: 100vh;
   flex-shrink: 0;
-  background: ${CHROME_BG};
-  border-right: 1px solid ${CHROME_BORDER};
+  background: ${({ theme }) => theme.chrome.bg};
+  border-right: 1px solid ${({ theme }) => theme.chrome.border};
   transition: width 200ms cubic-bezier(0.2, 0, 0, 1);
   z-index: 30;
 
@@ -64,18 +61,18 @@ const ToggleButton = styled.button<{ $collapsed: boolean }>`
   width: 24px;
   height: 24px;
   border-radius: ${({ theme }) => theme.radii.sm};
-  background: ${CHROME_BG};
-  border: 1px solid ${CHROME_BORDER};
-  color: ${CHROME_FG};
+  background: ${({ theme }) => theme.chrome.bg};
+  border: 1px solid ${({ theme }) => theme.chrome.border};
+  color: ${({ theme }) => theme.chrome.fg};
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   box-shadow: ${({ theme }) => theme.shadow.md};
   transition: background-color 120ms, border-color 120ms;
-  
+
   &:hover {
-    background: ${CHROME_BORDER};
+    background: ${({ theme }) => theme.chrome.border};
   }
   
   & > svg {
@@ -100,7 +97,7 @@ const BrandPanel = styled.div`
   align-items: center;
   gap: 12px;
   padding: 16px;
-  border-bottom: 1px solid ${CHROME_BORDER};
+  border-bottom: 1px solid ${({ theme }) => theme.chrome.border};
   min-height: 68px; /* 36px badge + 32px padding */
   position: relative;
   overflow: hidden;
@@ -111,7 +108,7 @@ const LogoBadge = styled.div`
   height: 36px;
   flex-shrink: 0;
   border-radius: 12px;
-  background: ${CHROME_BORDER};
+  background: ${({ theme }) => theme.chrome.border};
   color: ${({ theme }) => theme.color.accent};
   display: flex;
   align-items: center;
@@ -136,13 +133,15 @@ const BrandText = styled.div<{ $collapsed: boolean }>`
     font-family: ${({ theme }) => theme.typography.fontFamily.serif};
     font-size: 1rem;
     font-weight: 700;
-    color: ${CHROME_FG};
+    color: ${({ theme }) => theme.chrome.fg};
+
+    .accent { color: ${({ theme }) => theme.color.accent}; }
   }
   .tagline {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: ${CHROME_FG}99;
+    color: ${({ theme }) => theme.chrome.fg}99;
   }
 `
 
@@ -169,12 +168,12 @@ const CategoryHeader = styled.div<{ $collapsed: boolean }>`
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.09em;
-  color: ${CHROME_FG}80;
+  color: ${({ theme }) => theme.chrome.fg}80;
   padding: 0 12px;
   margin-bottom: 6px;
   min-height: 15px;
 
-  ${({ $collapsed }) => $collapsed && css`
+  ${({ $collapsed, theme }) => $collapsed && css`
     color: transparent;
     position: relative;
     &::after {
@@ -184,7 +183,7 @@ const CategoryHeader = styled.div<{ $collapsed: boolean }>`
       right: 12px;
       top: 50%;
       height: 1px;
-      background: ${CHROME_FG}33;
+      background: ${theme.chrome.fg}33;
     }
   `}
 `
@@ -197,7 +196,7 @@ const NavItemLink = styled(NavLink)<{ $collapsed: boolean }>`
   border-radius: 12px;
   font-size: 13px;
   font-weight: 500;
-  color: ${CHROME_FG}D9;
+  color: ${({ theme }) => theme.chrome.fg}D9;
   text-decoration: none;
   transition: background-color 120ms cubic-bezier(0.2, 0, 0, 1), color 120ms cubic-bezier(0.2, 0, 0, 1);
   position: relative;
@@ -222,7 +221,7 @@ const NavItemLink = styled(NavLink)<{ $collapsed: boolean }>`
 
   &:hover {
     background: rgba(255, 255, 255, 0.06);
-    color: ${CHROME_FG};
+    color: ${({ theme }) => theme.chrome.fg};
   }
 
   &:focus-visible {
@@ -232,7 +231,7 @@ const NavItemLink = styled(NavLink)<{ $collapsed: boolean }>`
 
   &.active {
     background: rgba(255, 255, 255, 0.10);
-    color: ${CHROME_FG};
+    color: ${({ theme }) => theme.chrome.fg};
     font-weight: 600;
     
     & > svg {
@@ -254,7 +253,7 @@ const NavItemLink = styled(NavLink)<{ $collapsed: boolean }>`
 `
 
 const UserBlock = styled.div<{ $collapsed: boolean }>`
-  border-top: 1px solid ${CHROME_BORDER};
+  border-top: 1px solid ${({ theme }) => theme.chrome.border};
   padding: 8px;
   display: flex;
   align-items: center;
@@ -291,7 +290,7 @@ const UserInfo = styled.div<{ $collapsed: boolean }>`
   .name {
     font-size: 12px;
     font-weight: 500;
-    color: ${CHROME_FG};
+    color: ${({ theme }) => theme.chrome.fg};
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -341,7 +340,7 @@ export function Sidebar() {
       <BrandPanel>
         <LogoBadge>A</LogoBadge>
         <BrandText $collapsed={collapsed}>
-          <span className="name">AIOS</span>
+          <span className="name">ai<span className="accent">os</span></span>
           <span className="tagline">Premium Agent</span>
         </BrandText>
       </BrandPanel>

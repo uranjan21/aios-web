@@ -79,124 +79,22 @@ const GOALS: Goal[] = [
 
 
 
-const StyledGoalCardHeader = styled.div`
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-`;
-
-const StyledGoalCardTitleWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`;
-
-const StyledGoalCardIconWrapper = styled.div<{ $color: string }>`
-  padding: 0.375rem;
-  border-radius: 0.5rem;
-  background-color: rgba(45, 49, 58, 0.1);
-  color: ${({ $color }) => $color};
-`;
-
-const StyledGoalCardTitle = styled.span`
-  font-size: 12px;
-  font-weight: 500;
-  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
-`;
-
-const StyledGoalValueWrapper = styled.div`
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-`;
-
-const StyledGoalCurrentValue = styled.span`
-  font-size: 12px;
-  font-weight: 500;
-  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
-  font-variant-numeric: tabular-nums;
-`;
-
-const StyledGoalTargetValue = styled.span`
-  font-size: 11px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  margin-left: 4px;
-`;
-
-const StyledGoalProgressBar = styled.div`
-  height: 0.375rem;
-  background-color: rgba(45, 49, 58, 0.15);
-  border-radius: ${({ theme }) => theme.radii.sm};
-  overflow: hidden;
-  margin-bottom: 0.5rem;
-`;
-
-const StyledGoalProgressFill = styled.div<{ $pct: number; $done: boolean }>`
-  height: 100%;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  transition: width 0.5s, background-color 0.5s;
-  background-color: ${({ $done }) => $done ? 'var(--primary)' : 'var(--primary)'};
-  width: ${({ $pct }) => `${$pct}%`};
-`;
-
-const StyledGoalInputWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-`;
-
-const StyledGoalInputLabel = styled.label`
-  font-size: 10px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  flex-shrink: 0;
-`;
-
-const StyledGoalInputUnit = styled.span`
-  font-size: 10px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-`;
-
 function GoalCard({ goal, current, target }: {
   goal: Goal
   current: number | null
   target: number
 }) {
-  const Icon = goal.icon
-  const pct = current != null && target > 0
-    ? Math.min((goal.key === 'weight'
-      ? Math.max(0, 1 - (current - target) / target) * 100
-      : (current / target) * 100), 100)
-    : 0
   const done = goal.key === 'weight'
     ? (current != null && current <= target)
     : (current != null && current >= target)
 
   return (
-    <GlassCard
-      title={goal.label}
-      subtitle="Daily target progress"
-      icon={<Icon size={16} style={{ color: goal.color }} />}
-      action={done && <CheckCircle2 size={16} style={{ color: 'var(--primary)' }} />}
-      size="sm"
-    >
-      <StyledGoalValueWrapper>
-        <StyledGoalCurrentValue>
-          {current != null ? current : '—'}
-        </StyledGoalCurrentValue>
-        <StyledGoalTargetValue>/ {target} {goal.unit}</StyledGoalTargetValue>
-      </StyledGoalValueWrapper>
-
-      <StyledGoalProgressBar>
-        <StyledGoalProgressFill $pct={pct} $done={done} />
-      </StyledGoalProgressBar>
-
-      <StyledGoalInputWrapper>
-        <StyledGoalInputLabel>Target:</StyledGoalInputLabel>
-        <StyledGoalInputUnit>{target} {goal.unit}</StyledGoalInputUnit>
-      </StyledGoalInputWrapper>
-    </GlassCard>
+    <KpiCard
+      label={goal.label}
+      icon={goal.icon}
+      action={done ? <CheckCircle2 size={16} style={{ color: 'var(--primary)' }} /> : undefined}
+      value={`${current != null ? current : '—'} / ${target} ${goal.unit}`}
+    />
   )
 }
 
@@ -513,33 +411,6 @@ const StyledSectionTitle = styled.span`
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
 `;
 
-const StyledGoalsGrid = styled.div`
-  display: flex;
-  overflow-x: auto;
-  gap: 8px;
-  padding-bottom: 4px;
-  
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  &::-webkit-scrollbar { display: none; }
-  
-  > * {
-    flex: 0 0 auto;
-    min-width: 140px;
-  }
-
-  @media (min-width: 640px) {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.75rem;
-    padding-bottom: 0;
-    
-    > * { min-width: 0; }
-  }
-`;
-
-
-
 const StyledBadgesWrapper = styled.div`
   display: flex;
   flex-wrap: wrap;
@@ -770,7 +641,7 @@ export function FitnessTab() {
             <Target style={{ width: '14px', height: '14px', color: 'var(--muted-foreground)' }} />
             <StyledSectionTitle>Fitness Goals — edit targets in Settings</StyledSectionTitle>
           </StyledSectionHeader>
-          <StyledGoalsGrid>
+          <KpiGrid $cols={3}>
             {GOALS.map(goal => {
               const logs = goal.key === 'daily_water' ? waterLogs : goal.key === 'weekly_gym' ? gymLogs : undefined
               const current = goal.getValue(summary as Record<string, unknown> | undefined, streak as Record<string, unknown> | undefined, logs as Record<string, unknown>[] | undefined)
@@ -783,7 +654,7 @@ export function FitnessTab() {
                 />
               )
             })}
-          </StyledGoalsGrid>
+          </KpiGrid>
         </div>
 
         {/* PRs */}

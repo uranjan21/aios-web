@@ -10,7 +10,7 @@ import { format } from 'date-fns'
 import type { FoodDbItem } from '@/types'
 import { Card as GlassCard } from '@ledgr/ui';
 import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
-import { Dialog, Button, Input, Select, Card, HeaderActionPortal, SegmentedControl } from '@ledgr/ui'
+import { Dialog, Button, Input, Select, Card, HeaderActionPortal } from '@ledgr/ui'
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack']
 
@@ -506,19 +506,21 @@ export function NutritionTab() {
           subtitle="Each meal you've logged today with macros"
           icon={<ListChecks size={16} />}
           action={
-            <SegmentedControl
-              size="sm"
-              aria-label="Filter meals by type"
-              value={mealFilter}
-              onChange={(v) => setMealFilter(v as typeof mealFilter)}
-              options={[
-                { value: 'all', label: 'All' },
-                { value: 'Breakfast', label: 'B' },
-                { value: 'Lunch', label: 'L' },
-                { value: 'Dinner', label: 'D' },
-                { value: 'Snack', label: 'S' },
-              ]}
-            />
+            <div onClick={(e) => e.stopPropagation()}>
+              <Select
+                size="sm"
+                aria-label="Filter meals by type"
+                value={mealFilter}
+                onChange={(v) => setMealFilter(v as typeof mealFilter)}
+                options={[
+                  { value: 'all', label: 'All Meals' },
+                  { value: 'Breakfast', label: 'Breakfast' },
+                  { value: 'Lunch', label: 'Lunch' },
+                  { value: 'Dinner', label: 'Dinner' },
+                  { value: 'Snack', label: 'Snack' },
+                ]}
+              />
+            </div>
           }
           size="none"
         >
