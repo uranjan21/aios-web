@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button, Input, Select, Dialog, SegmentedControl } from '@ledgr/ui'
@@ -94,13 +94,7 @@ const DialogTitle = styled.span`
   color: ${({ theme }) => theme.color.foreground};
 `
 
-const CATEGORIES = [
-  'Food', 'Transport', 'Rent', 'Health', 'Subscriptions',
-  'Clothes', 'Entertainment', 'Utilities', 'Education',
-  'Groceries', 'Personal Care', 'Investments', 'Others',
-]
-
-const GOAL_CATEGORIES = ['savings', 'travel', 'emergency', 'investment', 'purchase', 'other']
+const GOAL_CATEGORIES = ['Savings', 'Travel', 'Emergency', 'Investment', 'Purchase', 'Other']
 const BILL_CATEGORIES = ['utilities', 'rent', 'subscriptions', 'insurance', 'emi', 'other']
 
 const ICONS = ['🎯', '🏖️', '🚗', '📚', '🏠', '💍', '🏋️', '💰']
@@ -116,7 +110,12 @@ const COLORS = [
 function AddBudgetForm({ onSuccess }: { onSuccess?: () => void }) {
   const queryClient = useQueryClient()
   const { data: budgets } = useQuery({ queryKey: ['finance', 'budgets'], queryFn: financeApi.budgets })
-  
+  const { data: allCategories } = useQuery({
+    queryKey: ['finance', 'categories'],
+    queryFn: () => financeApi.categories('expense'),
+    staleTime: 60_000,
+  })
+
   const [values, setValues] = useState({ category: '', monthly_limit: '' })
 
   const { mutate, isPending } = useMutation({
@@ -131,7 +130,8 @@ function AddBudgetForm({ onSuccess }: { onSuccess?: () => void }) {
     onError: () => toast.error('Failed to save budget'),
   })
 
-  const available = CATEGORIES.filter(c => !budgets?.some(b => b.category === c))
+  const topLevelCategories = (allCategories ?? []).filter(c => c.parent_id === null).map(c => c.name)
+  const available = topLevelCategories.filter(c => !budgets?.some(b => b.category === c))
 
   return (
     <FormStack onSubmit={e => { e.preventDefault(); mutate(values) }}>
@@ -303,6 +303,8 @@ function AddBillForm({ onSuccess }: { onSuccess?: () => void }) {
 
 export function BudgetTabModal({ open, onClose, defaultTab = 'Budget' }: { open: boolean; onClose: () => void; defaultTab?: 'Budget' | 'Goal' | 'Bill' | 'Subscription' }) {
   const [activeTab, setActiveTab] = useState<'Budget' | 'Goal' | 'Bill' | 'Subscription'>(defaultTab || 'Budget')
+
+  useEffect(() => { if (open) setActiveTab(defaultTab || 'Budget') }, [open, defaultTab])
 
   return (
     <Dialog

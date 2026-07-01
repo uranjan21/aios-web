@@ -109,6 +109,15 @@ const INVESTMENT_TYPE_META: Record<string, { label: string; icon: string }> = {
   other: { label: 'Other', icon: '📦' },
 }
 
+const CURRENCY_OPTIONS = [
+  { value: 'INR', label: 'INR — Indian Rupee' },
+  { value: 'USD', label: 'USD — US Dollar' },
+  { value: 'EUR', label: 'EUR — Euro' },
+  { value: 'GBP', label: 'GBP — British Pound' },
+  { value: 'AED', label: 'AED — UAE Dirham' },
+  { value: 'SGD', label: 'SGD — Singapore Dollar' },
+]
+
 const LOAN_TYPE_META: Record<string, { label: string; icon: string }> = {
   home: { label: 'Home Loan', icon: '🏠' },
   personal: { label: 'Personal Loan', icon: '💵' },
@@ -173,7 +182,7 @@ function AddAccountForm({ onSuccess }: { onSuccess?: () => void }) {
         </div>
         <div>
           <LabelText>Currency</LabelText>
-          <FullInput value={values.currency} onChange={e => setValues({ ...values, currency: e.target.value })} />
+          <Select value={values.currency} onChange={v => setValues({ ...values, currency: String(v) })} options={CURRENCY_OPTIONS} aria-label="Currency" />
         </div>
       </Grid2Col>
       <SubmitButton type="submit" variant="primary" loading={isPending}>Add Account</SubmitButton>
@@ -183,7 +192,7 @@ function AddAccountForm({ onSuccess }: { onSuccess?: () => void }) {
 
 function AddCategoryForm({ onSuccess }: { onSuccess?: () => void }) {
   const queryClient = useQueryClient()
-  const { data: categories } = useQuery({ queryKey: ['finance_categories'], queryFn: financeApi.categories })
+  const { data: categories } = useQuery({ queryKey: ['finance', 'categories'], queryFn: () => financeApi.categories() })
 
   const [categoryText, setCategoryText] = useState('')
   const [subcategoryText, setSubcategoryText] = useState('')
@@ -204,7 +213,7 @@ function AddCategoryForm({ onSuccess }: { onSuccess?: () => void }) {
     }
   }, [activeMatch])
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['finance_categories'] })
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['finance', 'categories'] })
 
   const resetForm = () => {
     setCategoryText('')
@@ -475,6 +484,8 @@ function AddLoanForm({ onSuccess }: { onSuccess?: () => void }) {
 
 export function AccountsTabModal({ open, onClose, defaultTab = 'Account' }: { open: boolean; onClose: () => void; defaultTab?: 'Account' | 'Category' | 'Investment' | 'Loan' }) {
   const [activeTab, setActiveTab] = useState<'Account' | 'Category' | 'Investment' | 'Loan'>(defaultTab)
+
+  useEffect(() => { if (open) setActiveTab(defaultTab) }, [open, defaultTab])
 
   return (
     <Dialog

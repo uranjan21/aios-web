@@ -73,7 +73,7 @@ const Trigger = styled.button<{ $size: SelectSize; $invalid: boolean; $fullWidth
   width: ${({ $fullWidth }) => ($fullWidth ? '100%' : 'auto')};
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   color: ${({ theme }) => theme.color.foreground};
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.border)};
   cursor: pointer;

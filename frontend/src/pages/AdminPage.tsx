@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { adminApi, AdminUser } from '@/api/admin'
 import { useAuthStore } from '@/stores/authStore'
 import { PageContainer, PageContent } from '@/components/layout/PageLayout'
+import { PageDivider } from '@/components/layout/PageDivider'
 
 // ── Stat cards ───────────────────────────────────────────────────────────────
 
@@ -414,6 +415,7 @@ export function AdminPage() {
           icon={<Shield />}
           eyebrow="ADMIN"
         />
+        <PageDivider />
         <StatsSection />
         <UsersTable currentAdminId={user?.id ?? ''} />
       </PageContent>

@@ -2,8 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@/components/ui/Popconfirm'
 import { useState } from 'react'
-import { Button, Switch, Badge, SegmentedControl } from '@ledgr/ui'
-import { Trash2, Zap, Receipt } from 'lucide-react'
+import { Button, Switch, Badge, SegmentedControl, Select } from '@ledgr/ui'
+import { Trash2, Zap, Receipt, Plus } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { FinanceBill } from '@/types'
@@ -100,8 +100,9 @@ function ordinal(n: number) {
   return n + (s[(v - 20) % 10] || s[v] || s[0])
 }
 
-export function BillsTab() {
+export function BillsTab({ onAdd }: { onAdd?: () => void } = {}) {
   const queryClient = useQueryClient()
+  const [viewMode, setViewMode] = useState<'all' | 'subscriptions'>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused'>('all')
   const { data: bills, isLoading } = useQuery({
     queryKey: ['finance', 'bills'],
@@ -126,7 +127,10 @@ export function BillsTab() {
   const sorted = [...(bills ?? [])].sort((a, b) => getDaysUntilDue(a.due_day) - getDaysUntilDue(b.due_day))
   const activeBills = sorted.filter(b => b.is_active)
   const totalAmount = activeBills.reduce((s, b) => s + Number(b.amount), 0)
-  const visible = sorted.filter(b =>
+  const byView = viewMode === 'subscriptions'
+    ? sorted.filter(b => b.category?.toLowerCase() === 'subscriptions')
+    : sorted
+  const visible = byView.filter(b =>
     statusFilter === 'all' ? true : statusFilter === 'active' ? b.is_active : !b.is_active
   )
 
@@ -212,21 +216,40 @@ export function BillsTab() {
 
   return (
     <Table
-      title="Recurring Bills"
-      subtitle="Upcoming monthly bills sorted by due date"
+      title={viewMode === 'subscriptions' ? 'Subscriptions' : 'Recurring Bills'}
+      subtitle={viewMode === 'subscriptions' ? 'Bills categorised as Subscriptions' : 'Upcoming monthly bills sorted by due date'}
       icon={<Receipt size={16} />}
       action={
-        <SegmentedControl
-          size="sm"
-          aria-label="Filter bills by status"
-          value={statusFilter}
-          onChange={(v) => setStatusFilter(v as typeof statusFilter)}
-          options={[
-            { value: 'all', label: 'All' },
-            { value: 'active', label: 'Active' },
-            { value: 'paused', label: 'Paused' },
-          ]}
-        />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Select
+            size="sm"
+            fullWidth={false}
+            aria-label="View mode"
+            value={viewMode}
+            onChange={(v: any) => setViewMode(v as typeof viewMode)}
+            options={[
+              { value: 'all', label: 'All Bills' },
+              { value: 'subscriptions', label: 'Subscriptions' },
+            ]}
+          />
+          <Select
+            size="sm"
+            fullWidth={false}
+            aria-label="Filter bills by status"
+            value={statusFilter}
+            onChange={(v: any) => setStatusFilter(v as typeof statusFilter)}
+            options={[
+              { value: 'all', label: 'All Statuses' },
+              { value: 'active', label: 'Active' },
+              { value: 'paused', label: 'Paused' },
+            ]}
+          />
+          {onAdd && (
+            <Button size="sm" variant="primary" onClick={onAdd}>
+              <Plus size={12} style={{ marginRight: 4 }} /> Add Bill
+            </Button>
+          )}
+        </div>
       }
       rows={visible}
       columns={columns}

@@ -81,10 +81,11 @@ const Swatch = styled.span<{ $solid?: boolean }>`
   opacity: ${({ $solid }) => ($solid ? 1 : 0.55)};
 `
 
-export function CalendarTab({ items, cursor, onEdit }: {
+export function CalendarTab({ items, cursor, onEdit, toolbar }: {
   items: ContentItem[]
   cursor: Dayjs
   onEdit: (item: ContentItem) => void
+  toolbar?: React.ReactNode
 }) {
   const byDate = useMemo(() => {
     const map: Record<string, ContentItem[]> = {}
@@ -111,11 +112,13 @@ export function CalendarTab({ items, cursor, onEdit }: {
   const today = dayjs()
 
   return (
-    <SectionCard
-      title="Content Calendar"
-      subtitle="Scheduled and published content by date"
-      icon={<CalendarDays size={16} />}
-    >
+    <>
+      {toolbar}
+      <SectionCard
+        title="Content Calendar"
+        subtitle="Scheduled and published content by date"
+        icon={<CalendarDays size={16} />}
+      >
       <Weekdays>
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <Weekday key={d}>{d}</Weekday>)}
       </Weekdays>
@@ -146,6 +149,7 @@ export function CalendarTab({ items, cursor, onEdit }: {
         <LegendItem><Swatch $solid /> Published</LegendItem>
         <LegendItem><Swatch /> Scheduled</LegendItem>
       </Legend>
-    </SectionCard>
+      </SectionCard>
+    </>
   )
 }

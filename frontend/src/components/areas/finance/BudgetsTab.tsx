@@ -44,7 +44,7 @@ const UtilContainer = styled.div`
 
 const ProgressBarBg = styled.div`
   height: 0.375rem;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background-color: ${({ theme }) => theme.color.muted};
   overflow: hidden;
   margin-top: 0.25rem;
@@ -52,7 +52,7 @@ const ProgressBarBg = styled.div`
 
 const ProgressBarFill = styled.div<{ $color: string, $width: number }>`
   height: 100%;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   transition: all 0.2s;
   background-color: ${({ $color }) => $color};
   width: ${({ $width }) => $width}%;
@@ -117,12 +117,6 @@ const ButtonsWrapper = styled.div`
   margin-bottom: 0.5rem;
 `
 
-const CATEGORIES = [
-  'Food', 'Transport', 'Rent', 'Health', 'Subscriptions',
-  'Clothes', 'Entertainment', 'Utilities', 'Education',
-  'Groceries', 'Personal Care', 'Investments', 'Others',
-]
-
 export function BudgetsTab() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
@@ -135,6 +129,16 @@ export function BudgetsTab() {
     queryKey: ['finance', 'budgets'],
     queryFn: financeApi.budgets,
   })
+
+  const { data: allCategories } = useQuery({
+    queryKey: ['finance', 'categories'],
+    queryFn: () => financeApi.categories('expense'),
+    staleTime: 60_000,
+  })
+  // only top-level expense categories (parent_id === null)
+  const categoryOptions = (allCategories ?? [])
+    .filter(c => c.parent_id === null)
+    .map(c => c.name)
 
   const { data: status } = useQuery({
     queryKey: ['finance', 'budgets', 'status'],
@@ -210,7 +214,7 @@ export function BudgetsTab() {
         const spent = spentByCategory.get(record.category) ?? 0
         const pct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0
         const over = spent > limit
-        const barColor = over ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#10b981'
+        const barColor = over ? 'var(--destructive)' : pct >= 80 ? 'var(--accent)' : 'var(--success, #22c55e)'
         return (
           <UtilContainer>
             <ProgressBarBg>
@@ -259,13 +263,14 @@ export function BudgetsTab() {
       subtitle="Monthly spending caps and how much you've used"
       icon={<Gauge size={16} />}
       action={
-        <SegmentedControl
+        <Select
           size="sm"
+          fullWidth={false}
           aria-label="Filter budgets by status"
           value={statusFilter}
-          onChange={(v) => setStatusFilter(v as typeof statusFilter)}
+          onChange={(v: any) => setStatusFilter(v as typeof statusFilter)}
           options={[
-            { value: 'all', label: 'All' },
+            { value: 'all', label: 'All Budgets' },
             { value: 'over', label: 'Over' },
             { value: 'near', label: 'Near' },
             { value: 'ok', label: 'On track' },
@@ -283,7 +288,7 @@ export function BudgetsTab() {
                 disabled={!!editing}
                 value={formCategory}
                 onChange={(v) => setFormCategory(String(v))}
-                options={CATEGORIES
+                options={categoryOptions
                   .filter(c => !budgets?.some(b => b.category === c) || (editing && c === editing.category))
                   .map(c => ({ value: c, label: c }))}
               />

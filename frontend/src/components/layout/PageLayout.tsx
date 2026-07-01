@@ -28,7 +28,7 @@ export function PageToolbar({ children, className, title }: {
   className?: string
   title?: React.ReactNode
 }) {
-  if (!children && !title) return null
+  if (!children) return null
   return (
     <AreaToolbar className={className} title={title}>
       {children}

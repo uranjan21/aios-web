@@ -64,7 +64,7 @@ export function GuideOverview() {
           Talk to advanced AI models directly. You can share context, ask complex questions, and get detailed structured
           answers instantly. The chat interface supports rich markdown and code execution.
         </DocP>
-        <DocLink to="/guide/chat">
+        <DocLink to="/app/guide/chat">
           Read the Chat Guide <MessageSquare size={16} />
         </DocLink>
 
@@ -73,7 +73,7 @@ export function GuideOverview() {
           Deploy specialized agents that work in the background. Unlike standard chat, agents can autonomously research,
           analyze datasets, and execute multi-step workflows on your behalf while you focus on other tasks.
         </DocP>
-        <DocLink to="/guide/agents">
+        <DocLink to="/app/guide/agents">
           Read the Agents Guide <Bot size={16} />
         </DocLink>
       </DocSection>
@@ -88,23 +88,23 @@ export function GuideOverview() {
         <DocUl>
           <DocLi>
             <strong>Finance:</strong> Track net worth, manage category budgets, and use the Debt Payoff Planner.{' '}
-            <AreaLink to="/guide/areas/finance">Explore Finance →</AreaLink>
+            <AreaLink to="/app/guide/areas/finance">Explore Finance →</AreaLink>
           </DocLi>
           <DocLi>
             <strong>Health:</strong> Log macros dynamically, track PRs, and map your 30-day weight trends.{' '}
-            <AreaLink to="/guide/areas/health">Explore Health →</AreaLink>
+            <AreaLink to="/app/guide/areas/health">Explore Health →</AreaLink>
           </DocLi>
           <DocLi>
             <strong>Career:</strong> Map your skills on a Radar chart and run AI Gap Analysis for target roles.{' '}
-            <AreaLink to="/guide/areas/career">Explore Career →</AreaLink>
+            <AreaLink to="/app/guide/areas/career">Explore Career →</AreaLink>
           </DocLi>
           <DocLi>
             <strong>Business:</strong> Track Runway, MRR trends via Highcharts, and log critical product events.{' '}
-            <AreaLink to="/guide/areas/business">Explore Business →</AreaLink>
+            <AreaLink to="/app/guide/areas/business">Explore Business →</AreaLink>
           </DocLi>
           <DocLi>
             <strong>Content:</strong> Manage posts via a Kanban board and generate platform-aware drafts using AI.{' '}
-            <AreaLink to="/guide/areas/content">Explore Content →</AreaLink>
+            <AreaLink to="/app/guide/areas/content">Explore Content →</AreaLink>
           </DocLi>
         </DocUl>
 

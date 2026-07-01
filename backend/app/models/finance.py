@@ -45,13 +45,17 @@ class Account(SQLModel, table=True):
 
 class Category(SQLModel, table=True):
     __tablename__ = "finance_categories"
-    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_category_user_name"),)
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     name: str = Field(nullable=False)
+    # Income and expense have separate category trees.
+    kind: str = Field(default="expense", nullable=False)  # "expense" | "income"
     parent_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_categories.id")
     icon: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
+    # Uniqueness (same name within a parent + kind) is enforced in the API layer:
+    # a global (user_id, name) unique constraint would wrongly block reusing a
+    # subcategory name (e.g. "Other") under different parents or in both trees.
 
 class FinanceExpense(SQLModel, table=True):
     __tablename__ = "finance_expenses"
@@ -124,7 +128,8 @@ class FinanceIncome(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
-    source: str = Field(nullable=False)  # salary/freelance/dividend/other
+    source: str = Field(nullable=False)  # denormalized top-level category name (rollup/back-compat)
+    category_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_categories.id")
     account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
     tags: Optional[str] = Field(default=None)  # comma-separated freeform labels
     description: Optional[str] = Field(default=None, sa_column=Column(Text))

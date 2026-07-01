@@ -372,6 +372,12 @@ class HabitToggle(BaseModel):
 
 @router.post("/habits/{habit_id}/toggle")
 async def toggle_habit_check(habit_id: _uuid.UUID, body: HabitToggle, current_user=Depends(get_current_user), db=Depends(get_db)):
+    owned = (await db.execute(
+        select(Habit.id).where(Habit.id == habit_id, Habit.user_id == current_user.id)
+    )).scalar_one_or_none()
+    if owned is None:
+        raise HTTPException(status_code=404, detail="Habit not found")
+
     day = body.date or datetime.utcnow().date().isoformat()
     existing = (await db.execute(
         select(HabitCheck).where(HabitCheck.user_id == current_user.id, HabitCheck.habit_id == habit_id, HabitCheck.check_date == day)

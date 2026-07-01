@@ -35,18 +35,35 @@ const fadeInUp = keyframes`
   to   { opacity: 1; transform: translateY(0); }
 `;
 
-const SIZE_PADDING: Record<CardSize, string> = {
-  sm:   '12px',
-  md:   '16px',
-  lg:   '24px',
-  none: '0',
-};
-
-const SIZE_PADDING_BOTTOM: Record<CardSize, string> = {
-  sm:   '8px',
-  md:   '12px',
-  lg:   '16px',
-  none: '0',
+const SIZE_PADDING: Record<CardSize, any> = {
+  sm: css`
+    padding: 8px;
+    padding-bottom: 6px;
+    @media (min-width: 640px) {
+      padding: 12px;
+      padding-bottom: 8px;
+    }
+  `,
+  md: css`
+    padding: 12px;
+    padding-bottom: 10px;
+    @media (min-width: 640px) {
+      padding: 16px;
+      padding-bottom: 12px;
+    }
+  `,
+  lg: css`
+    padding: 12px;
+    padding-bottom: 10px;
+    @media (min-width: 640px) {
+      padding: 24px;
+      padding-bottom: 16px;
+    }
+  `,
+  none: css`
+    padding: 0;
+    padding-bottom: 0;
+  `,
 };
 
 const variantStyles = {
@@ -88,8 +105,7 @@ const StyledCard = styled.div<{
 }>`
   border-radius: ${({ theme }) => theme.radii.lg};
   color: ${({ theme }) => theme.color.cardForeground};
-  padding: ${({ $size }) => SIZE_PADDING[$size]};
-  padding-bottom: ${({ $size }) => SIZE_PADDING_BOTTOM[$size]};
+  ${({ $size }) => SIZE_PADDING[$size]}
   ${({ $variant }) => variantStyles[$variant]}
   transition: box-shadow ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard},
               transform ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard},
@@ -122,13 +138,16 @@ export const CardHeader = styled.div<{ $inset?: boolean }>`
   align-items: flex-start;
   justify-content: space-between;
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
-  padding-bottom: 12px;
-  margin-bottom: 16px;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
   
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px;
   
   @media (min-width: 640px) {
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+    gap: 12px;
     align-items: center;
     flex-wrap: nowrap;
   }
@@ -164,10 +183,14 @@ export const TitleGroup = styled.div`
 export const CardTitle = styled.h2`
   margin: 0;
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
   line-height: 1.2;
+  
+  @media (min-width: 640px) {
+    font-size: 14px;
+  }
 `;
 
 export const CardSubtitle = styled.p`

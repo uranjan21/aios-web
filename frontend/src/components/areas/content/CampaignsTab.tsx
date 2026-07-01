@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Card, Dialog, Input, Textarea, Button, ConfirmDialog } from '@ledgr/ui'
-import { Pencil, Trash2, Target, Layers } from 'lucide-react'
+import { Card, Dialog, Input, Textarea, Button, ConfirmDialog, AreaToolbar, ToolbarMeta } from '@ledgr/ui'
+import { Pencil, Trash2, Target, Layers, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import styled from 'styled-components'
 import { contentApi } from '@/api/areas'
@@ -15,32 +15,10 @@ const Grid = styled.div`
   @media (min-width: 640px) { grid-template-columns: repeat(2, 1fr); }
   @media (min-width: 1100px) { grid-template-columns: repeat(3, 1fr); }
 `
-const CampaignCard = styled(Card)<{ $color: string }>`
-  position: relative;
-  overflow: hidden;
-  &::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 5px;
-    background: ${({ $color }) => $color};
-  }
-  &:hover .campaign-actions { opacity: 1; }
-  && {
-    padding: 18px 18px 14px 22px;
-  }
-`
-const CampaignHead = styled.div`
+const Actions = styled.div`
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-`
-const CampaignName = styled.h3`
-  font-size: 15px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.color.foreground};
-  margin: 0;
+  align-items: center;
+  gap: 4px;
 `
 const Goal = styled.p`
   font-size: 12.5px;
@@ -62,12 +40,7 @@ const FooterItem = styled.span`
   gap: 5px;
   font-variant-numeric: tabular-nums;
 `
-const Actions = styled.div`
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity 120ms;
-`
+
 const IconBtn = styled.button<{ $danger?: boolean }>`
   border: none;
   background: none;
@@ -168,6 +141,10 @@ export function CampaignsTab({ onRegisterNew }: {
 
   return (
     <>
+      <AreaToolbar title="Campaigns & Series" left={<ToolbarMeta>Group content into themed series</ToolbarMeta>}>
+        <Button variant="primary" size="sm" startIcon={<Plus size={13} />} onClick={openNew}>New Campaign</Button>
+      </AreaToolbar>
+
       {isLoading ? (
         <Grid>{[1, 2, 3].map(i => <Skeleton key={i} style={{ height: 140, borderRadius: 14 }} />)}</Grid>
       ) : !campaigns || campaigns.length === 0 ? (
@@ -175,21 +152,25 @@ export function CampaignsTab({ onRegisterNew }: {
       ) : (
         <Grid>
           {campaigns.map(c => (
-            <CampaignCard key={c.id} $color={c.color} size="none">
-              <CampaignHead>
-                <CampaignName>{c.name}</CampaignName>
+            <Card 
+              key={c.id} 
+              interactive
+              title={c.name}
+              icon={<div style={{ width: 12, height: 12, borderRadius: '50%', background: c.color }} />}
+              action={
                 <Actions className="campaign-actions">
                   <IconBtn onClick={() => openEdit(c)} aria-label="Edit campaign"><Pencil size={14} /></IconBtn>
                   <IconBtn $danger onClick={() => setConfirmDel({ open: true, id: c.id })} aria-label="Delete campaign"><Trash2 size={14} /></IconBtn>
                 </Actions>
-              </CampaignHead>
+              }
+            >
               {c.goal && <Goal><Target size={12} style={{ verticalAlign: -1, marginRight: 4 }} />{c.goal}</Goal>}
               {c.description && <Goal>{c.description}</Goal>}
               <Footer>
                 <FooterItem><Layers size={13} />{c.item_count} piece{c.item_count !== 1 ? 's' : ''}</FooterItem>
                 {c.start_date && <FooterItem>{new Date(c.start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}{c.end_date ? ` → ${new Date(c.end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}</FooterItem>}
               </Footer>
-            </CampaignCard>
+            </Card>
           ))}
         </Grid>
       )}

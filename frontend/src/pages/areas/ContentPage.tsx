@@ -134,16 +134,10 @@ export function ContentPage() {
     )
   } else if (tab === 'calendar') {
     toolbar = (
-      <AreaToolbar title={cursor.format('MMMM YYYY')} style={{ marginTop: 8 }}>
+      <AreaToolbar title={cursor.format('MMMM YYYY')} style={{ marginBottom: 16 }}>
         <Button variant="outline" size="sm" aria-label="Previous month" onClick={() => setCursor(c => c.subtract(1, 'month'))}><ChevronLeft size={14} /></Button>
         <Button variant="ghost" size="sm" onClick={() => setCursor(dayjs())}>Today</Button>
         <Button variant="outline" size="sm" aria-label="Next month" onClick={() => setCursor(c => c.add(1, 'month'))}><ChevronRight size={14} /></Button>
-      </AreaToolbar>
-    )
-  } else if (tab === 'campaigns') {
-    toolbar = (
-      <AreaToolbar title="Campaigns & Series" left={<ToolbarMeta>Group content into themed series</ToolbarMeta>} style={{ marginTop: 8 }}>
-        <Button variant="primary" size="sm" startIcon={<Plus size={13} />} onClick={() => campaignNewRef.current()}>New Campaign</Button>
       </AreaToolbar>
     )
   }
@@ -166,7 +160,6 @@ export function ContentPage() {
         <AreaTabs
           activeKey={tab}
           onChange={setTab}
-          toolbar={toolbar}
           items={[
             {
               key: 'overview',
@@ -186,12 +179,12 @@ export function ContentPage() {
             {
               key: 'calendar',
               label: <TabLabel><CalendarDays size={14} /> Calendar</TabLabel>,
-              children: <CalendarTab items={allItems} cursor={cursor} onEdit={openEdit} />,
+              children: <CalendarTab items={allItems} cursor={cursor} onEdit={openEdit} toolbar={toolbar} />,
             },
             {
               key: 'library',
               label: <TabLabel><Library size={14} /> Library</TabLabel>,
-              children: <LibraryTab rows={libraryRows} total={allItems.length} campaigns={allCampaigns} onEdit={openEdit} />,
+              children: <LibraryTab rows={libraryRows} total={allItems.length} campaigns={allCampaigns} onEdit={openEdit} toolbar={toolbar} />,
             },
             {
               key: 'analytics',

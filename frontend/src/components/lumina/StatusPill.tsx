@@ -24,7 +24,7 @@ const Pill = styled.span<{ $bg: string; $color: string }>`
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;

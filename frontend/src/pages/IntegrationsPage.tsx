@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { IconBadge, StatusPill } from '@/components/lumina';
 import { Card as GlassCard, PageHeader } from '@ledgr/ui';
+import { PageDivider } from '@/components/layout/PageDivider'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
 import type { Integration } from '@/types'
@@ -69,10 +70,10 @@ const SkeletonGroup = styled.div`
   gap: 6px;
 `
 
-const SkelIcon = styled(Skeleton)`width: 2rem; height: 2rem; border-radius: 0.75rem;`
+const SkelIcon = styled(Skeleton)`width: 2rem; height: 2rem; border-radius: ${({ theme }) => theme.radii.md};`
 const SkelTitle = styled(Skeleton)`height: 1rem; width: 8rem;`
 const SkelDesc = styled(Skeleton)`height: 0.75rem; width: 12rem;`
-const SkelStatus = styled(Skeleton)`height: 1.25rem; width: 5rem; border-radius: 9999px;`
+const SkelStatus = styled(Skeleton)`height: 1.25rem; width: 5rem; border-radius: ${({ theme }) => theme.radii.sm};`
 const SkelButton = styled(Skeleton)`height: 2rem; width: 6rem; border-radius: 0.5rem;`
 
 const SpinIcon = styled(RefreshCw)<{ $spinning: boolean }>`
@@ -220,6 +221,7 @@ export function IntegrationsPage() {
     <PageRoot>
       <PageContent>
         <PageHeader title="Integrations" subtitle="Connect your favorite tools and services." icon={<Puzzle />} />
+        <PageDivider />
         {isError ? (
           <ErrorCard message="Could not load integrations" onRetry={() => refetch()} />
         ) : (

@@ -6,7 +6,7 @@ import { LayoutDashboard } from 'lucide-react'
 const Root = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
   align-items: flex-start;
   width: 100%;
 
@@ -31,7 +31,7 @@ const Main = styled.div`
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 `
 
 export function WorkspaceLayout({ children, rail }: { children: ReactNode; rail?: ReactNode }) {

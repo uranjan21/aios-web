@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@/components/ui/Popconfirm'
-import { Button, Dialog, Input, DataTable, SegmentedControl, Card } from '@ledgr/ui'
-import { Trash2, PencilLine, CalendarDays, Target } from 'lucide-react'
+import { Button, Dialog, Input, DataTable, SegmentedControl, Card, Select } from '@ledgr/ui'
+import { Trash2, PencilLine, CalendarDays, Target, Plus } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { FinancialGoal } from '@/types'
@@ -56,13 +56,13 @@ const TargetAmountText = styled.span`
 const ProgressBarBg = styled.div`
   height: 0.375rem;
   background-color: ${({ theme }) => theme.color.muted};
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   overflow: hidden;
 `
 
 const ProgressBarFill = styled.div<{ $pct: number, $color: string }>`
   height: 100%;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   transition: all 0.5s;
   width: ${({ $pct }) => $pct}%;
   background-color: ${({ $color }) => $color};
@@ -143,7 +143,7 @@ function daysLeft(deadline: string | null): number | null {
   return differenceInDays(new Date(deadline), new Date())
 }
 
-export function GoalsTab() {
+export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
   type EditForm = { name: string; icon: string; target_amount: string; current_amount: string; deadline: string; color: string }
   const EMPTY_FORM: EditForm = { name: '', icon: '', target_amount: '0', current_amount: '0', deadline: '', color: '' }
 
@@ -310,25 +310,33 @@ export function GoalsTab() {
         subtitle="Track progress toward each savings target"
         icon={<Target size={16} />}
         action={
-          <SegmentedControl
-            size="sm"
-            aria-label="Filter goals by status"
-            value={statusFilter}
-            onChange={(v) => setStatusFilter(v as typeof statusFilter)}
-            options={[
-              { value: 'all', label: 'All' },
-              { value: 'active', label: 'Active' },
-              { value: 'completed', label: 'Done' },
-              { value: 'overdue', label: 'Overdue' },
-            ]}
-          />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Select
+              size="sm"
+              fullWidth={false}
+              aria-label="Filter goals by status"
+              value={statusFilter}
+              onChange={(v: any) => setStatusFilter(v as typeof statusFilter)}
+              options={[
+                { value: 'all', label: 'All Goals' },
+                { value: 'active', label: 'Active' },
+                { value: 'completed', label: 'Done' },
+                { value: 'overdue', label: 'Overdue' },
+              ]}
+            />
+            {onAdd && (
+              <Button size="sm" variant="primary" onClick={onAdd}>
+                <Plus size={12} style={{ marginRight: 4 }} /> Add Goal
+              </Button>
+            )}
+          </div>
         }
       >
         <DataTable
           rows={visibleGoals}
           columns={columns}
           getRowKey={row => row.id}
-          empty={{ icon: <Target size={20} />, title: 'No goals yet', description: 'Create a savings goal to track your progress.', action: <Button size="sm" variant="primary" onClick={() => {}}>Add Goal</Button> }}
+          empty={{ icon: <Target size={20} />, title: 'No goals yet', description: 'Create a savings goal to track your progress.', action: <Button size="sm" variant="primary" onClick={() => window.dispatchEvent(new Event('open-new-goal'))}>Add Goal</Button> }}
         />
 
         <Dialog

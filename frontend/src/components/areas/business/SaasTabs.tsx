@@ -1,5 +1,6 @@
 import { Card, EmptyState } from '@ledgr/ui'
 import styled from 'styled-components'
+import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
 import { Users, Route } from 'lucide-react'
 
 const Grid = styled.div`
@@ -13,13 +14,15 @@ const Grid = styled.div`
 
 export function SaasTabs() {
   return (
-    <Grid>
+    <WorkspaceLayout rail={undefined}>
+      <Grid>
       <Card title="Subscribers & Churn" icon={<Users size={16} />}>
         <EmptyState title="No subscriber data yet" description="Connect Stripe to pull in MRR and active subscribers." />
       </Card>
       <Card title="Product Roadmap" icon={<Route size={16} />}>
         <EmptyState title="Roadmap is empty" description="Add features you plan to ship to keep your users informed." />
       </Card>
-    </Grid>
+      </Grid>
+    </WorkspaceLayout>
   )
 }

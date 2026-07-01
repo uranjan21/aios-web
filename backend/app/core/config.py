@@ -5,7 +5,7 @@ import secrets
 from pydantic import model_validator, Field, ConfigDict
 from pydantic_settings import BaseSettings
 
-_INSECURE_DEFAULTS = {"change-me-in-production", "changeme", "secret", ""}
+_INSECURE_DEFAULTS = {"change-me-in-production", "changeme", "secret", "demo1234", ""}
 
 
 class Settings(BaseSettings):

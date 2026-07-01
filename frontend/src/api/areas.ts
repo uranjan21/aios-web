@@ -25,9 +25,9 @@ export const financeApi = {
     api.get<{ items: FinanceExpense[]; total: number; has_more: boolean }>(
       '/areas/finance/expenses', { params: { month, category, limit, offset, time_range, q, account_id } }
     ).then(r => r.data),
-  createExpense: (data: { amount: number; category: string; description?: string; logged_at?: string; account_id?: string; tags?: string; splits?: { category: string; amount: number }[] }) =>
-    api.post<FinanceExpense | { split_group_id: string; items: FinanceExpense[] }>('/areas/finance/expenses', data).then(r => r.data),
-  patchExpense: (id: string, d: Partial<{ amount: number; category: string | null; description: string | null; logged_at: string; account_id: string | null; tags: string | null }>) =>
+  createExpense: (data: { amount: number; category_id?: string | null; category?: string; description?: string; logged_at?: string; account_id?: string; tags?: string }) =>
+    api.post<FinanceExpense>('/areas/finance/expenses', data).then(r => r.data),
+  patchExpense: (id: string, d: Partial<{ amount: number; category_id: string | null; category: string | null; description: string | null; logged_at: string; account_id: string | null; tags: string | null }>) =>
     api.patch<FinanceExpense>(`/areas/finance/expenses/${id}`, d).then(r => r.data),
   deleteExpense: (id: string) => api.delete(`/areas/finance/expenses/${id}`).then(r => r.data),
   // Goals (Savings Pots)
@@ -42,8 +42,8 @@ export const financeApi = {
   deleteBill: (id:string) => api.delete(`/areas/finance/bills/${id}`).then(r=>r.data),
   // Income
   income: (month?: string) => api.get<FinanceIncome[]>('/areas/finance/income', { params: { month } }).then(r => r.data),
-  createIncome: (d: {amount:number; source:string; description?:string; logged_at?:string; account_id?:string; tags?:string}) => api.post<FinanceIncome>('/areas/finance/income', d).then(r=>r.data),
-  patchIncome: (id: string, d: Partial<{ amount: number; source: string; description: string | null; logged_at: string; account_id: string | null; tags: string | null }>) =>
+  createIncome: (d: {amount:number; category_id?:string|null; source?:string; description?:string; logged_at?:string; account_id?:string; tags?:string}) => api.post<FinanceIncome>('/areas/finance/income', d).then(r=>r.data),
+  patchIncome: (id: string, d: Partial<{ amount: number; category_id: string | null; source: string; description: string | null; logged_at: string; account_id: string | null; tags: string | null }>) =>
     api.patch<FinanceIncome>(`/areas/finance/income/${id}`, d).then(r => r.data),
   deleteIncome: (id: string) => api.delete(`/areas/finance/income/${id}`).then(r => r.data),
   // Transfers
@@ -70,8 +70,8 @@ export const financeApi = {
   accountLedger: (id: string, limit = 50) =>
     api.get<{ account: Account; entries: LedgerEntry[] }>(`/areas/finance/accounts/${id}/ledger`, { params: { limit } }).then(r => r.data),
   // Categories
-  categories: () => api.get<Category[]>('/areas/finance/categories').then(r => r.data),
-  createCategory: (data: { name: string; parent_id?: string | null; icon?: string | null }) =>
+  categories: (kind?: 'expense' | 'income') => api.get<Category[]>('/areas/finance/categories', { params: { kind } }).then(r => r.data),
+  createCategory: (data: { name: string; kind?: string; parent_id?: string | null; icon?: string | null }) =>
     api.post<Category>('/areas/finance/categories', data).then(r => r.data),
   updateCategory: (id: string, data: Partial<{ name: string; parent_id: string | null; icon: string | null }>) =>
     api.patch<Category>(`/areas/finance/categories/${id}`, data).then(r => r.data),

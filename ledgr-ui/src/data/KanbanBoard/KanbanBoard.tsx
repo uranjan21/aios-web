@@ -70,7 +70,7 @@ const Count = styled.span`
   background: ${({ theme }) => theme.color.card};
   color: ${({ theme }) => theme.color.mutedForeground};
   padding: 2px 6px;
-  border-radius: ${({ theme }) => theme.radii.full};
+  border-radius: ${({ theme }) => theme.radii.sm};
   font-size: 10px;
 `;
 

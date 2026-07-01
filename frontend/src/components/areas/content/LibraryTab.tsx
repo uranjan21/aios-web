@@ -44,6 +44,7 @@ export function LibraryTab({ rows, total, campaigns, onEdit }: {
   total: number
   campaigns: ContentCampaign[]
   onEdit: (item: ContentItem) => void
+  toolbar?: React.ReactNode
 }) {
   const campaignName = useMemo(() => {
     const m: Record<string, string> = {}
@@ -89,16 +90,19 @@ export function LibraryTab({ rows, total, campaigns, onEdit }: {
   ]
 
   return (
-    <Table
-      rows={rows}
-      columns={columns}
-      getRowKey={(row: ContentItem) => row.id}
-      onRowClick={(row: ContentItem) => onEdit(row)}
-      empty={{
+    <>
+      {toolbar}
+      <Table
+        rows={rows}
+        columns={columns}
+        getRowKey={(row: ContentItem) => row.id}
+        onRowClick={(row: ContentItem) => onEdit(row)}
+        empty={{
         icon: <Library size={20} />,
         title: total === 0 ? 'No content yet' : 'No content matches',
         description: total === 0 ? 'Create your first piece to fill the library.' : 'Try adjusting your filters above.',
       }}
-    />
+      />
+    </>
   )
 }

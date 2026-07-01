@@ -108,7 +108,7 @@ const HeroEyebrow = styled(motion.div)`
   letter-spacing: 0.1em;
   color: ${({ theme }) => theme.color.accent};
   padding: 0.35rem 1rem;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   border: 1px solid ${({ theme }) => theme.color.accent}40;
   background: ${({ theme }) => theme.color.accent}0d;
   margin-bottom: 2rem;
@@ -444,7 +444,7 @@ const PriceBadge = styled.div`
   text-transform: uppercase;
   letter-spacing: 0.08em;
   padding: 3px 12px;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
 `
 
 const PriceName = styled.div`

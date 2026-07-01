@@ -2,7 +2,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, WebSocket
+from fastapi import Depends, FastAPI, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
@@ -67,7 +67,7 @@ async def lifespan(app: FastAPI):
         async def _get_vault_user_id():
             """Return the first registered user's id for vault association."""
             async with AsyncSessionLocal() as s:
-                result = await s.execute(sql_select(User).limit(1))
+                result = await s.execute(sql_select(User).order_by(User.created_at).limit(1))
                 user = result.scalar_one_or_none()
                 return user.id if user else None
 
@@ -147,7 +147,8 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     @app.get("/api/health")
-    async def health():
+    @limiter.limit("30/minute")
+    async def health(request: Request):
         from sqlalchemy import text
         from app.db.session import engine
         db_ok = False

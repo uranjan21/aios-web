@@ -43,13 +43,17 @@ export function FinanceGuide() {
       </DocSection>
 
       <DocSection>
-        <DocH2>Accounts & Assets</DocH2>
+        <DocH2>Budgets & Investments</DocH2>
         <DocP>
-          Manage liquid cash, credit lines, and illiquid investments in one place. The <Code>AccountsTab</Code> groups your balances into Bank, Cash, Credit Card, and Investments.
+          The <Code>Budgets</Code> tab tracks monthly spending limits per category, and the <Code>Investments</Code> tab tracks specific holdings across Stocks, Mutual Funds, and Crypto — the system calculates unrealized returns based on your invested principal.
         </DocP>
-        <DocUl>
-          <DocLi><strong>Investments:</strong> Track specific holdings across Stocks, Mutual Funds, and Crypto. The system calculates unrealized returns based on your invested principal.</DocLi>
-        </DocUl>
+      </DocSection>
+
+      <DocSection>
+        <DocH2>Finance Settings</DocH2>
+        <DocP>
+          Everything else — Accounts, Categories, Goals, Loans, and Bills — lives in a dedicated <Code>Settings</Code> page (the gear icon next to the Finance title). It groups these into "Money" (Accounts, Categories) and "Planning" (Goals, Loans, Bills) so configuration-style screens aren't scattered across the operational tabs.
+        </DocP>
       </DocSection>
 
       <DocSection>

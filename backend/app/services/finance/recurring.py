@@ -52,8 +52,10 @@ async def post_due_recurring(user_id: uuid.UUID) -> int:
         )).scalars().all()
 
         events = []
+        last_day_of_month = calendar.monthrange(now.year, now.month)[1]
         for bill in bills:
-            if bill.due_day > now.day or bill.last_posted_period == period:
+            effective_due_day = min(bill.due_day, last_day_of_month)
+            if effective_due_day > now.day or bill.last_posted_period == period:
                 continue
             session.add(FinanceExpense(
                 user_id=user_id,
@@ -71,7 +73,8 @@ async def post_due_recurring(user_id: uuid.UUID) -> int:
             posted += 1
 
         for loan in loans:
-            if loan.emi_day > now.day or loan.last_posted_period == period:
+            effective_emi_day = min(loan.emi_day, last_day_of_month)
+            if effective_emi_day > now.day or loan.last_posted_period == period:
                 continue
             session.add(FinanceExpense(
                 user_id=user_id,

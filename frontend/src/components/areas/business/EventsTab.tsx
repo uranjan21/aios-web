@@ -1,6 +1,9 @@
 // @ts-nocheck
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { HeaderActionPortal } from '@ledgr/ui'
+import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
+import type { BusinessEvent } from '@/types'
 import { toast } from 'sonner'
 import { Timeline } from 'antd'
 import { Button, Input, Select, Textarea, Badge, Card } from '@ledgr/ui'
@@ -135,12 +138,7 @@ function NewEventForm({ onClose, businessId }: { onClose: () => void, businessId
   )
 }
 
-const TabContainer = styled.div`
-  max-width: 42rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-`
+
 
 const TimelineDot = styled.div`
   width: 0.625rem;
@@ -262,7 +260,7 @@ export function EventsTab({ businessId }: { businessId?: string }) {
   })) ?? []
 
   return (
-    <TabContainer>
+    <WorkspaceLayout rail={undefined}>
       <AnimatePresence>
         {showForm && <NewEventForm onClose={() => setShowForm(false)} businessId={businessId} />}
       </AnimatePresence>
@@ -315,6 +313,6 @@ export function EventsTab({ businessId }: { businessId?: string }) {
           <Timeline items={timelineItems} />
         )}
       </Card>
-    </TabContainer>
+    </WorkspaceLayout>
   )
 }

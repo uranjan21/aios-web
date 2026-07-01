@@ -1,26 +1,26 @@
 // @ts-nocheck
-import { useDeferredValue, useMemo, useState, useEffect } from 'react'
+import { useDeferredValue, useMemo, useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs, { Dayjs } from 'dayjs'
 import isoWeek from 'dayjs/plugin/isoWeek'
 import { Popconfirm } from '@/components/ui/Popconfirm'
-import { SegmentedControl, Button, Dialog, DialogFooter, Input, Select, SelectItem, EmptyState, Switch, Badge } from '@ledgr/ui'
+import { SegmentedControl, Button, Dialog, DialogFooter, Input, Select, SelectItem, EmptyState, Badge, Sheet } from '@ledgr/ui'
 import { toast } from 'sonner'
 import {
   ChevronLeft, ChevronRight, ShoppingBag, Clapperboard, Home, Heart,
   CreditCard, Shirt, GraduationCap, Zap, Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   ArrowLeftRight, ArrowDownCircle, ArrowUpCircle, PencilLine, Trash2, Search, Upload as UploadIcon,
-  Plus, Split, X, Check } from 'lucide-react'
+  Plus, Split } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { cn, formatCurrency } from '@/lib/utils'
 import styled from 'styled-components'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Card as GlassCard } from '@ledgr/ui';
-import { AreaToolbar, ToolbarDivider, ToolbarIconBtn, DateNav, DateNavBtn, DateNavLabel, HeaderActionPortal } from '@ledgr/ui'
+import { Card as GlassCard, KpiCard } from '@ledgr/ui';
+import { AreaToolbar, ToolbarIconBtn, DateNav, DateNavBtn, DateNavLabel, HeaderActionPortal } from '@ledgr/ui'
 import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
-import { TextTabs } from '@/components/ui/TextTabs'
 import { TransactionCalendar } from './TransactionCalendar'
 import { ImportCsvModal } from './ImportCsvModal'
+import { CategoryPicker } from './CategoryPicker'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
 
 dayjs.extend(isoWeek)
@@ -41,6 +41,7 @@ export type Txn = {
   description: string | null
   logged_at: string
   account_id?: string | null
+  category_id?: string | null
   tags?: string | null
   split_group_id?: string | null
 }
@@ -61,53 +62,55 @@ function getCategoryIcon(category: string) {
 }
 
 // ── Summary bar ────────────────────────────────────────────────────────────
-const SummaryGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
+const KpiGrid = styled.div`
+  display: flex;
+  overflow-x: auto;
   gap: 8px;
-  margin-bottom: 12px;
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+  
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar { display: none; }
+  
+  > * {
+    flex: 0 0 auto;
+    min-width: 140px;
+  }
 
   @media (min-width: 640px) {
+    display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    padding-bottom: 0;
+    
+    > * { min-width: 0; }
   }
-`
-
-const SumValue = styled.div<{ $color: string }>`
-  font-size: 12px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  color: ${({ $color }) => $color};
 `
 
 function SummaryBar({ income, expense }: { income: number; expense: number }) {
   const net = income - expense
   return (
-    <SummaryGrid>
-      <GlassCard
-        title="Income"
-        subtitle="Total income"
-        icon={<TrendingUp size={14} style={{ color: 'var(--primary)' }} />}
-        size="sm"
-      >
-        <SumValue $color="var(--primary)">{formatCurrency(income)}</SumValue>
-      </GlassCard>
-      <GlassCard
-        title="Expenses"
-        subtitle="Total expenses"
-        icon={<TrendingDown size={14} style={{ color: 'var(--accent)' }} />}
-        size="sm"
-      >
-        <SumValue $color="var(--accent)">{formatCurrency(expense)}</SumValue>
-      </GlassCard>
-      <GlassCard
-        title="Net"
-        subtitle="Net balance"
-        icon={<Wallet size={14} style={{ color: net >= 0 ? 'var(--primary)' : 'var(--accent)' }} />}
-        size="sm"
-      >
-        <SumValue $color={net >= 0 ? 'var(--foreground)' : 'var(--accent)'}>{formatCurrency(net)}</SumValue>
-      </GlassCard>
-    </SummaryGrid>
+    <KpiGrid>
+      <KpiCard
+        label="Income"
+        value={formatCurrency(income)}
+        color="primary"
+        icon={TrendingUp}
+      />
+      <KpiCard
+        label="Expenses"
+        value={formatCurrency(expense)}
+        color="rose"
+        icon={TrendingDown}
+      />
+      <KpiCard
+        label="Net"
+        value={formatCurrency(net)}
+        color={net >= 0 ? 'foreground' : 'rose'}
+        icon={Wallet}
+      />
+    </KpiGrid>
   )
 }
 
@@ -132,37 +135,6 @@ const FormLabel = styled.label`
 
 const FormGroup = styled.div`
   margin-bottom: 12px;
-`
-
-const FormFlex = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-`
-
-const FormFlexStart = styled.div`
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-`
-
-const FormFlex1 = styled.div`
-  flex: 1;
-`
-
-const SplitPanel = styled.div`
-  margin-bottom: 12px;
-  padding: 12px;
-  background-color: ${({ theme }) => theme.color.muted}66;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`
-
-const AmountInputWrap = styled.div`
-  width: 128px;
 `
 
 const FullWidthWrap = styled.div`
@@ -202,10 +174,19 @@ const FilterActions = styled.div`
   gap: 8px;
 `
 
-const SplitText = styled.div<{ $color: string }>`
-  font-size: 11px;
-  margin-top: 8px;
-  color: ${({ $color }) => $color};
+// ── Search components ───────────────────────────────────────────────────────
+const DesktopSearch = styled.div`
+  display: none;
+  @media (min-width: 640px) {
+    display: block;
+  }
+`
+
+const MobileSearchBtn = styled(ToolbarIconBtn)`
+  display: flex;
+  @media (min-width: 640px) {
+    display: none;
+  }
 `
 
 // ── Transaction row ─────────────────────────────────────────────────────────
@@ -300,8 +281,20 @@ const TxnList_Wrap = styled.div`
   padding-right: 4px;
 `
 
+function useCategoryLabel(txn: Txn): string {
+  const queryClient = useQueryClient()
+  const cats: any[] = queryClient.getQueryData(['finance', 'categories']) ?? []
+  if (!txn.category_id) return txn.category
+  const leaf = cats.find(c => c.id === txn.category_id)
+  if (!leaf) return txn.category
+  if (!leaf.parent_id) return leaf.name
+  const parent = cats.find(c => c.id === leaf.parent_id)
+  return parent ? `${parent.name} › ${leaf.name}` : leaf.name
+}
+
 function TransactionRow({ txn, onEdit }: { txn: Txn; onEdit: (t: Txn) => void }) {
   const queryClient = useQueryClient()
+  const categoryLabel = useCategoryLabel(txn)
   const isIncome = txn.type === 'income'
   const isTransfer = txn.type === 'transfer'
 
@@ -330,7 +323,7 @@ function TransactionRow({ txn, onEdit }: { txn: Txn; onEdit: (t: Txn) => void })
         </TxnIconWrap>
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-            <TxnDesc>{txn.description || txn.category}</TxnDesc>
+            <TxnDesc>{txn.description || categoryLabel}</TxnDesc>
             {txn.split_group_id && (
               <span style={{ fontSize: 10, color: 'var(--primary)', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 2 }} title="Part of a split payment">
                 <Split size={10} />
@@ -339,7 +332,7 @@ function TransactionRow({ txn, onEdit }: { txn: Txn; onEdit: (t: Txn) => void })
             )}
           </div>
           <TxnMeta>
-            <span>{txn.category} · {dayjs(txn.logged_at).format('MMM D, h:mm A')}</span>
+            <span>{categoryLabel} · {dayjs(txn.logged_at).format('MMM D, h:mm A')}</span>
             {txn.tags && txn.tags.split(',').filter(Boolean).slice(0, 3).map(t => (
               <Badge key={t}>{t}</Badge>
             ))}
@@ -382,97 +375,99 @@ export type Kind = 'Expense' | 'Income' | 'Transfer'
 export function TransactionModal({ open, onClose, editing, initialKind = 'Expense' }: { open: boolean; onClose: () => void; editing: Txn | null; initialKind?: Kind }) {
   const queryClient = useQueryClient()
   const [kind, setKind] = useState<Kind>(initialKind)
-  const [splitMode, setSplitMode] = useState(false)
   const [amount, setAmount] = useState<string>('')
   const [date, setDate] = useState<string>(dayjs().format('YYYY-MM-DD'))
   const [fromAccountId, setFromAccountId] = useState<string | undefined>()
   const [toAccountId, setToAccountId] = useState<string | undefined>()
-  const [category, setCategory] = useState<string | undefined>()
+  const [categoryId, setCategoryId] = useState<string | undefined>()
   const [accountId, setAccountId] = useState<string | undefined>()
   const [tags, setTags] = useState<string[]>([])
   const [description, setDescription] = useState<string>('')
-  const [splits, setSplits] = useState<Array<{category?: string, amount?: string}>>([{}, {}])
 
   const { data: accounts } = useQuery({
     queryKey: ['finance', 'accounts'],
     queryFn: financeApi.accounts,
     enabled: open })
+  const { data: userCategories } = useQuery({
+    queryKey: ['finance', 'categories'],
+    queryFn: () => financeApi.categories(),
+    enabled: open })
 
   const isEdit = !!editing
   const effectiveKind: Kind = isEdit ? (editing!.type === 'income' ? 'Income' : 'Expense') : kind
+  const noAccounts = accounts !== undefined && (accounts as any[]).length === 0
 
-  // Prefill on open for editing, reset kind to the requested default for new transactions
-  const afterOpenChange = (visible: boolean) => {
-    if (visible && editing) {
+  // Prefill on open for editing, reset to the requested default for new transactions.
+  // The Dialog only fires onOpenChange on *close*, so reset/prefill must be driven
+  // by the `open`/`editing` props — not an onOpenChange(true) callback.
+  useEffect(() => {
+    if (!open) return
+    if (editing) {
       setAmount(String(editing.amount))
-      setCategory(editing.category)
+      setCategoryId(editing.category_id ?? undefined)
       setDescription(editing.description ?? '')
       setDate(dayjs(editing.logged_at).format('YYYY-MM-DD'))
       setAccountId(editing.account_id ?? undefined)
       setTags(editing.tags ? editing.tags.split(',').filter(Boolean) : [])
-      setSplitMode(false)
-    }
-    if (visible && !editing) {
+    } else {
       setAmount('')
-      setCategory(undefined)
+      setCategoryId(undefined)
       setDescription('')
       setDate(dayjs().format('YYYY-MM-DD'))
       setAccountId(undefined)
       setFromAccountId(undefined)
       setToAccountId(undefined)
       setTags([])
-      setSplits([{}, {}])
       setKind(initialKind)
-      setSplitMode(false)
     }
-  }
+  }, [open, editing, initialKind])
 
   const { mutate, isPending } = useMutation({
     mutationFn: (): Promise<unknown> => {
-      const logged_at = dayjs(date).toISOString()
+      // Send the picked date as a naive LOCAL datetime (no UTC conversion). The
+      // backend column is tz-naive; using toISOString() would shift the date back
+      // a day for users east of UTC (e.g. IST midnight → previous-day 18:30 UTC).
+      const logged_at = dayjs(date).format('YYYY-MM-DD') + 'T' + dayjs().format('HH:mm:ss')
       const amt = parseFloat(amount)
       const tagsStr = tags.join(',') || undefined
+      if (effectiveKind !== 'Transfer') {
+        if (!accountId) return Promise.reject({ response: { data: { detail: 'An account is required' } } })
+        if (!categoryId) return Promise.reject({ response: { data: { detail: 'Select a category' } } })
+      }
       if (isEdit) {
         const patch = {
           amount: amt,
+          category_id: categoryId ?? null,
           description: description?.trim() || '',
           logged_at,
           account_id: accountId ?? null,
           tags: tagsStr ?? null }
-        if (editing!.type === 'expense') return financeApi.patchExpense(editing!.id, { ...patch, category })
-        return financeApi.patchIncome(editing!.id, { ...patch, source: category })
+        if (editing!.type === 'expense') return financeApi.patchExpense(editing!.id, patch)
+        return financeApi.patchIncome(editing!.id, patch)
       }
       if (effectiveKind === 'Expense') {
-        let finalSplits: { category: string; amount: number }[] | undefined
-        if (splitMode) {
-          finalSplits = splits
-            .filter((s: any) => s?.category && s?.amount)
-            .map((s: any) => ({ category: s.category, amount: Number(s.amount) }))
-          if (!finalSplits || finalSplits.length < 2) {
-            return Promise.reject({ response: { data: { detail: 'Add at least 2 split parts' } } })
-          }
-          const sum = finalSplits.reduce((a, s) => a + s.amount, 0)
-          if (Math.abs(sum - amt) > 0.01) {
-            return Promise.reject({ response: { data: { detail: `Splits total ${formatCurrency(sum)} ≠ amount ${formatCurrency(amt)}` } } })
-          }
-        }
         return financeApi.createExpense({
           amount: amt,
-          category: splitMode ? finalSplits![0].category : category,
+          category_id: categoryId,
           description: description?.trim() || undefined,
           logged_at,
-          account_id: accountId || undefined,
-          tags: tagsStr,
-          splits: finalSplits })
+          account_id: accountId,
+          tags: tagsStr })
       }
       if (effectiveKind === 'Income') {
         return financeApi.createIncome({
           amount: amt,
-          source: category,
+          category_id: categoryId,
           description: description?.trim() || undefined,
           logged_at,
-          account_id: accountId || undefined,
+          account_id: accountId,
           tags: tagsStr })
+      }
+      if (!fromAccountId || !toAccountId) {
+        return Promise.reject({ response: { data: { detail: 'Select both accounts' } } })
+      }
+      if (fromAccountId === toAccountId) {
+        return Promise.reject({ response: { data: { detail: 'From and To accounts must be different' } } })
       }
       return financeApi.createTransfer({
         amount: amt,
@@ -491,9 +486,21 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
   return (
     <Dialog 
       open={open}
-      onOpenChange={(v) => { if(!v) onClose(); else afterOpenChange(v); }}
+      onOpenChange={(v) => { if (!v) onClose() }}
       title={editing ? 'Edit Transaction' : 'New Transaction'}
     >
+      {noAccounts ? (
+        <div style={{ textAlign: 'center', padding: '24px 12px' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Add an account first</div>
+          <div style={{ fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 16 }}>
+            Every transaction is tied to an account. Create one to start logging.
+          </div>
+          <Button variant="primary" type="button" onClick={() => { onClose(); window.dispatchEvent(new Event('open-new-account')) }}>
+            <Plus size={14} style={{ marginRight: 4 }} /> Add account
+          </Button>
+        </div>
+      ) : (
+      <>
       {!isEdit && (
         <FullWidthWrap>
           <SegmentedControl
@@ -503,7 +510,7 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
               { value: 'Transfer', label: 'Transfer' },
             ]}
             value={kind}
-            onChange={v => { setKind(v as Kind); setCategory(undefined) }}
+            onChange={v => { setKind(v as Kind); setCategoryId(undefined) }}
           />
         </FullWidthWrap>
       )}
@@ -531,51 +538,21 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
           </FormGrid>
         ) : (
           <FormGrid>
-            {!(effectiveKind === 'Expense' && splitMode) && (
-              <div>
-                <FormLabel htmlFor="txn-category">{effectiveKind === 'Expense' ? 'Category' : 'Source'}</FormLabel>
-                <Select id="txn-category" placeholder={effectiveKind === 'Expense' ? 'Select category' : 'Select source'} options={(effectiveKind === 'Expense' ? EXPENSE_CATEGORIES : INCOME_SOURCES).map(c => ({ label: c, value: c }))} value={category} onChange={(v: string) => setCategory(v)} required />
-              </div>
-            )}
             <div>
-              <FormLabel htmlFor="txn-account">Account (optional)</FormLabel>
-              <Select id="txn-account" placeholder="No account" options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))} value={accountId} onChange={(v: string) => setAccountId(v)} />
+              <FormLabel htmlFor="txn-category">{effectiveKind === 'Expense' ? 'Category' : 'Source'}</FormLabel>
+              <CategoryPicker
+                kind={effectiveKind === 'Income' ? 'income' : 'expense'}
+                categories={(userCategories ?? []) as any}
+                value={categoryId}
+                onChange={setCategoryId}
+                label={effectiveKind === 'Expense' ? 'category' : 'source'}
+              />
+            </div>
+            <div>
+              <FormLabel htmlFor="txn-account">Account</FormLabel>
+              <Select id="txn-account" placeholder="Select account" options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))} value={accountId} onChange={(v: string) => setAccountId(v)} required />
             </div>
           </FormGrid>
-        )}
-        {effectiveKind === 'Expense' && !isEdit && (
-          <FormFlex>
-            <Switch size="sm" checked={splitMode} onChange={setSplitMode} aria-label="Split across categories" />
-            <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Split across categories</span>
-          </FormFlex>
-        )}
-        {effectiveKind === 'Expense' && !isEdit && splitMode && (
-          <SplitPanel>
-            {splits.map((s, idx) => (
-              <FormFlexStart key={idx}>
-                <FormFlex1>
-                  <Select placeholder="Category" options={EXPENSE_CATEGORIES.map(c => ({ label: c, value: c }))} value={s.category} onChange={(v: string) => { const n = [...splits]; n[idx].category = v; setSplits(n); }} required aria-label={`Split category ${idx + 1}`} />
-                </FormFlex1>
-                <AmountInputWrap>
-                  <Input type="number" startAdornment="₹" placeholder="0" min="0.01" value={s.amount || ''} onChange={(e) => { const n = [...splits]; n[idx].amount = e.target.value; setSplits(n); }} required aria-label={`Split amount ${idx + 1}`} />
-                </AmountInputWrap>
-                {splits.length > 2 && (
-                  <Button variant="ghost" size="sm" type="button" onClick={() => { const n = [...splits]; n.splice(idx, 1); setSplits(n); }} aria-label={`Remove split row ${idx + 1}`}><X size={12} /></Button>
-                )}
-              </FormFlexStart>
-            ))}
-            <Button variant="outline" size="sm" type="button" onClick={() => setSplits([...splits, {}])} style={{ width: '100%' }}>+ Add part</Button>
-            {(() => {
-              const total = parseFloat(amount || '0')
-              const parts = splits.reduce((a, s) => a + (Number(s?.amount) || 0), 0)
-              const diff = total - parts
-              return (
-                <SplitText $color={Math.abs(diff) < 0.01 ? 'var(--kpi-emerald)' : 'var(--kpi-amber)'}>
-                  Parts: {formatCurrency(parts)} of {formatCurrency(total)}{Math.abs(diff) >= 0.01 ? ` — ${formatCurrency(Math.abs(diff))} ${diff > 0 ? 'remaining' : 'over'}` : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}><Check size={10} /> Matched</span>}
-                </SplitText>
-              )
-            })()}
-          </SplitPanel>
         )}
         {effectiveKind !== 'Transfer' && (
           <FormGroup>
@@ -588,9 +565,11 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
           <Input id="txn-description" placeholder="Optional note" maxLength={200} value={description} onChange={e => setDescription(e.target.value)} />
         </FormGroup>
       </form>
+      </>
+      )}
       <DialogFooter>
         <Button variant="ghost" type="button" onClick={onClose} disabled={isPending}>Cancel</Button>
-        <Button variant="primary" type="submit" form="transaction-form" loading={isPending}>Save</Button>
+        {!noAccounts && <Button variant="primary" type="submit" form="transaction-form" loading={isPending}>Save</Button>}
       </DialogFooter>
     </Dialog>
   )
@@ -600,12 +579,12 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
 export function TransactionsTab() {
   const [view, setView] = useState<'Daily' | 'Calendar' | 'Weekly' | 'Monthly'>('Daily')
   const [month, setMonth] = useState(() => dayjs().startOf('month'))
-  const [compareMonth, setCompareMonth] = useState(() => dayjs().subtract(1, 'month').startOf('month'))
   const [selectedDate, setSelectedDate] = useState(() => dayjs().format('YYYY-MM-DD'))
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Txn | null>(null)
   const [quickKind, setQuickKind] = useState<Kind>('Expense')
   const [search, setSearch] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
   const [filterKind, setFilterKind] = useState<string>('all')
@@ -637,19 +616,10 @@ export function TransactionsTab() {
   const searchActive = deferredSearch.trim().length > 0 || filtersActive
 
   const monthStr = month.format('YYYY-MM')
-  const prevMonthStr = compareMonth.format('YYYY-MM')
 
   const { data: cashflow, isLoading: loadingCashflow } = useQuery({
     queryKey: ['finance', 'cashflow', monthStr],
     queryFn: () => financeApi.cashflow(monthStr) })
-  const { data: prevCashflow } = useQuery({
-    queryKey: ['finance', 'cashflow', prevMonthStr],
-    queryFn: () => financeApi.cashflow(prevMonthStr),
-    enabled: view === 'Total' })
-  const { data: budgetStatus } = useQuery({
-    queryKey: ['finance', 'budgets', 'status', monthStr],
-    queryFn: () => financeApi.budgetStatus(monthStr),
-    enabled: view === 'Total' })
   const { data: expensesPage, isLoading: loadingExpenses } = useQuery({
     queryKey: ['finance', 'expenses', 'month', monthStr],
     queryFn: () => financeApi.expenses(monthStr, undefined, 200, 0) })
@@ -665,7 +635,7 @@ export function TransactionsTab() {
     queryFn: financeApi.accounts })
   const { data: categories } = useQuery({
     queryKey: ['finance', 'categories'],
-    queryFn: financeApi.categories })
+    queryFn: () => financeApi.categories() })
 
   const { data: searchResult, isLoading: loadingSearch } = useQuery({
     queryKey: ['finance', 'txn-search', deferredSearch.trim(), filterKind, filterAccount, filterCategory, deferredTag.trim(), filterMin, filterMax, filterRange?.[0]?.format('YYYY-MM-DD'), filterRange?.[1]?.format('YYYY-MM-DD')],
@@ -687,10 +657,10 @@ export function TransactionsTab() {
   const transactions: Txn[] = useMemo(() => {
     const exp = (expensesPage?.items ?? []).map(e => ({
       id: e.id, type: 'expense' as const, amount: Number(e.amount), category: e.category, description: e.description, logged_at: e.logged_at, account_id: e.account_id,
-      tags: e.tags, split_group_id: e.split_group_id }))
+      category_id: (e as any).category_id, tags: e.tags, split_group_id: e.split_group_id }))
     const inc = (incomeList ?? []).map(i => ({
       id: i.id, type: 'income' as const, amount: Number(i.amount), category: i.source, description: i.description, logged_at: i.logged_at, account_id: i.account_id,
-      tags: i.tags }))
+      category_id: (i as any).category_id, tags: i.tags }))
     const trf = (transferList ?? []).map(t => ({
       id: t.id, type: 'transfer' as const, amount: Number(t.amount), category: 'Transfer', description: t.description, logged_at: t.logged_at }))
     return [...exp, ...inc, ...trf].sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())
@@ -749,7 +719,6 @@ export function TransactionsTab() {
       return `${start.format('MMM D')} – ${start.add(6, 'day').format('MMM D')}`
     }
     if (view === 'Monthly') return month.format('MMMM YYYY')
-    if (view === 'Total') return `${month.format('MMM YYYY')} vs ${month.subtract(1, 'month').format('MMM YYYY')}`
     return month.format('MMMM YYYY')
   }, [view, selectedDate, month])
 
@@ -765,39 +734,47 @@ export function TransactionsTab() {
   }
 
   const toolbar = (
-    <>
-      <HeaderActionPortal>
-        <Input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search transactions…"
-          startAdornment={<Search size={13} />}
-          size="sm"
-          style={{ width: 200 }}
-          aria-label="Search transactions"
-        />
-        <ToolbarIconBtn
-          onClick={() => setFilterOpen(true)}
-          data-active={filtersActive}
-          aria-pressed={filtersActive}
-        >
-          Filters
-          {filtersActive && (
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', display: 'inline-block', marginLeft: 4 }} />
-          )}
-        </ToolbarIconBtn>
-        {searchActive && (
-          <ToolbarIconBtn onClick={clearFilters}>
-            Clear
+    <AreaToolbar
+      left={
+        <>
+          <DesktopSearch>
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search transactions…"
+              startAdornment={<Search size={13} />}
+              size="sm"
+              style={{ width: 200, height: 32 }}
+              aria-label="Search transactions"
+            />
+          </DesktopSearch>
+          <MobileSearchBtn onClick={() => setSearchOpen(true)} aria-label="Search transactions" style={{ height: 32 }}>
+            <Search size={13} />
+          </MobileSearchBtn>
+          <ToolbarIconBtn
+            onClick={() => setFilterOpen(true)}
+            data-active={filtersActive}
+            aria-pressed={filtersActive}
+            style={{ height: 32 }}
+          >
+            Filters
+            {filtersActive && (
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', display: 'inline-block', marginLeft: 4 }} />
+            )}
           </ToolbarIconBtn>
-        )}
-        <Button size="sm" variant="primary" onClick={() => openAdd('Expense')}>
-          <Plus size={12} style={{ marginRight: 4 }} /> Add Transaction
-        </Button>
-      </HeaderActionPortal>
-      <AreaToolbar>
+          {searchActive && (
+            <ToolbarIconBtn onClick={clearFilters} style={{ height: 32 }}>
+              Clear
+            </ToolbarIconBtn>
+          )}
+        </>
+      }
+
+    >
       {/* View switcher */}
-      <TextTabs
+      <Select
+        size="sm"
+        fullWidth={false}
         value={view}
         onChange={(v: any) => setView(v)}
         options={[
@@ -806,6 +783,7 @@ export function TransactionsTab() {
           { label: 'Monthly', value: 'Monthly' },
           { label: 'Calendar', value: 'Calendar' },
         ]}
+        aria-label="Transaction view"
       />
       {/* Date navigation */}
       {view !== 'Calendar' && (
@@ -819,14 +797,11 @@ export function TransactionsTab() {
           </DateNavBtn>
         </DateNav>
       )}
-      <ToolbarDivider />
-      {/* Import */}
-      <ToolbarIconBtn onClick={() => setImportOpen(true)}>
+      <ToolbarIconBtn onClick={() => setImportOpen(true)} style={{ height: 32 }}>
         <UploadIcon size={13} />
         Import
       </ToolbarIconBtn>
-      </AreaToolbar>
-    </>
+    </AreaToolbar>
   )
 
   if (isLoading) return (
@@ -838,12 +813,15 @@ export function TransactionsTab() {
 
   // ── Search results (server-side, all months/types) ─────────────────────────
   let body: React.ReactNode = null
+  let summaryElement: React.ReactNode = null
+
   if (searchActive) {
     const items: Txn[] = (searchResult?.items ?? []).map(i => ({
       id: i.id, type: i.kind, amount: i.amount, category: i.category ?? '—',
       description: i.description, logged_at: i.logged_at, account_id: i.account_id ?? undefined,
-      tags: i.tags, split_group_id: i.split_group_id }))
+      category_id: (i as any).category_id, tags: i.tags, split_group_id: i.split_group_id }))
     const totals = dayTotals(items)
+    summaryElement = <SummaryBar income={totals.income} expense={totals.expense} />
     body = loadingSearch ? (
       <StyledSkeleton $height="16rem" />
     ) : (
@@ -852,24 +830,25 @@ export function TransactionsTab() {
           {items.length} result{(searchResult?.total ?? 0) === 1 ? '' : 's'} across all months
           {searchResult?.has_more ? ' — showing first 200' : ''}
         </div>
-        <SummaryBar income={totals.income} expense={totals.expense} />
         <TxnList txns={items} emptyText="No matching transactions" onEdit={openEdit} />
       </>
     )
   } else if (view === 'Daily') {
     const dayTxns = transactions.filter(t => dayjs(t.logged_at).format('YYYY-MM-DD') === selectedDate)
     const totals = dayTotals(dayTxns)
+    summaryElement = <SummaryBar income={totals.income} expense={totals.expense} />
     body = (
       <>
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: 12, letterSpacing: '0.01em' }}>
           {dayjs(selectedDate).format('dddd, MMM D YYYY')}
         </div>
-        <SummaryBar income={totals.income} expense={totals.expense} />
         <TxnList txns={dayTxns} emptyText="No transactions on this day" onEdit={openEdit} />
       </>
     )
   } else if (view === 'Calendar') {
     const dayTxns = transactions.filter(t => dayjs(t.logged_at).format('YYYY-MM-DD') === selectedDate)
+    const monthTotals = dayTotals(transactions)
+    summaryElement = <SummaryBar income={monthTotals.income} expense={monthTotals.expense} />
     body = (
       <>
         <TransactionCalendar
@@ -886,6 +865,8 @@ export function TransactionsTab() {
       </>
     )
   } else if (view === 'Weekly') {
+    const monthTotals = dayTotals(transactions)
+    summaryElement = <SummaryBar income={monthTotals.income} expense={monthTotals.expense} />
     const weeks = new Map<string, Txn[]>()
     transactions.forEach(t => {
       const wk = dayjs(t.logged_at).startOf('isoWeek').format('YYYY-MM-DD')
@@ -923,12 +904,12 @@ export function TransactionsTab() {
     )
   } else if (view === 'Monthly') {
     const totals = dayTotals(transactions)
+    summaryElement = <SummaryBar income={totals.income} expense={totals.expense} />
     body = (
       <>
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: 12 }}>
           {month.format('MMMM YYYY')}
         </div>
-        <SummaryBar income={totals.income} expense={totals.expense} />
         <TxnList txns={transactions} emptyText="No transactions this month" onEdit={openEdit} />
       </>
     )
@@ -937,7 +918,13 @@ export function TransactionsTab() {
   return (
     <>
       <WorkspaceLayout rail={undefined}>
+        <HeaderActionPortal>
+          <Button size="sm" variant="primary" onClick={() => openAdd('Expense')}>
+            <Plus size={12} style={{ marginRight: 4 }} /> Add Transaction
+          </Button>
+        </HeaderActionPortal>
         {toolbar}
+        {summaryElement}
         <GlassCard
           title="Transactions"
           subtitle="Browse and search transaction logs for the selected period"
@@ -948,6 +935,19 @@ export function TransactionsTab() {
       </WorkspaceLayout>
       <TransactionModal open={modalOpen} onClose={closeModal} editing={editing} initialKind={quickKind} />
       <ImportCsvModal open={importOpen} onClose={() => setImportOpen(false)} />
+      <Dialog open={searchOpen} onOpenChange={setSearchOpen} title="Search Transactions">
+        <div style={{ paddingBottom: '16px' }}>
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search transactions…"
+            startAdornment={<Search size={13} />}
+            style={{ width: '100%' }}
+            aria-label="Search transactions"
+            autoFocus
+          />
+        </div>
+      </Dialog>
       <FilterModal
         open={filterOpen}
         onClose={() => setFilterOpen(false)}
@@ -1017,16 +1017,18 @@ function FilterModal({
   clearFilters: () => void
 }) {
   return (
-    <Dialog 
+    <Sheet 
       open={open}
       onOpenChange={(v) => { if(!v) onClose() }}
       title="Advanced Filters"
+      side="right"
     >
       <FiltersGroup>
         <FilterLabel>Type</FilterLabel>
-        <TextTabs
-          style={{ width: '100%' }}
-          options={[{ label: 'All', value: 'all' }, { label: 'Exp', value: 'expense' }, { label: 'Inc', value: 'income' }, { label: 'Trf', value: 'transfer' }]}
+        <Select
+          size="sm"
+          fullWidth
+          options={[{ label: 'All', value: 'all' }, { label: 'Expense', value: 'expense' }, { label: 'Income', value: 'income' }, { label: 'Transfer', value: 'transfer' }]}
           value={filterKind}
           onChange={setFilterKind}
           aria-label="Filter by type"
@@ -1059,8 +1061,8 @@ function FilterModal({
         <Input id="filter-tag" size="sm" placeholder="Enter tag name" value={filterTag} onChange={e => setFilterTag(e.target.value)} allowClear aria-label="Filter by tag name" />
         <FilterLabel>Amount Range</FilterLabel>
         <FilterRow>
-          <Input type="number" size="sm" placeholder="Min ₹" min="0" style={{ width: '100%' }} value={filterMin || ''} onChange={e => setFilterMin(e.target.value ? Number(e.target.value) : null)} aria-label="Minimum amount" />
-          <Input type="number" size="sm" placeholder="Max ₹" min="0" style={{ width: '100%' }} value={filterMax || ''} onChange={e => setFilterMax(e.target.value ? Number(e.target.value) : null)} aria-label="Maximum amount" />
+          <Input type="number" size="sm" placeholder="Min ₹" min="0" step="0.01" style={{ width: '100%' }} value={filterMin ?? ''} onChange={e => setFilterMin(e.target.value ? Number(e.target.value) : null)} aria-label="Minimum amount" />
+          <Input type="number" size="sm" placeholder="Max ₹" min="0" step="0.01" style={{ width: '100%' }} value={filterMax ?? ''} onChange={e => setFilterMax(e.target.value ? Number(e.target.value) : null)} aria-label="Maximum amount" />
         </FilterRow>
         <FilterLabel>Date Range</FilterLabel>
         <FilterRow>
@@ -1074,6 +1076,6 @@ function FilterModal({
           )}
         </FilterActions>
       </FiltersGroup>
-    </Dialog>
+    </Sheet>
   )
 }

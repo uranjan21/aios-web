@@ -3,6 +3,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageContainer, PageContent } from "@/components/layout/PageLayout";
+import { PageDivider } from "@/components/layout/PageDivider";
 import { formatRelativeTime } from "@/lib/utils";
 import type { Agent } from "@/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -283,7 +284,7 @@ const StatusIndicator = styled.div<{ $status: string }>`
   font-size: 0.7rem;
   font-weight: 600;
   padding: 0.25rem 0.6rem;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ theme, $status }) =>
     $status === "running"
       ? `color-mix(in srgb, ${theme.color.accent} 10%, transparent)`
@@ -621,6 +622,7 @@ export function AgentsPage() {
         icon={<Bot />}
         eyebrow="AUTOMATION"
       />
+      <PageDivider />
       {isError ? (
         <ErrorCard message="Could not load agents" onRetry={() => refetch()} />
       ) : isLoading ? (

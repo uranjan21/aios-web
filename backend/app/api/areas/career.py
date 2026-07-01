@@ -138,6 +138,9 @@ async def list_opportunities(current_user=Depends(get_current_user), db=Depends(
     return result.scalars().all()
 
 
+VALID_OPPORTUNITY_STATUS = {"prospect", "applied", "screening", "interview", "offer", "rejected", "closed"}
+
+
 class OpportunityCreate(BaseModel):
     company: str
     role: str
@@ -156,6 +159,8 @@ class OpportunityPatch(BaseModel):
 
 @router.post("/opportunities")
 async def create_opportunity(body: OpportunityCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    if body.status not in VALID_OPPORTUNITY_STATUS:
+        raise HTTPException(status_code=422, detail=f"Invalid status. Must be one of: {', '.join(sorted(VALID_OPPORTUNITY_STATUS))}")
     opp = JobOpportunity(user_id=current_user.id, **body.model_dump())
     db.add(opp)
     await db.commit()
@@ -169,7 +174,10 @@ async def patch_opportunity(opp_id: str, body: OpportunityPatch, current_user=De
     opp = result.scalar_one_or_none()
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not found")
-    for field, value in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    if "status" in data and data["status"] not in VALID_OPPORTUNITY_STATUS:
+        raise HTTPException(status_code=422, detail=f"Invalid status. Must be one of: {', '.join(sorted(VALID_OPPORTUNITY_STATUS))}")
+    for field, value in data.items():
         setattr(opp, field, value)
     opp.updated_at = datetime.utcnow()
     db.add(opp)

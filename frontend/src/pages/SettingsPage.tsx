@@ -12,10 +12,10 @@ import { useVaultSync } from '@/hooks/useVaultSync'
 import { useFeatures } from '@/hooks/useFeatures'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ProgressBar } from '@/components/lumina';
-import { Card as GlassCard, PageHeader, Select } from '@ledgr/ui';
+import { Card as GlassCard, Select } from '@ledgr/ui';
 import { Button } from '@/components/ui/button'
 import styled, { useTheme } from 'styled-components'
-import { PageContainer, PageContent } from '@/components/layout/PageLayout'
+import { AreaSettingsPage } from '@/components/layout/AreaSettingsPage'
 
 // ── Row ───────────────────────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ const SECTION_META: Record<string, { icon: React.ReactNode; subtitle: string }> 
   Account: { icon: <User size={16} />, subtitle: 'Sign-out and account-level controls' },
 }
 
-function Section({ title, children, delay, action }: { title: string; children: React.ReactNode; delay?: 0 | 100 | 200 | 300; action?: React.ReactNode }) {
+function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   const meta = SECTION_META[title]
   return (
     <GlassCard
@@ -69,8 +69,6 @@ function Section({ title, children, delay, action }: { title: string; children: 
       icon={meta?.icon}
       action={action}
       noPadding
-      fadeIn="up"
-      delay={delay}
     >
       {children}
     </GlassCard>
@@ -409,6 +407,131 @@ const FormInput = styled.input`
   &::placeholder { color: ${({ theme }) => theme.color.mutedForeground}; }
 `
 
+// ── Appearance section ────────────────────────────────────────────────────────
+
+function AppearanceSection() {
+  const { theme, setTheme } = useUIStore()
+  return (
+    <Section
+      title="Appearance"
+      action={
+        <Button size="sm" variant="ghost" onClick={() => setTheme('light')}>
+          Reset
+        </Button>
+      }
+    >
+      <Row label="Theme">
+        <ThemeSwitcher>
+          <ThemeBtn onClick={() => setTheme('dark')} aria-pressed={theme === 'dark'} aria-label="Dark mode" $active={theme === 'dark'}>
+            <Moon size={14} /> Dark
+          </ThemeBtn>
+          <ThemeBtn onClick={() => setTheme('light')} aria-pressed={theme === 'light'} aria-label="Light mode" $active={theme === 'light'}>
+            <Sun size={14} /> Light
+          </ThemeBtn>
+        </ThemeSwitcher>
+      </Row>
+    </Section>
+  )
+}
+
+// ── System status section ─────────────────────────────────────────────────────
+
+function SystemStatusSection() {
+  const queryClient = useQueryClient()
+  return (
+    <Section
+      title="System Status"
+      action={
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            queryClient.invalidateQueries({ queryKey: ['health'] })
+            toast.success('System status refreshed')
+          }}
+        >
+          <RefreshCw size={12} style={{ marginRight: 4 }} /> Refresh
+        </Button>
+      }
+    >
+      <Row label="Backend"><BackendStatus /></Row>
+      <VaultSyncRow />
+      <PushNotificationsRow />
+      <Row label="Rate limits">
+        <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Chat 20/min · Agents 5/min · Auth 10/min</span>
+      </Row>
+    </Section>
+  )
+}
+
+// ── AI usage section ──────────────────────────────────────────────────────────
+
+function AiUsageSection() {
+  const [aiRange, setAiRange] = useState('daily')
+  return (
+    <Section
+      title="AI Usage"
+      action={
+        <Select
+          size="sm"
+          fullWidth={false}
+          options={[
+            { label: 'Daily', value: 'daily' },
+            { label: 'Weekly', value: 'weekly' },
+            { label: 'Monthly', value: 'monthly' },
+          ]}
+          value={aiRange}
+          onChange={(val) => setAiRange(val as string)}
+          aria-label="AI usage period"
+        />
+      }
+    >
+      <TokenGauge />
+      <Row label="Model"><span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>claude-sonnet-4-5</span></Row>
+      <Row label="Session limit"><span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>50,000 tokens</span></Row>
+    </Section>
+  )
+}
+
+// ── Keyboard shortcuts section ────────────────────────────────────────────────
+
+function ShortcutsSection() {
+  const [shortcutCategory, setShortcutCategory] = useState('all')
+  return (
+    <Section
+      title="Keyboard Shortcuts"
+      action={
+        <Select
+          size="sm"
+          fullWidth={false}
+          options={[
+            { label: 'All Keys', value: 'all' },
+            { label: 'Navigation', value: 'nav' },
+            { label: 'Actions', value: 'action' },
+          ]}
+          value={shortcutCategory}
+          onChange={(val) => setShortcutCategory(val as string)}
+          aria-label="Keyboard shortcut category"
+        />
+      }
+    >
+      {[
+        ['⌘K', 'Command palette', 'action'], ['⌘L', 'Quick capture', 'action'], ['?', 'Command palette (alt)', 'action'],
+        ['⌘⇧T', 'Toggle theme', 'action'], ['G then D', 'Go to Dashboard', 'nav'], ['G then C', 'Go to Chat', 'nav'],
+        ['G then F', 'Go to Finance', 'nav'], ['G then H', 'Go to Health', 'nav'], ['G then R', 'Go to Career', 'nav'],
+        ['G then B', 'Go to Business', 'nav'], ['G then N', 'Go to Content', 'nav'],
+      ]
+        .filter(([,, cat]) => shortcutCategory === 'all' || cat === shortcutCategory)
+        .map(([key, label]) => (
+          <Row key={key} label={label}>
+            <KbdEl>{key}</KbdEl>
+          </Row>
+        ))
+      }
+    </Section>
+  )
+}
+
 // ── Profile section ──────────────────────────────────────────────────────────
 
 function ProfileSection() {
@@ -442,7 +565,7 @@ function ProfileSection() {
   const dirty = name.trim() !== (user?.name ?? '')
 
   return (
-    <Section title="Profile" delay={300}>
+    <Section title="Profile">
       <Row label="Display name">
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <FormInput
@@ -502,7 +625,7 @@ function SecuritySection() {
   }
 
   return (
-    <Section title="Security" delay={300}>
+    <Section title="Security">
       <Row label="Current password">
         <FormInput
           type="password"
@@ -581,7 +704,7 @@ function BillingSection() {
   }
 
   return (
-    <Section title="Billing & modules" delay={300}>
+    <Section title="Billing & modules">
       {data?.status === 'past_due' && (
         <Row label="⚠ Payment failed — access continues briefly while we retry">
           <Button size="sm" variant="primary" onClick={openPortal} disabled={busy}>
@@ -678,22 +801,64 @@ function DangerZone() {
   )
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+// ── Account section ───────────────────────────────────────────────────────────
 
-export function SettingsPage() {
-  const queryClient = useQueryClient()
+function AccountSection() {
   const logout = useAuthStore(s => s.logout)
-  const user = useAuthStore(s => s.user)
   const navigate = useNavigate()
-  const { theme, setTheme } = useUIStore()
-
-  const [aiRange, setAiRange] = useState('daily')
-  const [shortcutCategory, setShortcutCategory] = useState('all')
 
   const handleLogout = async () => {
     try { await api.post('/auth/logout') } catch (e) { console.error('Logout failed:', e) }
     finally { logout(); navigate('/login') }
   }
+
+  return (
+    <GlassCard
+      variant="glass"
+      title="Account"
+      subtitle="Sign-out and account-level controls"
+      icon={<User size={16} />}
+      action={
+        <Button variant="destructive" size="sm" onClick={handleLogout}>
+          <LogOut size={12} /> Sign out
+        </Button>
+      }
+    >
+      <div style={{ padding: '14px 20px', fontSize: '12px', color: 'var(--muted-foreground)' }}>
+        Signing out will invalidate your current session across all devices.
+      </div>
+      <DangerZone />
+    </GlassCard>
+  )
+}
+
+// ── Admin panel section ───────────────────────────────────────────────────────
+
+function AdminPanelSection() {
+  return (
+    <GlassCard
+      variant="glass"
+      title="Admin Panel"
+      subtitle="Manage users, plans, and system overview"
+      icon={<Shield size={16} />}
+    >
+      <div style={{ padding: '14px 20px' }}>
+        <Link to="/app/admin">
+          <Button size="sm" variant="primary">
+            <Shield size={12} style={{ marginRight: 4 }} /> Open Admin Panel
+          </Button>
+        </Link>
+      </div>
+    </GlassCard>
+  )
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+export function SettingsPage() {
+  const queryClient = useQueryClient()
+  const user = useAuthStore(s => s.user)
+  const { billing_enabled: billingEnabled } = useFeatures()
 
   // Returning from Stripe Checkout — confirm and refresh the subscription.
   useEffect(() => {
@@ -705,156 +870,44 @@ export function SettingsPage() {
     }
   }, [queryClient])
 
+  const groups = [
+    {
+      label: 'Preferences',
+      items: [
+        { key: 'appearance', label: 'Appearance', icon: <Palette size={15} />, content: <AppearanceSection /> },
+        { key: 'shortcuts', label: 'Shortcuts', icon: <Keyboard size={15} />, content: <ShortcutsSection /> },
+      ],
+    },
+    {
+      label: 'System',
+      items: [
+        { key: 'status', label: 'Status', icon: <Activity size={15} />, content: <SystemStatusSection /> },
+        { key: 'ai-usage', label: 'AI Usage', icon: <Sparkles size={15} />, content: <AiUsageSection /> },
+        ...(billingEnabled ? [{ key: 'billing', label: 'Billing & modules', icon: <CreditCard size={15} />, content: <BillingSection /> }] : []),
+      ],
+    },
+    {
+      label: 'Account',
+      items: [
+        { key: 'profile', label: 'Profile', icon: <User size={15} />, content: <ProfileSection /> },
+        ...(user?.auth_provider === 'email' ? [{ key: 'security', label: 'Security', icon: <Lock size={15} />, content: <SecuritySection /> }] : []),
+        { key: 'account', label: 'Account', icon: <User size={15} />, content: <AccountSection /> },
+      ],
+    },
+    ...(user?.is_admin ? [{
+      label: 'Admin',
+      items: [{ key: 'admin', label: 'Admin Panel', icon: <Shield size={15} />, content: <AdminPanelSection /> }],
+    }] : []),
+  ]
+
   return (
-    <PageContainer>
-      <PageContent>
-        <PageHeader title="Settings" subtitle="Preferences, integrations and account management." icon={<Settings />} eyebrow="SYSTEM" />
-
-        <Section
-          title="Appearance"
-          action={
-            <Button size="sm" variant="ghost" onClick={() => setTheme('light')}>
-              Reset
-            </Button>
-          }
-        >
-          <Row label="Theme">
-            <ThemeSwitcher>
-              <ThemeBtn onClick={() => setTheme('dark')} aria-pressed={theme === 'dark'} aria-label="Dark mode" $active={theme === 'dark'}>
-                <Moon size={14} /> Dark
-              </ThemeBtn>
-              <ThemeBtn onClick={() => setTheme('light')} aria-pressed={theme === 'light'} aria-label="Light mode" $active={theme === 'light'}>
-                <Sun size={14} /> Light
-              </ThemeBtn>
-            </ThemeSwitcher>
-          </Row>
-        </Section>
-
-        <Section
-          title="System Status"
-          delay={100}
-          action={
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                queryClient.invalidateQueries({ queryKey: ['health'] })
-                toast.success('System status refreshed')
-              }}
-            >
-              <RefreshCw size={12} style={{ marginRight: 4 }} /> Refresh
-            </Button>
-          }
-        >
-          <Row label="Backend"><BackendStatus /></Row>
-          <VaultSyncRow />
-          <PushNotificationsRow />
-          <Row label="Rate limits">
-            <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Chat 20/min · Agents 5/min · Auth 10/min</span>
-          </Row>
-        </Section>
-
-        <Section
-          title="AI Usage"
-          delay={200}
-          action={
-            <Select
-              size="sm"
-              fullWidth={false}
-              options={[
-                { label: 'Daily', value: 'daily' },
-                { label: 'Weekly', value: 'weekly' },
-                { label: 'Monthly', value: 'monthly' },
-              ]}
-              value={aiRange}
-              onChange={(val) => setAiRange(val as string)}
-              aria-label="AI usage period"
-            />
-          }
-        >
-          <TokenGauge />
-          <Row label="Model"><span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>claude-sonnet-4-5</span></Row>
-          <Row label="Session limit"><span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>50,000 tokens</span></Row>
-        </Section>
-
-        <Section
-          title="Keyboard Shortcuts"
-          delay={300}
-          action={
-            <Select
-              size="sm"
-              fullWidth={false}
-              options={[
-                { label: 'All Keys', value: 'all' },
-                { label: 'Navigation', value: 'nav' },
-                { label: 'Actions', value: 'action' },
-              ]}
-              value={shortcutCategory}
-              onChange={(val) => setShortcutCategory(val as string)}
-              aria-label="Keyboard shortcut category"
-            />
-          }
-        >
-          {[
-            ['⌘K', 'Command palette', 'action'], ['⌘L', 'Quick capture', 'action'], ['?', 'Command palette (alt)', 'action'],
-            ['⌘⇧T', 'Toggle theme', 'action'], ['G then D', 'Go to Dashboard', 'nav'], ['G then C', 'Go to Chat', 'nav'],
-            ['G then F', 'Go to Finance', 'nav'], ['G then H', 'Go to Health', 'nav'], ['G then R', 'Go to Career', 'nav'],
-            ['G then B', 'Go to Business', 'nav'], ['G then N', 'Go to Content', 'nav'],
-          ]
-            .filter(([,, cat]) => shortcutCategory === 'all' || cat === shortcutCategory)
-            .map(([key, label]) => (
-              <Row key={key} label={label}>
-                <KbdEl>{key}</KbdEl>
-              </Row>
-            ))
-          }
-        </Section>
-
-        {user?.is_admin && (
-          <GlassCard
-            variant="glass"
-            title="Admin Panel"
-            subtitle="Manage users, plans, and system overview"
-            icon={<Shield size={16} />}
-            noPadding
-            fadeIn="up"
-            delay={300}
-          >
-            <div style={{ padding: '14px 20px' }}>
-              <Link to="/app/admin">
-                <Button size="sm" variant="primary">
-                  <Shield size={12} style={{ marginRight: 4 }} /> Open Admin Panel
-                </Button>
-              </Link>
-            </div>
-          </GlassCard>
-        )}
-
-        <ProfileSection />
-
-        <SecuritySection />
-
-        <BillingSection />
-
-        <GlassCard
-          variant="glass"
-          title="Account"
-          subtitle="Sign-out and account-level controls"
-          icon={<User size={16} />}
-          action={
-            <Button variant="destructive" size="sm" onClick={handleLogout}>
-              <LogOut size={12} /> Sign out
-            </Button>
-          }
-          fadeIn="up"
-          delay={300}
-        >
-          <div style={{ padding: '14px 20px', fontSize: '12px', color: 'var(--muted-foreground)' }}>
-            Signing out will invalidate your current session across all devices.
-          </div>
-          <DangerZone />
-        </GlassCard>
-      </PageContent>
-    </PageContainer>
+    <AreaSettingsPage
+      icon={<Settings />}
+      eyebrow="System"
+      title="Settings"
+      subtitle="Preferences, integrations and account management."
+      backTo="/app"
+      groups={groups}
+    />
   )
 }

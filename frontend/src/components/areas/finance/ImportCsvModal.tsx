@@ -248,8 +248,6 @@ type PreviewRow = {
 const NONE = '__none__'
 const PAGE_SIZE = 8
 
-const CATEGORIES = ['Food', 'Transport', 'Subscriptions', 'Shopping', 'Groceries', 'Rent', 'Utilities', 'Health', 'salary']
-
 /* ── Component ──────────────────────────────────────────────────────── */
 
 export function ImportCsvModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -271,6 +269,16 @@ export function ImportCsvModal({ open, onClose }: { open: boolean; onClose: () =
     queryFn: financeApi.accounts,
     enabled: open,
   })
+
+  const { data: allCategories } = useQuery({
+    queryKey: ['finance', 'categories'],
+    queryFn: () => financeApi.categories(),
+    enabled: open,
+    staleTime: 60_000,
+  })
+  const categoryNames = (allCategories ?? [])
+    .filter(c => c.parent_id === null)
+    .map(c => c.name)
 
   const parsed = useMemo(() => (rawText.trim() ? parseCsv(rawText) : []), [rawText])
   const header = parsed[0] ?? []
@@ -492,7 +500,7 @@ export function ImportCsvModal({ open, onClose }: { open: boolean; onClose: () =
                         placeholder="Uncategorized"
                         value={row.category}
                         onChange={(v: string | number) => setRowCategory(row.index, String(v))}
-                        options={CATEGORIES.map(c => ({ label: c, value: c }))}
+                        options={categoryNames.map(c => ({ label: c, value: c }))}
                       />
                     </Td>
                   </tr>

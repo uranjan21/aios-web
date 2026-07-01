@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { KpiCard, Card as SectionCard } from '@ledgr/ui'
+import { KpiGrid, KpiCard, Card as SectionCard } from '@ledgr/ui'
 import { FileText, Send, CalendarClock, Lightbulb, TrendingUp, Clock } from 'lucide-react'
 import styled, { useTheme } from 'styled-components'
 import {
@@ -16,12 +16,11 @@ import { PLATFORM_META, STATUS_LABELS, platformLabel } from './contentMeta'
 const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 16px;
+  gap: 8px;
+  @media (min-width: 640px) { gap: 16px; }
 `
-const KpiCell = styled.div`
-  grid-column: span 6;
-  @media (min-width: 1024px) { grid-column: span 3; }
-`
+const KpiCell = styled.div``
+
 const Half = styled.div`
   grid-column: span 12;
   @media (min-width: 1024px) { grid-column: span 6; }
@@ -93,13 +92,16 @@ export function OverviewTab({ items, isLoading, onEdit }: {
   const counts = stats?.by_status ?? {}
 
   return (
-    <Grid>
-      <KpiCell><KpiCard label="Total Content" icon={FileText} sub="All pieces across every stage" loading={statsLoading} value={stats?.total ?? 0} /></KpiCell>
-      <KpiCell><KpiCard label="Published" icon={Send} sub="Shipped and live" loading={statsLoading} value={counts.published ?? 0} /></KpiCell>
-      <KpiCell><KpiCard label="Scheduled" icon={CalendarClock} sub="Queued to go out" loading={statsLoading} value={counts.scheduled ?? 0} /></KpiCell>
-      <KpiCell><KpiCard label="Ideas" icon={Lightbulb} sub="In the backlog" loading={statsLoading} value={counts.idea ?? 0} /></KpiCell>
+    <>
+      <KpiGrid $cols={4}>
+        <KpiCell><KpiCard label="Total Content" icon={FileText} sub="All pieces across every stage" loading={statsLoading} value={stats?.total ?? 0} /></KpiCell>
+        <KpiCell><KpiCard label="Published" icon={Send} sub="Shipped and live" loading={statsLoading} value={counts.published ?? 0} /></KpiCell>
+        <KpiCell><KpiCard label="Scheduled" icon={CalendarClock} sub="Queued to go out" loading={statsLoading} value={counts.scheduled ?? 0} /></KpiCell>
+        <KpiCell><KpiCard label="Ideas" icon={Lightbulb} sub="In the backlog" loading={statsLoading} value={counts.idea ?? 0} /></KpiCell>
+      </KpiGrid>
 
-      <Half>
+      <Grid>
+        <Half>
         <SectionCard title="Pipeline by Stage" subtitle="How much content sits in each stage" icon={<TrendingUp size={16} />} style={{ height: '100%' }}>
           {statsLoading ? <Skeleton style={{ height: 240 }} /> : (
             <ChartBox>
@@ -181,6 +183,7 @@ export function OverviewTab({ items, isLoading, onEdit }: {
           )}
         </SectionCard>
       </Half>
-    </Grid>
+      </Grid>
+    </>
   )
 }

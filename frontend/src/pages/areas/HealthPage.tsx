@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
-import { Scale, Flame, Trophy, Activity, Target, Zap, Heart, LayoutDashboard, Moon, Apple, Dumbbell, History, Bot, Search, Bell, PlusCircle, LineChart as LineChartIcon } from 'lucide-react'
-import { SegmentedControl } from '@ledgr/ui'
+import { Scale, Flame, Trophy, Activity, Target, Zap, Heart, LayoutDashboard, Moon, Apple, Dumbbell, History, Bot, Search, Bell, PlusCircle, LineChart as LineChartIcon, Settings } from 'lucide-react'
+import { SegmentedControl, Button } from '@ledgr/ui'
 import { useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
 import { healthApi } from '@/api/areas'
@@ -36,13 +36,33 @@ const StyledDashboardGrid = styled.div`
   gap: 1rem;
 `;
 
-const StyledGridItemKpi = styled.div`
-  grid-column: span 6 / span 6;
+const StyledKpiGrid = styled.div`
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  padding-bottom: 4px;
+  margin-bottom: 16px;
   
-  @media (min-width: 1280px) {
-    grid-column: span 3 / span 3;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar { display: none; }
+  
+  > * {
+    flex: 0 0 auto;
+    min-width: 140px;
+  }
+
+  @media (min-width: 640px) {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    padding-bottom: 0;
+    
+    > * { min-width: 0; }
   }
 `;
+
+const StyledGridItemKpi = styled.div``;
 
 const StyledGridItemMain = styled.div`
   grid-column: span 12 / span 12;
@@ -175,6 +195,11 @@ export function HealthPage() {
         eyebrow="Wellness"
         title="Health"
         subtitle="Body, sleep, nutrition and fitness — track every metric in one place."
+        actions={
+          <Button variant="outline" size="sm" onClick={() => navigate('/app/areas/health/settings')}>
+            <Settings size={14} style={{ marginRight: 6 }} /> Settings
+          </Button>
+        }
       />
       <AreaTabs
         activeKey={activeKey}
@@ -182,21 +207,22 @@ export function HealthPage() {
         items={[
         { key: '1', label: <StyledTabLabel><LayoutDashboard size={14} /> Dashboard</StyledTabLabel>, children: (
           <>
+            <StyledKpiGrid>
+              <StyledGridItemKpi>
+                <KpiCard label="Current Weight" icon={Scale} sub="Latest logged body weight" loading={loadingSummary} value={`${summary?.weight ?? '—'} kg`} />
+              </StyledGridItemKpi>
+              <StyledGridItemKpi>
+                <KpiCard label="Gym Streak" icon={Flame} sub="Consecutive days with a workout" loading={loadingStreak} value={`${Math.round(animatedStreak ?? 0)} days`} />
+              </StyledGridItemKpi>
+              <StyledGridItemKpi>
+                <KpiCard label="Last Workout" icon={Activity} sub="Time since your last gym session" loading={loadingStreak} value={formatRelativeTime(streak?.last_workout_at ?? null)} />
+              </StyledGridItemKpi>
+              <StyledGridItemKpi>
+                <KpiCard label="Total Sessions" icon={Target} sub="Workouts logged across all time" loading={loadingGym} value={Math.round(animatedSessions ?? 0)} />
+              </StyledGridItemKpi>
+            </StyledKpiGrid>
+
             <StyledDashboardGrid>
-              {/* Row 1: KPIs */}
-            <StyledGridItemKpi>
-              <KpiCard label="Current Weight" icon={Scale} sub="Latest logged body weight" loading={loadingSummary} value={`${summary?.weight ?? '—'} kg`} />
-            </StyledGridItemKpi>
-            <StyledGridItemKpi>
-              <KpiCard label="Gym Streak" icon={Flame} sub="Consecutive days with a workout" loading={loadingStreak} value={`${Math.round(animatedStreak ?? 0)} days`} />
-            </StyledGridItemKpi>
-            <StyledGridItemKpi>
-              <KpiCard label="Last Workout" icon={Activity} sub="Time since your last gym session" loading={loadingStreak} value={formatRelativeTime(streak?.last_workout_at ?? null)} />
-            </StyledGridItemKpi>
-            <StyledGridItemKpi>
-              <KpiCard label="Total Sessions" icon={Target} sub="Workouts logged across all time" loading={loadingGym} value={Math.round(animatedSessions ?? 0)} />
-            </StyledGridItemKpi>
- 
             {/* Weight Progression chart */}
             <StyledGridItemMain>
               <SectionCard

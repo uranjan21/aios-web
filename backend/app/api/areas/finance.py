@@ -1,8 +1,8 @@
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, Annotated
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, AfterValidator, Field
 from sqlmodel import select, desc
 
 from app.core.deps import get_current_user, get_db
@@ -12,15 +12,31 @@ import uuid
 router = APIRouter(prefix="/api/areas/finance", tags=["finance"])
 
 
+def _to_naive_utc(v: Optional[datetime]) -> Optional[datetime]:
+    """Normalize an incoming datetime to naive UTC. The `logged_at` columns are
+    TIMESTAMP WITHOUT TIME ZONE, so a tz-aware value (e.g. the frontend's
+    `dayjs(date).toISOString()` ending in 'Z') would otherwise raise an asyncpg
+    DataError on insert."""
+    if v is not None and v.tzinfo is not None:
+        return v.astimezone(timezone.utc).replace(tzinfo=None)
+    return v
+
+
+# A datetime that is always stored tz-naive (UTC) to match the DB column type.
+NaiveDateTime = Annotated[Optional[datetime], AfterValidator(_to_naive_utc)]
+
+
 async def _adjust_balance(db, account_id: Optional[uuid.UUID], delta: float, user_id: uuid.UUID) -> None:
     """Apply a signed delta to an account balance. No-op if account_id is None."""
     if account_id is None:
         return
-    result = await db.execute(select(Account).where(Account.id == account_id, Account.user_id == user_id))
+    result = await db.execute(
+        select(Account).where(Account.id == account_id, Account.user_id == user_id).with_for_update()
+    )
     account = result.scalar_one_or_none()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    account.balance = float(account.balance) + delta
+    account.balance = account.balance + Decimal(str(delta))
     db.add(account)
 
 
@@ -123,6 +139,13 @@ async def import_commit(body: ImportCommitBody, current_user=Depends(get_current
 
     Duplicates (vs existing rows) are skipped server-side as a final guard.
     """
+    if body.account_id is not None:
+        owned = await db.execute(
+            select(Account.id).where(Account.id == body.account_id, Account.user_id == current_user.id)
+        )
+        if owned.scalar_one_or_none() is None:
+            raise HTTPException(status_code=404, detail="Account not found")
+
     existing = await _existing_import_keys(db, body.items, current_user.id)
     imported_expenses = 0
     imported_income = 0
@@ -485,21 +508,40 @@ class SplitPart(BaseModel):
     amount: float
 
 
+async def _resolve_category(db, category_id: Optional[uuid.UUID], user_id: uuid.UUID) -> tuple[Optional[str], Optional[uuid.UUID]]:
+    """Resolve a category node to its TOP-LEVEL ancestor name (denormalized for
+    rollup) + the exact node id. Returns (None, None) if not found."""
+    if category_id is None:
+        return None, None
+    cat = (await db.execute(select(Category).where(Category.id == category_id, Category.user_id == user_id))).scalar_one_or_none()
+    if not cat:
+        return None, None
+    if cat.parent_id:
+        parent = (await db.execute(select(Category).where(Category.id == cat.parent_id))).scalar_one_or_none()
+        return (parent.name if parent else cat.name), cat.id
+    return cat.name, cat.id
+
+
 class ExpenseCreate(BaseModel):
     amount: float
-    category: str
+    category: Optional[str] = None  # legacy/import fallback; prefer category_id
+    category_id: Optional[uuid.UUID] = None
     description: Optional[str] = None
-    logged_at: Optional[datetime] = None
+    logged_at: NaiveDateTime = None
     account_id: Optional[uuid.UUID] = None
     tags: Optional[str] = None
-    splits: Optional[list[SplitPart]] = None  # parts must sum to amount
+    splits: Optional[list[SplitPart]] = None  # legacy split support (unused by the UI)
 
 
 @router.post("/expenses")
 async def create_expense(body: ExpenseCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
     if body.amount <= 0:
         raise HTTPException(status_code=422, detail="Amount must be positive")
+    if body.account_id is None:
+        raise HTTPException(status_code=422, detail="An account is required")
 
+    top_name, cat_id = await _resolve_category(db, body.category_id, current_user.id)
+    category_name = top_name or body.category or "Uncategorized"
     logged_at = body.logged_at or datetime.utcnow()
     created = []
 
@@ -519,7 +561,7 @@ async def create_expense(body: ExpenseCreate, current_user=Depends(get_current_u
     else:
         created.append(FinanceExpense(
             user_id=current_user.id,
-            logged_at=logged_at, amount=body.amount, category=body.category,
+            logged_at=logged_at, amount=body.amount, category=category_name, category_id=cat_id,
             description=body.description, account_id=body.account_id,
             tags=body.tags, source="manual",
         ))
@@ -535,15 +577,16 @@ async def create_expense(body: ExpenseCreate, current_user=Depends(get_current_u
     from app.services.finance.budget_alerts import check_budget_alerts
     categories = {e.category for e in created if e.category}
     for cat in categories:
-        asyncio.create_task(check_budget_alerts(cat))
+        asyncio.create_task(check_budget_alerts(current_user.id, cat))
     return created[0] if len(created) == 1 else {"split_group_id": str(created[0].split_group_id), "items": created}
 
 
 class ExpenseUpdate(BaseModel):
     amount: Optional[float] = None
     category: Optional[str] = None
+    category_id: Optional[uuid.UUID] = None
     description: Optional[str] = None
-    logged_at: Optional[datetime] = None
+    logged_at: NaiveDateTime = None
     account_id: Optional[uuid.UUID] = None
     tags: Optional[str] = None
 
@@ -561,7 +604,11 @@ async def update_expense(expense_id: uuid.UUID, body: ExpenseUpdate, current_use
     await _adjust_balance(db, expense.account_id, float(expense.amount), current_user.id)
     if body.amount is not None:
         expense.amount = body.amount
-    if body.category is not None:
+    if "category_id" in body.model_fields_set:
+        top_name, cat_id = await _resolve_category(db, body.category_id, current_user.id)
+        expense.category_id = cat_id
+        expense.category = top_name or "Uncategorized"
+    elif body.category is not None:
         expense.category = body.category
     if body.description is not None:
         expense.description = body.description
@@ -579,7 +626,7 @@ async def update_expense(expense_id: uuid.UUID, body: ExpenseUpdate, current_use
     if expense.category:
         import asyncio
         from app.services.finance.budget_alerts import check_budget_alerts
-        asyncio.create_task(check_budget_alerts(expense.category))
+        asyncio.create_task(check_budget_alerts(current_user.id, expense.category))
     return expense
 
 
@@ -689,7 +736,7 @@ async def list_bills(current_user=Depends(get_current_user), db=Depends(get_db))
 
 class BillCreate(BaseModel):
     name: str
-    amount: float
+    amount: float = Field(gt=0)
     due_day: int
     category: str = "utilities"
     is_auto_debit: bool = False
@@ -776,9 +823,10 @@ async def list_income(month: Optional[str] = None, current_user=Depends(get_curr
 
 class IncomeCreate(BaseModel):
     amount: float
-    source: str
+    source: Optional[str] = None  # legacy fallback; prefer category_id
+    category_id: Optional[uuid.UUID] = None
     description: Optional[str] = None
-    logged_at: Optional[datetime] = None
+    logged_at: NaiveDateTime = None
     account_id: Optional[uuid.UUID] = None
     tags: Optional[str] = None
 
@@ -787,10 +835,14 @@ class IncomeCreate(BaseModel):
 async def create_income(body: IncomeCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
     if body.amount <= 0:
         raise HTTPException(status_code=422, detail="Amount must be positive")
+    if body.account_id is None:
+        raise HTTPException(status_code=422, detail="An account is required")
+    top_name, cat_id = await _resolve_category(db, body.category_id, current_user.id)
     income = FinanceIncome(
         user_id=current_user.id,
         amount=body.amount,
-        source=body.source,
+        source=top_name or body.source or "Uncategorized",
+        category_id=cat_id,
         description=body.description,
         account_id=body.account_id,
         tags=body.tags,
@@ -806,8 +858,9 @@ async def create_income(body: IncomeCreate, current_user=Depends(get_current_use
 class IncomeUpdate(BaseModel):
     amount: Optional[float] = None
     source: Optional[str] = None
+    category_id: Optional[uuid.UUID] = None
     description: Optional[str] = None
-    logged_at: Optional[datetime] = None
+    logged_at: NaiveDateTime = None
     account_id: Optional[uuid.UUID] = None
     tags: Optional[str] = None
 
@@ -825,7 +878,11 @@ async def update_income(income_id: uuid.UUID, body: IncomeUpdate, current_user=D
     await _adjust_balance(db, income.account_id, -float(income.amount), current_user.id)
     if body.amount is not None:
         income.amount = body.amount
-    if body.source is not None:
+    if "category_id" in body.model_fields_set:
+        top_name, cat_id = await _resolve_category(db, body.category_id, current_user.id)
+        income.category_id = cat_id
+        income.source = top_name or "Uncategorized"
+    elif body.source is not None:
         income.source = body.source
     if body.description is not None:
         income.description = body.description
@@ -874,7 +931,7 @@ class TransferCreate(BaseModel):
     from_account_id: uuid.UUID
     to_account_id: uuid.UUID
     description: Optional[str] = None
-    logged_at: Optional[datetime] = None
+    logged_at: NaiveDateTime = None
 
 
 @router.post("/transfers")
@@ -1031,7 +1088,7 @@ async def budget_status(month: Optional[str] = None, current_user=Depends(get_cu
 
 class BudgetUpsert(BaseModel):
     category: str
-    monthly_limit: float
+    monthly_limit: float = Field(gt=0)
 
 
 @router.put("/budgets")
@@ -1108,12 +1165,39 @@ async def account_ledger(account_id: uuid.UUID, limit: int = 50, current_user=De
 
     entries = []
     for e in expenses:
-        entries.append({"id": str(e.id), "kind": "expense", "amount": -float(e.amount), "label": e.description or e.category or "Expense", "logged_at": e.logged_at.isoformat()})
+        entries.append({
+            "id": str(e.id), "kind": "expense",
+            "amount": -float(e.amount),
+            "label": e.description or e.category or "Expense",
+            "description": e.description,
+            "category": e.category,
+            "category_id": str(e.category_id) if e.category_id else None,
+            "account_id": str(e.account_id) if e.account_id else None,
+            "logged_at": e.logged_at.isoformat(),
+        })
     for i in income:
-        entries.append({"id": str(i.id), "kind": "income", "amount": float(i.amount), "label": i.description or i.source, "logged_at": i.logged_at.isoformat()})
+        entries.append({
+            "id": str(i.id), "kind": "income",
+            "amount": float(i.amount),
+            "label": i.description or i.source,
+            "description": i.description,
+            "category": i.source,
+            "category_id": str(i.category_id) if i.category_id else None,
+            "account_id": str(i.account_id) if i.account_id else None,
+            "logged_at": i.logged_at.isoformat(),
+        })
     for t in transfers:
         outgoing = t.from_account_id == account_id
-        entries.append({"id": str(t.id), "kind": "transfer", "amount": -float(t.amount) if outgoing else float(t.amount), "label": t.description or ("Transfer out" if outgoing else "Transfer in"), "logged_at": t.logged_at.isoformat()})
+        entries.append({
+            "id": str(t.id), "kind": "transfer",
+            "amount": -float(t.amount) if outgoing else float(t.amount),
+            "label": t.description or ("Transfer out" if outgoing else "Transfer in"),
+            "description": t.description,
+            "category": "Transfer",
+            "category_id": None,
+            "account_id": str(account_id),
+            "logged_at": t.logged_at.isoformat(),
+        })
 
     entries.sort(key=lambda x: x["logged_at"], reverse=True)
     return {"account": account, "entries": entries[:limit]}
@@ -1171,69 +1255,136 @@ async def delete_account(account_id: uuid.UUID, current_user=Depends(get_current
 
 # ── Categories ────────────────────────────────────────────
 
+# Default category trees seeded once per user (income + expense kept separate).
+# (name, icon, [subcategory names]). Two levels only.
+_DEFAULT_CATEGORIES: dict[str, list[tuple[str, str, list[str]]]] = {
+    "expense": [
+        ("Food", "🍔", ["Groceries", "Eating out", "Coffee & snacks"]),
+        ("Transport", "🚗", ["Fuel", "Cab", "Public transit", "Parking"]),
+        ("Bills & Utilities", "💡", ["Electricity", "Water", "Internet", "Mobile", "Gas"]),
+        ("Housing", "🏠", ["Rent", "Maintenance"]),
+        ("Shopping", "🛍️", ["Clothing", "Electronics", "Home"]),
+        ("Health", "🩺", ["Medicines", "Doctor", "Fitness", "Insurance"]),
+        ("Entertainment", "🎬", ["Subscriptions", "Movies", "Games"]),
+        ("Education", "🎓", ["Courses", "Books"]),
+        ("Personal Care", "🧴", ["Grooming", "Gifts"]),
+        ("Others", "📦", []),
+    ],
+    "income": [
+        ("Salary", "💼", ["Base pay", "Bonus"]),
+        ("Freelance", "🧑‍💻", []),
+        ("Business", "🏢", []),
+        ("Investments", "📈", ["Dividends", "Interest", "Capital gains"]),
+        ("Rental", "🏘️", []),
+        ("Gifts", "🎁", []),
+        ("Refunds", "↩️", []),
+        ("Other", "📦", []),
+    ],
+}
+
+
+async def _seed_categories_for_kind(db, user_id: uuid.UUID, kind: str) -> None:
+    """Seed the default tree for one kind (income/expense)."""
+    for name, icon, subs in _DEFAULT_CATEGORIES.get(kind, []):
+        parent = Category(user_id=user_id, name=name, kind=kind, icon=icon)
+        db.add(parent)
+        await db.flush()
+        for sub in subs:
+            db.add(Category(user_id=user_id, name=sub, kind=kind, parent_id=parent.id))
+
+
 @router.get("/categories")
-async def list_categories(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(Category).where(Category.user_id == current_user.id).order_by(Category.name))
-    return result.scalars().all()
+async def list_categories(kind: Optional[str] = None, current_user=Depends(get_current_user), db=Depends(get_db)):
+    cats = (await db.execute(select(Category).where(Category.user_id == current_user.id))).scalars().all()
+    # Seed whichever tree is empty (handles existing users who only have one kind).
+    seeded = False
+    for k in ("expense", "income"):
+        if not any((c.kind or "expense") == k for c in cats):
+            await _seed_categories_for_kind(db, current_user.id, k)
+            seeded = True
+    if seeded:
+        await db.commit()
+        cats = (await db.execute(select(Category).where(Category.user_id == current_user.id))).scalars().all()
+    if kind in ("expense", "income"):
+        cats = [c for c in cats if (c.kind or "expense") == kind]
+    return sorted(cats, key=lambda c: c.name.lower())
+
+
+def _dup_category(cats: list, name: str, kind: str, parent_id, exclude_id=None) -> bool:
+    n = name.strip().lower()
+    return any(
+        c.id != exclude_id and c.name.lower() == n and (c.kind or "expense") == kind and c.parent_id == parent_id
+        for c in cats
+    )
+
 
 class CategoryCreate(BaseModel):
     name: str
+    kind: str = "expense"
     parent_id: Optional[uuid.UUID] = None
     icon: Optional[str] = None
 
+
 @router.post("/categories")
 async def create_category(body: CategoryCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    existing = await db.execute(select(Category).where(Category.name == body.name, Category.user_id == current_user.id))
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Category with this name already exists")
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Category name is required")
+    kind = body.kind if body.kind in ("expense", "income") else "expense"
+    cats = (await db.execute(select(Category).where(Category.user_id == current_user.id))).scalars().all()
 
     if body.parent_id is not None:
-        parent_result = await db.execute(select(Category).where(Category.id == body.parent_id, Category.user_id == current_user.id))
-        parent = parent_result.scalar_one_or_none()
+        parent = next((c for c in cats if c.id == body.parent_id), None)
         if not parent:
             raise HTTPException(status_code=404, detail="Parent category not found")
         if parent.parent_id is not None:
-            raise HTTPException(status_code=422, detail="Parent category must be a top-level category (max 2 levels)")
+            raise HTTPException(status_code=422, detail="Subcategories can't be nested further (max 2 levels)")
+        kind = parent.kind or "expense"  # a subcategory inherits its parent's kind
 
-    category = Category(user_id=current_user.id, name=body.name, parent_id=body.parent_id, icon=body.icon)
+    if _dup_category(cats, name, kind, body.parent_id):
+        raise HTTPException(status_code=400, detail="A category with this name already exists here")
+
+    category = Category(user_id=current_user.id, name=name, kind=kind, parent_id=body.parent_id, icon=body.icon)
     db.add(category)
     await db.commit()
     await db.refresh(category)
     return category
+
 
 class CategoryUpdate(BaseModel):
     name: Optional[str] = None
     icon: Optional[str] = None
     parent_id: Optional[uuid.UUID] = None
 
+
 @router.patch("/categories/{category_id}")
 async def update_category(category_id: uuid.UUID, body: CategoryUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(Category).where(Category.id == category_id, Category.user_id == current_user.id))
-    category = result.scalar_one_or_none()
+    cats = (await db.execute(select(Category).where(Category.user_id == current_user.id))).scalars().all()
+    category = next((c for c in cats if c.id == category_id), None)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
 
-    if body.name is not None and body.name != category.name:
-        existing = await db.execute(select(Category).where(Category.name == body.name, Category.user_id == current_user.id))
-        if existing.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="Category with this name already exists")
-        category.name = body.name
-
+    new_parent_id = category.parent_id
     if "parent_id" in body.model_fields_set:
         new_parent_id = body.parent_id
         if new_parent_id is not None:
             if new_parent_id == category.id:
                 raise HTTPException(status_code=422, detail="Category cannot be its own parent")
-            parent_result = await db.execute(select(Category).where(Category.id == new_parent_id, Category.user_id == current_user.id))
-            parent = parent_result.scalar_one_or_none()
+            parent = next((c for c in cats if c.id == new_parent_id), None)
             if not parent:
                 raise HTTPException(status_code=404, detail="Parent category not found")
             if parent.parent_id is not None:
-                raise HTTPException(status_code=422, detail="Parent category must be a top-level category (max 2 levels)")
-            children = await db.execute(select(Category).where(Category.parent_id == category.id, Category.user_id == current_user.id))
-            if children.scalars().first():
+                raise HTTPException(status_code=422, detail="Subcategories can't be nested further (max 2 levels)")
+            if (parent.kind or "expense") != (category.kind or "expense"):
+                raise HTTPException(status_code=422, detail="Can't move a category between income and expense")
+            if any(c.parent_id == category.id for c in cats):
                 raise HTTPException(status_code=422, detail="Category has subcategories and cannot become a subcategory itself")
         category.parent_id = new_parent_id
+
+    if body.name is not None and body.name.strip() and body.name.strip() != category.name:
+        if _dup_category(cats, body.name, category.kind or "expense", new_parent_id, exclude_id=category.id):
+            raise HTTPException(status_code=400, detail="A category with this name already exists here")
+        category.name = body.name.strip()
 
     if body.icon is not None:
         category.icon = body.icon
@@ -1243,15 +1394,38 @@ async def update_category(category_id: uuid.UUID, body: CategoryUpdate, current_
     await db.refresh(category)
     return category
 
+
 @router.delete("/categories/{category_id}")
 async def delete_category(category_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(Category).where(Category.id == category_id, Category.user_id == current_user.id))
-    category = result.scalar_one_or_none()
+    cats = (await db.execute(select(Category).where(Category.user_id == current_user.id))).scalars().all()
+    category = next((c for c in cats if c.id == category_id), None)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
+
+    # Deleting a parent removes its subcategories too; any transaction referencing
+    # the deleted category (or its subs) becomes "Uncategorized".
+    victim_ids = [category.id] + [c.id for c in cats if c.parent_id == category.id]
+    moved = 0
+    exps = (await db.execute(select(FinanceExpense).where(
+        FinanceExpense.user_id == current_user.id, FinanceExpense.category_id.in_(victim_ids)))).scalars().all()
+    for e in exps:
+        e.category_id = None
+        e.category = "Uncategorized"
+        db.add(e)
+        moved += 1
+    incs = (await db.execute(select(FinanceIncome).where(
+        FinanceIncome.user_id == current_user.id, FinanceIncome.category_id.in_(victim_ids)))).scalars().all()
+    for i in incs:
+        i.category_id = None
+        i.source = "Uncategorized"
+        db.add(i)
+        moved += 1
+
+    for c in [c for c in cats if c.parent_id == category.id]:
+        await db.delete(c)
     await db.delete(category)
     await db.commit()
-    return {"status": "deleted"}
+    return {"status": "deleted", "uncategorized": moved}
 
 
 # ── Investments (portfolio tracker) ────────────────────────────────────────────
@@ -1289,8 +1463,8 @@ async def investments_summary(current_user=Depends(get_current_user), db=Depends
 class InvestmentCreate(BaseModel):
     name: str
     type: str = "mutual_fund"
-    invested_amount: float
-    current_value: float
+    invested_amount: float = Field(gt=0)
+    current_value: float = Field(ge=0)
     units: Optional[float] = None
     purchase_date: Optional[str] = None  # ISO date YYYY-MM-DD
     notes: Optional[str] = None
@@ -1380,10 +1554,10 @@ class LoanCreate(BaseModel):
     name: str
     loan_type: str = "personal"
     lender: Optional[str] = None
-    principal_amount: float
-    outstanding_amount: float
-    interest_rate: float
-    emi_amount: float
+    principal_amount: float = Field(gt=0)
+    outstanding_amount: float = Field(ge=0)
+    interest_rate: float = Field(ge=0)
+    emi_amount: float = Field(gt=0)
     emi_day: int
     tenure_months: Optional[int] = None
     notes: Optional[str] = None

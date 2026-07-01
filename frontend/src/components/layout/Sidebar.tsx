@@ -63,7 +63,7 @@ const ToggleButton = styled.button<{ $collapsed: boolean }>`
   z-index: 10;
   width: 24px;
   height: 24px;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: ${CHROME_BG};
   border: 1px solid ${CHROME_BORDER};
   color: ${CHROME_FG};

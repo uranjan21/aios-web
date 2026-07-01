@@ -5,13 +5,13 @@ const Root = styled(ProgressPrimitive.Root)`
   position: relative;
   width: 100%;
   overflow: hidden;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ theme }) => theme.color.muted};
 `
 
 const Indicator = styled(ProgressPrimitive.Indicator)<{ $color?: string }>`
   height: 100%;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ theme, $color }) => $color ?? theme.color.primary};
   transition: width 500ms ease;
 `

@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/EmptyState'
 import type { WorkoutSessionItem, HabitItem } from '@/types'
 import { Card as GlassCard } from '@ledgr/ui';
-import { KpiCard } from '@ledgr/ui';
+import { KpiCard, KpiGrid } from '@ledgr/ui';
 import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
 
 import styled from 'styled-components'
@@ -128,14 +128,14 @@ const StyledGoalTargetValue = styled.span`
 const StyledGoalProgressBar = styled.div`
   height: 0.375rem;
   background-color: rgba(45, 49, 58, 0.15);
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   overflow: hidden;
   margin-bottom: 0.5rem;
 `;
 
 const StyledGoalProgressFill = styled.div<{ $pct: number; $done: boolean }>`
   height: 100%;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   transition: width 0.5s, background-color 0.5s;
   background-color: ${({ $done }) => $done ? 'var(--primary)' : 'var(--primary)'};
   width: ${({ $pct }) => `${$pct}%`};
@@ -144,7 +144,7 @@ const StyledGoalProgressFill = styled.div<{ $pct: number; $done: boolean }>`
 const StyledGoalInputWrapper = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.25rem;
 `;
 
 const StyledGoalInputLabel = styled.label`
@@ -153,31 +153,15 @@ const StyledGoalInputLabel = styled.label`
   flex-shrink: 0;
 `;
 
-const StyledGoalInput = styled.input`
-  width: 4rem;
-  padding: 0.125rem 0.375rem;
-  font-size: 11px;
-  background-color: rgba(45, 49, 58, 0.1);
-  border: 1px solid rgba(45, 49, 58, 0.15);
-  border-radius: 0.25rem;
-  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
-  
-  &:focus {
-    outline: none;
-    box-shadow: 0 0 0 1px var(--primary);
-  }
-`;
-
 const StyledGoalInputUnit = styled.span`
   font-size: 10px;
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
 `;
 
-function GoalCard({ goal, current, target, onTargetChange }: {
+function GoalCard({ goal, current, target }: {
   goal: Goal
   current: number | null
   target: number
-  onTargetChange: (val: number) => void
 }) {
   const Icon = goal.icon
   const pct = current != null && target > 0
@@ -209,17 +193,8 @@ function GoalCard({ goal, current, target, onTargetChange }: {
       </StyledGoalProgressBar>
 
       <StyledGoalInputWrapper>
-        <StyledGoalInputLabel htmlFor={`goal-target-${goal.key}`}>Target:</StyledGoalInputLabel>
-        <StyledGoalInput
-          id={`goal-target-${goal.key}`}
-          type="number"
-          value={target}
-          min={0.1}
-          step={goal.key === 'daily_water' ? 0.5 : 1}
-          onChange={e => onTargetChange(parseFloat(e.target.value) || target)}
-          aria-label={`${goal.label} target`}
-        />
-        <StyledGoalInputUnit>{goal.unit}</StyledGoalInputUnit>
+        <StyledGoalInputLabel>Target:</StyledGoalInputLabel>
+        <StyledGoalInputUnit>{target} {goal.unit}</StyledGoalInputUnit>
       </StyledGoalInputWrapper>
     </GlassCard>
   )
@@ -539,25 +514,31 @@ const StyledSectionTitle = styled.span`
 `;
 
 const StyledGoalsGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.75rem;
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  padding-bottom: 4px;
+  
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar { display: none; }
+  
+  > * {
+    flex: 0 0 auto;
+    min-width: 140px;
+  }
 
   @media (min-width: 640px) {
+    display: grid;
     grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    padding-bottom: 0;
+    
+    > * { min-width: 0; }
   }
 `;
 
-const StyledHabitsGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
 
-  @media (min-width: 640px) {
-    grid-template-columns: repeat(3, 1fr);
-  }
-`;
 
 const StyledBadgesWrapper = styled.div`
   display: flex;
@@ -705,11 +686,6 @@ export function FitnessTab() {
     daily_water: goalsData?.target_water_l_per_day ?? GOALS[2].defaultTarget,
   }
 
-  const updateGoalMutation = useMutation({
-    mutationFn: (d: Partial<HealthGoal>) => healthApi.updateHealthGoals(d),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['health', 'goals'] }),
-  })
-
   const [prLimit, setPrLimit] = useState<number>(8)
   const [workoutLimit, setWorkoutLimit] = useState<number>(10)
 
@@ -760,14 +736,6 @@ export function FitnessTab() {
     onError: () => toast.error('Failed to add habit'),
   })
 
-  const handleTargetChange = (key: string, val: number) => {
-    const payload: Partial<HealthGoal> = {}
-    if (key === 'weight') payload.target_weight = val
-    if (key === 'weekly_gym') payload.target_workouts_per_week = val
-    if (key === 'daily_water') payload.target_water_l_per_day = val
-    updateGoalMutation.mutate(payload)
-  }
-
   const validSets = rows.filter(r => r.exercise.trim() && r.reps).length
   const updateRow = (i: number, patch: Partial<SetRow>) =>
     setRows(rs => rs.map((r, idx) => idx === i ? { ...r, ...patch } : r))
@@ -800,7 +768,7 @@ export function FitnessTab() {
         <div>
           <StyledSectionHeader>
             <Target style={{ width: '14px', height: '14px', color: 'var(--muted-foreground)' }} />
-            <StyledSectionTitle>Fitness Goals — targets saved locally</StyledSectionTitle>
+            <StyledSectionTitle>Fitness Goals — edit targets in Settings</StyledSectionTitle>
           </StyledSectionHeader>
           <StyledGoalsGrid>
             {GOALS.map(goal => {
@@ -812,7 +780,6 @@ export function FitnessTab() {
                   goal={goal}
                   current={current}
                   target={goalTargets[goal.key as keyof typeof goalTargets]}
-                  onTargetChange={val => handleTargetChange(goal.key, val)}
                 />
               )
             })}
@@ -852,7 +819,7 @@ export function FitnessTab() {
 
         {/* Habits */}
         <div>
-          <StyledHabitsGrid>
+          <KpiGrid $cols={3}>
             <KpiCard
               label="Habits"
               icon={Repeat}
@@ -873,9 +840,9 @@ export function FitnessTab() {
               color="primary"
               sub="Highest habit streak"
               loading={loadingHabits}
-              value={bestStreak > 0 ? `${bestStreak}d` : '—'}
+              value={`${bestStreak} days`}
             />
-          </StyledHabitsGrid>
+          </KpiGrid>
           <GlassCard
             title="Daily Habits"
             subtitle="Toggle each day; build streaks over time"

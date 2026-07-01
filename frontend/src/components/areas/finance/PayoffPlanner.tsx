@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Badge, SegmentedControl, Input, Card } from '@ledgr/ui'
+import { Badge, SegmentedControl, Input, Card, Select } from '@ledgr/ui'
 import dayjs from 'dayjs'
 import { Landmark } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
@@ -171,11 +171,12 @@ export function PayoffPlanner({ loans }: { loans: FinanceLoan[] }) {
       icon={<Landmark size={16} />}
       action={
         <ControlsGroup>
-          <SegmentedControl
+          <Select
             size="sm"
+            fullWidth={false}
             aria-label="Payoff strategy"
             value={strategy}
-            onChange={v => setStrategy(v as Strategy)}
+            onChange={(v: any) => setStrategy(v as Strategy)}
             options={[
               { label: 'Avalanche', value: 'avalanche' },
               { label: 'Snowball', value: 'snowball' },

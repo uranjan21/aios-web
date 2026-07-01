@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@/components/ui/Popconfirm'
 import { Button, Switch, Dialog, Badge, Input, DataTable, SegmentedControl, Card, Select } from '@ledgr/ui'
-import { Trash2, PencilLine, Landmark } from 'lucide-react'
+import { Trash2, PencilLine, Landmark, Plus } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { FinanceLoan } from '@/types'
@@ -152,7 +152,7 @@ const EMPTY_LOAN_FORM: LoanForm = {
   interest_rate: '0', emi_amount: '0', emi_day: '1', tenure_months: '', notes: '',
 }
 
-export function LoansTab() {
+export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
   const queryClient = useQueryClient()
   const [updatingLoan, setUpdatingLoan] = useState<FinanceLoan | null>(null)
   const [loanForm, setLoanForm] = useState<LoanForm>(EMPTY_LOAN_FORM)
@@ -360,17 +360,25 @@ export function LoansTab() {
         subtitle="Outstanding balances and monthly EMI obligations"
         icon={<Landmark size={16} />}
         action={
-          <SegmentedControl
-            size="sm"
-            aria-label="Filter loans by status"
-            value={statusFilter}
-            onChange={(v) => setStatusFilter(v as typeof statusFilter)}
-            options={[
-              { value: 'all', label: 'All' },
-              { value: 'active', label: 'Active' },
-              { value: 'paid', label: 'Paid off' },
-            ]}
-          />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Select
+              size="sm"
+              fullWidth={false}
+              aria-label="Filter loans by status"
+              value={statusFilter}
+              onChange={(v: any) => setStatusFilter(v as typeof statusFilter)}
+              options={[
+                { value: 'all', label: 'All Loans' },
+                { value: 'active', label: 'Active' },
+                { value: 'paid', label: 'Paid off' },
+              ]}
+            />
+            {onAdd && (
+              <Button size="sm" variant="primary" onClick={onAdd}>
+                <Plus size={12} style={{ marginRight: 4 }} /> Add Loan
+              </Button>
+            )}
+          </div>
         }
       >
         <DataTable

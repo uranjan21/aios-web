@@ -216,7 +216,7 @@ const PathChip = styled.span`
   gap: ${({ theme }) => theme.spacing[1]};
   font-size: 10px;
   padding: 2px 8px;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background-color: ${({ theme }) => theme.color.primary}14;
   color: ${({ theme }) => theme.color.primary}b3;
   border: 1px solid ${({ theme }) => theme.color.primary}33;
@@ -549,14 +549,14 @@ const TokenProgressContainer = styled.div`
 const TokenProgressBar = styled.div`
   height: 4px;
   width: 80px;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background-color: ${({ theme }) => theme.color.muted};
   overflow: hidden;
 `
 
 const TokenProgressFill = styled.div<{ $pct: number }>`
   height: 100%;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   transition: width 0.2s;
   background-color: ${({ theme, $pct }) => $pct > 80 ? theme.color.warning : theme.color.primary};
   width: ${({ $pct }) => $pct}%;

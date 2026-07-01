@@ -2,12 +2,11 @@ import React from 'react';
 import styled, { useTheme } from 'styled-components';
 import { Popconfirm } from '@/components/ui/Popconfirm';
 import { useState } from 'react';
-import { Button, Badge, EmptyState, DataTable, SegmentedControl } from '@ledgr/ui';
+import { Button, Badge, EmptyState, DataTable, SegmentedControl, Select } from '@ledgr/ui';
 import { Sparkles, TrendingUp, AlertCircle, CheckCircle, Repeat } from 'lucide-react';
-import Highcharts from 'highcharts';
-Highcharts.setOptions({ accessibility: { enabled: false } });
-import HighchartsReact from 'highcharts-react-official';
+import { AreaChart, Area, XAxis, Tooltip as ReTooltip, ResponsiveContainer } from 'recharts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ChartTooltip } from '@/components/ui/ChartTooltip';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { financeApi } from '@/api/areas';
@@ -117,7 +116,7 @@ function getDaysUntilDue(dueDay: number): number {
   return daysInMonth - currentDay + dueDay;
 }
 
-export const AIInsightsEngine = () => {
+export const FinancialInsights = () => {
   const theme = useTheme();
   const { data: cashflow, isLoading: loadingCashflow } = useQuery({
     queryKey: ['finance', 'cashflow'],
@@ -199,7 +198,7 @@ export const AIInsightsEngine = () => {
 
   return (
     <GlassCard
-      title="AI Financial Insights"
+      title="Financial Insights"
       subtitle="Patterns and tips inferred from your recent activity"
       icon={<Sparkles size={16} color={theme.color.accent} />}
     >
@@ -230,54 +229,10 @@ export const CashflowForecasting = () => {
   });
 
   const byDay = cashflow?.by_day ?? [];
-
-  const options = {
-    chart: {
-      type: 'areaspline',
-      backgroundColor: 'transparent',
-      height: 250,
-      margin: [20, 0, 20, 0],
-    },
-    title: { text: null },
-    xAxis: {
-      categories: byDay.map(d => format(new Date(d.date), 'MMM d')),
-      labels: { style: { color: theme.color.mutedForeground } },
-      lineWidth: 0,
-      tickWidth: 0,
-    },
-    yAxis: {
-      visible: false,
-    },
-    legend: { enabled: false },
-    credits: { enabled: false },
-    tooltip: {
-      backgroundColor: theme.color.popover,
-      style: { color: theme.color.popoverForeground },
-      borderWidth: 0,
-      formatter: function(this: any) {
-        return `<b>${this.x}</b><br/>${formatCurrency(this.y as number)}`;
-      }
-    },
-    plotOptions: {
-      areaspline: {
-        fillOpacity: 0.2,
-        lineWidth: 3,
-        marker: { enabled: false, symbol: 'circle', radius: 4, states: { hover: { enabled: true } } }
-      }
-    },
-    series: [{
-      name: 'Net Cashflow',
-      data: byDay.map(d => Math.round(d.income - d.expense)),
-      color: theme.color.accent,
-      fillColor: {
-        linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
-        stops: [
-          [0, `color-mix(in srgb, ${theme.color.accent} 50%, transparent)`],
-          [1, `color-mix(in srgb, ${theme.color.accent} 0.0%, transparent)`]
-        ]
-      }
-    }]
-  };
+  const chartData = byDay.map(d => ({
+    date: format(new Date(d.date), 'MMM d'),
+    net: Math.round(d.income - d.expense),
+  }));
 
   return (
     <GlassCard
@@ -290,7 +245,26 @@ export const CashflowForecasting = () => {
       ) : byDay.length === 0 ? (
         <EmptyState title="No cashflow data yet" />
       ) : (
-        <HighchartsReact highcharts={Highcharts} options={options} />
+        <ResponsiveContainer width="100%" height={250}>
+          <AreaChart data={chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="cashflowGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="date" tick={{ fontSize: 11, fill: theme.color.mutedForeground }} axisLine={false} tickLine={false} />
+            <ReTooltip content={<ChartTooltip valueFormatter={(value: any) => formatCurrency(value)} />} />
+            <Area
+              type="monotone"
+              dataKey="net"
+              stroke="var(--accent)"
+              strokeWidth={2}
+              fill="url(#cashflowGradient)"
+              isAnimationActive={false}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       )}
     </GlassCard>
   );
@@ -314,7 +288,7 @@ export const SubscriptionManagement = () => {
     onError: () => toast.error('Failed to update subscription'),
   });
 
-  const subs = (bills ?? []).filter(b => b.category === 'subscriptions');
+  const subs = (bills ?? []).filter(b => b.category?.toLowerCase() === 'subscriptions');
   const activeCount = subs.filter(s => s.is_active).length;
   const activeTotal = subs.filter(s => s.is_active).reduce((s, b) => s + Number(b.amount), 0);
   const visibleSubs = subs.filter(s =>
@@ -377,13 +351,14 @@ export const SubscriptionManagement = () => {
       subtitle="Recurring service charges and their state"
       icon={<Repeat size={16} />}
       action={
-        <SegmentedControl
+        <Select
           size="sm"
+          fullWidth={false}
           aria-label="Filter subscriptions by status"
           value={statusFilter}
-          onChange={(v) => setStatusFilter(v as typeof statusFilter)}
+          onChange={(v: any) => setStatusFilter(v as typeof statusFilter)}
           options={[
-            { value: 'all', label: 'All' },
+            { value: 'all', label: 'All Subscriptions' },
             { value: 'active', label: 'Active' },
             { value: 'paused', label: 'Paused' },
           ]}
@@ -394,6 +369,7 @@ export const SubscriptionManagement = () => {
         rows={visibleSubs}
         columns={columns}
         getRowKey={row => row.id}
+        empty={{ title: 'No subscriptions', description: 'Bills in the Subscriptions category appear here.' }}
       />
       <TableFooter>
         <span>Active Total ({activeCount})</span>

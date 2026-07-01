@@ -49,7 +49,7 @@ const BadgeMotion = styled(motion.span)`
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ theme }) => theme.color.primary};
   color: ${({ theme }) => theme.color.primaryForeground};
   font-size: 9px;

@@ -9,6 +9,8 @@ from app.core.deps import get_current_user, get_db
 from app.core.rate_limit import limiter
 from app.db.session import AsyncSessionLocal
 from app.models.chat import ChatSession, ChatMessage
+from app.models.user import User
+from app.services.billing.usage import ai_allowed
 from app.services.chat.agent import stream_chat_response
 from app.services.chat.memory import get_token_budget_status
 
@@ -115,6 +117,17 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
             user_content = data.get("content", "")
             session_id_str = data.get("session_id")
 
+            async with AsyncSessionLocal() as session:
+                user_result = await session.execute(select(User).where(User.id == user_id))
+                current_user = user_result.scalar_one_or_none()
+                if current_user is None or not await ai_allowed(session, current_user):
+                    await websocket.send_text(json.dumps({
+                        "type": "error",
+                        "code": "ai_quota_exceeded",
+                        "message": "Monthly AI quota exceeded. Upgrade or add the chat module to continue.",
+                    }))
+                    continue
+
             if not session_id_str:
                 async with AsyncSessionLocal() as session:
                     new_session = ChatSession(user_id=user_id)
@@ -168,7 +181,7 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
             # Always persist partial response — save in finally so disconnect doesn't lose it
             full_response = ""
             try:
-                async for event in stream_chat_response(session_id, user_content, history):
+                async for event in stream_chat_response(current_user.id, session_id, user_content, history):
                     await websocket.send_text(json.dumps(event))
                     if event.get("type") == "chunk":
                         full_response += event.get("content", "")

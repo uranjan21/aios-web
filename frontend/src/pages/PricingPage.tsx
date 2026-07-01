@@ -73,7 +73,7 @@ const CurrencyBadge = styled.div`
   color: ${({ theme }) => theme.color.mutedForeground};
   background: ${({ theme }) => theme.color.muted};
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   padding: 4px 12px;
   margin-top: 12px;
 `
@@ -206,7 +206,7 @@ const SaveHint = styled.div`
   font-weight: 600;
   color: ${({ theme }) => theme.color.accent};
   background: ${({ theme }) => `${theme.color.accent}14`};
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   padding: 4px 10px;
   margin-bottom: 1rem;
 `

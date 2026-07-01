@@ -42,7 +42,9 @@ def _user_row(user: User, sub: Optional[Subscription]) -> dict:
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
 @router.get("/users")
+@limiter.limit("30/minute")
 async def list_users(
+    request: Request,
     _=Depends(require_admin),
     db=Depends(get_db),
     search: str = "",
@@ -190,7 +192,8 @@ async def admin_delete_user(
 
 
 @router.get("/stats")
-async def system_stats(_=Depends(require_admin), db=Depends(get_db)):
+@limiter.limit("30/minute")
+async def system_stats(request: Request, _=Depends(require_admin), db=Depends(get_db)):
     """Quick system overview for the admin dashboard."""
     total_users = (await db.execute(select(func.count()).select_from(User))).scalar_one()
 

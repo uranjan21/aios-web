@@ -31,7 +31,7 @@ const Shell = styled.div<{ $fullWidth: boolean }>`
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
   padding: 10px 12px;
-  border-radius: 16px;
+  border-radius: ${({ theme }) => theme.radii.md};
   box-shadow: ${({ theme }) => theme.shadow.xs};
   margin-bottom: 16px;
   min-height: 44px;
@@ -120,7 +120,7 @@ export const ToolbarIconBtn = styled.button`
   gap: 6px;
   padding: 8px 16px;
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.card};
   color: ${({ theme }) => theme.color.mutedForeground};
   font-size: 13px;

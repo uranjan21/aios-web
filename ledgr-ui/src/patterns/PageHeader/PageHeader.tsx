@@ -23,6 +23,7 @@ const Root = styled.header`
 
   @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: flex-start;
     justify-content: space-between;
     gap: ${({ theme }) => theme.spacing[4]};
@@ -35,6 +36,10 @@ const Left = styled.div`
   gap: ${({ theme }) => theme.spacing[3]};
   flex: 1;
   min-width: 0;
+
+  @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
+    min-width: 220px;
+  }
 `;
 
 const IconWrap = styled.div`
@@ -94,6 +99,11 @@ const Subtitle = styled.p`
   font-size: ${({ theme }) => theme.typography.fontSize.base};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin: 0;
+  display: none;
+
+  @media (min-width: ${({ theme }) => theme.breakpoint.md}) {
+    display: block;
+  }
 `;
 
 const Actions = styled.div`
@@ -108,7 +118,11 @@ const Actions = styled.div`
 
 export function PageHeader({ eyebrow, icon, title, subtitle, actions, className }: PageHeaderProps) {
   const ctx = useContext(PageHeaderActionsContext);
-  const finalActions = ctx?.actions || actions;
+  // Portal actions (tab-specific, e.g. "Add Budget") render alongside — not
+  // instead of — the page-level actions prop (e.g. a constant "Settings" button).
+  const finalActions = (ctx?.actions || actions) ? (
+    <>{ctx?.actions}{actions}</>
+  ) : null;
 
   return (
     <Root className={className}>

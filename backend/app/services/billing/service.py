@@ -302,10 +302,11 @@ def _is_duplicate_event(event_id: str) -> bool:
     expired = [k for k, ts in list(_seen_events.items()) if now - ts > 86_400]
     for k in expired:
         del _seen_events[k]
-    if event_id in _seen_events:
-        return True
-    _seen_events[event_id] = now
-    return False
+    return event_id in _seen_events
+
+
+def _mark_event_seen(event_id: str) -> None:
+    _seen_events[event_id] = _time.monotonic()
 
 
 async def handle_webhook_event(db, event: dict) -> None:
@@ -330,5 +331,10 @@ async def handle_webhook_event(db, event: dict) -> None:
                 await _apply_subscription_object(db, full)
             except Exception as e:  # pragma: no cover - network
                 logger.error("Failed to retrieve subscription %s: %s", sub_id, e)
+                raise
     else:
         logger.debug("Unhandled Stripe event type: %s", etype)
+
+    # Only mark seen after successful processing — a failed write should be retried by Stripe.
+    if event_id:
+        _mark_event_seen(event_id)

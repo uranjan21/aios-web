@@ -9,15 +9,9 @@ import Highcharts from 'highcharts'
 Highcharts.setOptions({ accessibility: { enabled: false } })
 import HighchartsReact from 'highcharts-react-official'
 import styled, { useTheme } from 'styled-components'
-import { Card, Select, Badge } from '@ledgr/ui'
+import { Card, Select, Badge, KpiCard } from '@ledgr/ui'
+import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
 import type React from 'react'
-
-const ACCENT_HEX: Record<string, string> = {
-  'text-kpi-emerald': 'success',
-  'text-kpi-purple':  'accent',
-  'text-primary':     'primary',
-  'text-kpi-amber':   'warning',
-}
 
 
 
@@ -87,71 +81,37 @@ function MrrTrendCard({ businessId }: { businessId?: string }) {
   )
 }
 
-// ── Metric Tile ───────────────────────────────────────────────────────────────
-
-const IconWrap = styled.div<{ $color: string }>`
-  padding: 6px;
-  border-radius: 8px;
-  background: ${({ theme, $color }) => `${(theme.color as any)[$color] || theme.color.primary}18`};
-  color: ${({ theme, $color }) => (theme.color as any)[$color] || theme.color.primary};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-`
-
-const TileValue = styled.p`
-  font-size: 12px;
-  font-weight: 700;
-  color: ${({ theme }) => theme.color.foreground};
-  letter-spacing: -0.01em;
-  margin: 0;
-`
-
-function MetricTile({ icon: Icon, label, value, sub, accent }: {
-  icon: React.FC<{ size?: number }>
-  label: string
-  value: string
-  sub?: string
-  accent?: string
-}) {
-  return (
-    <Card
-      title={label}
-      subtitle={sub}
-      size="sm"
-      icon={
-        <IconWrap $color={ACCENT_HEX[accent || ''] || 'primary'}>
-          <Icon size={12} />
-        </IconWrap>
-      }
-    >
-      <TileValue>{value}</TileValue>
-    </Card>
-  )
-}
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-const Root = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-width: 42rem;
-`
 
-const TileGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+
+const KpiGrid = styled.div`
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  padding-bottom: 4px;
+  
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar { display: none; }
+  
+  > * {
+    flex: 0 0 auto;
+    min-width: 140px;
+  }
+
   @media (min-width: 640px) {
+    display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    padding-bottom: 0;
+    
+    > * { min-width: 0; }
   }
 `
 
-const SkeletonGrid = styled(TileGrid)`
-  max-width: 42rem;
-`
+  const SkeletonGrid = styled(KpiGrid)``
 
 const StyledSummarySkeleton = styled(Skeleton)`
   height: 80px;
@@ -189,37 +149,33 @@ export function SummaryTab({ businessId }: { businessId?: string }) {
   const arr = mrr * 12
 
   return (
-    <Root>
-      <TileGrid>
-        <MetricTile
+    <WorkspaceLayout rail={undefined}>
+      <KpiGrid>
+        <KpiCard
           icon={IndianRupee}
           label="MRR"
           value={formatCurrency(mrr)}
-          sub={mrr > 0 ? `ARR ${formatCurrency(arr)}` : 'Not yet monetised'}
-          accent="text-kpi-emerald"
+          color="emerald"
         />
-        <MetricTile
+        <KpiCard
           icon={TrendingUp}
           label="Product"
           value={summary?.product ?? 'Ledgr'}
-          sub="Building"
-          accent="text-kpi-purple"
+          color="purple"
         />
-        <MetricTile
+        <KpiCard
           icon={Package}
           label="Last Feature"
           value={summary?.last_feature ?? '—'}
-          sub={summary?.last_feature_at ? formatRelativeTime(summary.last_feature_at) : undefined}
-          accent="text-primary"
+          color="primary"
         />
-        <MetricTile
+        <KpiCard
           icon={Clock}
           label="Last Shipped"
           value={summary?.last_feature_at ? formatRelativeTime(summary.last_feature_at) : 'Never'}
-          sub={summary?.last_feature ?? undefined}
-          accent="text-kpi-amber"
+          color="amber"
         />
-      </TileGrid>
+      </KpiGrid>
 
       <MrrTrendCard businessId={businessId} />
 
@@ -233,6 +189,6 @@ export function SummaryTab({ businessId }: { businessId?: string }) {
             : 'Pre-revenue. Keep shipping — first ₹ is the hardest.'}
         </span>
       </StatusBanner>
-    </Root>
+    </WorkspaceLayout>
   )
 }

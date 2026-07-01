@@ -254,16 +254,18 @@ const UserMenuTrigger = styled.button`
 `
 
 const PAGE_NAMES: Record<string, string> = {
-  '/': 'Dashboard',
-  '/chat': 'Chat',
-  '/agents': 'Agents',
-  '/integrations': 'Integrations',
-  '/settings': 'Settings',
-  '/areas/finance': 'Finance',
-  '/areas/health': 'Health',
-  '/areas/career': 'Career',
-  '/areas/business': 'Business',
-  '/areas/content': 'Content',
+  '/app': 'Dashboard',
+  '/app/chat': 'Chat',
+  '/app/agents': 'Agents',
+  '/app/integrations': 'Integrations',
+  '/app/settings': 'Settings',
+  '/app/guide': 'Guide',
+  '/app/admin': 'Admin',
+  '/app/areas/finance': 'Finance',
+  '/app/areas/health': 'Health',
+  '/app/areas/career': 'Career',
+  '/app/areas/business': 'Business',
+  '/app/areas/content': 'Content',
 }
 
 export function TopBar() {
@@ -271,26 +273,27 @@ export function TopBar() {
   const user = useAuthStore(s => s.user)
   const location = useLocation()
   const navigate = useNavigate()
-  
+
   const path = location.pathname
-  const canGoBack = path !== '/' && path !== '/login'
+  const canGoBack = path !== '/app' && path !== '/' && path !== '/login'
 
   // Build breadcrumbs as { label, to } — every non-leaf segment is a real route.
+  // All authenticated routes live under /app, so strip that prefix before parsing segments.
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
-  const breadcrumbs: { label: string; to: string }[] = [{ label: 'AIOS', to: '/' }]
+  const breadcrumbs: { label: string; to: string }[] = [{ label: 'AIOS', to: '/app' }]
 
   if (canGoBack) {
-    const parts = path.split('/').filter(Boolean)
+    const appPath = path.startsWith('/app') ? path.slice(4) : path
+    const parts = appPath.split('/').filter(Boolean)
     if (parts[0] === 'areas') {
       // "Areas" has no index route — point it at the first area so the link resolves.
-      breadcrumbs.push({ label: 'Areas', to: '/areas/finance' })
-      if (parts[1]) breadcrumbs.push({ label: cap(parts[1]), to: `/areas/${parts[1]}` })
-      if (parts[2]) breadcrumbs.push({ label: cap(parts[2]), to: `/areas/${parts[1]}/${parts[2]}` })
-    } else {
-      breadcrumbs.push({ label: PAGE_NAMES[path] || cap(parts[0]), to: path })
+      breadcrumbs.push({ label: 'Areas', to: '/app/areas/finance' })
+      if (parts[1]) breadcrumbs.push({ label: cap(parts[1]), to: `/app/areas/${parts[1]}` })
+      if (parts[2]) breadcrumbs.push({ label: cap(parts[2]), to: `/app/areas/${parts[1]}/${parts[2]}` })
+    } else if (parts.length) {
+      const fullPath = `/app/${parts.join('/')}`
+      breadcrumbs.push({ label: PAGE_NAMES[fullPath] || cap(parts[0]), to: fullPath })
     }
-  } else if (path === '/') {
-    breadcrumbs.push({ label: 'Dashboard', to: '/' })
   }
 
   return (
@@ -306,7 +309,7 @@ export function TopBar() {
       )}
 
       <BreadcrumbNav aria-label="Breadcrumb">
-        <button type="button" className="crumb link" onClick={() => navigate('/')} aria-label="Home">
+        <button type="button" className="crumb link" onClick={() => navigate('/app')} aria-label="Home">
           <Home size={14} />
         </button>
         <ChevronRight className="separator" />

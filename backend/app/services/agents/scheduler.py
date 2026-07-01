@@ -72,6 +72,13 @@ async def start_scheduler() -> None:
 
     scheduler = get_scheduler()
 
+    def _safe_add_job(job_id: str, **kwargs) -> None:
+        """Register one fixed cron job without letting a single bad registration block the rest."""
+        try:
+            scheduler.add_job(id=job_id, **kwargs)
+        except Exception as e:
+            logger.error("Could not schedule fixed job %s: %s", job_id, e)
+
     try:
         async with AsyncSessionLocal() as session:
             result = await session.execute(select(Agent).where(Agent.is_active == True))
@@ -92,58 +99,58 @@ async def start_scheduler() -> None:
             except Exception as e:
                 logger.warning("Could not schedule agent %s (%s): %s", agent.task_id, agent.cron_expression, e)
 
-        scheduler.add_job(
-            _run_global_job,
+        _safe_add_job(
+            "finance_recurring_post",
+            func=_run_global_job,
             trigger=CronTrigger(hour=1, minute=0, timezone="UTC"),
             args=["app.services.finance.recurring", "post_due_recurring"],
-            id="finance_recurring_post",
             replace_existing=True,
             misfire_grace_time=3600,
         )
         # 03:30 UTC = 9:00 IST — morning reminder for tomorrow's bills/EMIs
-        scheduler.add_job(
-            _run_global_job,
+        _safe_add_job(
+            "finance_due_tomorrow",
+            func=_run_global_job,
             trigger=CronTrigger(hour=3, minute=30, timezone="UTC"),
             args=["app.services.finance.recurring", "notify_due_tomorrow"],
-            id="finance_due_tomorrow",
             replace_existing=True,
             misfire_grace_time=3600,
         )
 
         # 04:00 UTC = 9:30 IST — daily anomaly sweep (spending spikes, broken streaks)
-        scheduler.add_job(
-            _run_global_job,
+        _safe_add_job(
+            "insights_anomalies",
+            func=_run_global_job,
             trigger=CronTrigger(hour=4, minute=0, timezone="UTC"),
             args=["app.services.insights.anomalies", "detect_anomalies"],
-            id="insights_anomalies",
             replace_existing=True,
             misfire_grace_time=3600,
         )
 
         # Sunday 13:30 UTC = 19:00 IST — weekly digest
-        scheduler.add_job(
-            _run_global_job,
+        _safe_add_job(
+            "insights_weekly_digest",
+            func=_run_global_job,
             trigger=CronTrigger(day_of_week="sun", hour=13, minute=30, timezone="UTC"),
             args=["app.services.insights.digest", "generate_weekly_digest"],
-            id="insights_weekly_digest",
             replace_existing=True,
             misfire_grace_time=7200,
         )
 
-        scheduler.add_job(
-            _run_global_job,
+        _safe_add_job(
+            "google_sync",
+            func=_run_global_job,
             trigger=CronTrigger(minute="*/30", timezone="UTC"),
             args=["app.services.integrations._sync_job", "run_google_sync"],
-            id="google_sync",
             replace_existing=True,
             misfire_grace_time=1800,
         )
 
         # Hourly at :15 — batch metered AI usage to Stripe (Phase 2).
-        scheduler.add_job(
-            _run_billing_usage_report,
+        _safe_add_job(
+            "billing_usage_report",
+            func=_run_billing_usage_report,
             trigger=CronTrigger(minute=15, timezone="UTC"),
-            id="billing_usage_report",
             replace_existing=True,
             misfire_grace_time=1800,
         )

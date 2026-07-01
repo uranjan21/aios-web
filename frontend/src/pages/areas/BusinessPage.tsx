@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Rocket, Plus, Briefcase } from 'lucide-react'
 import { PageContainer, PageContent } from '@/components/layout/PageLayout'
+import { PageDivider } from '@/components/layout/PageDivider'
 import { PageHeader, Button, Card as GlassCard, Badge } from '@ledgr/ui'
 import { EmptyState } from '@/components/EmptyState'
 import styled from 'styled-components'
@@ -16,14 +17,14 @@ import { motion } from 'framer-motion'
 const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));
-  gap: 1.5rem;
+  row-gap: 1rem;
+  column-gap: 1.5rem;
   @media (min-width: 640px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   @media (min-width: 1024px) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  margin-top: 2rem;
 `
 
 const BusinessCardContent = styled.div`
@@ -84,7 +85,7 @@ export function BusinessPage() {
             New Business
           </Button>
         </HeaderWrap>
-
+        <PageDivider />
         {isLoading ? (
           <Grid>
             <Skeleton style={{ height: 200, borderRadius: 12 }} />

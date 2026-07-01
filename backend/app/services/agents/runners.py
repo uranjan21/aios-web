@@ -76,15 +76,28 @@ async def run_agent_task(task_id: str, user_id: uuid.UUID) -> str:
     async with AsyncSessionLocal() as session:
         facts = await _week_facts(session, user_id)
 
-    try:
-        text = await generate_text(system, facts, max_tokens=500)
-        # Meter the agent run (owners get overage billing; see services/billing/usage).
-        from app.services.billing.usage import record_ai_usage
-        async with AsyncSessionLocal() as session:
-            await record_ai_usage(session, user_id, units=1, source="agents")
-    except Exception as e:
-        logger.warning("Agent %s LLM call failed, returning facts only: %s", task_id, e)
+    # Respect the AI quota — same hard-cap rule as chat: a user over the free
+    # monthly cap who doesn't own a metered module gets facts-only (no LLM spend),
+    # matching services/billing/usage's stated quota model.
+    from sqlmodel import select
+    from app.models.user import User
+    from app.services.billing.usage import ai_allowed, record_ai_usage
+    async with AsyncSessionLocal() as session:
+        user = (await session.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+        allowed = user is not None and await ai_allowed(session, user)
+
+    if not allowed:
+        logger.info("Agent %s skipped LLM for user %s — AI quota exceeded; returning facts only", task_id, user_id)
         text = facts
+    else:
+        try:
+            text = await generate_text(system, facts, max_tokens=500)
+            # Meter the agent run (owners get overage billing; see services/billing/usage).
+            async with AsyncSessionLocal() as session:
+                await record_ai_usage(session, user_id, units=1, source="agents")
+        except Exception as e:
+            logger.warning("Agent %s LLM call failed, returning facts only: %s", task_id, e)
+            text = facts
 
     if push_title:
         try:

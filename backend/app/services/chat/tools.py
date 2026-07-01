@@ -1,6 +1,7 @@
 """All Claude tool definitions + execution handlers."""
 import logging
 from datetime import datetime, timezone
+from uuid import UUID
 
 from app.core.config import get_settings
 from app.services.vault_sync.writer import VaultWriteGuard
@@ -125,7 +126,7 @@ TOOL_DEFINITIONS = [
 ]
 
 
-async def execute_tool(tool_name: str, tool_input: dict) -> tuple[str, list[str]]:
+async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple[str, list[str]]:
     """Returns (result_text, affected_paths)."""
     settings = get_settings()
     guard = VaultWriteGuard(settings.vault_path)
@@ -182,6 +183,7 @@ async def execute_tool(tool_name: str, tool_input: dict) -> tuple[str, list[str]
         from app.db.session import AsyncSessionLocal
         async with AsyncSessionLocal() as db:
             events = await get_stored_events(
+                user_id,
                 db,
                 date_from=tool_input.get("date_from"),
                 date_to=tool_input.get("date_to"),

@@ -10,7 +10,7 @@ import {
   ComposedChart, Area, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
   ResponsiveContainer,
 } from 'recharts'
-import { KpiCard } from '@ledgr/ui';
+import { KpiCard, KpiGrid } from '@ledgr/ui';
 import { Card as GlassCard } from '@ledgr/ui';
 import { Card as SectionCard } from '@ledgr/ui'
 import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
@@ -30,16 +30,6 @@ const StyledContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1rem;
-`;
-
-const StyledKpiGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
-
-  @media (min-width: 640px) {
-    grid-template-columns: repeat(5, 1fr);
-  }
 `;
 
 const StyledChartsGrid = styled.div`
@@ -177,7 +167,6 @@ const StyledDivider = styled.div`
 export function BodySleepTab() {
   const theme = useTheme()
   const queryClient = useQueryClient()
-  const [editingHeight, setEditingHeight] = useState(false)
   const [bodyFormState, setBodyFormState] = useState({ logged_at: '', weight_kg: '', body_fat_pct: '', notes: '' })
   const [sleepFormState, setSleepFormState] = useState({ logged_at: '', hours: '', quality: 'good' })
   const [bodyPeriod, setBodyPeriod] = useState<'7d' | '30d' | '90d'>('30d')
@@ -216,16 +205,6 @@ export function BodySleepTab() {
       setBodyFormState({ logged_at: '', weight_kg: '', body_fat_pct: '', notes: '' })
     },
     onError: () => toast.error('Failed to log body stats'),
-  })
-
-  const heightMutation = useMutation({
-    mutationFn: (values: { height_cm: string }) => healthApi.updateHealthGoals({ height_cm: parseFloat(values.height_cm) }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['health', 'goals'] })
-      toast.success('Height saved')
-      setEditingHeight(false)
-    },
-    onError: () => toast.error('Failed to save height'),
   })
 
   const sleepMutation = useMutation({
@@ -311,13 +290,13 @@ export function BodySleepTab() {
         </Button>
       </HeaderActionPortal>
       <StyledContainer>
-        <StyledKpiGrid>
+        <KpiGrid $cols={5}>
           <KpiCard label="Weight" icon={Scale} color="primary" sub="Latest body weight" loading={loadingWeight} value={latestWeight != null ? `${latestWeight} kg` : '—'} />
           <KpiCard label="Body Fat" icon={Percent} color="purple" sub="Estimated body fat %" loading={loadingBodyFat} value={latestBodyFat != null ? `${latestBodyFat}%` : '—'} />
           <KpiCard label="BMI" icon={Ruler} color="emerald" sub="Body mass index" loading={loadingGoals} value={bmi != null ? bmi.toFixed(1) : 'Set height & weight'} />
           <KpiCard label="Last Night" icon={Moon} color="indigo" sub="Last logged sleep duration" loading={loadingSleep} value={lastNight != null ? `${lastNight}h` : '—'} />
           <KpiCard label="7-Day Avg" icon={Clock} color="primary" sub="Average sleep this week" loading={loadingSleep} value={`${weeklyAvg}h`} />
-        </StyledKpiGrid>
+        </KpiGrid>
 
         <StyledChartsGrid>
           <SectionCard

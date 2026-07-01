@@ -53,13 +53,13 @@ const StyledMacroBarValues = styled.span`
 const StyledMacroBarTrack = styled.div`
   height: 0.5rem;
   background-color: ${({ theme }) => theme.color?.muted || 'var(--muted)'};
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   overflow: hidden;
 `;
 
 const StyledMacroBarFill = styled.div<{ $pct: number; $color: string }>`
   height: 100%;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   transition: width 0.5s ease;
   width: ${({ $pct }) => `${$pct}%`};
   background-color: ${({ $color }) => $color};

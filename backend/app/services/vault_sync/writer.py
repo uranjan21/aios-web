@@ -28,6 +28,11 @@ ALLOWED_WRITE_PATHS = {
 }
 
 
+ALLOWED_READ_PATHS = set(ALLOWED_WRITE_PATHS["append_log"]) | set(ALLOWED_WRITE_PATHS["update_context"]) | {
+    "05-content/pipeline/twitter-queue.md",
+}
+
+
 class VaultWriteError(Exception):
     pass
 
@@ -39,7 +44,7 @@ class VaultWriteGuard:
     def _resolve(self, rel_path: str) -> Path:
         abs_path = (self._vault_path / rel_path).resolve()
         # Prevent path traversal outside vault
-        if not str(abs_path).startswith(str(self._vault_path.resolve())):
+        if not abs_path.is_relative_to(self._vault_path.resolve()):
             raise VaultWriteError(f"Path traversal rejected: {rel_path}")
         return abs_path
 
@@ -79,7 +84,9 @@ class VaultWriteGuard:
         logger.info("Updated vault context: %s", rel_path)
 
     def read_file(self, rel_path: str) -> str:
-        """Safe read — validates path stays within vault."""
+        """Safe read — restricted to the known context/log allowlist."""
+        if rel_path not in ALLOWED_READ_PATHS:
+            raise VaultWriteError(f"Read not allowed on: {rel_path}")
         abs_path = self._resolve(rel_path)
         if not abs_path.exists():
             return ""

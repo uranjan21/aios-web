@@ -5,7 +5,7 @@ and a WS bell event. Idempotency via alert_80_period / alert_100_period on
 budget_limits ("YYYY-MM" of last fire).
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy import func
@@ -26,6 +26,11 @@ async def check_budget_alerts(user_id: uuid.UUID, category: Optional[str] = None
     now = datetime.utcnow()
     period = now.strftime("%Y-%m")
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    # next month's first day as the exclusive upper bound
+    if month_start.month == 12:
+        month_end = month_start.replace(year=month_start.year + 1, month=1)
+    else:
+        month_end = month_start.replace(month=month_start.month + 1)
 
     try:
         async with AsyncSessionLocal() as session:
@@ -44,6 +49,7 @@ async def check_budget_alerts(user_id: uuid.UUID, category: Optional[str] = None
                     .where(FinanceExpense.user_id == user_id)
                     .where(FinanceExpense.category == limit.category)
                     .where(FinanceExpense.logged_at >= month_start)
+                    .where(FinanceExpense.logged_at < month_end)
                 )).scalar_one()
                 pct = float(spent) / monthly_limit * 100
 

@@ -17,8 +17,11 @@ const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ defa
 const OAuthCallbackPage = lazy(() => import('@/pages/OAuthCallbackPage').then(m => ({ default: m.OAuthCallbackPage })))
 const GoogleAuthCallbackPage = lazy(() => import('@/pages/GoogleAuthCallbackPage').then(m => ({ default: m.GoogleAuthCallbackPage })))
 const FinancePage = lazy(() => import('@/pages/areas/FinancePage').then(m => ({ default: m.FinancePage })))
+const FinanceSettingsPage = lazy(() => import('@/pages/areas/FinanceSettingsPage').then(m => ({ default: m.FinanceSettingsPage })))
 const HealthPage = lazy(() => import('@/pages/areas/HealthPage').then(m => ({ default: m.HealthPage })))
+const HealthSettingsPage = lazy(() => import('@/pages/areas/HealthSettingsPage').then(m => ({ default: m.HealthSettingsPage })))
 const CareerPage = lazy(() => import('@/pages/areas/CareerPage').then(m => ({ default: m.CareerPage })))
+const CareerSettingsPage = lazy(() => import('@/pages/areas/CareerSettingsPage').then(m => ({ default: m.CareerSettingsPage })))
 const BusinessPage = lazy(() => import('@/pages/areas/BusinessPage').then(m => ({ default: m.BusinessPage })))
 const ContentPage = lazy(() => import('@/pages/areas/ContentPage').then(m => ({ default: m.ContentPage })))
 
@@ -142,12 +145,15 @@ export const router = createBrowserRouter([
 
       // Finance Area
       { path: 'areas/finance', element: <Page><RequireModule module="finance"><FinancePage /></RequireModule></Page> },
+      { path: 'areas/finance/settings', element: <Page><RequireModule module="finance"><FinanceSettingsPage /></RequireModule></Page> },
 
       // Health Area
       { path: 'areas/health', element: <Page><RequireModule module="health"><HealthPage /></RequireModule></Page> },
+      { path: 'areas/health/settings', element: <Page><RequireModule module="health"><HealthSettingsPage /></RequireModule></Page> },
 
       // Career Area
       { path: 'areas/career', element: <Page><RequireModule module="career"><CareerPage /></RequireModule></Page> },
+      { path: 'areas/career/settings', element: <Page><RequireModule module="career"><CareerSettingsPage /></RequireModule></Page> },
 
       // Business Area
       { path: 'areas/business', element: <Page><RequireModule module="business"><BusinessPage /></RequireModule></Page> },

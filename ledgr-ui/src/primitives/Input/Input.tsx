@@ -40,7 +40,7 @@ const Wrapper = styled.div<{ $fullWidth: boolean; $invalid: boolean; $size: Inpu
   gap: ${({ theme }) => theme.spacing[2]};
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 9999px; /* Pill shape for modern search/toolbars */
+  border-radius: ${({ theme }) => theme.radii.md};
   transition: all ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
   ${({ $fullWidth }) => $fullWidth && css`width: 100%;`}
   ${({ $size }) => sizeStyles[$size]}

@@ -5,7 +5,7 @@
  * horizontally instead of wrapping so the control layout stays predictable.
  *
  * Anatomy:
- *   [title / left controls]  |  [right actions]
+ *   [title / left controls]  |  [center controls — true-centered]  |  [right actions]
  *
  * Usage:
  *   <AreaToolbar title="Overview">
@@ -16,6 +16,14 @@
  *   <AreaToolbar left={<DateNav />} title="Transactions">
  *     <Button>Filters</Button>
  *     <Button>Import</Button>
+ *   </AreaToolbar>
+ *
+ *   <AreaToolbar
+ *     left={<><Input placeholder="Search…" /><Button>Filters</Button></>}
+ *     center={<><Select … /><DateNav>…</DateNav></>}
+ *   >
+ *     <Button>Import</Button>
+ *     <Button variant="primary">Add</Button>
  *   </AreaToolbar>
  */
 
@@ -31,9 +39,9 @@ const Shell = styled.div<{ $fullWidth: boolean }>`
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
   padding: 10px 12px;
-  border-radius: 16px;
+  border-radius: ${({ theme }) => theme.radii.md};
   box-shadow: ${({ theme }) => theme.shadow.xs};
-  margin-bottom: 16px;
+  margin-bottom: 0;
   min-height: 44px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -75,6 +83,15 @@ const RightSlot = styled.div`
   flex-shrink: 0;
 `
 
+const CenterSlot = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+`
+
 // ── Convenience sub-components ────────────────────────────────────────────────
 
 /** Small muted label inside the toolbar (e.g., "Showing 24 results") */
@@ -92,7 +109,7 @@ export const ToolbarIconBtn = styled.button`
   gap: 6px;
   padding: 8px 16px;
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.card};
   color: ${({ theme }) => theme.color.mutedForeground};
   font-size: 13px;
@@ -129,7 +146,7 @@ export const DateNavBtn = styled.button`
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.md};
   border: none;
   background: transparent;
   color: ${({ theme }) => theme.color.mutedForeground};
@@ -155,6 +172,8 @@ export interface AreaToolbarProps {
   title?: ReactNode
   /** Additional left-side content (selects, date nav, etc.) placed after title */
   left?: ReactNode
+  /** Center content — true-centered in the remaining space between left and right (e.g. a date filter) */
+  center?: ReactNode
   /** Right-side action controls */
   children?: ReactNode
   /** Show the center divider between left and right. Default: true when both sides have content. */
@@ -163,12 +182,13 @@ export interface AreaToolbarProps {
   style?: CSSProperties
 }
 
-export function AreaToolbar({ title, left, children, divider, className, style }: AreaToolbarProps) {
+export function AreaToolbar({ title, left, center, children, divider, className, style }: AreaToolbarProps) {
   const hasLeft = !!title || !!left
+  const hasCenter = !!center
   const hasRight = !!children
-  if (!hasLeft && !hasRight) return null
+  if (!hasLeft && !hasCenter && !hasRight) return null
 
-  const showDivider = divider !== false && hasLeft && hasRight
+  const showDivider = divider !== false && hasLeft && (hasCenter || hasRight)
 
   return (
     <Shell
@@ -185,6 +205,7 @@ export function AreaToolbar({ title, left, children, divider, className, style }
         </LeftSlot>
       )}
       {showDivider && <ToolbarDivider />}
+      {hasCenter && <CenterSlot>{center}</CenterSlot>}
       {hasRight && <RightSlot>{children}</RightSlot>}
     </Shell>
   )

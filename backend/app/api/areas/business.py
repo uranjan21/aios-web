@@ -10,6 +10,8 @@ from app.models.business import Business, BusinessEvent
 
 router = APIRouter(prefix="/api/areas/business", tags=["business"])
 
+VALID_BUSINESS_STATUS = {"active", "paused", "archived"}
+
 
 class BusinessCreate(BaseModel):
     name: str
@@ -49,7 +51,10 @@ async def update_business(business_id: uuid.UUID, body: BusinessUpdate, current_
     business = result.scalar_one_or_none()
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
-    
+
+    if body.status is not None and body.status not in VALID_BUSINESS_STATUS:
+        raise HTTPException(status_code=422, detail=f"Invalid status. Must be one of: {', '.join(sorted(VALID_BUSINESS_STATUS))}")
+
     update_data = body.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(business, key, value)
@@ -65,7 +70,13 @@ async def delete_business(business_id: uuid.UUID, current_user=Depends(get_curre
     business = result.scalar_one_or_none()
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
-    
+
+    events_result = await db.execute(
+        select(BusinessEvent).where(BusinessEvent.business_id == business_id, BusinessEvent.user_id == current_user.id)
+    )
+    for event in events_result.scalars().all():
+        await db.delete(event)
+
     await db.delete(business)
     await db.commit()
     return {"ok": True}
@@ -93,6 +104,13 @@ class BusinessEventCreate(BaseModel):
 
 @router.post("/events")
 async def create_event(body: BusinessEventCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    if body.business_id is not None:
+        owned = await db.execute(
+            select(Business.id).where(Business.id == body.business_id, Business.user_id == current_user.id)
+        )
+        if owned.scalar_one_or_none() is None:
+            raise HTTPException(status_code=404, detail="Business not found")
+
     event = BusinessEvent(
         user_id=current_user.id,
         business_id=body.business_id,

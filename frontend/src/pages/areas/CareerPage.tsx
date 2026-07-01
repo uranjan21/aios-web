@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, History, Plus, Briefcase, ExternalLink, LayoutDashboard, Map, Target, Bot, Search, Bell, PlusCircle, Activity } from 'lucide-react'
+import { BookOpen, History, Plus, Briefcase, ExternalLink, LayoutDashboard, Map, Target, Bot, Search, Bell, PlusCircle, Activity, Settings } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -19,8 +19,7 @@ import { ErrorCard } from '@/components/ErrorCard'
 import { EmptyState } from '@/components/EmptyState'
 import { PageHeader } from '@ledgr/ui'
 import { CareerRadar } from '@/components/CareerRadar'
-import { Card as GlassCard } from '@ledgr/ui';
-import { Card as AppCard } from '@ledgr/ui'
+import { Card as GlassCard, KpiCard } from '@ledgr/ui';
 import type { SkillInventory, JobOpportunity, OpportunityStatus, CareerEvent } from '@/types'
 
 const LEVEL_COLORS: Record<SkillInventory['level'], any> = {
@@ -58,10 +57,29 @@ const DashCol = styled.div`
 `
 
 const KpiGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  @media (min-width: 1280px) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  padding-bottom: 4px;
+  margin-bottom: 16px;
+  
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar { display: none; }
+  
+  > * {
+    flex: 0 0 auto;
+    min-width: 140px;
+  }
+
+  @media (min-width: 640px) {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    padding-bottom: 0;
+    
+    > * { min-width: 0; }
+  }
 `
 
 const TwoColGrid = styled.div`
@@ -150,17 +168,7 @@ const StatLabel = styled.span`
   letter-spacing: 0.08em;
 `
 
-const StatValue = styled.span<{ $accent?: string }>`
-  font-size: 26px;
-  line-height: 30px;
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
-  font-weight: 700;
-  color: ${({ theme, $accent }) => {
-    if ($accent === 'text-primary') return theme.color.primary
-    if ($accent === 'text-kpi-emerald') return '#16a34a'
-    return theme.color.foreground
-  }};
-`
+
 
 const StatSub = styled.span`
   font-size: 11px;
@@ -264,19 +272,7 @@ function OpportunityRow({ opp }: { opp: JobOpportunity }) {
   )
 }
 
-function CareerStat({ title, value, subtitle, accent, icon }: { title: string; value: string; subtitle?: string; accent?: string; icon: React.ReactNode }) {
-  return (
-    <AppCard
-      title={title}
-      subtitle={subtitle}
-      icon={icon}
-      size="sm"
-      style={{ display: 'flex', flexDirection: 'column', gap: 4, height: '100%' }}
-    >
-      <StatValue $accent={accent} style={{ marginTop: 'auto' }}>{value}</StatValue>
-    </AppCard>
-  )
-}
+
 
 export function CareerPage() {
   const [isLogModalOpen, setIsLogModalOpen] = useState(false)
@@ -309,6 +305,11 @@ export function CareerPage() {
           eyebrow="Growth"
           title="Career"
           subtitle="Skills, roadmap and opportunities — manage your career in one place."
+          actions={
+            <Button variant="outline" size="sm" onClick={() => navigate('/app/areas/career/settings')}>
+              <Settings size={14} style={{ marginRight: 6 }} /> Settings
+            </Button>
+          }
         />
         <AreaTabs
           defaultActiveKey="1"
@@ -319,10 +320,10 @@ export function CareerPage() {
               children: (
                 <DashCol>
                   <KpiGrid>
-                    <CareerStat title="Skills Tracked" value={String(skills?.length ?? 0)} subtitle="total skills tracked" icon={<BookOpen size={16} />} />
-                    <CareerStat title="Active Pipeline" value={String(activeOpps.length)} subtitle="open opportunities" accent="text-primary" icon={<Briefcase size={16} />} />
-                    <CareerStat title="In Play" value={String(inPlay)} subtitle="interview or offer stages" accent={inPlay > 0 ? 'text-kpi-emerald' : undefined} icon={<Activity size={16} />} />
-                    <CareerStat title="Milestones" value={String(events?.length ?? 0)} subtitle="timeline logs" icon={<History size={16} />} />
+                    <KpiCard label="Skills Tracked" value={String(skills?.length ?? 0)} icon={BookOpen} />
+                    <KpiCard label="Active Pipeline" value={String(activeOpps.length)} color="primary" icon={Briefcase} />
+                    <KpiCard label="In Play" value={String(inPlay)} color={inPlay > 0 ? 'emerald' : undefined} icon={Activity} />
+                    <KpiCard label="Milestones" value={String(events?.length ?? 0)} icon={History} />
                   </KpiGrid>
 
                   <GlassCard

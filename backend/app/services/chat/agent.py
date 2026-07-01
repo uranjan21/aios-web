@@ -45,6 +45,7 @@ def _trim_history(history: list[dict]) -> list[dict]:
 
 
 async def stream_chat_response(
+    user_id: UUID,
     session_id: UUID,
     user_message: str,
     history: list[dict],
@@ -54,12 +55,12 @@ async def stream_chat_response(
     if settings.llm_provider == "nvidia":
         from app.services.chat.nvidia_agent import stream_nvidia_chat_response
 
-        async for event in stream_nvidia_chat_response(session_id, user_message, history):
+        async for event in stream_nvidia_chat_response(user_id, session_id, user_message, history):
             yield event
         return
 
     try:
-        await reserve_budget(session_id, estimated_input=ESTIMATED_TOKENS)
+        await reserve_budget(user_id, session_id, estimated_input=ESTIMATED_TOKENS)
     except Exception as e:
         yield {"type": "error", "code": "token_budget_exceeded", "message": str(e)}
         return
@@ -136,7 +137,7 @@ async def stream_chat_response(
                 yield {"type": "tool_call", "tool": tc["name"], "input": tool_input}
 
                 try:
-                    result_text, paths = await execute_tool(tc["name"], tool_input)
+                    result_text, paths = await execute_tool(tc["name"], tool_input, user_id)
                     tool_status = "ok"
                     affected_paths.extend(paths)
                 except Exception as e:
@@ -175,7 +176,7 @@ async def stream_chat_response(
                 {"role": "user", "content": tool_results},
             ]
 
-        updated_budget = await get_token_budget_status()
+        updated_budget = await get_token_budget_status(user_id)
         yield {
             "type": "done",
             "tokens": {
@@ -191,6 +192,7 @@ async def stream_chat_response(
         if total_input_tokens + total_output_tokens > 0:
             try:
                 await record_usage(
+                    user_id,
                     session_id,
                     total_input_tokens,
                     total_output_tokens,

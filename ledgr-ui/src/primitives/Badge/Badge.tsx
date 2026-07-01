@@ -59,7 +59,7 @@ const StyledBadge = styled.span<{ $tone: BadgeTone; $size: BadgeSize; $outline: 
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-weight: ${({ theme }) => theme.typography.fontWeight.medium};
   line-height: 1;
-  border-radius: ${({ theme }) => theme.radii.full};
+  border-radius: ${({ theme }) => theme.radii.md};
   border: none;
   box-shadow: ${({ theme, $outline }) => ($outline ? theme.shadow.claySunken : theme.shadow.clay)};
   white-space: nowrap;

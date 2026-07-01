@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { KpiCard, Card as SectionCard } from '@ledgr/ui'
+import { KpiGrid, KpiCard, Card as SectionCard } from '@ledgr/ui'
 import { Eye, Heart, MessageCircle, Share2, Trophy, PieChart as PieIcon } from 'lucide-react'
 import styled, { useTheme } from 'styled-components'
 import {
@@ -16,10 +16,7 @@ const Grid = styled.div`
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 16px;
 `
-const KpiCell = styled.div`
-  grid-column: span 6;
-  @media (min-width: 1024px) { grid-column: span 3; }
-`
+const KpiCell = styled.div``
 const Half = styled.div`
   grid-column: span 12;
   @media (min-width: 1024px) { grid-column: span 6; }
@@ -104,13 +101,16 @@ export function AnalyticsTab() {
   const performers = stats?.top_performers ?? []
 
   return (
-    <Grid>
-      <KpiCell><KpiCard label="Total Views" icon={Eye} sub="Across published content" loading={isLoading} value={totals.views.toLocaleString('en-IN')} /></KpiCell>
-      <KpiCell><KpiCard label="Total Likes" icon={Heart} sub="Reactions earned" loading={isLoading} value={totals.likes.toLocaleString('en-IN')} /></KpiCell>
-      <KpiCell><KpiCard label="Comments" icon={MessageCircle} sub="Conversations sparked" loading={isLoading} value={totals.comments.toLocaleString('en-IN')} /></KpiCell>
-      <KpiCell><KpiCard label="Shares" icon={Share2} sub="Amplification" loading={isLoading} value={totals.shares.toLocaleString('en-IN')} /></KpiCell>
+    <>
+      <KpiGrid $cols={4}>
+        <KpiCell><KpiCard label="Total Views" icon={Eye} sub="Across published content" loading={isLoading} value={totals.views.toLocaleString('en-IN')} /></KpiCell>
+        <KpiCell><KpiCard label="Total Likes" icon={Heart} sub="Reactions earned" loading={isLoading} value={totals.likes.toLocaleString('en-IN')} /></KpiCell>
+        <KpiCell><KpiCard label="Comments" icon={MessageCircle} sub="Conversations sparked" loading={isLoading} value={totals.comments.toLocaleString('en-IN')} /></KpiCell>
+        <KpiCell><KpiCard label="Shares" icon={Share2} sub="Amplification" loading={isLoading} value={totals.shares.toLocaleString('en-IN')} /></KpiCell>
+      </KpiGrid>
 
-      <Half>
+      <Grid>
+        <Half>
         <SectionCard title="Content by Platform" subtitle="Where you publish most" icon={<PieIcon size={16} />} style={{ height: '100%' }}>
           {isLoading ? <Skeleton style={{ height: 260 }} /> : platformPerf.length === 0 ? (
             <Empty>No data yet — publish content with metrics to see analytics.</Empty>
@@ -175,6 +175,7 @@ export function AnalyticsTab() {
           )}
         </SectionCard>
       </Half>
-    </Grid>
+      </Grid>
+    </>
   )
 }

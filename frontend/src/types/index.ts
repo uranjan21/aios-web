@@ -251,6 +251,7 @@ export interface BudgetStatus {
 }
 export interface LedgerEntry {
   id: string; kind: 'expense' | 'income' | 'transfer'; amount: number; label: string; logged_at: string;
+  description: string | null; category: string | null; category_id: string | null; account_id: string | null;
 }
 export interface CashFlowData {
   month: string; income_total: number; expense_total: number; savings_rate: number;
@@ -260,6 +261,9 @@ export interface HealthGoal {
   calorie_target: number; protein_target: number; carb_target: number;
   fat_target: number; water_target: number; steps_target: number; sleep_target: number;
   height_cm: number | null;
+  target_weight: number | null;
+  target_workouts_per_week: number | null;
+  target_water_l_per_day: number | null;
 }
 export interface NutritionToday {
   calories: number; protein: number; carbs: number; fat: number;

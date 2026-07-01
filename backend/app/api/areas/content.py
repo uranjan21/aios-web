@@ -65,9 +65,22 @@ class ContentItemCreate(BaseModel):
     status: Optional[str] = None
 
 
+async def _check_campaign_ownership(db, campaign_id: Optional[str], user_id) -> None:
+    if campaign_id is None:
+        return
+    owned = await db.execute(
+        select(ContentCampaign.id).where(ContentCampaign.id == campaign_id, ContentCampaign.user_id == user_id)
+    )
+    if owned.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+
 @router.post("/items")
 async def create_item(body: ContentItemCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    status = body.status if body.status in VALID_STATUS else "idea"
+    if body.status is not None and body.status not in VALID_STATUS:
+        raise HTTPException(status_code=422, detail=f"Invalid status. Must be one of: {', '.join(sorted(VALID_STATUS))}")
+    status = body.status or "idea"
+    await _check_campaign_ownership(db, body.campaign_id, current_user.id)
     item = ContentItem(
         user_id=current_user.id,
         title=body.title,
@@ -121,6 +134,12 @@ async def patch_item(item_id: str, body: ContentItemPatch, current_user=Depends(
         raise HTTPException(status_code=404, detail="Item not found")
 
     data = body.model_dump(exclude_unset=True)
+
+    if "status" in data and data["status"] not in VALID_STATUS:
+        raise HTTPException(status_code=422, detail=f"Invalid status. Must be one of: {', '.join(sorted(VALID_STATUS))}")
+
+    if "campaign_id" in data:
+        await _check_campaign_ownership(db, data["campaign_id"], current_user.id)
 
     # Transitioning into "published" stamps published_at + publish_date once.
     if data.get("status") == "published" and item.status != "published":
