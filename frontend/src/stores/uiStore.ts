@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { ReactNode } from 'react'
+import { DEFAULT_PALETTE_ID } from '@/theme/palettes'
 
 type Theme = 'dark' | 'light'
 
@@ -12,6 +13,9 @@ interface UIState {
   theme: Theme
   setTheme: (t: Theme) => void
   toggleTheme: () => void
+
+  palette: string
+  setPalette: (p: string) => void
 
   cmdPaletteOpen: boolean
   setCmdPaletteOpen: (v: boolean) => void
@@ -34,6 +38,9 @@ export const useUIStore = create<UIState>()(
       setTheme: (t) => set({ theme: t }),
       toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
 
+      palette: DEFAULT_PALETTE_ID,
+      setPalette: (p) => set({ palette: p }),
+
       cmdPaletteOpen: false,
       setCmdPaletteOpen: (v) => set({ cmdPaletteOpen: v }),
 
@@ -46,7 +53,7 @@ export const useUIStore = create<UIState>()(
         return { recentPages: [path, ...filtered].slice(0, 5) }
       }),
     }),
-    { name: 'aios-ui', partialize: (s) => ({ theme: s.theme }) }  // don't persist sidebarOpen — desktop always shows; mobile always starts closed
+    { name: 'aios-ui', partialize: (s) => ({ theme: s.theme, palette: s.palette }) }  // don't persist sidebarOpen — desktop always shows; mobile always starts closed
   )
 )
 

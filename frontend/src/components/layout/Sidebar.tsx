@@ -339,9 +339,9 @@ export function Sidebar() {
       </ToggleButton>
 
       <BrandPanel>
-        <LogoBadge>L</LogoBadge>
+        <LogoBadge>A</LogoBadge>
         <BrandText $collapsed={collapsed}>
-          <span className="name">Ledgr AiOs</span>
+          <span className="name">AIOS</span>
           <span className="tagline">Premium Agent</span>
         </BrandText>
       </BrandPanel>

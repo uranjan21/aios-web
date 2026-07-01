@@ -16,6 +16,7 @@ import { Card as GlassCard, Select } from '@ledgr/ui';
 import { Button } from '@/components/ui/button'
 import styled, { useTheme } from 'styled-components'
 import { AreaSettingsPage } from '@/components/layout/AreaSettingsPage'
+import { PALETTES } from '@/theme/palettes'
 
 // ── Row ───────────────────────────────────────────────────────────────────────
 

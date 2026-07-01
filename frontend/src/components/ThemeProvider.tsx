@@ -1,7 +1,7 @@
 import { useUIStore } from '@/stores/uiStore'
 import { ThemeProvider as LedgrProvider, GlobalStyles } from '@ledgr/ui'
 import { createGlobalStyle } from 'styled-components'
-import { aiosLightTheme, aiosDarkTheme } from '@/theme/aiosTheme'
+import { getTheme } from '@/theme/aiosTheme'
 
 /** "#1C1917" → "28, 25, 23" (for rgba(var(--primary-rgb), a) usages) */
 function hexToRgbChannels(hex: string): string {
@@ -71,9 +71,10 @@ const ThemeVars = createGlobalStyle`
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const theme = useUIStore(s => s.theme)
+  const palette = useUIStore(s => s.palette)
 
   return (
-    <LedgrProvider theme={theme === 'dark' ? aiosDarkTheme : aiosLightTheme}>
+    <LedgrProvider theme={getTheme(palette, theme)}>
       <GlobalStyles />
       <ThemeVars />
       {children}
