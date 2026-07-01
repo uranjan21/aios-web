@@ -1,9 +1,14 @@
 import React from 'react'
-import { ArrowLeft, Sun, Moon, Search, Menu, ChevronRight, Home } from 'lucide-react'
+import { ArrowLeft, Sun, Moon, Search, Menu, ChevronRight, Home, Settings, LogOut } from 'lucide-react'
 import { NotificationBell } from '@/components/NotificationBell'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
+import { logoutAndRedirect } from '@/lib/logout'
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
+} from '@ledgr/ui'
 import styled from 'styled-components'
 
 const HeaderRoot = styled.header`
@@ -348,17 +353,32 @@ export function TopBar() {
         {/* We can use the custom NotificationBell but wrap it conceptually if needed */}
         <NotificationBell />
         
-        <UserMenuTrigger aria-label={`User settings menu: ${user?.name || 'User'}`} onClick={() => navigate('/settings')}>
-          {user?.picture_url ? (
-            <img className="avatar" src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
-          ) : (
-            <div className="avatar">{(user?.name || 'U')[0].toUpperCase()}</div>
-          )}
-          <div className="info">
-            <span className="name">{user?.name || 'User'}</span>
-            <span className="role">{user?.auth_provider === 'google' ? user.email : 'Admin'}</span>
-          </div>
-        </UserMenuTrigger>
+        <DropdownMenu>
+          <DropdownMenuTrigger>
+            <UserMenuTrigger aria-label={`User menu: ${user?.name || 'User'}`}>
+              {user?.picture_url ? (
+                <img className="avatar" src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+              ) : (
+                <div className="avatar">{(user?.name || 'U')[0].toUpperCase()}</div>
+              )}
+              <div className="info">
+                <span className="name">{user?.name || 'User'}</span>
+                <span className="role">{user?.auth_provider === 'google' ? user.email : 'Admin'}</span>
+              </div>
+            </UserMenuTrigger>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="bottom" align="end">
+            <DropdownMenuLabel>{user?.email || user?.name || 'Account'}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => navigate('/app/settings')}>
+              <Settings /> Profile &amp; settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem destructive onSelect={() => logoutAndRedirect(navigate)}>
+              <LogOut /> Log out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </RightCluster>
     </HeaderRoot>
   )

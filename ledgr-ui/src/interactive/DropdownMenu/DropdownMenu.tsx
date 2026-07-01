@@ -5,7 +5,8 @@ import { createContext, useContext, useRef, useEffect } from 'react';
 import type { ReactNode, MouseEvent, KeyboardEvent } from 'react';
 import styled, { css } from 'styled-components';
 import { Popover, PopoverTrigger, PopoverContent } from '../Popover/Popover';
-import type { PopoverProps, PopoverAlign, PopoverSide } from '../Popover/Popover';
+import type { PopoverAlign, PopoverSide } from '../Popover/Popover';
+import { useControllableState } from '../../utils/hooks';
 
 interface MenuCtx { close: () => void; }
 const MenuCtx = createContext<MenuCtx | null>(null);
@@ -17,8 +18,16 @@ export interface DropdownMenuProps {
   children: ReactNode;
 }
 
-export function DropdownMenu({ children, ...rest }: DropdownMenuProps & Omit<PopoverProps, 'children'>) {
-  return <Popover {...rest}>{children}</Popover>;
+export function DropdownMenu({ open, defaultOpen = false, onOpenChange, children }: DropdownMenuProps) {
+  // Popover owns its own open state; DropdownMenu mirrors it here too so
+  // DropdownMenuItem can close the menu on select via MenuCtx (Popover's
+  // context is private to Popover.tsx and isn't reachable from here).
+  const [isOpen, setIsOpen] = useControllableState({ value: open, defaultValue: defaultOpen, onChange: onOpenChange });
+  return (
+    <MenuCtx.Provider value={{ close: () => setIsOpen(false) }}>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>{children}</Popover>
+    </MenuCtx.Provider>
+  );
 }
 
 export const DropdownMenuTrigger = PopoverTrigger;

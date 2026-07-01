@@ -23,6 +23,7 @@ const HealthSettingsPage = lazy(() => import('@/pages/areas/HealthSettingsPage')
 const CareerPage = lazy(() => import('@/pages/areas/CareerPage').then(m => ({ default: m.CareerPage })))
 const CareerSettingsPage = lazy(() => import('@/pages/areas/CareerSettingsPage').then(m => ({ default: m.CareerSettingsPage })))
 const BusinessPage = lazy(() => import('@/pages/areas/BusinessPage').then(m => ({ default: m.BusinessPage })))
+const BusinessSettingsPage = lazy(() => import('@/pages/areas/BusinessSettingsPage').then(m => ({ default: m.BusinessSettingsPage })))
 const ContentPage = lazy(() => import('@/pages/areas/ContentPage').then(m => ({ default: m.ContentPage })))
 
 const LandingPage = lazy(() => import('@/pages/LandingPage').then(m => ({ default: m.LandingPage })))
@@ -157,6 +158,7 @@ export const router = createBrowserRouter([
 
       // Business Area
       { path: 'areas/business', element: <Page><RequireModule module="business"><BusinessPage /></RequireModule></Page> },
+      { path: 'areas/business/:id/settings', element: <Page><RequireModule module="business"><BusinessSettingsPage /></RequireModule></Page> },
 
       // Content Area
       { path: 'areas/content', element: <Page><RequireModule module="content"><ContentPage /></RequireModule></Page> },

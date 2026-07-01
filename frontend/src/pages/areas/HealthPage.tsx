@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import { Scale, Flame, Trophy, Activity, Target, Zap, Heart, LayoutDashboard, Moon, Apple, Dumbbell, History, Bot, Search, Bell, PlusCircle, LineChart as LineChartIcon, Settings } from 'lucide-react'
-import { SegmentedControl, Button } from '@ledgr/ui'
+import { SegmentedControl, Button, Select } from '@ledgr/ui'
 import { useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
 import { healthApi } from '@/api/areas'
@@ -235,7 +235,7 @@ export function HealthPage() {
                       <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: theme.color?.accent || 'var(--accent)' }} />
                       <span>Weight</span>
                     </div>
-                    <SegmentedControl
+                    <Select
                       size="sm"
                       aria-label="Weight range"
                       value={weightRange}

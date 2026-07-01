@@ -1,11 +1,16 @@
 import { useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
+import { logoutAndRedirect } from '@/lib/logout'
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
+} from '@ledgr/ui'
 import {
   LayoutDashboard, MessageSquare, Bot, IndianRupee,
   Heart, Briefcase, Rocket, PenLine, Plug, Settings,
-  ChevronLeft, BookOpen
+  ChevronLeft, BookOpen, LogOut
 } from 'lucide-react'
 import styled, { css } from 'styled-components'
 // import { Tooltip } from '@ledgr/ui' // Assumed available, otherwise use native title or Radix
@@ -252,14 +257,29 @@ const NavItemLink = styled(NavLink)<{ $collapsed: boolean }>`
   }
 `
 
-const UserBlock = styled.div<{ $collapsed: boolean }>`
+const UserBlock = styled.button<{ $collapsed: boolean }>`
+  width: 100%;
+  border: none;
   border-top: 1px solid ${({ theme }) => theme.chrome.border};
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
   padding: 8px;
   display: flex;
   align-items: center;
   gap: 8px;
   position: relative;
-  
+  transition: background-color 120ms cubic-bezier(0.2, 0, 0, 1);
+
+  &:hover { background: rgba(255, 255, 255, 0.06); }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color.ring};
+    outline-offset: -2px;
+  }
+
   ${({ $collapsed }) => $collapsed && css`
     justify-content: center;
   `}
@@ -330,6 +350,7 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const { sidebarOpen, setSidebarOpen } = useUIStore()
   const user = useAuthStore(s => s.user)
+  const navigate = useNavigate()
 
   return (
     <SidebarRoot $collapsed={collapsed} $mobileOpen={sidebarOpen}>
@@ -368,16 +389,31 @@ export function Sidebar() {
         ))}
       </NavList>
 
-      <UserBlock $collapsed={collapsed}>
-        {user?.picture_url ? (
-          <img src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-        ) : (
-          <Avatar>{(user?.name || 'U')[0].toUpperCase()}</Avatar>
-        )}
-        <UserInfo $collapsed={collapsed}>
-          <span className="name">{user?.name || 'User'}</span>
-        </UserInfo>
-      </UserBlock>
+      <DropdownMenu>
+        <DropdownMenuTrigger>
+          <UserBlock $collapsed={collapsed} aria-label={`User menu: ${user?.name || 'User'}`}>
+            {user?.picture_url ? (
+              <img src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+            ) : (
+              <Avatar>{(user?.name || 'U')[0].toUpperCase()}</Avatar>
+            )}
+            <UserInfo $collapsed={collapsed}>
+              <span className="name">{user?.name || 'User'}</span>
+            </UserInfo>
+          </UserBlock>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="top" align="start">
+          <DropdownMenuLabel>{user?.email || user?.name || 'Account'}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => navigate('/app/settings')}>
+            <Settings /> Profile &amp; settings
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem destructive onSelect={() => logoutAndRedirect(navigate)}>
+            <LogOut /> Log out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </SidebarRoot>
   )
 }

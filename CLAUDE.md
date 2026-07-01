@@ -76,6 +76,7 @@ A full-stack personal life-management OS — Finance, Health, Career, Business, 
 - API: functions in `frontend/src/api/` — no raw fetch or axios in components
 - Styling: `styled.div` / `styled(Component)` everywhere; `className` in SC = CSS selector hook, NOT utility
 - `WorkspaceLayout` + `RailHeading` pattern: analytics/lists → center; inputs/forms → right 300px sticky rail
+- **Settings Layout**: Any settings page (global or domain-specific) MUST use the standard two-panel layout (`AreaSettingsPage`). Do not build inline settings tabs or custom settings layouts.
 - `GlobalCapture` (⌘L): uses `@ledgr/ui Dialog`, parses NL text via `/captures/parse`, routes to correct domain
 
 ### Backend

@@ -1,23 +1,9 @@
 import React, { useState } from 'react'
-import { Dialog, Button, Input, Select } from '@ledgr/ui'
+import { Dialog, DialogFooter, Button, Input, Select, Stack, Label } from '@ledgr/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { businessApi } from '@/api/areas'
-import styled from 'styled-components'
-
-const FormField = styled.div`
-  margin-bottom: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`
-
-const Label = styled.label`
-  font-size: 14px;
-  font-weight: 500;
-  color: ${({ theme }) => theme.color?.foreground || 'inherit'};
-`
-
 import { toast } from 'sonner'
+
 
 export function CreateBusinessModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const queryClient = useQueryClient()
@@ -50,8 +36,8 @@ export function CreateBusinessModal({ open, onClose }: { open: boolean; onClose:
   return (
     <Dialog open={open} onOpenChange={handleOpenChange} title="Create New Business">
       <form onSubmit={e => { e.preventDefault(); createMutation.mutate({ name, business_type: businessType, description, color }) }}>
-        <div style={{ padding: '20px 0' }}>
-          <FormField>
+        <Stack gap={4} style={{ paddingBottom: 24 }}>
+          <Stack gap={2}>
             <Label>Business Name</Label>
             <Input 
               value={name} 
@@ -59,8 +45,8 @@ export function CreateBusinessModal({ open, onClose }: { open: boolean; onClose:
               placeholder="Acme Corp"
               required 
             />
-          </FormField>
-          <FormField>
+          </Stack>
+          <Stack gap={2}>
             <Label>Business Type</Label>
             <Select
               value={businessType}
@@ -73,16 +59,16 @@ export function CreateBusinessModal({ open, onClose }: { open: boolean; onClose:
                 { label: 'Freelance', value: 'freelance' },
               ]}
             />
-          </FormField>
-          <FormField>
+          </Stack>
+          <Stack gap={2}>
             <Label>Description</Label>
             <Input 
               value={description} 
               onChange={(e: any) => setDescription(e.target.value)} 
               placeholder="What does your business do?" 
             />
-          </FormField>
-          <FormField>
+          </Stack>
+          <Stack gap={2}>
             <Label>Theme Color</Label>
             <input 
               type="color" 
@@ -90,14 +76,14 @@ export function CreateBusinessModal({ open, onClose }: { open: boolean; onClose:
               onChange={(e: any) => setColor(e.target.value)}
               style={{ width: '40px', height: '40px', padding: '0', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
             />
-          </FormField>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+          </Stack>
+        </Stack>
+        <DialogFooter>
           <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
           <Button type="submit" variant="primary" loading={createMutation.isPending} disabled={!name}>
             Create Business
           </Button>
-        </div>
+        </DialogFooter>
       </form>
     </Dialog>
   )

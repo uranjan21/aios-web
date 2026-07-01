@@ -7,6 +7,7 @@ import { api } from '@/api/client'
 import { chatApi } from '@/api/chat'
 import { billingApi } from '@/api/billing'
 import { useAuthStore } from '@/stores/authStore'
+import { logoutAndRedirect } from '@/lib/logout'
 import { useUIStore } from '@/stores/uiStore'
 import { useVaultSync } from '@/hooks/useVaultSync'
 import { useFeatures } from '@/hooks/useFeatures'
@@ -882,13 +883,8 @@ function DangerZone() {
 // ── Account section ───────────────────────────────────────────────────────────
 
 function AccountSection() {
-  const logout = useAuthStore(s => s.logout)
   const navigate = useNavigate()
-
-  const handleLogout = async () => {
-    try { await api.post('/auth/logout') } catch (e) { console.error('Logout failed:', e) }
-    finally { logout(); navigate('/login') }
-  }
+  const handleLogout = () => logoutAndRedirect(navigate)
 
   return (
     <GlassCard

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Rocket, Calendar, BarChart3, Settings as SettingsIcon } from 'lucide-react'
 import { PageContainer, PageContent } from '@/components/layout/PageLayout'
 import { PageHeader, Button } from '@ledgr/ui'
@@ -11,7 +12,6 @@ import { AgencyTabs } from './AgencyTabs'
 import { EcommerceTabs } from './EcommerceTabs'
 import { ContentTabs } from './ContentTabs'
 import { FreelanceTabs } from './FreelanceTabs'
-import { BusinessSettingsTab } from './BusinessSettingsTab'
 
 interface BusinessDetailViewProps {
   business: Business
@@ -19,6 +19,7 @@ interface BusinessDetailViewProps {
 }
 
 export function BusinessDetailView({ business, onBack }: BusinessDetailViewProps) {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('dashboard')
 
   const getDashboardTabContent = () => {
@@ -41,9 +42,14 @@ export function BusinessDetailView({ business, onBack }: BusinessDetailViewProps
           title={business.name}
           subtitle={business.description || "Manage your business operations."}
           actions={
-            <Button variant="ghost" size="sm" onClick={onBack}>
-              <ArrowLeft size={14} style={{ marginRight: 6 }} /> Back to Portfolio
-            </Button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button variant="outline" size="sm" onClick={() => navigate(`/app/areas/business/${business.id}/settings`)}>
+                <SettingsIcon size={14} style={{ marginRight: 6 }} /> Settings
+              </Button>
+              <Button variant="ghost" size="sm" onClick={onBack}>
+                <ArrowLeft size={14} style={{ marginRight: 6 }} /> Back to Portfolio
+              </Button>
+            </div>
           }
         />
         <AreaTabs
@@ -64,11 +70,6 @@ export function BusinessDetailView({ business, onBack }: BusinessDetailViewProps
               key: 'summary',
               label: <><BarChart3 size={14} /> Summary</>,
               children: <SummaryTab businessId={business.id} />,
-            },
-            {
-              key: 'settings',
-              label: <><SettingsIcon size={14} /> Settings</>,
-              children: <BusinessSettingsTab business={business} onDeleted={onBack} />,
             },
           ]}
         />
