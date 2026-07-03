@@ -127,7 +127,7 @@ const StyledDeleteButton = styled.button`
   opacity: 0;
   transition: opacity 0.2s, color 0.2s;
   
-  ${GlassCard}:hover & {
+  .glass-card:hover & {
     opacity: 1;
   }
   
@@ -190,6 +190,7 @@ function SessionCard({ session }: { session: WorkoutSessionItem }) {
 
   return (
     <GlassCard
+      className="glass-card"
       size="sm"
       title={session.name}
       subtitle={dayjs(session.logged_at).format('ddd, MMM D')}

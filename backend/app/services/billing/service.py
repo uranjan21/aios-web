@@ -289,30 +289,23 @@ async def _apply_subscription_object(db, obj: dict) -> None:
     await db.commit()
 
 
-# In-process idempotency cache: event_id → monotonic timestamp (L-5).
-# Prevents duplicate processing within a single server lifetime.
-# Not durable across restarts — use a DB table for full production guarantees.
-import time as _time
-_seen_events: dict[str, float] = {}
+from app.models.billing_event import StripeEventIdempotency
+
+async def _is_duplicate_event(db, event_id: str) -> bool:
+    event = (await db.execute(select(StripeEventIdempotency).where(StripeEventIdempotency.event_id == event_id))).scalar_one_or_none()
+    return event is not None
 
 
-def _is_duplicate_event(event_id: str) -> bool:
-    now = _time.monotonic()
-    # Evict entries older than 24 h to bound memory.
-    expired = [k for k, ts in list(_seen_events.items()) if now - ts > 86_400]
-    for k in expired:
-        del _seen_events[k]
-    return event_id in _seen_events
-
-
-def _mark_event_seen(event_id: str) -> None:
-    _seen_events[event_id] = _time.monotonic()
+async def _mark_event_seen(db, event_id: str) -> None:
+    event = StripeEventIdempotency(event_id=event_id)
+    db.add(event)
+    await db.commit()
 
 
 async def handle_webhook_event(db, event: dict) -> None:
     """Process a verified Stripe webhook event."""
     event_id = event.get("id", "")
-    if event_id and _is_duplicate_event(event_id):
+    if event_id and await _is_duplicate_event(db, event_id):
         logger.info("Skipping duplicate Stripe event %s", event_id)
         return
 
@@ -337,4 +330,4 @@ async def handle_webhook_event(db, event: dict) -> None:
 
     # Only mark seen after successful processing — a failed write should be retried by Stripe.
     if event_id:
-        _mark_event_seen(event_id)
+        await _mark_event_seen(db, event_id)

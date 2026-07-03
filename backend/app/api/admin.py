@@ -12,6 +12,8 @@ from app.core.deps import get_db, require_admin
 from app.core.rate_limit import limiter
 from app.models.user import User
 from app.models.billing import Subscription
+from app.models.admin_audit import AdminAuditLog
+import json
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -117,6 +119,14 @@ async def override_plan(
         sub.updated_at = datetime.utcnow()
         db.add(sub)
 
+    audit = AdminAuditLog(
+        admin_id=request.state.user.id if hasattr(request.state, "user") else None,
+        action="override_plan",
+        target_user_id=user_id,
+        details=json.dumps({"plan": body.plan, "status": body.status})
+    )
+    db.add(audit)
+
     await db.commit()
     await db.refresh(sub)
     logger.info("Admin override: user %s → plan=%s status=%s", user_id, body.plan, body.status)
@@ -147,6 +157,15 @@ async def toggle_admin(
     user.is_admin = body.is_admin
     user.updated_at = datetime.utcnow()
     db.add(user)
+    
+    audit = AdminAuditLog(
+        admin_id=current_admin.id,
+        action="toggle_admin",
+        target_user_id=user_id,
+        details=json.dumps({"is_admin": body.is_admin})
+    )
+    db.add(audit)
+
     await db.commit()
     await db.refresh(user)
     sub = (await db.execute(select(Subscription).where(Subscription.user_id == user_id))).scalar_one_or_none()
@@ -187,6 +206,15 @@ async def admin_delete_user(
     user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
     if user:
         await db.delete(user)
+        
+    audit = AdminAuditLog(
+        admin_id=current_admin.id,
+        action="delete_user",
+        target_user_id=user_id,
+        details=json.dumps({"deleted_email": user.email if user else "unknown"})
+    )
+    db.add(audit)
+
     await db.commit()
     return {"status": "deleted", "user_id": str(user_id)}
 

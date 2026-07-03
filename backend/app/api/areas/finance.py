@@ -1206,7 +1206,6 @@ async def account_ledger(account_id: uuid.UUID, limit: int = 50, current_user=De
 class AccountUpdate(BaseModel):
     name: Optional[str] = None
     type: Optional[AccountType] = None
-    balance: Optional[float] = None
     currency: Optional[str] = None
 
 
@@ -1230,8 +1229,6 @@ async def update_account(
         account.name = name
     if "type" in updates and updates["type"] is not None:
         account.type = updates["type"]
-    if "balance" in updates and updates["balance"] is not None:
-        account.balance = Decimal(str(updates["balance"]))
     if "currency" in updates:
         currency = (updates["currency"] or "").strip().upper()
         if not currency:

@@ -82,3 +82,25 @@ Based on your feedback, we have parked the chat bots and email parsing features.
 *   **4. Frontend Experience:**
     *   **Context Switcher:** A dropdown in the TopBar allowing the user to toggle their view between "Personal" and "Household".
     *   **Joint Dashboard:** When in Household mode, the Dashboard aggregates both users' shared finances and shared tasks into single unified charts.
+
+---
+
+## Phase 5: Advanced AI Capabilities (Ideation & Backlog)
+**Goal:** Transition AIOS from a passive tracker to a predictive, proactive, and actionable co-pilot.
+
+### 1. Predictive Life Forecasting
+*   **Concept:** Move from descriptive analytics ("you slept 5 hours") to predictive models ("your productivity will drop by 40% tomorrow, and you risk missing your coding deadline").
+*   **Implementation:** Utilize time-series forecasting (e.g., Prophet or simple linear regression combined with LLMs) on the backend to extrapolate financial runway, burnout risk, and habit streaks.
+
+### 2. Agentic Automation (Actionable AI)
+*   **Concept:** The AI shouldn't just surface insights; it should act on them.
+*   **Use Cases:** 
+    *   If stress is high and sleep is low, the AI automatically drafts a calendar block for "Recovery Time" and suggests canceling non-essential meetings.
+    *   If a career job opportunity is marked as "Interviewed" 3 days ago, the AI automatically drafts a follow-up email and drops it in the user's drafts.
+
+### 3. Voice-First Quick Capture
+*   **Concept:** Frictionless logging on the go. Instead of typing into the ⌘L modal, users tap a microphone on the mobile PWA.
+*   **Implementation:** Integrate Whisper API (or local Web Speech API) to transcribe speech to text, then pipe the transcript through the existing `GlobalCapture` NLP router. Example: "I just bought a coffee for 5 bucks and walked 2 miles" -> logs to Finance and Health simultaneously.
+
+### 4. Macro Goal Synthesis (Vision Board)
+*   **Concept:** Tie daily grind to the big picture. Users set 3-5 annual "Macro Goals" (e.g., "Get promoted to Senior", "Run a marathon"). The AI dynamically tracks how daily micro-habits (coding hours, gym check-ins) are feeding into those goals and visualizes progress.

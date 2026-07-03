@@ -486,7 +486,7 @@ export function HomeTab() {
                         </div>
                         <AmountContainer>
                           <ItemAmountText>{formatCurrency(item.amount)}</ItemAmountText>
-                          <Badge tone={urgencyColor(item.days)} variant="soft" style={{ fontSize: '10px', lineHeight: '1.2', padding: '0 4px', margin: 0 }}>{item.days === 0 ? 'Today' : `${item.days}d`}</Badge>
+                          <Badge tone={urgencyColor(item.days)} style={{ fontSize: '10px', lineHeight: '1.2', padding: '0 4px', margin: 0 }}>{item.days === 0 ? 'Today' : `${item.days}d`}</Badge>
                         </AmountContainer>
                       </ListItem>
                     ))}

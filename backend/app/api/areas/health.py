@@ -1,8 +1,16 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Annotated
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, AfterValidator
 from sqlmodel import select, desc
+
+def _to_naive_utc(v: Optional[datetime]) -> Optional[datetime]:
+    if v is None: return None
+    if v.tzinfo is not None:
+        return v.astimezone(timezone.utc).replace(tzinfo=None)
+    return v
+
+NaiveDateTime = Annotated[Optional[datetime], AfterValidator(_to_naive_utc)]
 
 from app.core.deps import get_current_user, get_db
 from app.models.health import HealthLog, HealthGoal
@@ -29,7 +37,7 @@ class HealthLogCreate(BaseModel):
     value: Optional[float] = None
     unit: Optional[str] = None
     notes: Optional[str] = None
-    logged_at: Optional[datetime] = None
+    logged_at: NaiveDateTime = None
 
 
 @router.post("/logs")
@@ -438,7 +446,7 @@ class WorkoutSetIn(BaseModel):
 
 class WorkoutCreate(BaseModel):
     name: str = "Workout"
-    logged_at: Optional[datetime] = None
+    logged_at: NaiveDateTime = None
     notes: Optional[str] = None
     sets: list[WorkoutSetIn]
 
