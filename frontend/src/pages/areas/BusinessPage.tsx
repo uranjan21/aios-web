@@ -11,6 +11,7 @@ import { businessApi } from '@/api/areas'
 import { Business } from '@/types'
 import { BusinessDetailView } from '@/components/areas/business/BusinessDetailView'
 import { CreateBusinessModal } from '@/components/areas/business/CreateBusinessModal'
+import { WorkspaceStatsWidget } from '@/components/workspace/WorkspaceStatsWidget'
 import { Skeleton } from '@/components/ui/skeleton'
 import { motion } from 'framer-motion'
 
@@ -86,6 +87,9 @@ export function BusinessPage() {
           </Button>
         </HeaderWrap>
         <PageDivider />
+        <div style={{ marginBottom: '16px' }}>
+          <WorkspaceStatsWidget domain="business" />
+        </div>
         {isLoading ? (
           <Grid>
             <Skeleton style={{ height: 200, borderRadius: 12 }} />

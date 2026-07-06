@@ -20,9 +20,18 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql+asyncpg://localhost:5432/aios_web"
 
+    # Redis — REQUIRED for rate limiting across >1 worker (autoscaled/multi-worker
+    # deploys). When unset the limiter uses per-process memory (fine for a single
+    # worker / dev only). Format: redis://host:6379/0
+    redis_url: str = ""
+
     # Vault — single-tenant / self-host feature. Disable in hosted multi-tenant SaaS:
     # the vault is a single shared filesystem and is NOT isolated per user.
     vault_sync_enabled: bool = True
+    # Explicit acknowledgement that a single-tenant vault is intended in a
+    # production deployment (self-host). Without it, production refuses to start
+    # vault sync — guards against a forgotten env var leaking data on hosted SaaS.
+    vault_single_tenant_ack: bool = False
     vault_path: str = "/tmp/vault"
     vault_watch_interval_seconds: int = 5
 

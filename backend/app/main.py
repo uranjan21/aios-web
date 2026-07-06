@@ -35,6 +35,7 @@ from app.api.forecasts import router as forecasts_router
 from app.api.actions import router as actions_router
 from app.api.insights import router as insights_router
 from app.api.automations import router as automations_router
+from app.api.workspace import router as workspace_router
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,18 @@ async def lifespan(app: FastAPI):
 
     from pathlib import Path
     vault_path = Path(settings.vault_path)
+    # Vault sync is single-tenant: one shared filesystem, NOT isolated per user.
+    # Leaving it on in a hosted multi-tenant deployment leaks every user's vault
+    # to every other user. Refuse to start it in production unless explicitly
+    # acknowledged, so a forgotten env var can't cause a cross-tenant data leak.
+    if settings.vault_sync_enabled and settings.environment == "production" and not settings.vault_single_tenant_ack:
+        raise RuntimeError(
+            "REFUSING TO START: VAULT_SYNC_ENABLED=true in production. Vault sync "
+            "is single-tenant and shares one filesystem across ALL users — this "
+            "leaks data in a multi-tenant SaaS. Set VAULT_SYNC_ENABLED=false for "
+            "hosted multi-tenant, or VAULT_SINGLE_TENANT_ACK=true if this is a "
+            "deliberate single-tenant/self-host production deployment."
+        )
     if not settings.vault_sync_enabled:
         logger.info("Vault sync disabled (VAULT_SYNC_ENABLED=false) — watcher not started")
     elif vault_path.exists():
@@ -238,6 +251,7 @@ def create_app() -> FastAPI:
     app.include_router(actions_router)
     app.include_router(insights_router)
     app.include_router(automations_router)
+    app.include_router(workspace_router)
     return app
 
 

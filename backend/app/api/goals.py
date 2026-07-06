@@ -51,6 +51,54 @@ async def list_goals(
     )
     return result.scalars().all()
 
+class GoalUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1)
+    description: Optional[str] = None
+    category: Optional[str] = None
+    target_date: Optional[date] = None
+    status: Optional[str] = None
+
+
+@router.patch("/{goal_id}", response_model=MacroGoal)
+async def update_goal(
+    goal_id: uuid.UUID,
+    body: GoalUpdate,
+    current_user: User = Depends(get_current_user),
+    db = Depends(get_db),
+):
+    goal = await db.get(MacroGoal, goal_id)
+    if not goal or goal.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    data = body.model_dump(exclude_unset=True)
+    if "status" in data and data["status"] not in ("active", "completed", "archived"):
+        raise HTTPException(status_code=422, detail="Invalid status")
+    for field, value in data.items():
+        setattr(goal, field, value)
+    await db.commit()
+    await db.refresh(goal)
+    return goal
+
+
+@router.delete("/{goal_id}", status_code=204)
+async def delete_goal(
+    goal_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db = Depends(get_db),
+):
+    goal = await db.get(MacroGoal, goal_id)
+    if not goal or goal.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    # Remove child progress rows first (no ON DELETE cascade on the FK).
+    rows = (await db.execute(
+        select(GoalProgress).where(GoalProgress.goal_id == goal_id)
+    )).scalars().all()
+    for r in rows:
+        await db.delete(r)
+    await db.delete(goal)
+    await db.commit()
+    return None
+
+
 @router.get("/{goal_id}/progress", response_model=List[GoalProgress])
 async def list_goal_progress(
     goal_id: uuid.UUID,

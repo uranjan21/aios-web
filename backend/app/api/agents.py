@@ -20,51 +20,14 @@ logger = logging.getLogger(__name__)
 
 _agent_subscribers: Set = set()
 
-DEFAULT_AGENTS = [
-    {"task_id": "aios-morning-brief", "name": "Morning Brief", "cron_expression": "0 5 * * *", "description": "Generate daily brief from calendar + context"},
-    {"task_id": "aios-news-radar", "name": "News Radar", "cron_expression": "0 8 * * *", "description": "Scan and summarize relevant tech news"},
-    {"task_id": "aios-weekly-calendar", "name": "Weekly Calendar", "cron_expression": "0 7 * * 1", "description": "Generate LinkedIn calendar content"},
-    {"task_id": "aios-career-checkpoint", "name": "Career Checkpoint", "cron_expression": "0 19 * * 5", "description": "Weekly career review and update"},
-    {"task_id": "aios-monthly-finance", "name": "Monthly Finance", "cron_expression": "0 9 1 * *", "description": "Monthly finance snapshot generation"},
-    {"task_id": "aios-evening-review", "name": "Evening Review", "cron_expression": "0 22 * * *", "description": "Daily evening review and planning"},
-    {"task_id": "aios-weekly-refresh", "name": "Weekly Refresh", "cron_expression": "0 20 * * 0", "description": "Weekly goals and context refresh"},
-    {"task_id": "aios-content-performance", "name": "Content Performance", "cron_expression": "0 20 * * 5", "description": "Weekly content performance review"},
-]
-
-
-_ACTIVE_BY_DEFAULT = {
-    "aios-morning-brief", "aios-news-radar",
-    "aios-weekly-calendar", "aios-career-checkpoint", "aios-monthly-finance",
-}
-
+DEFAULT_AGENTS = []
+_ACTIVE_BY_DEFAULT = set()
 
 async def seed_default_agents_for_user(user_id) -> None:
-    """Idempotently create the default agent set for one user."""
-    async with AsyncSessionLocal() as session:
-        have = set((await session.execute(
-            select(Agent.task_id).where(Agent.user_id == user_id)
-        )).scalars().all())
-        added = False
-        for agent_data in DEFAULT_AGENTS:
-            if agent_data["task_id"] in have:
-                continue
-            session.add(Agent(
-                **agent_data,
-                user_id=user_id,
-                is_active=agent_data["task_id"] in _ACTIVE_BY_DEFAULT,
-            ))
-            added = True
-        if added:
-            await session.commit()
-
+    pass
 
 async def seed_default_agents() -> None:
-    """Backfill default agents for every existing user (called at startup)."""
-    from app.models.user import User
-    async with AsyncSessionLocal() as session:
-        user_ids = (await session.execute(select(User.id))).scalars().all()
-    for uid in user_ids:
-        await seed_default_agents_for_user(uid)
+    pass
 
 
 @router.get("")

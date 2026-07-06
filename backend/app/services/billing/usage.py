@@ -55,12 +55,25 @@ async def _owns_metered_module(db, user_id) -> bool:
 
 
 async def ai_allowed(db, user) -> bool:
-    """False only when a non-paying user is over the free monthly cap."""
+    """Whether this user may make another metered AI call right now.
+
+    - Admins: always.
+    - Dev / self-host (non-production, billing off): unlimited.
+    - Production: every user gets `ai_free_monthly_credits` free calls/month.
+      Over that, paid users with a metered module get overage; on a public
+      free launch (billing off) users are HARD-CAPPED. This is the cost/abuse
+      backstop so an anonymous signup can't run up unbounded LLM spend on our
+      provider key when billing isn't live yet.
+    """
     settings = get_settings()
-    if not settings.billing_enabled or getattr(user, "is_admin", False):
+    if getattr(user, "is_admin", False):
+        return True
+    if settings.environment != "production" and not settings.billing_enabled:
         return True
     if await usage_this_month(db, user.id) < settings.ai_free_monthly_credits:
         return True
+    if not settings.billing_enabled:
+        return False
     return await _owns_metered_module(db, user.id)
 
 

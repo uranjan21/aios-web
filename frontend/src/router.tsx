@@ -29,6 +29,10 @@ const DiscoveriesPage = lazy(() => import('@/pages/DiscoveriesPage').then(m => (
 const BusinessSettingsPage = lazy(() => import('@/pages/areas/BusinessSettingsPage').then(m => ({ default: m.BusinessSettingsPage })))
 const ContentPage = lazy(() => import('@/pages/areas/ContentPage').then(m => ({ default: m.ContentPage })))
 
+const ProjectsPage = lazy(() => import('@/pages/workspace/ProjectsPage').then(m => ({ default: m.ProjectsPage })))
+const SprintsPage = lazy(() => import('@/pages/workspace/SprintsPage').then(m => ({ default: m.SprintsPage })))
+const TasksPage = lazy(() => import('@/pages/workspace/TasksPage').then(m => ({ default: m.TasksPage })))
+
 const LandingPage = lazy(() => import('@/pages/LandingPage').then(m => ({ default: m.LandingPage })))
 const PricingPage = lazy(() => import('@/pages/PricingPage').then(m => ({ default: m.PricingPage })))
 const AdminPage = lazy(() => import('@/pages/AdminPage').then(m => ({ default: m.AdminPage })))
@@ -147,6 +151,9 @@ export const router = createBrowserRouter([
       { path: 'chat/:sessionId', element: <Page><RequireModule module="chat"><ChatPage /></RequireModule></Page> },
       { path: 'agents', element: <Page><RequireModule module="agents"><AgentsPage /></RequireModule></Page> },
       { path: 'goals', element: <Page><GoalsPage /></Page> },
+      { path: 'projects', element: <Page><ProjectsPage /></Page> },
+      { path: 'sprints', element: <Page><SprintsPage /></Page> },
+      { path: 'tasks', element: <Page><TasksPage /></Page> },
       { path: 'review', element: <Page><ReviewPage /></Page> },
       { path: 'discoveries', element: <Page><DiscoveriesPage /></Page> },
 

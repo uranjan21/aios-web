@@ -14,6 +14,7 @@ import { Card as GlassCard } from '@ledgr/ui';
 import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
 import { AiInsightCard } from '@/components/AiInsightCard'
 import { ForecastWidget } from '@/components/widgets/ForecastWidget'
+import { WorkspaceStatsWidget } from '@/components/workspace/WorkspaceStatsWidget'
 import styled, { useTheme } from 'styled-components'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
 import { SegmentedControl } from '@ledgr/ui'
@@ -430,6 +431,9 @@ export function HomeTab() {
   return (
     <>
       <WorkspaceLayout>
+        <div style={{ marginBottom: '16px' }}>
+          <WorkspaceStatsWidget domain="finance" />
+        </div>
         {/* KPI lead row */}
         <KpiGrid>
           <KpiCard

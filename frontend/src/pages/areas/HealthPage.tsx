@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
-import { Scale, Flame, Trophy, Activity, Target, Zap, Heart, LayoutDashboard, Moon, Apple, Dumbbell, History, Bot, Search, Bell, PlusCircle, LineChart as LineChartIcon, Settings } from 'lucide-react'
+import { Scale, Flame, Trophy, Activity, Target, Zap, Heart, LayoutDashboard, Moon, Apple, Dumbbell, History, Bot, Search, Bell, PlusCircle, LineChart as LineChartIcon, Settings, Brain } from 'lucide-react'
 import { SegmentedControl, Button, Select } from '@ledgr/ui'
 import { useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
@@ -24,6 +24,7 @@ import { FitnessTab } from '@/components/areas/health/FitnessTab'
 import { HealthLogModal } from '@/components/areas/health/HealthLogModal'
 import { PageHeader } from '@ledgr/ui'
 import { AiInsightCard } from '@/components/AiInsightCard'
+import { WorkspaceStatsWidget } from '@/components/workspace/WorkspaceStatsWidget'
 import styled, { useTheme } from 'styled-components'
 import { PageContainer, PageContent } from '@/components/layout/PageLayout'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
@@ -75,7 +76,8 @@ const StyledGridItemMain = styled.div`
 const StyledGridItemSide = styled.div`
   grid-column: span 12 / span 12;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 1rem;
   
   @media (min-width: 1024px) {
     grid-column: span 4 / span 4;
@@ -223,8 +225,10 @@ export function HealthPage() {
             </StyledKpiGrid>
 
             <StyledDashboardGrid>
-            {/* Weight Progression chart */}
             <StyledGridItemMain>
+              <div style={{ marginBottom: '16px' }}>
+                <WorkspaceStatsWidget domain="health" />
+              </div>
               <SectionCard
                 title="Weight Progression"
                 subtitle="Body weight logs over the selected window"
@@ -279,6 +283,12 @@ export function HealthPage() {
                 )}
               </SectionCard>
             </StyledGridItemMain>
+            <StyledGridItemSide>
+              <WaterTrackerWidget />
+              <GlassCard title="Health Insights" subtitle="AI breakdown of your wellness" icon={<Brain size={16} />} style={{ flex: 1, minHeight: 200 }}>
+                <AiInsightCard area="health" />
+              </GlassCard>
+            </StyledGridItemSide>
           </StyledDashboardGrid>
           </>
         ) },

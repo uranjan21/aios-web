@@ -20,6 +20,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { PageHeader } from '@ledgr/ui'
 import { CareerRadar } from '@/components/CareerRadar'
 import { Card as GlassCard, KpiCard } from '@ledgr/ui';
+import { WorkspaceStatsWidget } from '@/components/workspace/WorkspaceStatsWidget'
 import type { SkillInventory, JobOpportunity, OpportunityStatus, CareerEvent } from '@/types'
 
 const LEVEL_COLORS: Record<SkillInventory['level'], any> = {
@@ -319,6 +320,7 @@ export function CareerPage() {
               label: <><LayoutDashboard size={14} /> Dashboard</>,
               children: (
                 <DashCol>
+                  <WorkspaceStatsWidget domain="career" />
                   <KpiGrid>
                     <KpiCard label="Skills Tracked" value={String(skills?.length ?? 0)} icon={BookOpen} />
                     <KpiCard label="Active Pipeline" value={String(activeOpps.length)} color="primary" icon={Briefcase} />

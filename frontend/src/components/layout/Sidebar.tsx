@@ -10,7 +10,8 @@ import {
 import {
   LayoutDashboard, MessageSquare, Bot, IndianRupee,
   Heart, Briefcase, Rocket, PenLine, Plug, Settings,
-  ChevronLeft, BookOpen, LogOut, Target, CalendarCheck
+  ChevronLeft, BookOpen, LogOut, Target, CalendarCheck,
+  FolderKanban, ListTodo, Zap
 } from 'lucide-react'
 import styled, { css } from 'styled-components'
 // import { Tooltip } from '@ledgr/ui' // Assumed available, otherwise use native title or Radix
@@ -324,8 +325,16 @@ const NAV_GROUPS = [
       { to: '/app', icon: LayoutDashboard, label: 'Dashboard' },
       { to: '/app/chat', icon: MessageSquare, label: 'Chat' },
       { to: '/app/agents', icon: Bot, label: 'Agents' },
-      { to: '/app/goals', icon: Target, label: 'Goals' },
       { to: '/app/review', icon: CalendarCheck, label: 'Review' },
+    ]
+  },
+  {
+    category: 'Workspace',
+    items: [
+      { to: '/app/goals', icon: Target, label: 'Goals' },
+      { to: '/app/projects', icon: FolderKanban, label: 'Projects' },
+      { to: '/app/sprints', icon: Zap, label: 'Sprints' },
+      { to: '/app/tasks', icon: ListTodo, label: 'Tasks' },
     ]
   },
   {

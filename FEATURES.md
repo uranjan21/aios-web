@@ -49,6 +49,11 @@ This document provides a categorized list of all features currently implemented 
 *   **Authentication:** JWT-based strict authentication with Google OAuth integration support.
 *   **Theme Engine:** "Premium Black + Gold" design system utilizing @ledgr/ui.
 
+## 8. Workspace & Task Management 🗂️
+*   **Cross-Domain Projects:** Group and track initiatives across Finance, Health, Career, and Business.
+*   **Sprint Planning:** Organize work into time-bound sprints.
+*   **Task Tracking:** Manage daily to-dos with cross-domain tagging and prioritization.
+
 ---
 
 ## Upcoming / Planned Features 🚀

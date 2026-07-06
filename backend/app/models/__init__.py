@@ -20,3 +20,4 @@ from app.models.forecast import Forecast
 from app.models.action import AgentAction
 from app.models.insights import BriefingPreference, Briefing, Insight
 from app.models.automations import AutomationRule
+from app.models.workspace import Project, Sprint, Task

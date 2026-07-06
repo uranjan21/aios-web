@@ -229,6 +229,17 @@ alembic upgrade head
 
 ---
 
+## Recent Updates (2026-07-06 — ship-readiness audit)
+
+Launch config confirmed with user: **billing OFF, public multi-tenant SaaS, multiple/autoscaled workers, live LLM key**. Findings verified with live cross-tenant attacks (not code-reading) + fixed:
+- **Isolation on all new routers (goals/actions/forecasts/insights/automations/simulator) PASSED** — created a 2nd real user, every cross-tenant read/write returned 404, no list leaks, unknown automation template 422. (These were never in the isolation test suite before.)
+- **FIXED — goals had no DELETE/PATCH:** users could create but never remove/edit goals. Added `PATCH`/`DELETE /api/goals/{id}` (ownership-checked, cascades progress rows), frontend `goalsApi.update/remove` + delete button w/ ConfirmDialog on GoalsPage. `test_api_mappings` guard now green.
+- **FIXED (cost blocker) — uncapped AI spend:** `ai_allowed` returned True whenever `billing_enabled=false`, so on a billing-off PUBLIC launch every signup had UNLIMITED LLM spend on our key. Now: dev/self-host (non-prod, billing off) stays unlimited; **production enforces `ai_free_monthly_credits` (default 200) as a hard per-user monthly cap** even with billing off (paid overage still works when billing on). Degrades gracefully (REST→402/UpgradeWall, agents→facts-only). Regression test `test_public_free_launch_hard_caps_ai` added.
+- **FIXED (data-leak guard) — vault sync:** it's single-tenant (one shared FS, not per-user). Production now **REFUSES TO START** if `VAULT_SYNC_ENABLED=true` unless `VAULT_SINGLE_TENANT_ACK=true` — prevents a forgotten env var leaking all vaults on hosted SaaS. Verified the guard raises.
+- **FIXED (multi-worker) — rate limiter in-memory:** now uses Redis when `REDIS_URL` set (shared counters across workers), warns loudly in prod when unset. **OAuth state was already DB-backed** (not the old in-process dict) — multi-worker safe.
+- **Verified solid, no change:** prod secret validation, cookies (httponly/secure-in-prod/samesite=strict), CORS single-origin, no frontend secrets, GDPR account-deletion (derives tables from live ORM metadata → new tables auto-cascade). Suite **54 passing**, tsc + build clean.
+- **OPERATOR PRE-LAUNCH CHECKLIST (must set in prod .env):** `ENVIRONMENT=production`, `VAULT_SYNC_ENABLED=false`, `REDIS_URL=redis://…`, run uvicorn/gunicorn with `--proxy-headers --forwarded-allow-ips=<LB_IP>` (else rate-limit keys on the LB IP → all users share one bucket), 32+char `APP_SECRET_KEY`, non-default `APP_PASSWORD`, `AI_FREE_MONTHLY_CREDITS` tuned. Still deferred (need product/infra decision, not code): the 5 new routers are ungated (fine while billing off); Stripe not test-mode-verified (moot while billing off); email verification on signup for public abuse.
+
 ## Recent Updates (2026-07-06 — card audit & consolidation)
 
 Full per-tab card census + dedup pass (findings in `docs/WORLD_CLASS_REDESIGN_PLAN.md` §11.1):

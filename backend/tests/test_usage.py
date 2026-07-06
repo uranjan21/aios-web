@@ -95,3 +95,26 @@ async def test_report_drains_records_without_stripe(user_a, db_session_factory):
     async with db_session_factory() as db:
         rows = (await db.execute(select(AIUsageRecord).where(AIUsageRecord.user_id == user_a.id))).scalars().all()
         assert rows and all(r.reported_to_stripe for r in rows)
+
+
+@pytest.mark.asyncio
+async def test_public_free_launch_hard_caps_ai(user_b, db_session_factory, monkeypatch):
+    """Ship-critical: production + billing OFF must HARD-CAP AI per user so a
+    public signup can't run up unbounded LLM spend on our provider key.
+    (Dev/self-host stays unlimited — covered by test_quota_unlimited_when_billing_off.)"""
+    from app.core.config import get_settings
+    from app.services.billing.usage import ai_allowed, record_ai_usage
+    s = get_settings()
+    monkeypatch.setattr(s, "environment", "production")
+    monkeypatch.setattr(s, "ai_free_monthly_credits", 5)
+    # Under the cap → allowed
+    async with db_session_factory() as db:
+        assert await ai_allowed(db, _principal(user_b)) is True
+    # At/over the cap with billing off → blocked (no paid overage path)
+    async with db_session_factory() as db:
+        await record_ai_usage(db, user_b.id, 5, "chat")
+    async with db_session_factory() as db:
+        assert await ai_allowed(db, _principal(user_b)) is False
+    # Admins are never capped
+    async with db_session_factory() as db:
+        assert await ai_allowed(db, _principal(user_b, is_admin=True)) is True

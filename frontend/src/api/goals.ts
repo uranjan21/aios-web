@@ -21,8 +21,11 @@ export interface GoalProgress {
 
 export const goalsApi = {
   list: () => api.get<MacroGoal[]>('/goals').then(r => r.data),
-  create: (data: { title: string; category: string; description?: string; target_date?: string }) => 
+  create: (data: { title: string; category: string; description?: string; target_date?: string }) =>
     api.post<MacroGoal>('/goals', data).then(r => r.data),
+  update: (goalId: string, data: Partial<{ title: string; category: string; description: string; target_date: string; status: string }>) =>
+    api.patch<MacroGoal>(`/goals/${goalId}`, data).then(r => r.data),
+  remove: (goalId: string) => api.delete(`/goals/${goalId}`).then(r => r.data),
   getProgress: (goalId: string) => api.get<GoalProgress[]>(`/goals/${goalId}/progress`).then(r => r.data),
   addProgress: (goalId: string, data: { progress_score: number; ai_insight?: string }) =>
     api.post<GoalProgress>(`/goals/${goalId}/progress`, data).then(r => r.data),

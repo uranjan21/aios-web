@@ -23,7 +23,7 @@ const Label = styled.label`
   color: ${({ theme }) => theme.color.foreground};
 `
 
-function BodyGoalsSection() {
+export function BodyGoalsSection() {
   const queryClient = useQueryClient()
   const { data: goals } = useQuery({ queryKey: ['health', 'goals'], queryFn: healthApi.healthGoals })
   const [form, setForm] = useState({ height_cm: '', target_weight: '' })
@@ -75,7 +75,7 @@ function BodyGoalsSection() {
   )
 }
 
-function FitnessGoalsSection() {
+export function FitnessGoalsSection() {
   const queryClient = useQueryClient()
   const { data: goals } = useQuery({ queryKey: ['health', 'goals'], queryFn: healthApi.healthGoals })
   const [form, setForm] = useState({ target_workouts_per_week: '', target_water_l_per_day: '' })
@@ -127,7 +127,7 @@ function FitnessGoalsSection() {
   )
 }
 
-function NutritionGoalsSection() {
+export function NutritionGoalsSection() {
   const queryClient = useQueryClient()
   const { data: goals } = useQuery({ queryKey: ['health', 'goals'], queryFn: healthApi.healthGoals })
   const [form, setForm] = useState({ calorie_target: '', protein_target: '', carb_target: '', fat_target: '' })
