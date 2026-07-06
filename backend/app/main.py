@@ -30,7 +30,11 @@ from app.api.push import router as push_router
 from app.api.ai import router as ai_router
 from app.api.billing import router as billing_router
 from app.api.admin import router as admin_router
-
+from app.api.goals import router as goals_router
+from app.api.forecasts import router as forecasts_router
+from app.api.actions import router as actions_router
+from app.api.insights import router as insights_router
+from app.api.automations import router as automations_router
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -229,7 +233,11 @@ def create_app() -> FastAPI:
     app.include_router(ai_router)
     app.include_router(billing_router)
     app.include_router(admin_router)
-
+    app.include_router(goals_router)
+    app.include_router(forecasts_router)
+    app.include_router(actions_router)
+    app.include_router(insights_router)
+    app.include_router(automations_router)
     return app
 
 

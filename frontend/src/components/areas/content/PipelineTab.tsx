@@ -56,7 +56,7 @@ const Count = styled.span`
   color: ${({ theme }) => theme.color.mutedForeground};
   background: ${({ theme }) => theme.color.muted};
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
 `
 
 const Empty = styled.div`

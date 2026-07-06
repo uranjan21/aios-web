@@ -1,6 +1,9 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import styled from 'styled-components';
+import { MoreHorizontal } from 'lucide-react';
+import { Popover, PopoverTrigger, PopoverContent } from '../../interactive/Popover';
+import { Button } from '../../primitives/Button';
 
 export interface PageHeaderProps {
   /** Small uppercase label above the title (e.g. "Client Management"). */
@@ -30,29 +33,49 @@ const Root = styled.header`
   }
 `;
 
+const TopRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+
+  @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
+    display: contents; /* fallback to flat DOM layout for desktop */
+  }
+`;
+
 const Left = styled.div`
   display: flex;
-  align-items: flex-start;
-  gap: ${({ theme }) => theme.spacing[3]};
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing[2]};
   flex: 1;
   min-width: 0;
 
   @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
+    align-items: flex-start;
+    gap: ${({ theme }) => theme.spacing[3]};
     min-width: 220px;
   }
 `;
 
 const IconWrap = styled.div`
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: ${({ theme }) => theme.radii.lg};
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.primary + '15'};
   color: ${({ theme }) => theme.color.primary};
-  & svg { width: 20px; height: 20px; }
+  & svg { width: 16px; height: 16px; }
+
+  @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
+    width: 40px;
+    height: 40px;
+    border-radius: ${({ theme }) => theme.radii.lg};
+    & svg { width: 20px; height: 20px; }
+  }
 `;
 
 const TextCol = styled.div`
@@ -82,9 +105,9 @@ const Eyebrow = styled.span`
 `;
 
 const Title = styled.h1`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
-  font-size: ${({ theme }) => theme.typography.fontSize.xl};
-  font-weight: ${({ theme }) => theme.typography.fontWeight.bold};
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
+  font-size: ${({ theme }) => theme.typography.fontSize.lg};
+  font-weight: ${({ theme }) => theme.typography.fontWeight.semibold};
   color: ${({ theme }) => theme.color.foreground};
   line-height: ${({ theme }) => theme.typography.lineHeight.tight};
   margin: 0;
@@ -107,13 +130,31 @@ const Subtitle = styled.p`
 `;
 
 const Actions = styled.div`
+  display: none;
+  
+  @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing[2]};
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+`;
+
+const MobileActions = styled.div`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing[2]};
-  flex-shrink: 0;
-  /* Wrap action buttons onto a new line instead of overflowing on narrow
-     screens (the header stacks vertically below sm, so Actions gets full width). */
-  flex-wrap: wrap;
+
+  @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
+    display: none;
+  }
+`;
+
+const MobileActionsMenu = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
 `;
 
 export function PageHeader({ eyebrow, icon, title, subtitle, actions, className }: PageHeaderProps) {
@@ -126,14 +167,30 @@ export function PageHeader({ eyebrow, icon, title, subtitle, actions, className 
 
   return (
     <Root className={className}>
-      <Left>
-        {icon && <IconWrap aria-hidden="true">{icon}</IconWrap>}
-        <TextCol>
-          {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
-          <Title>{title}</Title>
-          {subtitle && <Subtitle>{subtitle}</Subtitle>}
-        </TextCol>
-      </Left>
+      <TopRow>
+        <Left>
+          {icon && <IconWrap aria-hidden="true">{icon}</IconWrap>}
+          <TextCol>
+            {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
+            <Title>{title}</Title>
+          </TextCol>
+        </Left>
+        {finalActions && (
+          <MobileActions>
+            <Popover>
+              <PopoverTrigger>
+                <Button variant="ghost" size="sm" aria-label="More actions">
+                  <MoreHorizontal size={20} />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" gap={8}>
+                <MobileActionsMenu>{finalActions}</MobileActionsMenu>
+              </PopoverContent>
+            </Popover>
+          </MobileActions>
+        )}
+      </TopRow>
+      {subtitle && <Subtitle>{subtitle}</Subtitle>}
       {finalActions && <Actions>{finalActions}</Actions>}
     </Root>
   );

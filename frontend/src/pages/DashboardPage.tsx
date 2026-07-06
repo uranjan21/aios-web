@@ -10,8 +10,12 @@ import {
 import { UnifiedSchedulePanel } from "@/components/dashboard/UnifiedSchedulePanel";
 import { useState } from "react";
 import styled from "styled-components";
+import { ActionCenterStrip } from "@/components/dashboard/ActionCenterStrip";
+import { DiscoveriesFeed } from "@/components/dashboard/DiscoveriesFeed";
+import { LifeHeatmap } from "@/components/dashboard/LifeHeatmap";
+import { BriefingCard } from "@/components/dashboard/BriefingCard";
+import { PulseRow } from "@/components/dashboard/PulseRow";
 import { PageContainer, PageContent } from "@/components/layout/PageLayout";
-
 const DashboardGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
@@ -100,18 +104,56 @@ const RightCardFill = styled(CardFill)`
   }
 `;
 
+import { useQueryClient } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
+
 export function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
+  const queryClient = useQueryClient();
+  const [startY, setStartY] = useState(0);
+  const [pullDist, setPullDist] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (window.scrollY === 0) setStartY(e.touches[0].clientY);
+  };
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (startY > 0) {
+      const dist = e.touches[0].clientY - startY;
+      if (dist > 0) setPullDist(dist);
+    }
+  };
+  const handleTouchEnd = async () => {
+    if (pullDist > 80 && !refreshing) {
+      setRefreshing(true);
+      await queryClient.invalidateQueries();
+      setTimeout(() => setRefreshing(false), 500);
+    }
+    setStartY(0);
+    setPullDist(0);
+  };
+
+  const offset = refreshing ? 60 : Math.min(pullDist / 2, 60);
 
   return (
-    <PageContainer>
+    <PageContainer onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
       <PageContent>
-        <DashboardGrid>
+        {/* Pull to refresh indicator */}
+        <div style={{ height: offset, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', transition: pullDist === 0 ? 'height 0.2s' : 'none' }}>
+          {(pullDist > 40 || refreshing) && <Loader2 className={refreshing ? 'animate-spin' : ''} style={{ transform: refreshing ? 'none' : `rotate(${pullDist * 2}deg)` }} size={20} color="var(--muted-foreground)" />}
+        </div>
+        
+        <DashboardGrid style={{ transform: `translateY(${refreshing ? 0 : 0}px)`, transition: pullDist === 0 ? 'transform 0.2s' : 'none' }}>
           <LeftColumn>
           <HeroBlock>
             <GreetingHero />
+            <BriefingCard />
             <OverviewInsightCard />
           </HeroBlock>
+
+          <PulseRow />
+          <DiscoveriesFeed />
+          <ActionCenterStrip />
 
           {/* Row 3 — 3 relevant cards */}
           <ThreeRow>
@@ -142,11 +184,12 @@ export function DashboardPage() {
         </LeftColumn>
 
         <RightColumn>
-          <RightCardFill>
+          <RightCardFill style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <UnifiedSchedulePanel
               selectedDate={selectedDate}
               onSelectDate={setSelectedDate}
             />
+            <LifeHeatmap />
           </RightCardFill>
         </RightColumn>
         </DashboardGrid>

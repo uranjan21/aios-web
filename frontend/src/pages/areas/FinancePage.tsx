@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   IndianRupee, LayoutDashboard, ArrowLeftRight,
-  PiggyBank, BarChart2, Gem, Settings,
+  PiggyBank, BarChart2, Gem, Settings, FlaskConical,
 } from 'lucide-react'
 import { AreaTabs } from '@/components/ui/AreaTabs'
 import { PageHeader, Button } from '@ledgr/ui'
@@ -11,6 +11,7 @@ import { TransactionsTab } from '@/components/areas/finance/TransactionsTab'
 import { BudgetTab } from '@/components/areas/finance/BudgetTab'
 import { WealthTab } from '@/components/areas/finance/WealthTab'
 import { AnalyticsTab } from '@/components/areas/finance/AnalyticsTab'
+import { SimulatorTab } from '@/components/areas/finance/SimulatorTab'
 import { AccountsTabModal } from '@/components/areas/finance/QuickAddAccounts'
 import { PageContainer, PageContent } from '@/components/layout/PageLayout'
 
@@ -51,6 +52,11 @@ export function FinancePage() {
       key: '5',
       label: <><BarChart2 size={14} /> Analytics</>,
       children: <AnalyticsTab />,
+    },
+    {
+      key: '6',
+      label: <><FlaskConical size={14} /> Simulator</>,
+      children: <SimulatorTab />,
     },
   ]
 

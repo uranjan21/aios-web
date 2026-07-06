@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Popconfirm } from '@/components/ui/Popconfirm'
-import { Button, Input, Badge, Dialog, SegmentedControl, HeaderActionPortal, Select } from '@ledgr/ui'
+import { Button, Input, Badge, Dialog, SegmentedControl, AreaToolbar, Select } from '@ledgr/ui'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import { Plus, Trash2, Dumbbell, Trophy, X, Target, Droplets, Scale, CheckCircle2, Flame, Repeat } from 'lucide-react'
@@ -630,11 +630,11 @@ export function FitnessTab() {
   return (
     <>
     <WorkspaceLayout rail={undefined}>
-      <HeaderActionPortal>
+      <AreaToolbar>
         <Button size="sm" variant="primary" onClick={() => setLogModalOpen(true)}>
           <Plus size={12} style={{ marginRight: 4 }} /> Log Workout
         </Button>
-      </HeaderActionPortal>
+      </AreaToolbar>
       <StyledContainer>
         {/* Goals */}
         <div>

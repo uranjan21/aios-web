@@ -14,7 +14,7 @@ const WelcomeBadge = styled.div`
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ theme }) => `${theme.color.primary}18`};
   color: ${({ theme }) => theme.color.primary};
   font-size: 14px;

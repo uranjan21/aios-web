@@ -9,7 +9,7 @@ import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
 import { Card as GlassCard, SegmentedControl, EmptyState, Select } from '@ledgr/ui'
 import { AiInsightCard } from '@/components/AiInsightCard'
 import { ChartTooltip } from '@/components/ui/ChartTooltip'
-import { FinancialInsights, CashflowForecasting } from './AdvancedWidgets'
+import { FinancialInsights, CashflowForecasting, SubscriptionManagement } from './AdvancedWidgets'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { Target, PieChart as PieChartIcon, Brain } from 'lucide-react'
 import styled from 'styled-components'
@@ -144,51 +144,10 @@ export function AnalyticsTab() {
       {/* Cashflow Forecasting — full width */}
       <CashflowForecasting />
 
-      {/* Budget Tracking + Top Categories */}
+      {/* Subscriptions + Top Categories
+          (Budget-vs-allocated lives in the Budgets tab — not duplicated here) */}
       <AnalyticsGrid>
-        <GlassCard
-          title="Budget Tracking"
-          subtitle="Actual spent vs allocated limit"
-          icon={<Target size={16} />}
-          action={
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              {renderBudgetLegend()}
-              <Select
-                size="sm"
-                fullWidth={false}
-                aria-label="Budget chart range"
-                options={[
-                  { value: 'Daily', label: 'Daily' },
-                  { value: 'Weekly', label: 'Weekly' },
-                  { value: 'Monthly', label: 'Monthly' },
-                  { value: 'Yearly', label: 'Yearly' },
-                  { value: 'All Time', label: 'All Time' },
-                ]}
-                value={chartFilter}
-                onChange={(v: any) => setChartFilter(v as any)}
-              />
-            </div>
-          }
-          hoverable
-          style={{ height: 380, display: 'flex', flexDirection: 'column' }}
-        >
-          <div style={{ flex: 1, width: '100%', minHeight: 0 }}>
-            {budgetChartData.length === 0 ? (
-              <EmptyState title="No budget data" />
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={budgetChartData} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                  <XAxis dataKey="category" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} tickFormatter={v => '₹' + v} />
-                  <Tooltip content={<ChartTooltip valueFormatter={(value: any) => formatCurrency(value)} />} />
-                  <Line type="monotone" dataKey="Budget" stroke="var(--primary)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="Actual" stroke="var(--accent)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} isAnimationActive={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </GlassCard>
+        <SubscriptionManagement />
 
         <GlassCard
           title="Top Categories"

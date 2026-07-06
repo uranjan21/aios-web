@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { Button, HeaderActionPortal } from '@ledgr/ui'
+import { Button, AreaToolbar } from '@ledgr/ui'
 import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
 import { InvestmentsTab } from './InvestmentsTab'
 import { AccountsTabModal } from './QuickAddAccounts'
@@ -11,11 +11,11 @@ export function WealthTab() {
   return (
     <>
       <WorkspaceLayout rail={undefined}>
-        <HeaderActionPortal>
+        <AreaToolbar>
           <Button size="sm" variant="primary" onClick={() => setModalOpen(true)}>
             <Plus size={12} style={{ marginRight: 4 }} /> Add Investment
           </Button>
-        </HeaderActionPortal>
+        </AreaToolbar>
         <InvestmentsTab />
       </WorkspaceLayout>
 
@@ -23,3 +23,4 @@ export function WealthTab() {
     </>
   )
 }
+

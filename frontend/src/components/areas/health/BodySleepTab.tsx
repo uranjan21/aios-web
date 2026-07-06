@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button, Input, Select, Dialog, SegmentedControl, HeaderActionPortal } from '@ledgr/ui'
+import { Button, Input, Select, Dialog, SegmentedControl, AreaToolbar } from '@ledgr/ui'
 import { Scale, Percent, Ruler, Moon, Clock, Plus, LineChart as LineChartIcon, BarChart3, BedDouble } from 'lucide-react'
 import { healthApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -284,14 +284,20 @@ export function BodySleepTab() {
   return (
     <>
     <WorkspaceLayout rail={undefined}>
-      <HeaderActionPortal>
+      <AreaToolbar>
         <Button size="sm" variant="primary" onClick={() => setLogModalOpen(true)}>
           <Plus size={12} style={{ marginRight: 4 }} /> Log Body Stats / Sleep
         </Button>
-      </HeaderActionPortal>
+      </AreaToolbar>
       <StyledContainer>
         <KpiGrid $cols={5}>
-          <KpiCard label="Weight" icon={Scale} color="primary" sub="Latest body weight" loading={loadingWeight} value={latestWeight != null ? `${latestWeight} kg` : '—'} />
+          <KpiCard
+            label="Weight" icon={Scale} color="primary" sub="Latest body weight"
+            loading={loadingWeight} value={latestWeight != null ? `${latestWeight} kg` : '—'}
+            spark={weightLogs && weightLogs.length > 1
+              ? [...weightLogs].slice(0, 30).reverse().map(l => Number(l.value) || 0)
+              : undefined}
+          />
           <KpiCard label="Body Fat" icon={Percent} color="purple" sub="Estimated body fat %" loading={loadingBodyFat} value={latestBodyFat != null ? `${latestBodyFat}%` : '—'} />
           <KpiCard label="BMI" icon={Ruler} color="emerald" sub={bmi != null ? 'Body mass index' : 'Set height & weight in Settings'} loading={loadingGoals} value={bmi != null ? bmi.toFixed(1) : '—'} />
           <KpiCard label="Last Night" icon={Moon} color="indigo" sub="Last logged sleep duration" loading={loadingSleep} value={lastNight != null ? `${lastNight}h` : '—'} />
@@ -436,7 +442,7 @@ export function BodySleepTab() {
           {loadingSleep ? (
             <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>{[1, 2, 3].map(i => <Skeleton key={i} style={{ height: '3rem', width: '100%' }} />)}</div>
           ) : !filteredSleepList.length ? (
-            <StyledEmptyState>No sleep logged yet. Use the rail to log tonight's sleep.</StyledEmptyState>
+            <StyledEmptyState>No sleep logged yet. Use the "Log Body Stats / Sleep" button above to log tonight's sleep.</StyledEmptyState>
           ) : (
             <StyledListWrapper>
               {[...filteredSleepList].reverse().map(d => (

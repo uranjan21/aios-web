@@ -13,7 +13,7 @@ import { ProgressBar } from '@/components/lumina';
 import { Card as GlassCard } from '@ledgr/ui';
 import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
 import { AiInsightCard } from '@/components/AiInsightCard'
-import { FinancialInsights } from './AdvancedWidgets'
+import { ForecastWidget } from '@/components/widgets/ForecastWidget'
 import styled, { useTheme } from 'styled-components'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
 import { SegmentedControl } from '@ledgr/ui'
@@ -104,6 +104,16 @@ const AnalyticsGrid = styled.div`
   gap: 12px;
   @media (min-width: 1024px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+`
+
+/* Fixed height only where the 2-col grid needs equal cards — on mobile the
+   stacked cards auto-size so a short list doesn't leave a large dead area. */
+const AnalyticsCell = styled.div`
+  display: flex;
+  flex-direction: column;
+  @media (min-width: 1024px) {
+    height: 380px;
   }
 `
 
@@ -448,12 +458,16 @@ export function HomeTab() {
           />
         </KpiGrid>
 
+        <div className="mb-4">
+          <ForecastWidget domain="finance" />
+        </div>
+
         {/* Analytics: 2×2 */}
         <AnalyticsGrid>
           {/* Upcoming Payments */}
-          <div>
-            <GlassCard 
-              title="Upcoming Payments" 
+          <AnalyticsCell>
+            <GlassCard
+              title="Upcoming Payments"
               subtitle="Upcoming bills and EMIs"
               icon={<CalendarClock size={16} />}
               action={
@@ -471,7 +485,7 @@ export function HomeTab() {
                   <NavButton onClick={() => navigate('/app/areas/finance/settings?section=bills')} />
                 </div>
               } 
-              hoverable fadeIn="up" delay={100} style={{ height: 380, display: 'flex', flexDirection: 'column' }}
+              hoverable fadeIn="up" delay={100} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
             >
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 {upcoming.length === 0 ? (
@@ -494,15 +508,16 @@ export function HomeTab() {
                 )}
               </div>
             </GlassCard>
-          </div>
+          </AnalyticsCell>
 
           {/* Financial Health Score */}
-          <div>
-            <div style={{ height: 380, display: 'flex', flexDirection: 'column' }}>
-              <HealthScoreCard data={healthScore} delay={300} />
-            </div>
-          </div>
+          <AnalyticsCell>
+            <HealthScoreCard data={healthScore} delay={300} />
+          </AnalyticsCell>
         </AnalyticsGrid>
+
+        {/* Forward-looking: AI projection of month-end balance */}
+        <ForecastWidget domain="finance" />
 
       </WorkspaceLayout>
     </>

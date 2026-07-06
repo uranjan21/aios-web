@@ -56,7 +56,7 @@ const ContentArea = styled.div`
 `
 
 const Title = styled.h2`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-size: 2rem;
   margin-bottom: 1rem;
 `

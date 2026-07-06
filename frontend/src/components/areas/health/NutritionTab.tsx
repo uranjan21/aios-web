@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import styled from 'styled-components'
@@ -10,7 +10,7 @@ import { format } from 'date-fns'
 import type { FoodDbItem } from '@/types'
 import { Card as GlassCard } from '@ledgr/ui';
 import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
-import { Dialog, Button, Input, Select, Card, HeaderActionPortal } from '@ledgr/ui'
+import { Dialog, Button, Input, Select, Card, AreaToolbar } from '@ledgr/ui'
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack']
 
@@ -473,11 +473,11 @@ export function NutritionTab() {
   return (
     <>
     <WorkspaceLayout rail={undefined}>
-      <HeaderActionPortal>
+      <AreaToolbar>
         <Button size="sm" variant="primary" onClick={() => setLogModalOpen(true)}>
-          <Plus size={12} style={{ marginRight: 4 }} /> Log Meal
+          <Plus size={12} style={{ marginRight: 4 }} /> Log Food
         </Button>
-      </HeaderActionPortal>
+      </AreaToolbar>
       <StyledContainer>
         {/* Calorie ring + macros */}
         <Card
@@ -527,7 +527,7 @@ export function NutritionTab() {
           {loadingNutrition ? (
             <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>{[1, 2, 3].map(i => <Skeleton key={i} style={{ height: '3rem', width: '100%' }} />)}</div>
           ) : !nutrition?.meals.length ? (
-            <StyledEmptyState>No meals logged today. Use the rail to log one.</StyledEmptyState>
+            <StyledEmptyState>No meals logged today. Use the "Log" button above to add one.</StyledEmptyState>
           ) : (
             <StyledMealsList>
               {nutrition.meals

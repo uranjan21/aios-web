@@ -15,3 +15,8 @@ from app.models.billing import Subscription
 from app.models.oauth_state import OAuthState
 from app.models.billing_event import StripeEventIdempotency
 from app.models.admin_audit import AdminAuditLog
+from app.models.goal import MacroGoal, GoalProgress
+from app.models.forecast import Forecast
+from app.models.action import AgentAction
+from app.models.insights import BriefingPreference, Briefing, Insight
+from app.models.automations import AutomationRule

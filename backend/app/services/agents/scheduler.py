@@ -53,6 +53,22 @@ async def _run_billing_usage_report() -> None:
     from app.services.billing.usage import run_usage_report_job
     await run_usage_report_job()
 
+async def _run_briefing_job() -> None:
+    from app.services.insights.briefing import run_briefing_job
+    await run_briefing_job()
+
+async def _run_synergy_job() -> None:
+    from app.services.insights.synergy import run_synergy_job
+    await run_synergy_job()
+
+async def _run_forecast_job() -> None:
+    from app.services.ai.forecasting import run_forecast_job
+    await run_forecast_job()
+
+async def _run_automation_tick() -> None:
+    from app.services.automations.engine import run_automation_tick
+    await run_automation_tick()
+
 
 async def _dispatch(task_id: str, user_id: uuid.UUID) -> None:
     """Called by APScheduler — fires the agent run pipeline."""
@@ -144,6 +160,38 @@ async def start_scheduler() -> None:
             args=["app.services.integrations._sync_job", "run_google_sync"],
             replace_existing=True,
             misfire_grace_time=1800,
+        )
+
+        _safe_add_job(
+            "insights_briefing",
+            func=_run_briefing_job,
+            trigger=CronTrigger(minute="*/15", timezone="UTC"),
+            replace_existing=True,
+            misfire_grace_time=300,
+        )
+
+        _safe_add_job(
+            "insights_synergy",
+            func=_run_synergy_job,
+            trigger=CronTrigger(hour=3, minute=0, timezone="UTC"),
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+
+        _safe_add_job(
+            "forecasts_nightly",
+            func=_run_forecast_job,
+            trigger=CronTrigger(hour=2, minute=30, timezone="UTC"),
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+
+        _safe_add_job(
+            "automation_tick",
+            func=_run_automation_tick,
+            trigger=CronTrigger(minute=5, timezone="UTC"),  # hourly at :05
+            replace_existing=True,
+            misfire_grace_time=900,
         )
 
         # Hourly at :15 — batch metered AI usage to Stripe (Phase 2).

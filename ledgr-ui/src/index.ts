@@ -63,6 +63,7 @@ export * from './patterns/Toast';
 export * from './patterns/ConfirmDialog';
 export * from './patterns/ErrorBoundary';
 export * from './patterns/Skeleton';
+export * from './patterns/InsightCard';
 
 /* ── Layout shell ───────────────────────────────────────────────────── */
 export * from './layout/AppShell';
@@ -77,3 +78,4 @@ export * from './data/DataTable';
 export * from './data/KanbanBoard';
 export * from './data/ChartCard';
 export * from './patterns/KpiCard';
+export * from './patterns/Sparkline';

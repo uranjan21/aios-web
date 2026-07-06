@@ -66,7 +66,7 @@ const HeroContent = styled.div`
 const LogoBadge = styled.div`
   width: 60px;
   height: 60px;
-  border-radius: 18px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: linear-gradient(135deg, ${({ theme }) => theme.color.primary}, ${({ theme }) => theme.color.accent});
   display: flex;
   align-items: center;
@@ -114,7 +114,7 @@ const DomainPill = styled.div`
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
-  border-radius: 12px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
   box-shadow: ${({ theme }) => theme.shadow.xs};
@@ -138,7 +138,7 @@ const FeatureRow = styled.div`
   align-items: flex-start;
   gap: 14px;
   padding: 14px;
-  border-radius: 14px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.card}99;
   border: 1px solid ${({ theme }) => theme.color.border};
 `
@@ -146,7 +146,7 @@ const FeatureRow = styled.div`
 const FeatureIcon = styled.div`
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.primary}12;
   display: flex;
   align-items: center;
@@ -238,7 +238,7 @@ const ShowHideBtn = styled.button`
   padding: 4px;
   cursor: pointer;
   color: ${({ theme }) => theme.color.mutedForeground};
-  border-radius: 6px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -252,7 +252,7 @@ const ErrorBox = styled.div`
   color: ${({ theme }) => theme.color.destructive};
   text-align: center;
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.destructive}12;
 `
 
@@ -279,7 +279,7 @@ const GoogleBtn = styled.button`
   justify-content: center;
   gap: 10px;
   padding: 12px 16px;
-  border-radius: 12px;
+  border-radius: ${({ theme }) => theme.radii.md};
   border: 1px solid ${({ theme }) => theme.color.border};
   background: ${({ theme }) => theme.color.card};
   color: ${({ theme }) => theme.color.foreground};
@@ -321,7 +321,7 @@ const DemoLink = styled.button`
   font-weight: 500;
   padding: 4px;
   transition: color 120ms;
-  border-radius: 4px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   &:hover { color: ${({ theme }) => theme.color.primary}; }
   &:focus-visible {
     outline: 2px solid ${({ theme }) => theme.color.ring};

@@ -719,6 +719,19 @@ export function ChatPage() {
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // ⌘K ask-mode handoff: the palette stashes the question here before navigating.
+  // Removal is deferred so StrictMode's dev double-mount doesn't consume the
+  // key on the throwaway first mount and leave the real mount empty.
+  useEffect(() => {
+    const prefill = sessionStorage.getItem('aios.chat.prefill')
+    if (prefill) {
+      setInput(prefill)
+      setTimeout(() => textareaRef.current?.focus(), 100)
+      const timer = setTimeout(() => sessionStorage.removeItem('aios.chat.prefill'), 1500)
+      return () => clearTimeout(timer)
+    }
+  }, [])
   const userScrolledUp = useRef(false)
   const [showScrollFab, setShowScrollFab] = useState(false)
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null)

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, Link } from 'react-router-dom'
-import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, BellOff, Settings, Palette, Activity, Sparkles, Keyboard, User, CreditCard, Save, Lock, Trash2, Shield } from 'lucide-react'
+import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, BellOff, Settings, Palette, Activity, Sparkles, Keyboard, User, CreditCard, Save, Lock, Trash2, Shield, Zap, Sunrise } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { chatApi } from '@/api/chat'
@@ -13,7 +13,7 @@ import { useVaultSync } from '@/hooks/useVaultSync'
 import { useFeatures } from '@/hooks/useFeatures'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ProgressBar } from '@/components/lumina';
-import { Card as GlassCard, Select } from '@ledgr/ui';
+import { Card as GlassCard, Select, Switch, Input } from '@ledgr/ui';
 import { Button } from '@/components/ui/button'
 import styled, { useTheme } from 'styled-components'
 import { AreaSettingsPage } from '@/components/layout/AreaSettingsPage'
@@ -59,6 +59,7 @@ const SECTION_META: Record<string, { icon: React.ReactNode; subtitle: string }> 
   Profile: { icon: <User size={16} />, subtitle: 'Your name and avatar' },
   Security: { icon: <Lock size={16} />, subtitle: 'Change your password' },
   Account: { icon: <User size={16} />, subtitle: 'Sign-out and account-level controls' },
+  Automations: { icon: <Zap size={16} />, subtitle: 'Curated automation rules' },
 }
 
 function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
@@ -927,6 +928,150 @@ function AdminPanelSection() {
   )
 }
 
+// ── Daily Briefing ────────────────────────────────────────────────────────────
+
+function BriefingSection() {
+  const queryClient = useQueryClient()
+  const { data: prefs } = useQuery({
+    queryKey: ['insights', 'briefing', 'preferences'],
+    queryFn: () => api.get('/insights/briefing/preferences').then(r => r.data),
+  })
+
+  const saveMutation = useMutation({
+    mutationFn: (next: any) => api.post('/insights/briefing/preferences', next).then(r => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['insights', 'briefing', 'preferences'] })
+      toast.success('Briefing preferences saved')
+    },
+    onError: () => toast.error('Could not save preferences'),
+  })
+
+  if (!prefs) return null
+
+  const save = (patch: Record<string, unknown>) =>
+    saveMutation.mutate({
+      enabled: prefs.enabled,
+      deliver_at: prefs.deliver_at,
+      channels: prefs.channels ?? {},
+      tz: prefs.tz || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      ...patch,
+    })
+
+  return (
+    <Section title="Daily Briefing">
+      <div style={{ padding: '0 20px 20px' }}>
+        <p style={{ fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 20 }}>
+          A morning recap of yesterday plus today's outlook, delivered at your chosen time.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <RowRoot style={{ padding: 0 }}>
+            <div>
+              <RowLabel>Enabled</RowLabel>
+              <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Generate a briefing every morning</div>
+            </div>
+            <Switch
+              checked={prefs.enabled}
+              onChange={() => save({ enabled: !prefs.enabled })}
+              aria-label="Toggle daily briefing"
+            />
+          </RowRoot>
+          <RowRoot style={{ padding: 0 }}>
+            <div>
+              <RowLabel>Delivery time</RowLabel>
+              <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>
+                Local time ({prefs.tz || Intl.DateTimeFormat().resolvedOptions().timeZone})
+              </div>
+            </div>
+            <Input
+              type="time"
+              size="sm"
+              fullWidth={false}
+              defaultValue={(prefs.deliver_at || '08:00:00').slice(0, 5)}
+              onBlur={e => e.target.value && save({
+                deliver_at: `${e.target.value}:00`,
+                tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+              })}
+              aria-label="Briefing delivery time"
+            />
+          </RowRoot>
+          <RowRoot style={{ padding: 0 }}>
+            <div>
+              <RowLabel>Push notification</RowLabel>
+              <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Notify when the briefing is ready</div>
+            </div>
+            <Switch
+              checked={prefs.channels?.push ?? true}
+              onChange={() => save({ channels: { ...prefs.channels, push: !(prefs.channels?.push ?? true) } })}
+              aria-label="Toggle briefing push notification"
+            />
+          </RowRoot>
+        </div>
+      </div>
+    </Section>
+  )
+}
+
+// ── Automations ───────────────────────────────────────────────────────────────
+
+const AUTOMATION_TEMPLATES = [
+  { key: 'bill_reminder_3d', title: 'Bill Reminder (3 Days)', description: 'Push when a bill is due in 3 days.', defaultOn: false },
+  { key: 'budget_80_push', title: 'Budget 80% Warning', description: 'Push notification when a budget passes 80%.', defaultOn: true },
+  { key: 'streak_save_evening', title: 'Evening Streak Saver', description: 'Evening nudge when nothing is logged yet that day.', defaultOn: false },
+  { key: 'weekly_review_sunday', title: 'Sunday Weekly Review', description: 'Sunday-evening prompt to run your weekly review.', defaultOn: false },
+  { key: 'payday_snapshot', title: 'Payday Snapshot', description: 'Records a take-home snapshot when salary income lands.', defaultOn: false },
+  { key: 'idle_goal_nudge_7d', title: 'Idle Goal Nudge', description: 'Reminds you of goals with no check-in for 7 days.', defaultOn: false },
+]
+
+function AutomationsSection() {
+  const queryClient = useQueryClient()
+  const { data: rules } = useQuery({
+    queryKey: ['automations'],
+    queryFn: () => api.get('/automations/').then(r => r.data)
+  })
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ key, enabled }: { key: string, enabled: boolean }) => {
+      const { data } = await api.put(`/automations/${key}`, { enabled, params: {} })
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['automations'] })
+      toast.success('Automation updated')
+    },
+    onError: () => toast.error('Could not update automation'),
+  })
+
+  return (
+    <Section title="Automations">
+      <div style={{ padding: '0 20px 20px' }}>
+        <p style={{ fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 20 }}>
+          Enable or disable curated automation rules.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {AUTOMATION_TEMPLATES.map(tpl => {
+            const rule = rules?.find((r: any) => r.template_key === tpl.key)
+            // budget_80_push is on by default server-side; the rest are opt-in.
+            const isEnabled = rule?.enabled ?? tpl.defaultOn
+            return (
+              <RowRoot key={tpl.key} style={{ padding: 0 }}>
+                <div>
+                  <RowLabel>{tpl.title}</RowLabel>
+                  <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>{tpl.description}</div>
+                </div>
+                <Switch
+                  checked={isEnabled}
+                  onChange={() => toggleMutation.mutate({ key: tpl.key, enabled: !isEnabled })}
+                  aria-label={`Toggle ${tpl.title}`}
+                />
+              </RowRoot>
+            )
+          })}
+        </div>
+      </div>
+    </Section>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
@@ -949,6 +1094,8 @@ export function SettingsPage() {
       label: 'Preferences',
       items: [
         { key: 'appearance', label: 'Appearance', icon: <Palette size={15} />, content: <AppearanceSection /> },
+        { key: 'briefing', label: 'Briefing', icon: <Sunrise size={15} />, content: <BriefingSection /> },
+        { key: 'automations', label: 'Automations', icon: <Zap size={15} />, content: <AutomationsSection /> },
         { key: 'shortcuts', label: 'Shortcuts', icon: <Keyboard size={15} />, content: <ShortcutsSection /> },
       ],
     },

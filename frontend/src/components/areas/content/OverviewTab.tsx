@@ -103,7 +103,9 @@ export function OverviewTab({ items, isLoading, onEdit }: {
       <Grid>
         <Half>
         <SectionCard title="Pipeline by Stage" subtitle="How much content sits in each stage" icon={<TrendingUp size={16} />} style={{ height: '100%' }}>
-          {statsLoading ? <Skeleton style={{ height: 240 }} /> : (
+          {statsLoading ? <Skeleton style={{ height: 240 }} /> : (stats?.total ?? 0) === 0 ? (
+            <EmptyNote>No content yet — create your first piece to see the pipeline.</EmptyNote>
+          ) : (
             <ChartBox>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={statusData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>

@@ -16,7 +16,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import styled, { keyframes } from "styled-components";
+import styled, { keyframes, useTheme } from "styled-components";
 
 // ─────────────────────────── Cache utils ───────────────────────────
 
@@ -110,7 +110,7 @@ const SegControl = styled.div`
   align-items: center;
   background: ${({ theme }) => theme.color.muted};
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 999px;
+  border-radius: ${({ theme }) => theme.radii.md};
   padding: 3px;
 `;
 
@@ -121,7 +121,7 @@ const SegIndicator = styled.span<{ $mode: Mode }>`
   left: ${({ $mode }) => ($mode === "overview" ? "3px" : "calc(50%)")};
   right: ${({ $mode }) => ($mode === "brief" ? "3px" : "calc(50%)")};
   background: ${({ theme }) => theme.color.card};
-  border-radius: 999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   transition:
     left 220ms cubic-bezier(0.2, 0, 0, 1),
@@ -137,7 +137,7 @@ const SegBtn = styled.button<{ $active: boolean }>`
   padding: 5px 12px;
   border: none;
   background: transparent;
-  border-radius: 999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -169,7 +169,7 @@ const DomainList = styled.div`
   &::-webkit-scrollbar-track { background: transparent; }
   &::-webkit-scrollbar-thumb {
     background: ${({ theme }) => theme.color.border};
-    border-radius: 999px;
+    border-radius: ${({ theme }) => theme.radii.sm};
   }
 `;
 
@@ -510,7 +510,7 @@ const DomainPill = styled.span<{ $accent: string }>`
   align-items: center;
   gap: 4px;
   padding: 3px 9px;
-  border-radius: 999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ $accent }) => $accent}14;
   color: ${({ $accent }) => $accent};
   font-size: 11px;
@@ -554,7 +554,9 @@ const HeaderRight = styled.div`
 // ─────────────────────────── Root component ───────────────────────────
 
 export function OverviewInsightCard() {
-  const [mode, setMode] = useState<Mode>("overview");
+  // Daily Brief lives in its own BriefingCard now (persisted, auto-generated) —
+  // this card is the cross-domain "Life Overview" synthesis only.
+  const theme = useTheme();
   const [planBlocked, setPlanBlocked] = useState(false);
 
   // Life Overview — invalidate if cached from a different day
@@ -583,103 +585,36 @@ export function OverviewInsightCard() {
     },
   });
 
-  // Daily Brief
-  const [briefCache, setBriefCache] = useState<BriefCache | null>(() => {
-    const c = readJson<BriefCache>(BRIEF_KEY);
-    return c?.date === todayIso() ? c : null;
-  });
-  const briefMutation = useMutation({
-    mutationFn: aiApi.dailyBrief,
-    onSuccess: (r) => {
-      const c: BriefCache = { text: r.text, date: todayIso() };
-      writeJson(BRIEF_KEY, c);
-      setBriefCache(c);
-    },
-    onError: (err) => {
-      if (is402(err)) { setPlanBlocked(true); return }
-      toast.error("Could not generate daily brief")
-    },
-  });
-
   const overviewData    = overviewMutation.data ?? overviewCache;
   const overviewPending = overviewMutation.isPending;
-  const briefSections   = briefCache ? parseBrief(briefCache.text) : [];
-  const briefPending    = briefMutation.isPending;
-  const briefReady      = briefSections.length > 0;
 
-  const actionBtn =
-    mode === "overview" ? (
-      <Button
-        size="sm"
-        variant={overviewData ? "ghost" : "primary"}
-        startIcon={overviewData ? <RefreshCw size={12} /> : <Sparkles size={12} />}
-        loading={overviewPending}
-        onClick={() => overviewMutation.mutate()}
-      >
-        {overviewData ? "Refresh" : "Analyse"}
-      </Button>
-    ) : briefReady ? (
-      <Button
-        size="sm"
-        variant="ghost"
-        startIcon={<RefreshCw size={12} />}
-        loading={briefPending}
-        onClick={() => briefMutation.mutate()}
-      >
-        Regenerate
-      </Button>
-    ) : (
-      <Button
-        size="sm"
-        variant="primary"
-        startIcon={<BookOpen size={12} />}
-        loading={briefPending}
-        onClick={() => briefMutation.mutate()}
-      >
-        Generate
-      </Button>
-    );
+  const actionBtn = (
+    <Button
+      size="sm"
+      variant={overviewData ? "ghost" : "primary"}
+      startIcon={overviewData ? <RefreshCw size={12} /> : <Sparkles size={12} />}
+      loading={overviewPending}
+      onClick={() => overviewMutation.mutate()}
+    >
+      {overviewData ? "Refresh" : "Analyse"}
+    </Button>
+  );
 
   return (
     <Card
       size="lg"
       variant="glass"
-      title={mode === "overview" ? "Life Overview" : "Daily Brief"}
-      subtitle="AI-synthesised daily status across your logs"
-      icon={<Sparkles size={14} style={{ color: "#CA8A04" }} />}
-      action={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <SegControl role="tablist" aria-label="Insight mode">
-            <SegIndicator $mode={mode} />
-            <SegBtn
-              role="tab"
-              aria-selected={mode === "overview"}
-              $active={mode === "overview"}
-              onClick={() => setMode("overview")}
-            >
-              <Sparkles size={11} />
-              Overview
-            </SegBtn>
-            <SegBtn
-              role="tab"
-              aria-selected={mode === "brief"}
-              $active={mode === "brief"}
-              onClick={() => setMode("brief")}
-            >
-              <BookOpen size={11} />
-              Daily Brief
-            </SegBtn>
-          </SegControl>
-          {actionBtn}
-        </div>
-      }
+      title="Life Overview"
+      subtitle="AI-synthesised cross-domain status across your logs"
+      icon={<Sparkles size={14} style={{ color: theme.color.accent }} />}
+      action={actionBtn}
     >
 
       {/* ── Plan blocked ── */}
       {planBlocked && <UpgradeWall feature="AI daily brief and insights" style={{ margin: '8px 0' }} />}
 
       {/* ── Life Overview ── */}
-      {!planBlocked && mode === "overview" &&
+      {!planBlocked &&
         (overviewPending && !overviewData ? (
           <OverviewSkeleton />
         ) : overviewData ? (
@@ -694,24 +629,6 @@ export function OverviewInsightCard() {
             description={overviewMutation.isError
                 ? "Something went wrong — try analysing again."
                 : "One click reads your Finance + Health logs and gives you a plain-English snapshot of where you stand."}
-          />
-        ))}
-
-      {/* ── Daily Brief ── */}
-      {!planBlocked && mode === "brief" &&
-        (briefPending ? (
-          <EmptyState 
-            icon={<BookOpen size={32} />} 
-            title="Generating your brief…" 
-            description="Reading your Finance + Health context and assembling today's brief." 
-          />
-        ) : briefReady ? (
-          <BriefView sections={briefSections} />
-        ) : (
-          <EmptyState 
-            icon={<BookOpen size={32} />} 
-            title={briefMutation.isError ? "Brief failed to generate" : "No brief for today yet"} 
-            description={briefMutation.isError ? "We couldn't connect to the AI model." : "Click 'Generate Daily Brief' to orchestrate your day."} 
           />
         ))}
     </Card>

@@ -184,7 +184,7 @@ const Chip = styled.span`
   align-items: center;
   gap: 6px;
   padding: 5px 11px;
-  border-radius: 999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ theme }) => theme.color.muted};
   border: 1px solid ${({ theme }) => theme.color.border};
   color: ${({ theme }) => theme.color.foreground};

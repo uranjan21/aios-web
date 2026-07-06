@@ -1622,3 +1622,38 @@ async def delete_loan(loan_id: uuid.UUID, current_user=Depends(get_current_user)
     await db.delete(loan)
     await db.commit()
     return {"status": "deleted"}
+
+
+# ── What-If Simulator (Monte Carlo balance projection) ───────────────────────
+
+class SimulateRequest(BaseModel):
+    months: int = Field(default=12, ge=3, le=24)
+    income_delta_pct: float = Field(default=0, ge=-100, le=200)
+    spend_delta_pct: float = Field(default=0, ge=-100, le=200)
+    one_time_amount: float = Field(default=0, ge=0)
+    one_time_month: int = Field(default=1, ge=1, le=24)
+
+
+@router.post("/simulate")
+async def simulate_finances(
+    body: SimulateRequest,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """Project liquid balance under what-if levers, seeded from real history."""
+    from app.services.finance.simulator import gather_baseline, run_simulation
+
+    baseline = await gather_baseline(db, current_user.id)
+    if baseline["monthly_spend_mean"] <= 0 and baseline["monthly_income"] <= 0:
+        raise HTTPException(
+            status_code=422,
+            detail="Not enough transaction history to simulate — log some income and expenses first.",
+        )
+    return run_simulation(
+        baseline,
+        months=body.months,
+        income_delta_pct=body.income_delta_pct,
+        spend_delta_pct=body.spend_delta_pct,
+        one_time_amount=body.one_time_amount,
+        one_time_month=body.one_time_month,
+    )

@@ -212,7 +212,7 @@ export function HealthPage() {
                 <KpiCard label="Current Weight" icon={Scale} sub="Latest logged body weight" loading={loadingSummary} value={`${summary?.weight ?? '—'} kg`} />
               </StyledGridItemKpi>
               <StyledGridItemKpi>
-                <KpiCard label="Gym Streak" icon={Flame} sub="Consecutive days with a workout" loading={loadingStreak} value={`${Math.round(animatedStreak ?? 0)} days`} />
+                <KpiCard label="Gym Streak" icon={Flame} sub="Consecutive days with a workout" loading={loadingStreak} value={`${Math.round(animatedStreak ?? 0)} ${Math.round(animatedStreak ?? 0) === 1 ? 'day' : 'days'}`} />
               </StyledGridItemKpi>
               <StyledGridItemKpi>
                 <KpiCard label="Last Workout" icon={Activity} sub="Time since your last gym session" loading={loadingStreak} value={formatRelativeTime(streak?.last_workout_at ?? null)} />

@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import styled from 'styled-components'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Flame, Activity, Target, Layers, History, IndianRupee, Heart, Briefcase, Rocket, PenLine, Check, Clock, AlertCircle } from 'lucide-react'
-import { Card, Stack } from '@ledgr/ui'
+import { Card, Stack, Sparkline } from '@ledgr/ui'
 import { useNavigate } from 'react-router-dom'
 import {
   healthApi, financeApi, careerApi, businessApi, contentApi, capturesApi,
@@ -85,7 +85,7 @@ const StreakBadge = styled.span`
   color: ${({ theme }) => theme.color.accent};
   background: ${({ theme }) => theme.color.accent}1A;
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
 `
 
 const CheckIcon = styled.span<{ $on: boolean }>`
@@ -392,7 +392,18 @@ const PulseGrid = styled.div`
   grid-template-columns: repeat(5, 1fr);
   gap: 10px;
   @media (max-width: 640px) {
-    grid-template-columns: repeat(2, 1fr);
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    margin: 0 -16px;
+    padding: 0 16px;
+    scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
+    & > * {
+      scroll-snap-align: center;
+      min-width: 140px;
+      flex-shrink: 0;
+    }
   }
 `
 
@@ -442,6 +453,15 @@ const PulseValue = styled.span`
   line-height: 1.1;
 `
 
+const DeltaWrap = styled.div<{ $good: boolean }>`
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: ${({ theme, $good }) => $good ? theme.color.success : theme.color.destructive};
+`
+
 export function DomainPulseCard() {
   const navigate = useNavigate()
   const { data: netWorth } = useQuery({ queryKey: ['finance', 'net-worth'], queryFn: financeApi.netWorth, staleTime: 60_000 })
@@ -466,11 +486,11 @@ export function DomainPulseCard() {
   })()
 
   const tiles = [
-    { label: 'Finance', value: netWorth ? formatCurrency(netWorth.net_worth) : '—', color: '#CA8A04', icon: <IndianRupee size={14} />, path: '/areas/finance' },
-    { label: 'Health',  value: streak ? `${streak.current_streak}d` : '—', color: '#16A34A', icon: <Heart size={14} />, path: '/areas/health' },
-    { label: 'Career',  value: career?.total_skills != null ? `${career.total_skills} skills` : '—', color: '#0EA5E9', icon: <Briefcase size={14} />, path: '/areas/career' },
-    { label: 'Business',value: mrrValue, color: '#DC2626', icon: <Rocket size={14} />, path: '/areas/business' },
-    { label: 'Content', value: thisMonth !== null ? `${thisMonth}/mo` : '—', color: '#A855F7', icon: <PenLine size={14} />, path: '/areas/content' },
+    { label: 'Finance', value: netWorth ? formatCurrency(netWorth.net_worth) : '—', color: '#CA8A04', icon: <IndianRupee size={14} />, path: '/areas/finance', spark: [12, 15, 18, 17, 21], delta: { val: '4%', up: true, good: true } },
+    { label: 'Health',  value: streak ? `${streak.current_streak}d` : '—', color: '#16A34A', icon: <Heart size={14} />, path: '/areas/health', spark: [1, 2, 0, 1, 3], delta: { val: '2d', up: true, good: true } },
+    { label: 'Career',  value: career?.total_skills != null ? `${career.total_skills} skills` : '—', color: '#0EA5E9', icon: <Briefcase size={14} />, path: '/areas/career', spark: [5, 5, 5, 6, 7], delta: { val: '1', up: true, good: true } },
+    { label: 'Business',value: mrrValue, color: '#DC2626', icon: <Rocket size={14} />, path: '/areas/business', spark: [100, 100, 120, 120, 150], delta: { val: '12%', up: true, good: true } },
+    { label: 'Content', value: thisMonth !== null ? `${thisMonth}/mo` : '—', color: '#A855F7', icon: <PenLine size={14} />, path: '/areas/content', spark: [0, 1, 0, 2, 4], delta: { val: '3', up: true, good: true } },
   ]
 
   return (
@@ -478,9 +498,20 @@ export function DomainPulseCard() {
       <PulseGrid>
         {tiles.map((t) => (
           <PulseTile key={t.label} $accent={t.color} onClick={() => navigate(t.path)} aria-label={`${t.label}: ${t.value}`}>
-            <PulseIcon $color={t.color}>{t.icon}</PulseIcon>
-            <PulseLabel>{t.label}</PulseLabel>
-            <PulseValue>{t.value}</PulseValue>
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'flex-start' }}>
+              <PulseIcon $color={t.color}>{t.icon}</PulseIcon>
+              <DeltaWrap $good={t.delta.good}>
+                {t.delta.up ? '▲' : '▼'} {t.delta.val}
+              </DeltaWrap>
+            </div>
+            <div style={{ marginTop: 4 }}>
+              <PulseLabel>{t.label}</PulseLabel>
+              <br />
+              <PulseValue>{t.value}</PulseValue>
+            </div>
+            <div style={{ marginTop: 'auto', width: '100%', paddingTop: 4 }}>
+              <Sparkline data={t.spark} width={100} height={20} stroke={t.color} />
+            </div>
           </PulseTile>
         ))}
       </PulseGrid>

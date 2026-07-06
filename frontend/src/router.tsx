@@ -23,6 +23,9 @@ const HealthSettingsPage = lazy(() => import('@/pages/areas/HealthSettingsPage')
 const CareerPage = lazy(() => import('@/pages/areas/CareerPage').then(m => ({ default: m.CareerPage })))
 const CareerSettingsPage = lazy(() => import('@/pages/areas/CareerSettingsPage').then(m => ({ default: m.CareerSettingsPage })))
 const BusinessPage = lazy(() => import('@/pages/areas/BusinessPage').then(m => ({ default: m.BusinessPage })))
+const GoalsPage = lazy(() => import('@/pages/GoalsPage').then(m => ({ default: m.GoalsPage })))
+const ReviewPage = lazy(() => import('@/pages/ReviewPage').then(m => ({ default: m.ReviewPage })))
+const DiscoveriesPage = lazy(() => import('@/pages/DiscoveriesPage').then(m => ({ default: m.DiscoveriesPage })))
 const BusinessSettingsPage = lazy(() => import('@/pages/areas/BusinessSettingsPage').then(m => ({ default: m.BusinessSettingsPage })))
 const ContentPage = lazy(() => import('@/pages/areas/ContentPage').then(m => ({ default: m.ContentPage })))
 
@@ -143,6 +146,9 @@ export const router = createBrowserRouter([
       { path: 'chat', element: <Page><RequireModule module="chat"><ChatPage /></RequireModule></Page> },
       { path: 'chat/:sessionId', element: <Page><RequireModule module="chat"><ChatPage /></RequireModule></Page> },
       { path: 'agents', element: <Page><RequireModule module="agents"><AgentsPage /></RequireModule></Page> },
+      { path: 'goals', element: <Page><GoalsPage /></Page> },
+      { path: 'review', element: <Page><ReviewPage /></Page> },
+      { path: 'discoveries', element: <Page><DiscoveriesPage /></Page> },
 
       // Finance Area
       { path: 'areas/finance', element: <Page><RequireModule module="finance"><FinancePage /></RequireModule></Page> },

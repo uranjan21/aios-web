@@ -10,9 +10,35 @@ import type {
 } from '@/types'
 
 // Finance
+export interface SimulationResult {
+  labels: string[]
+  deterministic: number[]
+  p10: number[]
+  p50: number[]
+  p90: number[]
+  zero_month: number | null
+  assumptions: {
+    start_balance: number
+    monthly_income: number
+    monthly_spend_mean: number
+    monthly_spend_std: number
+    data_months: number
+  }
+}
+
+export interface SimulationParams {
+  months: number
+  income_delta_pct: number
+  spend_delta_pct: number
+  one_time_amount?: number
+  one_time_month?: number
+}
+
 export const financeApi = {
   netWorth: () => api.get<NetWorth>('/areas/finance/net-worth').then(r => r.data),
   healthScore: () => api.get<FinanceHealthScore>('/areas/finance/health-score').then(r => r.data),
+  simulate: (params: SimulationParams) =>
+    api.post<SimulationResult>('/areas/finance/simulate', params).then(r => r.data),
   importCheck: (items: { logged_at: string; amount: number; kind: string; category?: string; description?: string }[]) =>
     api.post<{ duplicates: number[] }>('/areas/finance/import/check', { items }).then(r => r.data),
   importCommit: (items: { logged_at: string; amount: number; kind: string; category?: string; description?: string }[], account_id?: string) =>

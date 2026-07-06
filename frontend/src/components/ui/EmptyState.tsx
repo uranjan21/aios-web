@@ -45,7 +45,7 @@ const IconWrapper = styled(motion.div)`
 `
 
 const Title = styled.h3`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-size: 1.25rem;
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};

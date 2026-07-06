@@ -76,7 +76,10 @@ async def check_budget_alerts(user_id: uuid.UUID, category: Optional[str] = None
                 "type": "budget_alert", "category": cat, "level": level,
                 "spent": spent, "limit": monthly_limit, "pct": round(pct),
             })
-            await send_push_to_all(user_id, title, body, "/areas/finance")
+            # In-app bell always fires; the push channel respects the automation toggle.
+            from app.services.automations.engine import is_rule_enabled
+            if await is_rule_enabled(session, user_id, "budget_80_push", default=True):
+                await send_push_to_all(user_id, title, body, "/areas/finance")
             logger.info("Budget alert fired: %s at %.0f%%", cat, pct)
     except Exception as e:
         logger.error("Budget alert check failed: %s", e)

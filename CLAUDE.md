@@ -229,6 +229,51 @@ alembic upgrade head
 
 ---
 
+## Recent Updates (2026-07-06 — card audit & consolidation)
+
+Full per-tab card census + dedup pass (findings in `docs/WORLD_CLASS_REDESIGN_PLAN.md` §11.1):
+- **Dashboard:** removed `OverviewInsightCard`'s "Daily Brief" toggle mode — it duplicated the newer persisted `BriefingCard`. `OverviewInsightCard` is now single-purpose "Life Overview" (cross-domain synthesis). Note: internal brief-mode helpers (`briefMutation`, `parseBrief`, `BriefView`, `SegControl`) left in place but unreferenced (tsc `noUnusedLocals:false`) — safe to prune later.
+- **Finance Overview (HomeTab):** dead `FinancialInsights` import (imported, never rendered) → replaced with a rendered `<ForecastWidget domain="finance" />` (forecast previously only on Goals).
+- **Finance Analytics:** removed duplicate "Budget Tracking" card (== Budgets tab "Limits by Category"); replaced with `SubscriptionManagement` — a built-but-never-rendered widget from `AdvancedWidgets.tsx`.
+- **Gotcha observed:** an external formatter re-added a duplicate `import { ForecastWidget }` line to HomeTab AFTER my edit (tsc/build had passed pre-dupe), which broke the Vite dev transform with "Identifier already declared" while the built bundle stayed fine — if a page 500s on dynamic import after edits, check for duplicate import lines injected on save.
+- Health/Career/Business/Content census clean — no duplicate cards.
+
+## Recent Updates (2026-07-04, night — What-If Simulator)
+
+### Finance What-If Simulator (new tab #6 on Finance)
+- `services/finance/simulator.py` — baseline from the user's real trailing 90 days (Σ account balances; monthly income; spend mean/std from three 30-day buckets) → deterministic projection + **400-run Monte-Carlo** (`random.gauss`, fixed seed so identical inputs give stable bands) → p10/p50/p90 series + first month the median crosses ₹0.
+- `POST /api/areas/finance/simulate` (gated by the finance module like the rest of the router; 422 when there's no history). Levers: `months` 3–24, `income_delta_pct`, `spend_delta_pct`, `one_time_amount` + `one_time_month`.
+- `SimulatorTab.tsx`: WorkspaceLayout rail (horizon `SegmentedControl`, tokenized native range sliders — ledgr-ui has no Slider primitive yet, thumb circle is structural/exempt), assumptions box, 3 KPI cards, Recharts stacked-area p10–p90 envelope + median + dashed steady path + ₹0 `ReferenceLine`. Debounced (450ms) auto-rerun via React Query keyed on params.
+- Verified: curl math (−20% spend), live lever re-run in preview, tsc + build clean, zero console errors.
+
+## Recent Updates (2026-07-04, later — plan R0–R5 COMPLETE)
+
+### "Do it all" completion pass (Claude)
+- **Dashboard:** `BriefingCard` (renders `/api/insights/briefing/today`, bold-md, Open Review) + `PulseRow` (new `GET /api/insights/pulse` — 5-domain tiles w/ deltas + 30d Sparklines, scroll-snap on mobile).
+- **Forecasting is real now:** `services/ai/forecasting.py` (was an empty stub) — deterministic EOM-balance linear burn + least-squares weight slope, idempotent per day; `forecasts_nightly` job 02:30 UTC; `forecast_engine.py` (on-demand button; had fatal `Expense`/`Income` import bugs) rewired to the same pipeline; `/forecasts/generate` 422s (not 500) on thin data.
+- **Automation engine:** `services/automations/engine.py` — 5 tick templates (bill_reminder_3d, streak_save_evening, weekly_review_sunday, payday_snapshot → FinanceSnapshot upsert, idle_goal_nudge_7d), tz-aware local-time gates (tz from BriefingPreference), cooldowns via `last_fired_at`, hourly `automation_tick` (:05); `is_rule_enabled()` gates the budget-alert push channel (bell/WS always fires).
+- **Settings:** new Briefing section (enable/time/push; tz auto-captured on save); Automations section fixed (was hitting `/api/api/...` 404s, fake `--color-*` CSS vars, hand-rolled pill toggle → ledgr `Switch`; budget_80_push shown default-ON to match server).
+- **⌘K Command Bar 2.0 done:** GlobalCapture UNMOUNTED from AppShell — its duplicate ⌘L listener cancelled the palette's (⌘L was dead); palette owns nav + `>`/numeric log mode (parse → confirm card, verified) + `?` ask mode which hands off to Chat via `sessionStorage['aios.chat.prefill']` (ChatPage reads it with deferred removal — **StrictMode double-mount consumes one-shot storage keys**, defer cleanup ~1.5s). The old fake hardcoded ask answer is gone; `/chat` route bug → `/app/chat`.
+- **New Critical Gotcha:** after bumping/rebuilding ledgr-ui, `rm -rf node_modules && pnpm install` is NOT enough for the dev server — **also `rm -rf node_modules/.vite`** (or the optimizeDeps cache serves the old bundle and new exports crash the app at runtime while tsc stays green).
+- Verified: tsc + `pnpm build` clean, zero console errors; pulse/forecast/automations endpoints curl-tested; briefing/synergy/forecast/automation jobs run manually; Dashboard/Settings/palette/Chat-handoff walked in preview. Remaining nice-to-haves in plan §12 backlog row (chat tool-rows, agents drawer, Highcharts swap, contrast script, email channel).
+
+## Recent Updates (2026-07-04)
+
+### R1–R5 landed (Gemini implementation + Claude validation/fix pass)
+- **New surfaces:** Goals (`/app/goals`), Weekly Review (`/app/review`), Discoveries (`/app/discoveries`) + sidebar nav; Dashboard gained LifeHeatmap (real data via `GET /api/insights/heatmap`), DiscoveriesFeed, ActionCenterStrip. New backend: `api/insights.py` (briefing/discoveries/heatmap), `api/automations.py`, `services/insights/{briefing,synergy}.py` + APScheduler jobs (`insights_briefing` */15min tz-aware, `insights_synergy` 03:00 UTC). Migrations through `ecd685e0986e` applied. ledgr-ui **0.1.13** (InsightCard, Sparkline, PageHeader mobile overflow menu).
+- **Both LLM sites metered** (`ai_allowed` + `record_ai_usage`, sources `briefing`/`synergy`) with facts-only fallbacks; briefing honors `deliver_at`+`tz` (zoneinfo) and is idempotent per (user, date).
+- **Backend currently runs LOCALLY, not Docker**: uvicorn on **:8001** (Vite proxies `/api`→127.0.0.1:8001), no `--reload` → kill + relaunch after Python edits. **:8000 is a DIFFERENT project (Ledgr CA-desk)** — never assume it's AIOS.
+- **Gemini-code review gotchas (recur on any AI-generated code):** literal `\"\"\"` escaped docstrings (SyntaxError — backend won't boot); Tailwind classNames on new pages (Tailwind is removed → renders unstyled; rewrite in styled-components); mock/random data left in "wired" components; Radix idioms (`asChild`/`iconOnly`/`sideOffset`) passed to ledgr-ui's own Popover/Button (breaks tsup DTS build); missing `user_id` scoping/metering. Grep for all of these when validating generated code.
+- Remaining tail tracked in `docs/WORLD_CLASS_REDESIGN_PLAN.md` §12 (⬜ row): Dashboard briefing hero, Settings Briefing/Automations UI, automation trigger engine, Pulse Row, Command Bar 2.0, forecast scheduler job.
+
+## Recent Updates (2026-07-03)
+
+### UI/UX audit + R0.1 polish pass + WORLD-CLASS master plan
+- **`docs/WORLD_CLASS_REDESIGN_PLAN.md` is now the forward source of truth** for UI/UX redesign + AI features (Briefing, Synergy Engine, ⌘K Command Bar 2.0, Action Center, Life Heatmap, Weekly Review, Forecasts, automation templates). Phases R0–R5 with per-task files + verify steps; §12 status ledger must be updated every session.
+- **R0.1 shipped:** 12 pill-radius (`999px`) sites → `theme.radii.sm/md` across 8 files (OverviewInsightCard, GreetingHero, RelevantCards, TodaysTimeline, AgentsPage, GuideOverview, PipelineTab, CategoryManager); Transactions view switcher Select → `SegmentedControl size="sm"`; `formatCurrency` negative → `-₹5.94L`; Health "1 days" pluralized; stale "Use the rail" empty-state copy fixed (BodySleepTab/NutritionTab); Finance HomeTab fixed-380px cards → `AnalyticsCell` (auto-height on mobile); Phase-5 WIP `@/components/ui/card`→`ui/Card` casing fix.
+- **New Critical Gotcha — `KpiGrid` (ledgr-ui ≥0.1.9):** `overflow-x: auto` makes overflow-y computed `auto`, so inside a height-constrained flex column the grid silently shrank and vertically clipped KPI values (Health Body & Sleep showed label-only 66px cards). Fixed with `flex-shrink: 0` on `KpiGrid`. Also: after a ledgr-ui reinstall the running Vite dev server keeps serving the OLD optimized dep from memory — **restart the dev server** after `pnpm install`, and note `rm -rf node_modules/@ledgr && pnpm install --force` does NOT re-copy (full `rm -rf node_modules && pnpm install` does).
+- **`theme.radii.xs` exists at runtime (aiosTheme) but not in the ledgr-ui radii TS type** — using it fails tsc; use `sm` or extend the type (plan §3.1).
+
 ## Recent Updates (2026-07-01)
 
 ### Backend audit — Opus 4.8 second pass

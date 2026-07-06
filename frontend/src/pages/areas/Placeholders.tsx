@@ -30,7 +30,7 @@ const Initial = styled.span`
 `
 
 const Title = styled.h1`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.02em;

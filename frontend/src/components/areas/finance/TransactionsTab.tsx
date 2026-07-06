@@ -16,7 +16,7 @@ import { cn, formatCurrency } from '@/lib/utils'
 import styled from 'styled-components'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card as GlassCard, KpiCard } from '@ledgr/ui';
-import { AreaToolbar, ToolbarIconBtn, DateNav, DateNavBtn, DateNavLabel, HeaderActionPortal } from '@ledgr/ui'
+import { AreaToolbar, ToolbarIconBtn, DateNav, DateNavBtn, DateNavLabel } from '@ledgr/ui'
 import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
 import { TransactionCalendar } from './TransactionCalendar'
 import { ImportCsvModal } from './ImportCsvModal'
@@ -772,11 +772,10 @@ export function TransactionsTab() {
 
     >
       {/* View switcher */}
-      <Select
+      <SegmentedControl
         size="sm"
-        fullWidth={false}
         value={view}
-        onChange={(v: any) => setView(v)}
+        onChange={v => setView(v as 'Daily' | 'Calendar' | 'Weekly' | 'Monthly')}
         options={[
           { label: 'Daily', value: 'Daily' },
           { label: 'Weekly', value: 'Weekly' },
@@ -801,6 +800,9 @@ export function TransactionsTab() {
         <UploadIcon size={13} />
         Import
       </ToolbarIconBtn>
+      <Button size="sm" variant="primary" onClick={() => openAdd('Expense')} style={{ height: 32 }}>
+        <Plus size={12} style={{ marginRight: 4 }} /> Add
+      </Button>
     </AreaToolbar>
   )
 
@@ -918,11 +920,6 @@ export function TransactionsTab() {
   return (
     <>
       <WorkspaceLayout rail={undefined}>
-        <HeaderActionPortal>
-          <Button size="sm" variant="primary" onClick={() => openAdd('Expense')}>
-            <Plus size={12} style={{ marginRight: 4 }} /> Add Transaction
-          </Button>
-        </HeaderActionPortal>
         {toolbar}
         {summaryElement}
         <GlassCard

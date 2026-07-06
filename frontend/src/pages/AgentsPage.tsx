@@ -221,7 +221,7 @@ const StatusPill = styled.span<{ $status: string }>`
   font-size: 0.72rem;
   font-weight: 700;
   padding: 0.3rem 0.55rem;
-  border-radius: 999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ theme, $status }) =>
     $status === "running"
       ? `color-mix(in srgb, ${theme.color.accent} 12%, transparent)`

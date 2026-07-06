@@ -7,7 +7,7 @@ export const DocSection = styled.section`
 `
 
 const DocH1Root = styled.h1`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-size: 36px;
   font-weight: 700;
   letter-spacing: -0.02em;

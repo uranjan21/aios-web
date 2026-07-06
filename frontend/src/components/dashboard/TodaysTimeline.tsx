@@ -113,7 +113,7 @@ const CategoryChip = styled.span<{ $color: string }>`
   color: ${({ $color }) => $color};
   background: ${({ $color }) => $color}1A;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
 `;
 
 const Notes = styled.p`

@@ -1,8 +1,9 @@
 import { createElement, isValidElement } from 'react'
 import type { ComponentType, ReactNode } from 'react'
 import { ArrowUp, ArrowDown } from 'lucide-react'
-import styled from 'styled-components'
+import styled, { useTheme } from 'styled-components'
 import { Card } from '../primitives/Card/Card'
+import { Sparkline } from './Sparkline'
 
 type LucideIcon = ComponentType<{ size?: number | string; className?: string }>
 
@@ -17,7 +18,9 @@ export interface KpiCardProps {
   action?: ReactNode
   /** @deprecated retained for backwards-compat — no-op. Use theme to control accent. */
   color?: string
-  trend?: { value: number; direction: 'up' | 'down' }
+  delta?: { value: number; direction: 'up' | 'down'; good?: boolean }
+  /** Optional 30-day (or similar) series rendered as a small sparkline beside the value. */
+  spark?: number[]
   loading?: boolean
   className?: string
 }
@@ -60,7 +63,7 @@ const FooterRow = styled.div`
   }
 `
 
-const TrendPill = styled.div<{ $up: boolean }>`
+const TrendPill = styled.div<{ $good: boolean }>`
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -68,8 +71,8 @@ const TrendPill = styled.div<{ $up: boolean }>`
   border-radius: ${({ theme }) => theme.radii.sm};
   font-size: 9px;
   font-weight: 600;
-  background: ${({ $up }) => $up ? 'rgba(27, 111, 93, 0.1)' : 'rgba(239, 68, 68, 0.1)'};
-  color: ${({ $up }) => $up ? '#1b6f5d' : '#dc2626'};
+  background: ${({ $good }) => $good ? 'rgba(27, 111, 93, 0.1)' : 'rgba(239, 68, 68, 0.1)'};
+  color: ${({ $good }) => $good ? '#1b6f5d' : '#dc2626'};
   
   & svg {
     width: 10px;
@@ -89,6 +92,10 @@ const TrendPill = styled.div<{ $up: boolean }>`
 export const KpiGrid = styled.div<{ $cols?: number }>`
   display: flex;
   overflow-x: auto;
+  /* When placed in a height-constrained flex column, overflow-x:auto makes
+     overflow-y computed 'auto' too — without this the grid silently shrinks
+     and vertically clips the KPI values. */
+  flex-shrink: 0;
   gap: 8px;
   padding-bottom: 4px;
   margin-bottom: 8px;
@@ -96,14 +103,21 @@ export const KpiGrid = styled.div<{ $cols?: number }>`
   scrollbar-width: none;
   -ms-overflow-style: none;
   &::-webkit-scrollbar { display: none; }
+
+  scroll-snap-type: x mandatory;
+  -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
+  mask-image: linear-gradient(to right, black 90%, transparent 100%);
   
   > * {
     flex: 0 0 auto;
     min-width: 140px;
+    scroll-snap-align: start;
   }
 
   @media (min-width: 640px) {
     display: grid;
+    -webkit-mask-image: none;
+    mask-image: none;
     grid-template-columns: repeat(${({ $cols }) => $cols || 4}, minmax(0, 1fr));
     gap: 12px;
     padding-bottom: 0;
@@ -125,24 +139,31 @@ function renderIcon(icon: KpiCardProps['icon']): ReactNode {
   return icon as ReactNode
 }
 
-export function KpiCard({ label, value, icon, action, trend, loading, className }: KpiCardProps) {
+export function KpiCard({ label, value, icon, sub, action, delta, spark, loading, className }: KpiCardProps) {
+  const theme = useTheme()
   return (
     <Card
       size="lg"
       className={className}
       title={label}
+      subtitle={sub}
       icon={renderIcon(icon)}
       action={action}
       style={{ height: '100%' }}
     >
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-        {loading ? <Skeleton /> : <Value>{value}</Value>}
+        {loading ? <Skeleton /> : (
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
+            <Value>{value}</Value>
+            {spark && spark.length > 1 && <Sparkline data={spark} stroke={theme?.color?.accent} />}
+          </div>
+        )}
       </div>
-      {trend && (
+      {delta && (
         <FooterRow>
-          <TrendPill $up={trend.direction === 'up'}>
-            {trend.direction === 'up' ? <ArrowUp strokeWidth={3} /> : <ArrowDown strokeWidth={3} />}
-            {Math.abs(trend.value)}%
+          <TrendPill $good={delta.good ?? delta.direction === 'up'}>
+            {delta.direction === 'up' ? <ArrowUp strokeWidth={3} /> : <ArrowDown strokeWidth={3} />}
+            {Math.abs(delta.value)}%
           </TrendPill>
         </FooterRow>
       )}

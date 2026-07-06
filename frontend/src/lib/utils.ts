@@ -6,10 +6,12 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(amount: number | null | undefined, currency = '₹'): string {
   if (amount == null) return '—'
-  if (Math.abs(amount) >= 1_00_000) {
-    return `${currency}${(amount / 1_00_000).toFixed(2)}L`
+  const sign = amount < 0 ? '-' : ''
+  const abs = Math.abs(amount)
+  if (abs >= 1_00_000) {
+    return `${sign}${currency}${(abs / 1_00_000).toFixed(2)}L`
   }
-  return `${currency}${amount.toLocaleString('en-IN')}`
+  return `${sign}${currency}${abs.toLocaleString('en-IN')}`
 }
 
 export function formatRelativeTime(isoString: string | null | undefined): string {
