@@ -108,6 +108,10 @@ const AnalyticsGrid = styled.div`
   }
 `
 
+const ForecastWrapper = styled.div`
+  margin-bottom: ${({ theme }) => theme.spacing[4]};
+`
+
 /* Fixed height only where the 2-col grid needs equal cards — on mobile the
    stacked cards auto-size so a short list doesn't leave a large dead area. */
 const AnalyticsCell = styled.div`
@@ -462,9 +466,9 @@ export function HomeTab() {
           />
         </KpiGrid>
 
-        <div className="mb-4">
+        <ForecastWrapper>
           <ForecastWidget domain="finance" />
-        </div>
+        </ForecastWrapper>
 
         {/* Analytics: 2×2 */}
         <AnalyticsGrid>

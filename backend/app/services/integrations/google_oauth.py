@@ -33,6 +33,12 @@ SCOPES_BY_PROVIDER = {
         "https://www.googleapis.com/auth/fitness.body.read",
         "https://www.googleapis.com/auth/fitness.heart_rate.read",
     ],
+    "gmail": [
+        "openid",
+        "email",
+        "profile",
+        "https://www.googleapis.com/auth/gmail.readonly",
+    ],
 }
 
 def _client_creds(provider: str) -> tuple[str, str]:
@@ -41,6 +47,11 @@ def _client_creds(provider: str) -> tuple[str, str]:
         return settings.gcal_client_id, settings.gcal_client_secret
     if provider == "gfit":
         return settings.gfit_client_id, settings.gfit_client_secret
+    if provider == "gmail":
+        # Same Google Cloud app as calendar unless dedicated creds are set.
+        if settings.gmail_client_id:
+            return settings.gmail_client_id, settings.gmail_client_secret
+        return settings.gcal_client_id, settings.gcal_client_secret
     raise ValueError(f"Unknown Google provider: {provider}")
 
 

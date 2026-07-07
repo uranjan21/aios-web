@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button, Input, Select, Dialog, SegmentedControl, AreaToolbar } from '@ledgr/ui'
+import { Button, Input, Select, Dialog, SegmentedControl, HeaderActionPortal } from '@ledgr/ui'
 import { Scale, Percent, Ruler, Moon, Clock, Plus, LineChart as LineChartIcon, BarChart3, BedDouble } from 'lucide-react'
 import { healthApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -284,11 +284,11 @@ export function BodySleepTab() {
   return (
     <>
     <WorkspaceLayout rail={undefined}>
-      <AreaToolbar>
+      <HeaderActionPortal>
         <Button size="sm" variant="primary" onClick={() => setLogModalOpen(true)}>
           <Plus size={12} style={{ marginRight: 4 }} /> Log Body Stats / Sleep
         </Button>
-      </AreaToolbar>
+      </HeaderActionPortal>
       <StyledContainer>
         <KpiGrid $cols={5}>
           <KpiCard

@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import dayjs, { Dayjs } from 'dayjs'
-import { Button, PageHeader, AreaToolbar, ToolbarMeta, Input, Select } from '@ledgr/ui'
+import { Button, PageHeader, AreaToolbar, ToolbarMeta, Input, Select, HeaderActionPortal } from '@ledgr/ui'
 import {
   PenLine, LayoutDashboard, Columns3, CalendarDays, Library, Megaphone, BarChart3,
-  Plus, Search, ChevronLeft, ChevronRight,
+  Plus, Search, ChevronLeft, ChevronRight, Settings,
 } from 'lucide-react'
 import styled from 'styled-components'
 import { contentApi } from '@/api/areas'
@@ -34,6 +35,7 @@ const SearchWrap = styled.div`
 `
 
 export function ContentPage() {
+  const navigate = useNavigate()
   const { data: items, isLoading, isError, refetch } = useQuery({
     queryKey: ['content', 'items'],
     queryFn: () => contentApi.items(),
@@ -88,13 +90,19 @@ export function ContentPage() {
   }
 
   // ── The one shared toolbar — its contents swap with the active tab ──────────
+  const renderToolbarButton = () => (
+    <Button variant="primary" size="sm" startIcon={<Plus size={14} />} onClick={openNew}>
+      {tab === 'campaigns' ? 'New Campaign' : 'New Content'}
+    </Button>
+  )
+
   let toolbar: React.ReactNode = null
   if (tab === 'library') {
     toolbar = (
       <AreaToolbar
         title="Content Library"
         left={<ToolbarMeta>{libraryRows.length} of {allItems.length} pieces</ToolbarMeta>}
-        style={{ marginTop: 8 }}
+        style={{ marginBottom: 16 }}
       >
         <SearchWrap>
           <Search size={14} />
@@ -130,6 +138,7 @@ export function ContentPage() {
             ...CONTENT_TYPES.map(t => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) })),
           ]}
         />
+        {renderToolbarButton()}
       </AreaToolbar>
     )
   } else if (tab === 'calendar') {
@@ -138,6 +147,7 @@ export function ContentPage() {
         <Button variant="outline" size="sm" aria-label="Previous month" onClick={() => setCursor(c => c.subtract(1, 'month'))}><ChevronLeft size={14} /></Button>
         <Button variant="ghost" size="sm" onClick={() => setCursor(dayjs())}>Today</Button>
         <Button variant="outline" size="sm" aria-label="Next month" onClick={() => setCursor(c => c.add(1, 'month'))}><ChevronRight size={14} /></Button>
+        {renderToolbarButton()}
       </AreaToolbar>
     )
   }
@@ -151,15 +161,24 @@ export function ContentPage() {
           title="Content"
           subtitle="Plan, draft, schedule and analyse your entire content engine in one place."
           actions={
-            <Button variant="primary" size="sm" startIcon={<Plus size={14} />} onClick={openNew}>
-              New Content
+            <Button variant="outline" size="sm" onClick={() => navigate('/app/settings')}>
+              <Settings size={14} style={{ marginRight: 6 }} /> Settings
             </Button>
           }
         />
 
+        {['overview', 'pipeline', 'analytics'].includes(tab) && (
+          <HeaderActionPortal>
+            <Button variant="primary" size="sm" startIcon={<Plus size={14} />} onClick={openNew}>
+              New Content
+            </Button>
+          </HeaderActionPortal>
+        )}
+
         <AreaTabs
           activeKey={tab}
           onChange={setTab}
+          toolbar={toolbar}
           items={[
             {
               key: 'overview',
@@ -179,12 +198,12 @@ export function ContentPage() {
             {
               key: 'calendar',
               label: <TabLabel><CalendarDays size={14} /> Calendar</TabLabel>,
-              children: <CalendarTab items={allItems} cursor={cursor} onEdit={openEdit} toolbar={toolbar} />,
+              children: <CalendarTab items={allItems} cursor={cursor} onEdit={openEdit} />,
             },
             {
               key: 'library',
               label: <TabLabel><Library size={14} /> Library</TabLabel>,
-              children: <LibraryTab rows={libraryRows} total={allItems.length} campaigns={allCampaigns} onEdit={openEdit} toolbar={toolbar} />,
+              children: <LibraryTab rows={libraryRows} total={allItems.length} campaigns={allCampaigns} onEdit={openEdit} />,
             },
             {
               key: 'analytics',

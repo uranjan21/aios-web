@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, Link } from 'react-router-dom'
-import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, BellOff, Settings, Palette, Activity, Sparkles, Keyboard, User, CreditCard, Save, Lock, Trash2, Shield, Zap, Sunrise } from 'lucide-react'
+import { Sun, Moon, CheckCircle, XCircle, AlertCircle, LogOut, RefreshCw, Bell, BellOff, Settings, Palette, Activity, Sparkles, Keyboard, User, CreditCard, Save, Lock, Trash2, Shield, Zap, Sunrise, BookOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/api/client'
 import { chatApi } from '@/api/chat'
 import { billingApi } from '@/api/billing'
+import { knowledgeApi } from '@/api/knowledge'
 import { useAuthStore } from '@/stores/authStore'
 import { logoutAndRedirect } from '@/lib/logout'
 import { useUIStore } from '@/stores/uiStore'
@@ -13,7 +14,7 @@ import { useVaultSync } from '@/hooks/useVaultSync'
 import { useFeatures } from '@/hooks/useFeatures'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ProgressBar } from '@/components/lumina';
-import { Card as GlassCard, Select, Switch, Input } from '@ledgr/ui';
+import { Card as GlassCard, Select, Switch, Input, SegmentedControl } from '@ledgr/ui';
 import { Button } from '@/components/ui/button'
 import styled, { useTheme } from 'styled-components'
 import { AreaSettingsPage } from '@/components/layout/AreaSettingsPage'
@@ -60,6 +61,7 @@ const SECTION_META: Record<string, { icon: React.ReactNode; subtitle: string }> 
   Security: { icon: <Lock size={16} />, subtitle: 'Change your password' },
   Account: { icon: <User size={16} />, subtitle: 'Sign-out and account-level controls' },
   Automations: { icon: <Zap size={16} />, subtitle: 'Curated automation rules' },
+  'Knowledge Base': { icon: <BookOpen size={16} />, subtitle: 'Your external notes, pulled in for chat and agents' },
 }
 
 function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
@@ -1072,6 +1074,170 @@ function AutomationsSection() {
   )
 }
 
+// ── Knowledge Base ────────────────────────────────────────────────────────────
+
+const INTERVAL_OPTIONS = [
+  { value: '15', label: 'Every 15 min' },
+  { value: '30', label: 'Every 30 min' },
+  { value: '60', label: 'Every hour' },
+  { value: '360', label: 'Every 6 hours' },
+  { value: '1440', label: 'Once a day' },
+]
+
+function KnowledgeSection() {
+  const queryClient = useQueryClient()
+  const { data: src } = useQuery({
+    queryKey: ['knowledge', 'source'],
+    queryFn: knowledgeApi.get,
+  })
+
+  const [sourceType, setSourceType] = useState<'obsidian' | 'notion'>('obsidian')
+  const [path, setPath] = useState('')
+  const [intervalMin, setIntervalMin] = useState('30')
+
+  useEffect(() => {
+    if (!src) return
+    if (src.source_type) setSourceType(src.source_type)
+    else if (!src.folder_sync_available) setSourceType('notion')
+    setPath(src.config?.path ?? '')
+    setIntervalMin(String(src.sync_interval_minutes ?? 30))
+  }, [src])
+
+  const saveMutation = useMutation({
+    mutationFn: knowledgeApi.save,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['knowledge', 'source'] })
+      toast.success('Knowledge base saved')
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.detail || 'Could not save knowledge base'),
+  })
+
+  const syncMutation = useMutation({
+    mutationFn: knowledgeApi.syncNow,
+    onSuccess: () => {
+      toast.success('Sync started — this can take a minute')
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: ['knowledge', 'source'] }), 5000)
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.detail || 'Could not start sync'),
+  })
+
+  if (!src) return null
+
+  const sourceOptions = [
+    ...(src.folder_sync_available ? [{ value: 'obsidian', label: 'Obsidian folder' }] : []),
+    { value: 'notion', label: 'Notion' },
+  ]
+
+  const save = () =>
+    saveMutation.mutate({
+      source_type: sourceType,
+      config: sourceType === 'obsidian' ? { path } : {},
+      sync_interval_minutes: Number(intervalMin),
+      enabled: src.enabled ?? true,
+    })
+
+  return (
+    <Section title="Knowledge Base">
+      <div style={{ padding: '0 20px 20px' }}>
+        <p style={{ fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 20 }}>
+          Point AIOS at your source of truth — an Obsidian vault folder (self-hosted) or your
+          Notion workspace. Notes are pulled on a schedule and become searchable by chat and your agents.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <RowRoot style={{ padding: 0 }}>
+            <div>
+              <RowLabel>Source</RowLabel>
+              <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>
+                {sourceType === 'notion'
+                  ? 'Requires the Notion integration (Integrations page)'
+                  : 'A folder on this machine containing your .md notes'}
+              </div>
+            </div>
+            <SegmentedControl
+              size="sm"
+              aria-label="Knowledge base source"
+              value={sourceType}
+              onChange={(v) => setSourceType(v as 'obsidian' | 'notion')}
+              options={sourceOptions}
+            />
+          </RowRoot>
+          {sourceType === 'obsidian' && (
+            <div>
+              <RowLabel>Vault folder path</RowLabel>
+              <div style={{ marginTop: 6 }}>
+                <Input
+                  size="sm"
+                  value={path}
+                  onChange={e => setPath(e.target.value)}
+                  placeholder="~/Documents/MyVault"
+                  aria-label="Obsidian vault folder path"
+                />
+              </div>
+            </div>
+          )}
+          <RowRoot style={{ padding: 0 }}>
+            <div>
+              <RowLabel>Pull frequency</RowLabel>
+              <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>How often changes are pulled in</div>
+            </div>
+            <Select
+              size="sm"
+              fullWidth={false}
+              aria-label="Knowledge base pull frequency"
+              value={intervalMin}
+              onChange={v => setIntervalMin(String(v))}
+              options={INTERVAL_OPTIONS}
+            />
+          </RowRoot>
+          {src.configured && (
+            <RowRoot style={{ padding: 0 }}>
+              <div>
+                <RowLabel>Enabled</RowLabel>
+                <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Pause without losing the configuration</div>
+              </div>
+              <Switch
+                checked={src.enabled ?? true}
+                onChange={() =>
+                  saveMutation.mutate({
+                    source_type: src.source_type!,
+                    config: src.config,
+                    sync_interval_minutes: src.sync_interval_minutes,
+                    enabled: !(src.enabled ?? true),
+                  })
+                }
+                aria-label="Toggle knowledge base sync"
+              />
+            </RowRoot>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Button size="sm" onClick={save} disabled={saveMutation.isPending || (sourceType === 'obsidian' && !path.trim())}>
+              <Save size={14} style={{ marginRight: 4 }} />
+              {saveMutation.isPending ? 'Saving…' : 'Save'}
+            </Button>
+            {src.configured && (
+              <Button size="sm" variant="secondary" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
+                <RefreshCw size={14} style={{ marginRight: 4 }} />
+                {syncMutation.isPending ? 'Starting…' : 'Sync now'}
+              </Button>
+            )}
+            {src.configured && (
+              <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>
+                {src.last_synced_at
+                  ? `Last synced ${new Date(src.last_synced_at + 'Z').toLocaleString()}`
+                  : 'Not synced yet'}
+                {src.last_status === 'error' && ' · '}
+                {src.last_status === 'error' && (
+                  <span style={{ color: 'var(--destructive)' }}>{src.last_error || 'sync failed'}</span>
+                )}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </Section>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
@@ -1095,6 +1261,7 @@ export function SettingsPage() {
       items: [
         { key: 'appearance', label: 'Appearance', icon: <Palette size={15} />, content: <AppearanceSection /> },
         { key: 'briefing', label: 'Briefing', icon: <Sunrise size={15} />, content: <BriefingSection /> },
+        { key: 'knowledge', label: 'Knowledge Base', icon: <BookOpen size={15} />, content: <KnowledgeSection /> },
         { key: 'automations', label: 'Automations', icon: <Zap size={15} />, content: <AutomationsSection /> },
         { key: 'shortcuts', label: 'Shortcuts', icon: <Keyboard size={15} />, content: <ShortcutsSection /> },
       ],

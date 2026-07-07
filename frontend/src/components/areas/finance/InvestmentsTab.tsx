@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@/components/ui/Popconfirm'
 import { Button, Dialog, Input, DataTable, Select, Card } from '@ledgr/ui'
-import { Trash2, PencilLine, TrendingUp } from 'lucide-react'
+import { Trash2, PencilLine, TrendingUp, Plus } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { FinanceInvestment } from '@/types'
@@ -126,7 +126,7 @@ const TYPE_META: Record<string, { label: string; icon: string; color: string }> 
   other: { label: 'Other', icon: '📦', color: '#6b7280' },
 }
 
-export function InvestmentsTab() {
+export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void }) {
   type HoldingForm = {
     name: string
     type: string
@@ -300,17 +300,24 @@ export function InvestmentsTab() {
       subtitle="Your investments and their current returns"
       icon={<TrendingUp size={16} />}
       action={
-        <Select
-          size="sm"
-          fullWidth={false}
-          aria-label="Filter holdings by asset type"
-          value={typeFilter}
-          onChange={(v) => setTypeFilter(String(v))}
-          options={[
-            { value: 'all', label: 'All assets' },
-            ...holdingTypes.map(t => ({ value: t, label: TYPE_META[t]?.label ?? t })),
-          ]}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Select
+            size="sm"
+            fullWidth={false}
+            aria-label="Filter holdings by asset type"
+            value={typeFilter}
+            onChange={(v) => setTypeFilter(String(v))}
+            options={[
+              { value: 'all', label: 'All assets' },
+              ...holdingTypes.map(t => ({ value: t, label: TYPE_META[t]?.label ?? t })),
+            ]}
+          />
+          {onAddClick && (
+            <Button size="sm" variant="primary" onClick={onAddClick}>
+              <Plus size={12} style={{ marginRight: 4 }} /> Add Investment
+            </Button>
+          )}
+        </div>
       }
     >
       <DataTable

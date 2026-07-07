@@ -278,7 +278,7 @@ async def get_pulse(
 
     # Content — scheduled queue size
     scheduled = (await db.execute(
-        select(func.count()).where(ContentItem.user_id == uid, ContentItem.status == "scheduled")
+        select(func.count()).where(ContentItem.user_id == uid, ContentItem.status.in_(["scheduled", "published"]))
     )).scalar_one()
     tiles.append({
         "domain": "content", "label": "Scheduled", "value": int(scheduled),

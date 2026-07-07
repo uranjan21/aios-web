@@ -23,6 +23,23 @@ class CalendarEvent(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
 
 
+class GmailMessage(SQLModel, table=True):
+    __tablename__ = "gmail_messages"
+    __table_args__ = (UniqueConstraint("user_id", "gmail_id", name="uq_gmail_user_message"),)
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    gmail_id: str = Field(nullable=False)
+    thread_id: Optional[str] = None
+    subject: Optional[str] = Field(default=None, sa_column=Column(Text))
+    sender: Optional[str] = None
+    snippet: Optional[str] = Field(default=None, sa_column=Column(Text))
+    received_at: Optional[datetime] = None
+    is_unread: bool = Field(default=False, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+
+
 class GoogleFitMetric(SQLModel, table=True):
     __tablename__ = "google_fit_metrics"
     __table_args__ = (UniqueConstraint("user_id", "date", name="uq_fit_user_date"),)

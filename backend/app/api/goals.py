@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,6 +16,7 @@ class GoalCreate(BaseModel):
     description: Optional[str] = None
     category: str
     target_date: Optional[date] = None
+    priority: Optional[str] = "medium"
 
 class GoalProgressCreate(BaseModel):
     progress_score: int = Field(ge=0, le=100)
@@ -32,7 +33,8 @@ async def create_goal(
         title=body.title,
         description=body.description,
         category=body.category,
-        target_date=body.target_date
+        target_date=body.target_date,
+        priority=body.priority,
     )
     db.add(goal)
     await db.commit()
@@ -57,6 +59,7 @@ class GoalUpdate(BaseModel):
     category: Optional[str] = None
     target_date: Optional[date] = None
     status: Optional[str] = None
+    priority: Optional[str] = None
 
 
 @router.patch("/{goal_id}", response_model=MacroGoal)
@@ -72,8 +75,12 @@ async def update_goal(
     data = body.model_dump(exclude_unset=True)
     if "status" in data and data["status"] not in ("active", "completed", "archived"):
         raise HTTPException(status_code=422, detail="Invalid status")
+    for f in ("title", "category"):
+        if f in data and data[f] is None:
+            raise HTTPException(status_code=422, detail=f"{f} cannot be null")
     for field, value in data.items():
         setattr(goal, field, value)
+    goal.updated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(goal)
     return goal
@@ -88,7 +95,12 @@ async def delete_goal(
     goal = await db.get(MacroGoal, goal_id)
     if not goal or goal.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Goal not found")
-    # Remove child progress rows first (no ON DELETE cascade on the FK).
+    # Unlink projects/tasks that reference this goal, and remove child
+    # progress rows — none of these FKs have ON DELETE behaviour.
+    from sqlalchemy import update as sa_update
+    from app.models.workspace import Project, Task
+    await db.execute(sa_update(Project).where(Project.goal_id == goal_id).values(goal_id=None))
+    await db.execute(sa_update(Task).where(Task.goal_id == goal_id).values(goal_id=None))
     rows = (await db.execute(
         select(GoalProgress).where(GoalProgress.goal_id == goal_id)
     )).scalars().all()

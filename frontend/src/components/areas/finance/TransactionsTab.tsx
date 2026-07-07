@@ -748,14 +748,13 @@ export function TransactionsTab() {
               aria-label="Search transactions"
             />
           </DesktopSearch>
-          <MobileSearchBtn onClick={() => setSearchOpen(true)} aria-label="Search transactions" style={{ height: 32 }}>
+          <MobileSearchBtn onClick={() => setSearchOpen(true)} aria-label="Search transactions">
             <Search size={13} />
           </MobileSearchBtn>
           <ToolbarIconBtn
             onClick={() => setFilterOpen(true)}
             data-active={filtersActive}
             aria-pressed={filtersActive}
-            style={{ height: 32 }}
           >
             Filters
             {filtersActive && (
@@ -763,7 +762,7 @@ export function TransactionsTab() {
             )}
           </ToolbarIconBtn>
           {searchActive && (
-            <ToolbarIconBtn onClick={clearFilters} style={{ height: 32 }}>
+            <ToolbarIconBtn onClick={clearFilters}>
               Clear
             </ToolbarIconBtn>
           )}
@@ -796,11 +795,11 @@ export function TransactionsTab() {
           </DateNavBtn>
         </DateNav>
       )}
-      <ToolbarIconBtn onClick={() => setImportOpen(true)} style={{ height: 32 }}>
+      <ToolbarIconBtn onClick={() => setImportOpen(true)}>
         <UploadIcon size={13} />
         Import
       </ToolbarIconBtn>
-      <Button size="sm" variant="primary" onClick={() => openAdd('Expense')} style={{ height: 32 }}>
+      <Button size="sm" variant="primary" onClick={() => openAdd('Expense')}>
         <Plus size={12} style={{ marginRight: 4 }} /> Add
       </Button>
     </AreaToolbar>

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@/components/ui/Popconfirm'
 import { Button, Select, Input, DataTable, SegmentedControl, Card } from '@ledgr/ui'
-import { Trash2, PencilLine, Gauge } from 'lucide-react'
+import { Trash2, PencilLine, Gauge, Plus } from 'lucide-react'
 import { financeApi } from '@/api/areas'
 import { formatCurrency } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -117,7 +117,7 @@ const ButtonsWrapper = styled.div`
   margin-bottom: 0.5rem;
 `
 
-export function BudgetsTab() {
+export function BudgetsTab({ onAddClick }: { onAddClick?: () => void }) {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<BudgetLimit | null>(null)
@@ -263,19 +263,26 @@ export function BudgetsTab() {
       subtitle="Monthly spending caps and how much you've used"
       icon={<Gauge size={16} />}
       action={
-        <Select
-          size="sm"
-          fullWidth={false}
-          aria-label="Filter budgets by status"
-          value={statusFilter}
-          onChange={(v: any) => setStatusFilter(v as typeof statusFilter)}
-          options={[
-            { value: 'all', label: 'All Budgets' },
-            { value: 'over', label: 'Over' },
-            { value: 'near', label: 'Near' },
-            { value: 'ok', label: 'On track' },
-          ]}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Select
+            size="sm"
+            fullWidth={false}
+            aria-label="Filter budgets by status"
+            value={statusFilter}
+            onChange={(v: any) => setStatusFilter(v as typeof statusFilter)}
+            options={[
+              { value: 'all', label: 'All Budgets' },
+              { value: 'over', label: 'Over' },
+              { value: 'near', label: 'Near' },
+              { value: 'ok', label: 'On track' },
+            ]}
+          />
+          {onAddClick && (
+            <Button size="sm" variant="primary" onClick={onAddClick}>
+              <Plus size={12} style={{ marginRight: 4 }} /> Add Budget
+            </Button>
+          )}
+        </div>
       }
     >
       {/* Add/Edit form */}

@@ -28,7 +28,7 @@ export function App() {
                 background: 'var(--color-card, #ffffff)',
                 color: 'var(--color-cardForeground, #0f172a)',
                 border: 'none',
-                borderRadius: '16px',
+                borderRadius: '10px',
                 boxShadow: '0 4px 12px rgba(45, 49, 58, 0.08), 0 2px 4px rgba(45, 49, 58, 0.04)',
                 fontSize: '14px',
               },

@@ -29,8 +29,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/integrations", tags=["integrations"])
 
-PROVIDERS = ["notion", "gcal", "gfit", "github"]
-GOOGLE_PROVIDERS = {"gcal", "gfit"}
+PROVIDERS = ["notion", "gcal", "gfit", "gmail", "github"]
+GOOGLE_PROVIDERS = {"gcal", "gfit", "gmail"}
+SYNCABLE_PROVIDERS = GOOGLE_PROVIDERS | {"notion"}
 
 
 @router.get("")
@@ -88,6 +89,8 @@ async def get_auth_url(provider: str, current_user=Depends(get_current_user), db
         "response_type": "code",
         "state": state,
     }
+    if provider == "notion":
+        params["owner"] = "user"
     url = f"{base_urls[provider]}?{urlencode(params)}"
     return {"url": url}
 
@@ -104,12 +107,26 @@ async def oauth_callback(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    if provider not in GOOGLE_PROVIDERS:
+    if provider not in GOOGLE_PROVIDERS and provider != "notion":
         raise HTTPException(status_code=400, detail="Callback not supported for this provider")
 
     validated_provider = await validate_state(body.state, db, user_id=current_user.id)
     if not validated_provider or validated_provider != provider:
         raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
+
+    if provider == "notion":
+        from app.services.integrations import notion
+        try:
+            token_data = await notion.exchange_code(body.code)
+        except Exception:
+            logger.exception("Notion token exchange failed")
+            raise HTTPException(status_code=400, detail="Token exchange failed")
+        await notion.save_tokens(current_user.id, db, token_data)
+        return {
+            "status": "connected",
+            "email": token_data.get("workspace_name", ""),
+            "provider": provider,
+        }
 
     try:
         token_data = await exchange_code(provider, body.code)
@@ -182,7 +199,7 @@ async def sync_provider(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    if provider not in GOOGLE_PROVIDERS:
+    if provider not in SYNCABLE_PROVIDERS:
         raise HTTPException(status_code=400, detail="Sync not supported for this provider")
 
     result = await db.execute(
@@ -198,8 +215,14 @@ async def sync_provider(
     try:
         if provider == "gcal":
             count = await sync_calendar_events(current_user.id, db)
-        else:
+        elif provider == "gfit":
             count = await sync_fitness(current_user.id, db)
+        elif provider == "gmail":
+            from app.services.integrations.gmail import sync_messages
+            count = await sync_messages(current_user.id, db)
+        else:
+            from app.services.integrations.notion import sync_pages
+            count = await sync_pages(current_user.id)
     except Exception:
         logger.exception("Sync failed for %s", provider)
         raise HTTPException(status_code=500, detail="Sync failed — check server logs")

@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     gcal_client_secret: str = ""
     gfit_client_id: str = ""
     gfit_client_secret: str = ""
+    # Gmail falls back to the gcal OAuth client when unset (same Google Cloud app).
+    gmail_client_id: str = ""
+    gmail_client_secret: str = ""
     github_client_id: str = ""
     github_client_secret: str = ""
 

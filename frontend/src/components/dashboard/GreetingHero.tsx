@@ -1,8 +1,10 @@
 import { useUIStore } from "@/stores/uiStore";
 import { Button, Card } from "@ledgr/ui";
-import { Plus } from "lucide-react";
+import { Heart, RefreshCcw, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import styled, { keyframes } from "styled-components";
+import { api } from "@/api/client";
+import { toast } from "sonner";
 
 const QUOTES: Array<{ text: string; author: string }> = [
   { text: "Discipline equals freedom.", author: "Jocko Willink" },
@@ -38,10 +40,10 @@ function getGreeting(): string {
   return "Good night";
 }
 
-function quoteOfTheDay(): { text: string; author: string } {
+function initialQuoteIndex(): number {
   const d = new Date();
   const dayIndex = Math.floor(d.getTime() / (1000 * 60 * 60 * 24));
-  return QUOTES[dayIndex % QUOTES.length];
+  return dayIndex % QUOTES.length;
 }
 
 /** ISO-8601 week number. */
@@ -252,9 +254,36 @@ const CaptureBtn = styled(Button)`
   border-radius: ${({ theme }) => theme.radii.md};
 `;
 
+const QuoteActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+`;
+
+const IconBtn = styled.button<{ $active?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  color: ${({ theme, $active }) => $active ? theme.color.accent : theme.color.mutedForeground};
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+  flex-shrink: 0;
+  &:hover { background: ${({ theme }) => theme.color.accent}18; color: ${({ theme }) => theme.color.accent}; }
+  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { transition: none; }
+`;
+
 export function GreetingHero({ name }: { name?: string }) {
   const setCaptureModalOpen = useUIStore((s) => s.setCaptureModalOpen);
   const [now, setNow] = useState<Date>(() => new Date());
+  const [quoteIndex, setQuoteIndex] = useState(initialQuoteIndex);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 30_000);
@@ -262,7 +291,21 @@ export function GreetingHero({ name }: { name?: string }) {
   }, []);
 
   const greeting = getGreeting();
-  const quote = quoteOfTheDay();
+  const quote = QUOTES[quoteIndex];
+  const quoteKey = `${quote.text}::${quote.author}`;
+
+  const handleRefresh = () => setQuoteIndex(i => (i + 1) % QUOTES.length);
+
+  const handleSave = async () => {
+    if (savedIds.has(quoteKey)) return;
+    try {
+      await api.post('/quotes/save', { text: quote.text, author: quote.author });
+      setSavedIds(prev => new Set(prev).add(quoteKey));
+      toast.success('Quote saved to your collection');
+    } catch {
+      toast.error('Could not save quote');
+    }
+  };
   const time = now.toLocaleTimeString("en-IN", {
     hour: "numeric",
     minute: "2-digit",
@@ -304,7 +347,22 @@ export function GreetingHero({ name }: { name?: string }) {
         </Left>
 
         <QuotePanel>
-          <QuoteLabel>Daily principle</QuoteLabel>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <QuoteLabel>Daily principle</QuoteLabel>
+            <QuoteActions>
+              <IconBtn aria-label="Next quote" onClick={handleRefresh} title="Refresh quote">
+                <RefreshCcw size={13} />
+              </IconBtn>
+              <IconBtn
+                aria-label="Save quote"
+                onClick={handleSave}
+                $active={savedIds.has(quoteKey)}
+                title={savedIds.has(quoteKey) ? 'Already saved' : 'Save to collection'}
+              >
+                <Heart size={13} fill={savedIds.has(quoteKey) ? 'currentColor' : 'none'} />
+              </IconBtn>
+            </QuoteActions>
+          </div>
           <QuoteBlock>
             <QuoteText>{quote.text}</QuoteText>
             <QuoteAuthor>— {quote.author}</QuoteAuthor>
@@ -312,10 +370,10 @@ export function GreetingHero({ name }: { name?: string }) {
           <CaptureBtn
             variant="primary"
             size="md"
-            startIcon={<Plus size={14} />}
+            startIcon={<Zap size={14} />}
             onClick={() => setCaptureModalOpen(true)}
           >
-            Quick Capture
+            Quick Log
           </CaptureBtn>
         </QuotePanel>
       </Row>

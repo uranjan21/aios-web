@@ -620,7 +620,7 @@ export function AgentsPage() {
         title="Agents"
         subtitle="Autonomous agents that manage your life OS."
         icon={<Bot />}
-        eyebrow="AUTOMATION"
+        eyebrow="Automation"
       />
       <PageDivider />
       {isError ? (

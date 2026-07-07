@@ -86,4 +86,5 @@ async def test_signup_seeds_default_agents(client, db_session_factory):
     uid = uuid.UUID(resp.json()["user"]["id"])
     async with db_session_factory() as s:
         agents = (await s.execute(select(Agent).where(Agent.user_id == uid))).scalars().all()
-    assert len(agents) == 8
+    from app.api.agents import DEFAULT_AGENTS
+    assert len(agents) == len(DEFAULT_AGENTS)

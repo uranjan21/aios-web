@@ -196,7 +196,7 @@ const ActionArea = styled.div`
 `
 
 export function CommandPalette() {
-  const { cmdPaletteOpen, setCmdPaletteOpen, theme, toggleTheme, recentPages, captureModalOpen, setCaptureModalOpen } = useUIStore()
+  const { cmdPaletteOpen, setCmdPaletteOpen, theme, toggleTheme, recentPages, captureModalOpen, setCaptureModalOpen, setAddTaskModalOpen } = useUIStore()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const triggerRef = useRef<Element | null>(null)
@@ -237,7 +237,16 @@ export function CommandPalette() {
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'l') {
         e.preventDefault()
-        setCaptureModalOpen(!captureModalOpen)
+        const path = window.location.pathname
+        const projectMatch = path.match(/^\/app\/projects\/([^/]+)/)
+        const sprintMatch = path.match(/^\/app\/sprints\/([^/]+)/)
+        if (projectMatch) {
+          setAddTaskModalOpen(true, projectMatch[1], undefined)
+        } else if (sprintMatch) {
+          setAddTaskModalOpen(true, undefined, sprintMatch[1])
+        } else {
+          setCaptureModalOpen(!captureModalOpen)
+        }
       }
       if (e.key === 'Escape' && isOpen) {
         setCmdPaletteOpen(false)
@@ -246,7 +255,7 @@ export function CommandPalette() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [cmdPaletteOpen, captureModalOpen, setCmdPaletteOpen, setCaptureModalOpen, isOpen])
+  }, [cmdPaletteOpen, captureModalOpen, setCmdPaletteOpen, setCaptureModalOpen, setAddTaskModalOpen, isOpen])
 
   const { data: agents } = useQuery({
     queryKey: ['agents'],

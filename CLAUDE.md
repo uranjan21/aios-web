@@ -1,3 +1,6 @@
+> **ALL AI tools (Claude/Codex/Antigravity): read `AGENTS.md` first — the end-of-session PROGRESS.md entry is mandatory.**
+> Business context, decisions & sync: Utsav's AI OS vault → `~/Library/Mobile Documents/com~apple~CloudDocs/2. Workspace/AI OS/04-business/products/aios-web/`
+
 # Project: AIOS Web
 
 ## What this is
@@ -8,22 +11,23 @@ A full-stack personal life-management OS — Finance, Health, Career, Business, 
 
 ## 📍 Progress Snapshot (auto-synced)
 
-**Last synced:** 2026-07-01
+**Last synced:** 2026-07-07
 
-**Shipped:**
-- 3 rounds of multi-tenancy/security audits closed the original IDOR + isolation leaks; a full 9-domain backend re-audit (2026-06-30) + Opus second pass (2026-07-01) verified the fixes and caught one more (uncapped agent LLM spend, now gated).
-- Pivoted billing from fixed 4-tier to modular pay-per-module ($5/module, $29 bundle) — Phases 0-3 (entitlement gating, Stripe multi-item billing, metered AI, dunning) are code-complete; only live-Stripe test-mode verification remains.
-- Content area rebuilt into a full 6-tab CMS; Business area rebuilt into a multi-business Portfolio Hub.
-- "Premium Black + Gold" design system (@ledgr/ui) locked and rolled out app-wide.
-- Backend suite: 53 tests passing. `tsc`/`pnpm build` clean.
+**Shipped (durable state):**
+- Security: 3 rounds of multi-tenancy/IDOR audits + full 9-domain backend audit (2026-06-30, Opus-verified 07-01) + workspace audit (07-07) — all CRITICAL/HIGH fixed; isolation verified by live cross-tenant attack. Open backlog lives in memory `project_backend_audit.md`.
+- Billing: modular pay-per-module ($5/module, $29 bundle, metered AI) code-complete; OFF until live-Stripe test-mode verification.
+- Design: "Premium Black + Gold" @ledgr/ui system app-wide; Dialog has icon/eyebrow/stepper/DialogFooter; PageHeader subtitle below title.
+- Areas: Content = 6-tab CMS; Business = Portfolio Hub; Dashboard 2.0 = BriefingCard + PulseRow + DiscoveriesFeed + LifeHeatmap (left column) + calendar (right column); GreetingHero quote refresh/save + "Quick Log" ⌘L.
+- **Workspace (Projects/Sprints/Tasks/Goals):** alembic head `w004_add_quote_favorite`. All 3 pages have domain AreaTabs + shared `CollapsibleSection`; server enforces goal↔domain match, task inherits project domain/sprint project, delete_goal unlinks children; edit dialogs send explicit `null` to clear fields (Payload types in api/workspace.ts).
+- Tests: Docker suite 132 passing (+ 2 env-only failures that pass on host); e2e 82/82; `tsc`/`pnpm build` clean.
 
-**Uncommitted right now:** health tab, sidebar, admin/landing/pricing/settings pages, and theme files are dirty in the working tree (post the theme-palette-system commit `a06efb9`).
+**Key gotchas (memory `project_aios_web.md` has the full list):** SQLModel tables must use sqlmodel's `Field` (pydantic's silently drops `primary_key`); FastAPI literal routes before `/{id}` param routes; ledgr-ui rebuild needs full reinstall + Vite restart; `test_auth`/`test_api_mappings` host-only (`cd backend && uv run pytest`); signup agent-seeding swallows exceptions — check `api/agents.py` if new users lack the 8 default agents.
 
-**Next up** (see `docs/PRODUCT_ROADMAP.md`):
-- Verify Stripe billing end-to-end with test-mode keys; drop legacy `plan`/`addons` columns once verified.
-- Phase 2 — Engagement: Daily Executive Briefing, logging-streak heatmap, make the 8 scheduled agents actually useful (or hide them).
-- Phase 3 — the actual moat: the cross-domain Synergy Engine (nightly correlation job → AI Discoveries feed). Nothing built yet.
-- Backlog carried forward: OAuth state needs Redis (breaks on >1 worker), JWT has no revocation, Content CMS metrics are manual-entry only.
+**Next up** (see `docs/PRODUCT_ROADMAP.md` + memory index):
+- Saved-quotes collection UI (backend CRUD + frontend api/quotes.ts ready; no view yet).
+- Verify Stripe billing end-to-end with test-mode keys; drop legacy `plan`/`addons` columns once verified; decide `require_module` gating for goals/forecasts/insights/actions/automations routers.
+- Backend deferred items in priority order: BILL-2 (DB-backed webhook idempotency) → AUTH-1 (proxy IP at deploy layer) → ADMIN-2 (delete-user audit log) → BILL-3 → HLT-2 (user timezone) → SYNC-1/2 (async vault I/O).
+- Content CMS metrics are still manual-entry only.
 
 ---
 
@@ -178,7 +182,11 @@ aios-web/
 - **No pill/capsule shapes anywhere** — buttons, inputs, toggles, badges, progress bars all use `theme.radii.sm`/`md` (flat, ~8–10px corners), never `9999px`/`theme.radii.full`. Exception: true circles (avatars, status dots, the `Switch` track/thumb) where the shape is structural, not a corner-rounding choice. When adding any new rounded element, reference a `theme.radii.*` token — never hardcode a radius value.
 - **Multi-option toggle/filter style (user-confirmed favorite, always use this for "All / Over / Near / On track"-style filters)**: `@ledgr/ui`'s `SegmentedControl` — light `theme.color.muted` track, white/card active segment with `theme.shadow.xs`, `theme.radii.md` corners (not pill-shaped). Do NOT use a `Select` dropdown for this pattern unless the option list is long (5+) or doesn't need every option visible at once — short status/range filters (≤4 options) should be `SegmentedControl`, not a dropdown.
 - **`PageHeader` (ledgr-ui)**: `Subtitle` is hidden below the `md` breakpoint (768px) to avoid cluttering mobile/narrow views — don't rely on subtitle text being visible on small screens. `Root` wraps (`flex-wrap: wrap`) so `Actions` drops to its own row instead of squeezing `Left` when there are many header buttons.
-- **`PageHeader` actions vs `AreaToolbar` — where controls live**: `PageHeader`'s `actions` slot (top-right, next to the title) is reserved for page-level, tab-independent actions only — in practice, just the **Settings** gear button. Everything tab/view-specific (view switcher, date nav, search, filters, import, "Add X" button) belongs together in a single `<AreaToolbar>` rendered as the first child inside the tab's content (i.e. between the `AreaTabs` row and the content `Card`), not split into `HeaderActionPortal`. Never render a literally empty or title-only toolbar (no real controls) — but a toolbar holding real multi-control UI should stay as a dedicated `AreaToolbar`, not get merged into the header.
+- **`PageHeader` actions vs `AreaToolbar` — where controls live**: Use `AreaToolbar` ONLY when there are multiple elements (e.g. multiple buttons, filters, search). If a tab only has a SINGLE button (like "Add Transaction"), do NOT use `AreaToolbar`. Instead, if the tab's main content is a single Card, place the button on the right side of the Card's header. If it's not a single Card, elevate the single button to the global `PageHeader` (aligned right, parallel to the page title) using the `HeaderActionPortal`.
+- **`@ledgr/ui` `Dialog` icon renders inline, no background box** — `IconWrap` in `Dialog.tsx` has no `width`/`height`/`background`. The icon SVG renders bare alongside the eyebrow+title+description, exactly like the Card header icon. Never add a muted-bg container to the dialog icon.
+- **Toolbar/action-row controls share a 32px height contract** — every interactive control that sits in a `Card` action row or `AreaToolbar` must render at exactly **32px** so they align on one baseline. Fixed at the ledgr-ui source (all `border-box`): `Button size="sm"` = 32px, `SegmentedControl size="sm"` = 32px (explicit `height` on `Root`), `DateNavBtn` = 32×32px, `ToolbarIconBtn` = `height:32px; padding:0 16px` (do NOT use vertical padding — it made it 37.5px and pushed it above the others). Never paper over a height mismatch with an inline `style={{ height: 32 }}` on the call site — fix the primitive. When adding a new toolbar control, measure it against 32px.
+- **`PageHeader` standard** — Finance (`FinancePage.tsx`) + Settings are the canonical references. Settings button is always `variant="outline" size="sm"` with `<Settings size={14} style={{ marginRight: 6 }} /> Settings` (NOT ghost, NOT icon-only). **PageDivider rule:** area pages (Finance/Health/Career/Business/Content/Goals) → NO PageDivider after PageHeader; workspace/tool pages (Projects/Sprints/Tasks/Agents/Settings/Discoveries/Review/Integrations) → ALWAYS `<PageDivider />` immediately after `<PageHeader />`.
+- **Always use `@ledgr/ui` `Card` directly — never build custom card wrapper components.** `Card` has `icon`/`title`/`subtitle`/`action` props that provide the full header layout. **Canonical reference: `components/areas/finance/BudgetsTab.tsx`.** Action items go in `<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>` passed as `action`. Always add `fullWidth={false}` to any `Select` inside `action` (without it Select fills the container and pushes buttons to a second line). Icon size = `16`. Never use `flex-wrap: wrap` on the inner action div.
 - **WorkspaceLayout's `Main` is a flex column with `gap: 24px`** — direct children (grids, sections) must NOT also set their own `margin-top`, or spacing doubles (gap + margin-top stack additively). Let the parent `gap` handle inter-section spacing.
 
 ---
@@ -193,6 +201,7 @@ aios-web/
 - **Push notifications gotcha**: `docker compose restart` does NOT re-read `env_file` — use `docker compose up -d backend` after `.env` changes
 - **health_logs entry_type CHECK**: allowed values are `gym,weight,food,meal,water,steps,body_fat,sleep,note` — adding a new type needs a migration to update the Postgres CHECK constraint
 - **CSS vars are HEX**: never `hsl(var(--x))` — use `var(--x)` or `color-mix()`
+- **ledgr-ui edit → browser: reliable deploy + MANDATORY verify.** `grep`ing the rebuilt `dist` is NOT proof the change reached the browser — the Vite dev server pre-bundles `@ledgr/ui` into `node_modules/.vite/deps` and keeps serving that until it's invalidated. Reliable sequence after editing ledgr-ui source: (1) `cd ledgr-ui && rm -rf dist && npm run build`; (2) copy the fresh `dist` into the pnpm virtual store the top-level symlink resolves to — `cp -r dist "frontend/node_modules/.pnpm/@ledgr+ui@file+..*/node_modules/@ledgr/ui/"` (a plain `cp` into the store is the most robust; a full `pnpm install` can drop the top-level `node_modules/@ledgr/ui` symlink and needs manual recreation); (3) `rm -rf frontend/node_modules/.vite`; (4) **restart the dev server** (clearing `.vite` alone doesn't re-optimize a running server); (5) **verify in the browser by measuring** — `getBoundingClientRect()` via `preview_eval`, not by trusting the source. If you can't log in to reach the real page, add a throwaway public route rendering the components, measure, then delete it.
 - **`@ledgr/ui` Dialog fires `onOpenChange` on CLOSE only** (Esc/overlay/close-button → `onOpenChange(false)`); it never calls `onOpenChange(true)`. So modal **reset/prefill must be driven by a `useEffect` on `[open, editing]`**, not an `onOpenChange(true)` branch (that branch never runs → stale/empty forms on reopen/edit). Same for any controlled Dialog.
 - **Number `<Input>` needs `step`**: `min="0.01"` (or any non-integer min) with the default `step="1"` makes whole numbers *invalid* ("nearest valid values are 19.01 and 20.01"). Always pair a decimal `min` with `step="0.01"` (or `step="any"`) on currency/amount inputs.
 - **Finance categories are a 2-level DB tree, separated by `kind` (income vs expense)** — no hardcoded category lists. Query key `['finance', 'categories']`; `GET /categories?kind=` filters; the tree auto-seeds defaults per kind on first fetch (`_DEFAULT_CATEGORIES`). The txn form uses `CategoryPicker` (a cascading flyout on desktop / drill-down on mobile, with inline create). **Transactions store `category_id`** (FK to the exact node) **plus a denormalized `category`/`source` = the TOP-LEVEL ancestor name** (so existing by-category reports roll up for free; resolve `category_id` for the subcategory). Resolve via `_resolve_category()` in `api/areas/finance.py`. Deleting a category uncategorizes its transactions. **Account is required** on manual expense/income (422 without it).
@@ -228,6 +237,13 @@ alembic upgrade head
 ```
 
 ---
+
+## Recent Updates (2026-07-06 — Workspace & UI Consistency Polish)
+
+- **Workspace Entity CRUD:** Implemented full edit capabilities (Pencil icon + Dialog) for Projects, Sprints, and Tasks. Added backend `PATCH` endpoints for Projects and Sprints.
+- **Global Header Consistency:** Enforced `@ledgr/ui` `PageHeader` standard (with `icon`, `eyebrow`, and `PageDivider`) across `ProjectsPage`, `SprintsPage`, `TasksPage`, and `ReviewPage`.
+- **Review Page Layout:** Refactored `ReviewPage` to use the global `PageContainer` and `PageContent` layout system while preserving its custom 860px max-width reading format.
+- **Domain Goals Consolidation:** Removed standalone `DomainGoalsCard` widgets from individual area pages (Health, Career, Business, Content) to centralize macro-goal tracking within the `GoalsPage` tabs.
 
 ## Recent Updates (2026-07-06 — ship-readiness audit)
 

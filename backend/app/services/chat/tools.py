@@ -123,6 +123,17 @@ TOOL_DEFINITIONS = [
             "required": ["title"],
         },
     },
+    {
+        "name": "get_recent_emails",
+        "description": "Get recent Gmail inbox highlights (subject, sender, snippet). Read-only; requires the Gmail integration.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "default": 10},
+                "unread_only": {"type": "boolean", "default": False},
+            },
+        },
+    },
 ]
 
 
@@ -172,7 +183,7 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
     elif tool_name == "search_vault":
         query = tool_input["query"]
         top_k = tool_input.get("top_k", 5)
-        results = await retriever.search(query, top_k=top_k)
+        results = await retriever.search(query, top_k=top_k, user_id=user_id)
         if not results:
             return "No relevant vault content found.", []
         lines = [f"[{r['path']} | similarity {r['similarity']:.2f}]\n{r['content'][:400]}" for r in results]
@@ -197,6 +208,29 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
         return "(GitHub integration not connected)", []
 
     elif tool_name == "get_notion_page":
-        return "(Notion integration not connected. Connect Notion in the Integrations page to enable this.)", []
+        from app.services.integrations.notion import get_page_by_title
+        try:
+            text = await get_page_by_title(user_id, tool_input["title"])
+        except Exception as e:
+            logger.warning("get_notion_page failed: %s", e)
+            return "(Notion request failed — try again or re-connect Notion.)", []
+        return text[:6000], []
+
+    elif tool_name == "get_recent_emails":
+        from app.services.integrations.gmail import get_stored_messages
+        from app.db.session import AsyncSessionLocal
+        async with AsyncSessionLocal() as db:
+            emails = await get_stored_messages(
+                user_id, db,
+                limit=tool_input.get("limit", 10),
+                unread_only=tool_input.get("unread_only", False),
+            )
+        if not emails:
+            return "(No emails found — is Gmail connected and synced?)", []
+        lines = [
+            f"• [{(e['received_at'] or '')[:16]}] {'(unread) ' if e['is_unread'] else ''}{e['sender']} — {e['subject']}\n  {(e['snippet'] or '')[:150]}"
+            for e in emails
+        ]
+        return f"Recent emails ({len(emails)}):\n" + "\n".join(lines), []
 
     return f"Unknown tool: {tool_name}", []

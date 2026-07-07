@@ -7,18 +7,16 @@ import { capturesApi } from '@/api/areas'
 import { insightsApi } from '@/api/insights'
 import { CheckCircle2, XCircle, ArrowRight, CalendarCheck } from 'lucide-react'
 import { toast } from 'sonner'
+import { PageDivider } from '@/components/layout/PageDivider'
+import { PageContainer, PageContent } from '@/components/layout/PageLayout'
 
-const Container = styled.div`
+const ReviewContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 24px;
-  padding: 20px;
   max-width: 860px;
   margin: 0 auto;
   width: 100%;
-  @media (min-width: 768px) {
-    padding: 24px 32px;
-  }
 `
 
 const SummaryBox = styled.div`
@@ -215,8 +213,16 @@ export function ReviewPage() {
   }
 
   return (
-    <Container>
-      <PageHeader title="Weekly Review" subtitle="Your Sunday ritual to align and focus" />
+    <PageContainer>
+      <PageContent>
+        <ReviewContainer>
+      <PageHeader 
+        icon={<CalendarCheck />}
+        eyebrow="Routine"
+        title="Weekly Review" 
+        subtitle="Your Sunday ritual to align and focus" 
+      />
+      <PageDivider />
 
       {step === 1 && (
         <Card title="1. Week in Review" icon={<CalendarCheck size={16} />}>
@@ -321,6 +327,8 @@ export function ReviewPage() {
           </DoneWrap>
         </Card>
       )}
-    </Container>
+        </ReviewContainer>
+      </PageContent>
+    </PageContainer>
   )
 }

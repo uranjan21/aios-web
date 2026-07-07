@@ -23,8 +23,17 @@ interface UIState {
   captureModalOpen: boolean
   setCaptureModalOpen: (v: boolean) => void
 
+  addTaskModalOpen: boolean
+  addTaskDefaultProjectId: string | undefined
+  addTaskDefaultSprintId: string | undefined
+  setAddTaskModalOpen: (open: boolean, projectId?: string, sprintId?: string) => void
+
   recentPages: string[]
   pushRecentPage: (path: string) => void
+
+  collapsedSections: Record<string, boolean>
+  setSectionCollapsed: (key: string, collapsed: boolean) => void
+  toggleSectionCollapsed: (key: string) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -47,13 +56,30 @@ export const useUIStore = create<UIState>()(
       captureModalOpen: false,
       setCaptureModalOpen: (v) => set({ captureModalOpen: v }),
 
+      addTaskModalOpen: false,
+      addTaskDefaultProjectId: undefined,
+      addTaskDefaultSprintId: undefined,
+      setAddTaskModalOpen: (open, projectId, sprintId) => set({
+        addTaskModalOpen: open,
+        addTaskDefaultProjectId: projectId,
+        addTaskDefaultSprintId: sprintId,
+      }),
+
       recentPages: [],
       pushRecentPage: (path) => set((s) => {
         const filtered = s.recentPages.filter(p => p !== path)
         return { recentPages: [path, ...filtered].slice(0, 5) }
       }),
+
+      collapsedSections: {},
+      setSectionCollapsed: (key, collapsed) => set((s) => ({
+        collapsedSections: { ...s.collapsedSections, [key]: collapsed }
+      })),
+      toggleSectionCollapsed: (key) => set((s) => ({
+        collapsedSections: { ...s.collapsedSections, [key]: !s.collapsedSections[key] }
+      })),
     }),
-    { name: 'aios-ui', partialize: (s) => ({ theme: s.theme, palette: s.palette }) }  // don't persist sidebarOpen — desktop always shows; mobile always starts closed
+    { name: 'aios-ui', partialize: (s) => ({ theme: s.theme, palette: s.palette, collapsedSections: s.collapsedSections }) }  // don't persist sidebarOpen — desktop always shows; mobile always starts closed
   )
 )
 

@@ -10,7 +10,7 @@ import { format } from 'date-fns'
 import type { FoodDbItem } from '@/types'
 import { Card as GlassCard } from '@ledgr/ui';
 import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
-import { Dialog, Button, Input, Select, Card, AreaToolbar } from '@ledgr/ui'
+import { Dialog, Button, Input, Select, Card, HeaderActionPortal } from '@ledgr/ui'
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack']
 
@@ -473,11 +473,11 @@ export function NutritionTab() {
   return (
     <>
     <WorkspaceLayout rail={undefined}>
-      <AreaToolbar>
+      <HeaderActionPortal>
         <Button size="sm" variant="primary" onClick={() => setLogModalOpen(true)}>
           <Plus size={12} style={{ marginRight: 4 }} /> Log Food
         </Button>
-      </AreaToolbar>
+      </HeaderActionPortal>
       <StyledContainer>
         {/* Calorie ring + macros */}
         <Card

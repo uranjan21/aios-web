@@ -31,3 +31,12 @@ async def run_google_sync(user_id: uuid.UUID) -> None:
                 logger.info("Background gfit sync: %d days", count)
             except Exception:
                 logger.exception("Background gfit sync failed")
+
+        gmail = creds.get("gmail")
+        if gmail and gmail.status == "connected":
+            try:
+                from app.services.integrations.gmail import sync_messages
+                count = await sync_messages(user_id, db)
+                logger.info("Background gmail sync: %d messages", count)
+            except Exception:
+                logger.exception("Background gmail sync failed")

@@ -69,6 +69,10 @@ async def _run_automation_tick() -> None:
     from app.services.automations.engine import run_automation_tick
     await run_automation_tick()
 
+async def _run_knowledge_pull() -> None:
+    from app.services.knowledge.puller import run_knowledge_pull
+    await run_knowledge_pull()
+
 
 async def _dispatch(task_id: str, user_id: uuid.UUID) -> None:
     """Called by APScheduler — fires the agent run pipeline."""
@@ -192,6 +196,15 @@ async def start_scheduler() -> None:
             trigger=CronTrigger(minute=5, timezone="UTC"),  # hourly at :05
             replace_existing=True,
             misfire_grace_time=900,
+        )
+
+        # Every 10 min — pull knowledge sources whose sync interval has elapsed.
+        _safe_add_job(
+            "knowledge_pull",
+            func=_run_knowledge_pull,
+            trigger=CronTrigger(minute="*/10", timezone="UTC"),
+            replace_existing=True,
+            misfire_grace_time=600,
         )
 
         # Hourly at :15 — batch metered AI usage to Stripe (Phase 2).

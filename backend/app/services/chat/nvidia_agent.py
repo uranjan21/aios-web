@@ -53,7 +53,7 @@ async def stream_nvidia_chat_response(
         yield {"type": "error", "code": "token_budget_exceeded", "message": str(e)}
         return
 
-    system_prompt = await build_system_prompt(user_message)
+    system_prompt = await build_system_prompt(user_message, user_id=user_id)
     client = get_nvidia_client()
     messages = _trim_history(history) + [{"role": "user", "content": user_message}]
 

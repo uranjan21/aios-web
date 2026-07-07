@@ -2,16 +2,18 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Column
-from sqlalchemy import Text
+from sqlalchemy import Text, UniqueConstraint
 from pgvector.sqlalchemy import Vector
 
 
 class VaultFile(SQLModel, table=True):
     __tablename__ = "vault_files"
+    # Path is unique per user, not globally — knowledge sources are per-user.
+    __table_args__ = (UniqueConstraint("user_id", "path", name="uq_vault_files_user_path"),)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
-    path: str = Field(unique=True, nullable=False)
+    path: str = Field(nullable=False)
     area: Optional[str] = None
     file_type: str = Field(nullable=False)
     content: str = Field(sa_column=Column(Text, nullable=False))

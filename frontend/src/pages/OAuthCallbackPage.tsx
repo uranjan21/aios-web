@@ -77,7 +77,10 @@ export function OAuthCallbackPage() {
       .then((resp) => {
         setStatus('success')
         setMessage(`Connected as ${resp.data.email || provider}`)
-        toast.success(`${provider === 'gcal' ? 'Google Calendar' : 'Google Fit'} connected!`)
+        const providerLabels: Record<string, string> = {
+          gcal: 'Google Calendar', gfit: 'Google Fit', gmail: 'Gmail', notion: 'Notion',
+        }
+        toast.success(`${providerLabels[provider] ?? provider} connected!`)
         setTimeout(() => navigate('/app/integrations'), 2000)
       })
       .catch((err) => {

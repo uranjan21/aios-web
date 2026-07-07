@@ -6,6 +6,7 @@ import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { BottomNav } from './BottomNav'
 import { CommandPalette } from '@/components/CommandPalette'
+import { GlobalAddTaskDialog } from '@/components/GlobalAddTaskDialog'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useUIStore } from '@/stores/uiStore'
@@ -112,6 +113,7 @@ export function AppShell() {
       {/* CommandPalette owns both ⌘K and ⌘L (quick-log) since the §7.3 merge —
           mounting GlobalCapture too would double-register the ⌘L handler. */}
       <CommandPalette />
+      <GlobalAddTaskDialog />
       <BottomNav />
       {showWizard && <WelcomeWizard onComplete={handleCompleteWizard} />}
     </Root>

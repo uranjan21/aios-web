@@ -1,6 +1,6 @@
 import { useId, useRef } from 'react';
 import type { ReactNode } from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 import { Portal } from '../../utils/Portal';
 import { useFocusTrap, useScrollLock, useEscapeKey } from '../../utils/hooks';
 
@@ -9,30 +9,34 @@ export type DialogSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 export interface DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Accessible title — required for screen readers. Pass a string or a custom DialogTitle element. */
   title?: ReactNode;
   description?: ReactNode;
+  /** Icon shown in the header — rendered in a small square container. */
+  icon?: ReactNode;
+  /** Small uppercase label above the title (eyebrow). */
+  eyebrow?: string;
+  /** Step labels for a linear stepper. */
+  steps?: string[];
+  /** Zero-based index of the current step. */
+  currentStep?: number;
   size?: DialogSize;
-  /** Hide the default close button (you'll need your own). */
   hideCloseButton?: boolean;
-  /** Prevent close on overlay click. */
   closeOnOverlayClick?: boolean;
-  /** Prevent close on Escape. */
   closeOnEscape?: boolean;
   children: ReactNode;
 }
 
 const sizeMap: Record<DialogSize, string> = {
-  sm:  '420px',
-  md:  '560px',
-  lg:  '720px',
-  xl:  '960px',
-  full:'95vw',
+  sm:   '440px',
+  md:   '560px',
+  lg:   '720px',
+  xl:   '960px',
+  full: '95vw',
 };
 
 const fadeIn = keyframes`from { opacity: 0; } to { opacity: 1; }`;
 const popIn = keyframes`
-  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.97); }
   to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 `;
 
@@ -42,7 +46,7 @@ const Overlay = styled.div`
   z-index: ${({ theme }) => theme.zIndex.overlay};
   background: ${({ theme }) => theme.color.overlay};
   animation: ${fadeIn} ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.enter};
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(3px);
 `;
 
 const Surface = styled.div<{ $size: DialogSize }>`
@@ -51,72 +55,187 @@ const Surface = styled.div<{ $size: DialogSize }>`
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: ${({ theme }) => theme.zIndex.modal};
-  width: 90vw;
+  width: 92vw;
   max-width: ${({ $size }) => sizeMap[$size]};
-  max-height: 85vh;
+  max-height: 88vh;
   display: flex;
   flex-direction: column;
   background: ${({ theme }) => theme.color.card};
   color: ${({ theme }) => theme.color.cardForeground};
-  border-radius: ${({ theme }) => theme.radii.xl};
+  border-radius: ${({ theme }) => theme.radii.lg};
+  border: 1px solid ${({ theme }) => theme.color.border};
   box-shadow: ${({ theme }) => theme.shadow.xl};
   outline: none;
+  overflow: hidden;
   animation: ${popIn} ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.enter};
 `;
 
 const Header = styled.div`
-  padding: ${({ theme }) => `${theme.spacing[5]} ${theme.spacing[6]} ${theme.spacing[3]}`};
+  padding: 16px 20px 14px;
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  position: relative;
 `;
 
-const Body = styled.div`
-  padding: ${({ theme }) => `${theme.spacing[5]} ${theme.spacing[6]}`};
-  overflow-y: auto;
+const IconWrap = styled.div`
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: ${({ theme }) => theme.color.foreground};
+  margin-top: 3px;
+
+  & svg {
+    width: 18px;
+    height: 18px;
+  }
+`;
+
+const HeaderText = styled.div`
   flex: 1;
+  min-width: 0;
+  padding-right: 28px;
+`;
+
+const Eyebrow = styled.span`
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: ${({ theme }) => theme.color.accent};
+  margin-bottom: 2px;
+  line-height: 1.2;
 `;
 
 const Title = styled.h2`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
-  font-size: ${({ theme }) => theme.typography.fontSize.xl};
-  font-weight: ${({ theme }) => theme.typography.fontWeight.semibold};
-  line-height: ${({ theme }) => theme.typography.lineHeight.tight};
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: ${({ theme }) => theme.color.foreground};
   margin: 0;
 `;
 
 const Description = styled.p`
-  margin: ${({ theme }) => `${theme.spacing[1]} 0 0`};
+  margin: 4px 0 0;
   color: ${({ theme }) => theme.color.mutedForeground};
-  font-size: ${({ theme }) => theme.typography.fontSize.base};
+  font-size: 13px;
+  line-height: 1.5;
 `;
 
 const CloseButton = styled.button`
   position: absolute;
-  top: ${({ theme }) => theme.spacing[3]};
-  right: ${({ theme }) => theme.spacing[3]};
+  top: 12px;
+  right: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: ${({ theme }) => theme.radii.md};
+  width: 28px;
+  height: 28px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   background: transparent;
+  border: none;
   cursor: pointer;
-  transition: background-color ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
+  transition: background-color ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard},
+              color ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
 
-  &:hover { background: ${({ theme }) => theme.color.muted}; color: ${({ theme }) => theme.color.foreground}; }
+  &:hover {
+    background: ${({ theme }) => theme.color.muted};
+    color: ${({ theme }) => theme.color.foreground};
+  }
   &:focus-visible {
     outline: 2px solid ${({ theme }) => theme.color.ring};
     outline-offset: 2px;
   }
-  & svg { width: 16px; height: 16px; }
+  & svg { width: 14px; height: 14px; }
 `;
+
+/* ── Stepper ──────────────────────────────────────────────────────── */
+
+const StepperRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-top: 14px;
+`;
+
+const StepNode = styled.div<{ $state: 'done' | 'active' | 'todo' }>`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+`;
+
+const StepCircle = styled.div<{ $state: 'done' | 'active' | 'todo' }>`
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  transition: background 200ms, border-color 200ms;
+
+  ${({ $state, theme }) =>
+    $state === 'done' ? css`
+      background: ${theme.color.accent};
+      color: #fff;
+      border: 2px solid ${theme.color.accent};
+    ` : $state === 'active' ? css`
+      background: ${theme.color.card};
+      border: 2px solid ${theme.color.accent};
+      color: ${theme.color.accent};
+    ` : css`
+      background: ${theme.color.card};
+      border: 2px solid ${theme.color.border};
+      color: ${theme.color.mutedForeground};
+    `}
+`;
+
+const StepLabel = styled.span<{ $state: 'done' | 'active' | 'todo' }>`
+  font-size: 10px;
+  font-weight: ${({ $state }) => $state === 'active' ? '600' : '400'};
+  color: ${({ $state, theme }) =>
+    $state === 'active' ? theme.color.foreground
+    : $state === 'done' ? theme.color.accent
+    : theme.color.mutedForeground};
+  white-space: nowrap;
+`;
+
+const StepConnector = styled.div<{ $done: boolean }>`
+  flex: 1;
+  height: 2px;
+  margin: 0 6px;
+  margin-bottom: 14px;
+  background: ${({ $done, theme }) => $done ? theme.color.accent : theme.color.border};
+  transition: background 200ms;
+`;
+
+/* ── Body ─────────────────────────────────────────────────────────── */
+
+const Body = styled.div`
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+`;
+
+/* ── Component ────────────────────────────────────────────────────── */
 
 export function Dialog({
   open,
   onOpenChange,
   title,
   description,
+  icon,
+  eyebrow,
+  steps,
+  currentStep = 0,
   size = 'md',
   hideCloseButton = false,
   closeOnOverlayClick = true,
@@ -133,6 +252,8 @@ export function Dialog({
 
   if (!open) return null;
 
+  const hasHeader = title || description || icon || eyebrow;
+
   return (
     <Portal>
       <Overlay onClick={closeOnOverlayClick ? () => onOpenChange(false) : undefined} />
@@ -146,20 +267,57 @@ export function Dialog({
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
-        {(title || description) && (
+        {hasHeader && (
           <Header>
-            {title && <Title id={titleId}>{title}</Title>}
-            {description && <Description id={descId}>{description}</Description>}
+            {icon && <IconWrap>{icon}</IconWrap>}
+            <HeaderText>
+              {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
+              {title && <Title id={titleId}>{title}</Title>}
+              {description && <Description id={descId}>{description}</Description>}
+              {steps && steps.length > 1 && (
+                <StepperRow>
+                  {steps.map((label, i) => {
+                    const state = i < currentStep ? 'done' : i === currentStep ? 'active' : 'todo';
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', flex: i < steps.length - 1 ? '1' : '0 0 auto' }}>
+                        <StepNode $state={state}>
+                          <StepCircle $state={state}>
+                            {i < currentStep ? (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}>
+                                <path d="M20 6L9 17l-5-5" />
+                              </svg>
+                            ) : i + 1}
+                          </StepCircle>
+                          <StepLabel $state={state}>{label}</StepLabel>
+                        </StepNode>
+                        {i < steps.length - 1 && <StepConnector $done={i < currentStep} />}
+                      </div>
+                    );
+                  })}
+                </StepperRow>
+              )}
+            </HeaderText>
+            {!hideCloseButton && (
+              <CloseButton onClick={() => onOpenChange(false)} aria-label="Close dialog">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </CloseButton>
+            )}
           </Header>
         )}
-        <Body>{children}</Body>
-        {!hideCloseButton && (
-          <CloseButton onClick={() => onOpenChange(false)} aria-label="Close dialog">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        {!hasHeader && !hideCloseButton && (
+          <CloseButton
+            onClick={() => onOpenChange(false)}
+            aria-label="Close dialog"
+            style={{ position: 'absolute', top: 12, right: 12 }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </CloseButton>
         )}
+        <Body>{children}</Body>
       </Surface>
     </Portal>
   );
@@ -169,7 +327,8 @@ export const DialogFooter = styled.div`
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: ${({ theme }) => theme.spacing[2]};
-  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[6]} ${theme.spacing[5]}`};
+  gap: 8px;
+  padding-top: 16px;
+  margin-top: 8px;
   border-top: 1px solid ${({ theme }) => theme.color.border};
 `;

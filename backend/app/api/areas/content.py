@@ -34,7 +34,12 @@ async def list_items(
     if content_type:
         query = query.where(ContentItem.content_type == content_type)
     if campaign_id:
-        query = query.where(ContentItem.campaign_id == campaign_id)
+        import uuid
+        try:
+            campaign_uuid = uuid.UUID(campaign_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid campaign UUID")
+        query = query.where(ContentItem.campaign_id == campaign_uuid)
     if tag:
         query = query.where(ContentItem.tags.ilike(f"%{tag}%"))
     if q:
@@ -68,8 +73,13 @@ class ContentItemCreate(BaseModel):
 async def _check_campaign_ownership(db, campaign_id: Optional[str], user_id) -> None:
     if campaign_id is None:
         return
+    import uuid
+    try:
+        campaign_uuid = uuid.UUID(str(campaign_id))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid campaign UUID")
     owned = await db.execute(
-        select(ContentCampaign.id).where(ContentCampaign.id == campaign_id, ContentCampaign.user_id == user_id)
+        select(ContentCampaign.id).where(ContentCampaign.id == campaign_uuid, ContentCampaign.user_id == user_id)
     )
     if owned.scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="Campaign not found")
@@ -81,6 +91,13 @@ async def create_item(body: ContentItemCreate, current_user=Depends(get_current_
         raise HTTPException(status_code=422, detail=f"Invalid status. Must be one of: {', '.join(sorted(VALID_STATUS))}")
     status = body.status or "idea"
     await _check_campaign_ownership(db, body.campaign_id, current_user.id)
+    campaign_uuid = None
+    if body.campaign_id:
+        import uuid
+        try:
+            campaign_uuid = uuid.UUID(body.campaign_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid campaign UUID")
     item = ContentItem(
         user_id=current_user.id,
         title=body.title,
@@ -91,7 +108,7 @@ async def create_item(body: ContentItemCreate, current_user=Depends(get_current_
         notes=body.notes,
         tags=body.tags,
         pillar=body.pillar,
-        campaign_id=body.campaign_id,
+        campaign_id=campaign_uuid,
         idea_date=body.idea_date or date.today(),
         publish_date=body.publish_date,
         scheduled_at=body.scheduled_at,
@@ -126,8 +143,13 @@ class ContentItemPatch(BaseModel):
 
 @router.patch("/items/{item_id}")
 async def patch_item(item_id: str, body: ContentItemPatch, current_user=Depends(get_current_user), db=Depends(get_db)):
+    import uuid
+    try:
+        item_uuid = uuid.UUID(item_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid item UUID")
     result = await db.execute(
-        select(ContentItem).where(ContentItem.user_id == current_user.id).where(ContentItem.id == item_id)
+        select(ContentItem).where(ContentItem.user_id == current_user.id).where(ContentItem.id == item_uuid)
     )
     item = result.scalar_one_or_none()
     if not item:
@@ -149,6 +171,12 @@ async def patch_item(item_id: str, body: ContentItemPatch, current_user=Depends(
             item.publish_date = now.date()
 
     for field, value in data.items():
+        if field == "campaign_id" and value is not None:
+            import uuid
+            try:
+                value = uuid.UUID(value)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid campaign UUID")
         setattr(item, field, value)
 
     item.updated_at = datetime.utcnow()
@@ -160,8 +188,13 @@ async def patch_item(item_id: str, body: ContentItemPatch, current_user=Depends(
 
 @router.delete("/items/{item_id}")
 async def delete_item(item_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
+    import uuid
+    try:
+        item_uuid = uuid.UUID(item_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid item UUID")
     result = await db.execute(
-        select(ContentItem).where(ContentItem.user_id == current_user.id).where(ContentItem.id == item_id)
+        select(ContentItem).where(ContentItem.user_id == current_user.id).where(ContentItem.id == item_uuid)
     )
     item = result.scalar_one_or_none()
     if not item:
@@ -238,8 +271,13 @@ class CampaignPatch(BaseModel):
 
 @router.patch("/campaigns/{campaign_id}")
 async def patch_campaign(campaign_id: str, body: CampaignPatch, current_user=Depends(get_current_user), db=Depends(get_db)):
+    import uuid
+    try:
+        campaign_uuid = uuid.UUID(campaign_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid campaign UUID")
     result = await db.execute(
-        select(ContentCampaign).where(ContentCampaign.user_id == current_user.id).where(ContentCampaign.id == campaign_id)
+        select(ContentCampaign).where(ContentCampaign.user_id == current_user.id).where(ContentCampaign.id == campaign_uuid)
     )
     campaign = result.scalar_one_or_none()
     if not campaign:
@@ -255,15 +293,20 @@ async def patch_campaign(campaign_id: str, body: CampaignPatch, current_user=Dep
 
 @router.delete("/campaigns/{campaign_id}")
 async def delete_campaign(campaign_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
+    import uuid
+    try:
+        campaign_uuid = uuid.UUID(campaign_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid campaign UUID")
     result = await db.execute(
-        select(ContentCampaign).where(ContentCampaign.user_id == current_user.id).where(ContentCampaign.id == campaign_id)
+        select(ContentCampaign).where(ContentCampaign.user_id == current_user.id).where(ContentCampaign.id == campaign_uuid)
     )
     campaign = result.scalar_one_or_none()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
     # Detach items (FK is ON DELETE SET NULL but be explicit for in-session rows).
     items_result = await db.execute(
-        select(ContentItem).where(ContentItem.user_id == current_user.id).where(ContentItem.campaign_id == campaign_id)
+        select(ContentItem).where(ContentItem.user_id == current_user.id).where(ContentItem.campaign_id == campaign_uuid)
     )
     for item in items_result.scalars().all():
         item.campaign_id = None

@@ -9,6 +9,13 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.dialects.postgresql import JSONB
+
+@compiles(JSONB, "sqlite")
+def compile_jsonb_sqlite(type_, compiler, **kw):
+    return "JSON"
+
 
 # Point at a test DB (in-memory SQLite for unit tests; set DATABASE_URL env for integration)
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
@@ -33,6 +40,20 @@ _test_engine = create_async_engine(
 TestSessionLocal = sessionmaker(bind=_test_engine, class_=AsyncSession, expire_on_commit=False)
 
 
+from sqlalchemy import event
+
+@event.listens_for(_test_engine.sync_engine, "connect")
+def register_sqlite_functions(dbapi_connection, connection_record):
+    try:
+        def sqlite_date(val):
+            if not val:
+                return None
+            return str(val).split(" ")[0].split("T")[0]
+        dbapi_connection.create_function("date", 1, sqlite_date)
+    except Exception:
+        pass
+
+
 def _isolation_tables():
     """Subset of tables that use SQLite-compatible column types (excludes pgvector vault tables)."""
     from app.models.user import User
@@ -42,8 +63,20 @@ def _isolation_tables():
     from app.models.agent import Agent
     from app.models.push import PushSubscription
     from app.models.billing import Subscription, AIUsageRecord
+    from app.models.workspace import Project, Sprint, Task
+    from app.models.goal import MacroGoal, GoalProgress
+    from app.models.content import ContentItem, ContentCampaign
+    from app.models.health import HealthLog
+    from app.models.finance import FinanceExpense, FinanceIncome, FinanceTransfer, Account
+    from app.models.career import CareerEvent, JobOpportunity
+    from app.models.business import BusinessEvent
+    from app.models.insights import BriefingPreference, Briefing, Insight
+    from app.models.quote import SavedQuote
     return [m.__table__ for m in (
-        User, ChatSession, ChatMessage, Capture, IntegrationCredential, Agent, PushSubscription, Subscription, AIUsageRecord
+        User, ChatSession, ChatMessage, Capture, IntegrationCredential, Agent, PushSubscription, Subscription, AIUsageRecord,
+        Project, Sprint, Task, MacroGoal, GoalProgress, ContentItem, ContentCampaign,
+        HealthLog, FinanceExpense, FinanceIncome, FinanceTransfer, Account, CareerEvent, JobOpportunity, BusinessEvent,
+        BriefingPreference, Briefing, Insight, SavedQuote
     )]
 
 

@@ -27,8 +27,8 @@ const Root = styled.div<{ $size: 'sm' | 'md' }>`
   background: ${({ theme }) => theme.color.muted};
   border-radius: ${({ theme }) => theme.radii.lg};
   ${({ $size, theme }) => $size === 'sm'
-    ? `font-size: ${theme.typography.fontSize.xs};`
-    : `font-size: ${theme.typography.fontSize.base};`}
+    ? `height: 32px; font-size: ${theme.typography.fontSize.xs};`
+    : `height: 36px; font-size: ${theme.typography.fontSize.base};`}
 `;
 
 const Segment = styled.button<{ $active: boolean; $size: 'sm' | 'md' }>`

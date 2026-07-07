@@ -9,7 +9,7 @@ import {
 } from "@/components/dashboard/RelevantCards";
 import { UnifiedSchedulePanel } from "@/components/dashboard/UnifiedSchedulePanel";
 import { useState } from "react";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import { ActionCenterStrip } from "@/components/dashboard/ActionCenterStrip";
 import { DiscoveriesFeed } from "@/components/dashboard/DiscoveriesFeed";
 import { LifeHeatmap } from "@/components/dashboard/LifeHeatmap";
@@ -107,6 +107,15 @@ const RightCardFill = styled(CardFill)`
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
+const spin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
+const SpinningLoader = styled(Loader2)<{ $spinning?: boolean }>`
+  animation: ${props => props.$spinning ? `${spin} 1s linear infinite` : 'none'};
+`;
+
 export function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const queryClient = useQueryClient();
@@ -140,7 +149,7 @@ export function DashboardPage() {
       <PageContent>
         {/* Pull to refresh indicator */}
         <div style={{ height: offset, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', transition: pullDist === 0 ? 'height 0.2s' : 'none' }}>
-          {(pullDist > 40 || refreshing) && <Loader2 className={refreshing ? 'animate-spin' : ''} style={{ transform: refreshing ? 'none' : `rotate(${pullDist * 2}deg)` }} size={20} color="var(--muted-foreground)" />}
+          {(pullDist > 40 || refreshing) && <SpinningLoader $spinning={refreshing} style={{ transform: refreshing ? 'none' : `rotate(${pullDist * 2}deg)` }} size={20} color="var(--muted-foreground)" />}
         </div>
         
         <DashboardGrid style={{ transform: `translateY(${refreshing ? 0 : 0}px)`, transition: pullDist === 0 ? 'transform 0.2s' : 'none' }}>
@@ -181,15 +190,21 @@ export function DashboardPage() {
               <RecentActivityCard />
             </CardFill>
           </RowOnly>
+
+          {/* Row 6 — Life Heatmap (full-width in left column) */}
+          <RowOnly>
+            <CardFill>
+              <LifeHeatmap />
+            </CardFill>
+          </RowOnly>
         </LeftColumn>
 
         <RightColumn>
-          <RightCardFill style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <RightCardFill>
             <UnifiedSchedulePanel
               selectedDate={selectedDate}
               onSelectDate={setSelectedDate}
             />
-            <LifeHeatmap />
           </RightCardFill>
         </RightColumn>
         </DashboardGrid>

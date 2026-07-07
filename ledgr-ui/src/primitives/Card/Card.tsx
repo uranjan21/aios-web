@@ -140,15 +140,15 @@ export const CardHeader = styled.div<{ $inset?: boolean }>`
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   padding-bottom: 8px;
   margin-bottom: 12px;
-  
+
   flex-wrap: wrap;
   gap: 8px;
-  
+
   @media (min-width: 640px) {
     padding-bottom: 12px;
     margin-bottom: 16px;
     gap: 12px;
-    align-items: center;
+    align-items: flex-start;
     flex-wrap: nowrap;
   }
 
@@ -172,11 +172,6 @@ export const TitleGroup = styled.div`
     height: 16px;
     flex-shrink: 0;
     margin-top: 2px;
-  }
-  
-  @media (min-width: 640px) {
-    align-items: center;
-    & svg { margin-top: 0; }
   }
 `;
 

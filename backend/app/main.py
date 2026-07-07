@@ -36,6 +36,8 @@ from app.api.actions import router as actions_router
 from app.api.insights import router as insights_router
 from app.api.automations import router as automations_router
 from app.api.workspace import router as workspace_router
+from app.api.quotes import router as quotes_router
+from app.api.knowledge import router as knowledge_router
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,14 @@ async def lifespan(app: FastAPI):
         logger.warning("APP_PASSWORD is using an insecure default — set it before production use")
 
     logger.info("AIOS Web backend starting — vault: %s", settings.vault_path)
+
+    # Backfill default agents for existing users BEFORE the scheduler loads
+    # active agents, so new default agents get cron-registered on first boot.
+    try:
+        from app.api.agents import seed_default_agents
+        await seed_default_agents()
+    except Exception as e:
+        logger.error("Default agent seeding failed (non-fatal): %s", e)
 
     await start_scheduler()
 
@@ -236,6 +246,7 @@ def create_app() -> FastAPI:
     app.include_router(chat_router, dependencies=[Depends(require_module("chat"))])
     app.include_router(agents_router, dependencies=[Depends(require_module("agents"))])
     app.include_router(integrations_router, dependencies=[Depends(require_module("integrations"))])
+    app.include_router(knowledge_router, dependencies=[Depends(require_module("integrations"))])
     app.include_router(finance_router, dependencies=[Depends(require_module("finance"))])
     app.include_router(health_router, dependencies=[Depends(require_module("health"))])
     app.include_router(career_router, dependencies=[Depends(require_module("career"))])
@@ -252,6 +263,7 @@ def create_app() -> FastAPI:
     app.include_router(insights_router)
     app.include_router(automations_router)
     app.include_router(workspace_router)
+    app.include_router(quotes_router)
     return app
 
 

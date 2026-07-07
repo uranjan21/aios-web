@@ -4,19 +4,8 @@ import { PageHeader, EmptyState } from '@ledgr/ui'
 import { Sparkles } from 'lucide-react'
 import { insightsApi } from '@/api/insights'
 import { DiscoveriesFeed } from '@/components/dashboard/DiscoveriesFeed'
-
-const Container = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  padding: 20px;
-  max-width: 860px;
-  margin: 0 auto;
-  width: 100%;
-  @media (min-width: 768px) {
-    padding: 24px 32px;
-  }
-`
+import { PageContainer, PageContent } from '@/components/layout/PageLayout'
+import { PageDivider } from '@/components/layout/PageDivider'
 
 export function DiscoveriesPage() {
   const { data: insights = [], isLoading } = useQuery({
@@ -26,11 +15,15 @@ export function DiscoveriesPage() {
   })
 
   return (
-    <Container>
+    <PageContainer>
+      <PageContent>
       <PageHeader
+        icon={<Sparkles />}
+        eyebrow="Insights"
         title="Discoveries"
         subtitle="Cross-domain patterns the Synergy Engine found in your data"
       />
+      <PageDivider />
       {!isLoading && insights.length === 0 ? (
         <EmptyState
           icon={<Sparkles size={24} />}
@@ -40,6 +33,7 @@ export function DiscoveriesPage() {
       ) : (
         <DiscoveriesFeed limit={10} showSeeAll={false} />
       )}
-    </Container>
+      </PageContent>
+    </PageContainer>
   )
 }

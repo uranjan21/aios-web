@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Plus } from 'lucide-react'
-import { Button, AreaToolbar } from '@ledgr/ui'
 import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
 import { BudgetsTab } from './BudgetsTab'
 import { BudgetTabModal } from './QuickAddBudget'
@@ -17,12 +15,7 @@ export function BudgetTab() {
   return (
     <>
       <WorkspaceLayout rail={undefined}>
-        <AreaToolbar>
-          <Button size="sm" variant="primary" onClick={() => setModalOpen(true)}>
-            <Plus size={12} style={{ marginRight: 4 }} /> Add Budget
-          </Button>
-        </AreaToolbar>
-        <BudgetsTab />
+        <BudgetsTab onAddClick={() => setModalOpen(true)} />
       </WorkspaceLayout>
 
       <BudgetTabModal open={modalOpen} onClose={() => setModalOpen(false)} defaultTab="Budget" />

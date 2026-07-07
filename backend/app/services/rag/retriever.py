@@ -39,7 +39,14 @@ async def search(
     query: str,
     top_k: int = 5,
     min_similarity: float = DEFAULT_MIN_SIMILARITY,
+    user_id=None,
 ) -> list[dict]:
+    """Cosine search over vault chunks. user_id is required in practice — without it
+    results would cross tenant boundaries; None is only tolerated so legacy callers
+    fail closed (empty result) rather than leak."""
+    if user_id is None:
+        logger.warning("retriever.search called without user_id — returning no results")
+        return []
     top_k = min(top_k, MAX_TOP_K)
     embedding = await _embed_query(query)
     if embedding is None:
@@ -53,6 +60,7 @@ async def search(
         FROM vault_chunks vc
         JOIN vault_files vf ON vf.id = vc.file_id
         WHERE vc.embedding IS NOT NULL
+          AND vf.user_id = :uid
           AND 1 - (vc.embedding <=> :vec::vector) >= :min_sim
         ORDER BY vc.embedding <=> :vec::vector
         LIMIT :top_k
@@ -60,7 +68,7 @@ async def search(
 
     async with AsyncSessionLocal() as session:
         result = await session.execute(
-            sql, {"vec": vector_str, "top_k": top_k, "min_sim": min_similarity}
+            sql, {"vec": vector_str, "top_k": top_k, "min_sim": min_similarity, "uid": str(user_id)}
         )
         rows = result.fetchall()
 

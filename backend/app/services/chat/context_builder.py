@@ -60,7 +60,7 @@ def _detect_area(message: str) -> str:
     return best if scores[best] > 0 else "general"
 
 
-async def build_system_prompt(user_message: str) -> str:
+async def build_system_prompt(user_message: str, user_id=None) -> str:
     settings = get_settings()
     guard = VaultWriteGuard(settings.vault_path)
 
@@ -75,7 +75,7 @@ async def build_system_prompt(user_message: str) -> str:
     if area != "general" and area in AREA_CONTEXT_MAP:
         area_context = guard.read_file(AREA_CONTEXT_MAP[area]) or ""
 
-    rag_results = await retriever.search(user_message, top_k=3)
+    rag_results = await retriever.search(user_message, top_k=3, user_id=user_id)
     rag_chunks = "\n\n---\n".join(
         f"[{r['path']}] {r['content'][:500]}" for r in rag_results
     ) if rag_results else "(no relevant chunks)"

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Card, Dialog, Input, Textarea, Button, ConfirmDialog, AreaToolbar, ToolbarMeta } from '@ledgr/ui'
-import { Pencil, Trash2, Target, Layers, Plus } from 'lucide-react'
+import { Card, Dialog, DialogFooter, Input, Textarea, Button, ConfirmDialog, HeaderActionPortal, Label } from '@ledgr/ui'
+import { Megaphone, Pencil, Trash2, Target, Layers, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import styled from 'styled-components'
 import { contentApi } from '@/api/areas'
@@ -60,11 +60,6 @@ const Field = styled.div`
   display: flex;
   flex-direction: column;
   gap: 6px;
-`
-const Label = styled.label`
-  font-size: 12px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.color.mutedForeground};
 `
 const DateRow = styled.div`
   display: grid;
@@ -141,9 +136,9 @@ export function CampaignsTab({ onRegisterNew }: {
 
   return (
     <>
-      <AreaToolbar title="Campaigns & Series" left={<ToolbarMeta>Group content into themed series</ToolbarMeta>}>
+      <HeaderActionPortal>
         <Button variant="primary" size="sm" startIcon={<Plus size={13} />} onClick={openNew}>New Campaign</Button>
-      </AreaToolbar>
+      </HeaderActionPortal>
 
       {isLoading ? (
         <Grid>{[1, 2, 3].map(i => <Skeleton key={i} style={{ height: 140, borderRadius: 14 }} />)}</Grid>
@@ -175,7 +170,15 @@ export function CampaignsTab({ onRegisterNew }: {
         </Grid>
       )}
 
-      <Dialog open={dialog.open} onOpenChange={(open) => setDialog(d => ({ ...d, open }))} title={dialog.editing ? 'Edit Campaign' : 'New Campaign'}>
+      <Dialog
+        open={dialog.open}
+        onOpenChange={(open) => setDialog(d => ({ ...d, open }))}
+        icon={<Megaphone size={16} />}
+        eyebrow="Content"
+        title={dialog.editing ? 'Edit Campaign' : 'New Campaign'}
+        description="Group related content pieces into a themed series or campaign."
+        size="md"
+      >
         <FormGrid>
           <Field>
             <Label>Name</Label>
@@ -207,12 +210,12 @@ export function CampaignsTab({ onRegisterNew }: {
               ))}
             </Swatches>
           </Field>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
-            <Button variant="ghost" onClick={() => setDialog(d => ({ ...d, open: false }))}>Cancel</Button>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialog(d => ({ ...d, open: false }))}>Cancel</Button>
             <Button variant="primary" loading={save.isPending} onClick={() => dialog.form.name.trim() ? save.mutate() : toast.error('Name is required')}>
-              {dialog.editing ? 'Save' : 'Create'}
+              {dialog.editing ? 'Save Changes' : 'Create Campaign'}
             </Button>
-          </div>
+          </DialogFooter>
         </FormGrid>
       </Dialog>
 

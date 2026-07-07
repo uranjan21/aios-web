@@ -44,7 +44,6 @@ export function LibraryTab({ rows, total, campaigns, onEdit }: {
   total: number
   campaigns: ContentCampaign[]
   onEdit: (item: ContentItem) => void
-  toolbar?: React.ReactNode
 }) {
   const campaignName = useMemo(() => {
     const m: Record<string, string> = {}
@@ -91,7 +90,6 @@ export function LibraryTab({ rows, total, campaigns, onEdit }: {
 
   return (
     <>
-      {toolbar}
       <Table
         rows={rows}
         columns={columns}

@@ -1,27 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, PageHeader, Button, Dialog, DialogFooter, Input, Select, EmptyState, Label, ConfirmDialog } from '@ledgr/ui'
 import { goalsApi, type MacroGoal } from '@/api/goals'
-import { Target, Plus, Flag, Trash2 } from 'lucide-react'
+import { Target, Plus, Flag, Trash2, Settings } from 'lucide-react'
 import { toast } from 'sonner'
-import { ForecastWidget } from '@/components/widgets/ForecastWidget'
+import { PageContainer, PageContent } from '@/components/layout/PageLayout'
+import { PageDivider } from '@/components/layout/PageDivider'
+
 import { ActionCenterStrip } from '@/components/dashboard/ActionCenterStrip'
 import { AreaTabs } from '@/components/ui/AreaTabs'
 import { LayoutDashboard, IndianRupee, Heart, Briefcase, Rocket, PenLine } from 'lucide-react'
 import { GoalsTab as FinanceGoalsTab } from '@/components/areas/finance/GoalsTab'
 import { BodyGoalsSection, FitnessGoalsSection, NutritionGoalsSection } from '@/pages/areas/HealthSettingsPage'
-import { BudgetTabModal } from '@/components/areas/finance/QuickAddBudget'
-
-const Container = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  padding: 20px;
-  @media (min-width: 768px) {
-    padding: 24px 32px;
-  }
-`
+import { DomainGoalsCard } from '@/components/workspace/DomainGoalsCard'
 
 const TwoCol = styled.div`
   display: grid;
@@ -104,22 +97,24 @@ const StyledTabLabel = styled.span`
   gap: 0.375rem;
 `
 
+const GOAL_STATUS_FILTER_OPTIONS = [
+  { label: 'All statuses', value: 'all' },
+  { label: 'Active', value: 'active' },
+  { label: 'Completed', value: 'completed' },
+  { label: 'Archived', value: 'archived' },
+]
+
 export function GoalsPage() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [addOpen, setAddOpen] = useState(false)
+  const [goalStatusFilter, setGoalStatusFilter] = useState('all')
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('general')
   const [description, setDescription] = useState('')
   const [targetDate, setTargetDate] = useState('')
+  const [priority, setPriority] = useState('medium')
   const [activeTab, setActiveTab] = useState('overview')
-  const [budgetModal, setBudgetModal] = useState<{ open: boolean; tab: 'Goal' | 'Bill' }>({ open: false, tab: 'Goal' })
-
-  // Listen for open-new-goal event from FinanceGoalsTab
-  useEffect(() => {
-    const handler = () => setBudgetModal({ open: true, tab: 'Goal' })
-    window.addEventListener('open-new-goal', handler)
-    return () => window.removeEventListener('open-new-goal', handler)
-  }, [])
 
   const { data: goals = [], isLoading } = useQuery({
     queryKey: ['goals'],
@@ -127,15 +122,15 @@ export function GoalsPage() {
     staleTime: 60_000,
   })
 
-  // Dialog fires onOpenChange on close only — reset via effect (project gotcha).
-  useEffect(() => {
-    if (addOpen) {
-      setTitle('')
-      setCategory('general')
-      setDescription('')
-      setTargetDate('')
-    }
-  }, [addOpen])
+  // Opens the cross-domain Add Goal dialog, pre-selecting the correct category.
+  const handleOpenAddGoal = (cat = 'general') => {
+    setTitle('')
+    setCategory(cat)
+    setDescription('')
+    setTargetDate('')
+    setPriority('medium')
+    setAddOpen(true)
+  }
 
   const [deleteTarget, setDeleteTarget] = useState<MacroGoal | null>(null)
 
@@ -166,20 +161,25 @@ export function GoalsPage() {
       category,
       description: description.trim() || undefined,
       target_date: targetDate || undefined,
+      priority,
     })
   }
 
   return (
-    <Container>
+    <PageContainer>
+      <PageContent>
       <PageHeader
+        icon={<Target />}
+        eyebrow="Goals"
         title="Goals"
         subtitle="Macro goals, AI actions, and forecasts in one place"
         actions={
-          <Button size="sm" variant="primary" onClick={() => setAddOpen(true)}>
-            <Plus size={12} style={{ marginRight: 4 }} /> Add Goal
+          <Button size="sm" variant="outline" onClick={() => navigate('/app/settings')}>
+            <Settings size={14} style={{ marginRight: 6 }} /> Settings
           </Button>
         }
       />
+      <PageDivider />
 
       <AreaTabs
         activeKey={activeTab}
@@ -191,90 +191,124 @@ export function GoalsPage() {
             children: (
               <>
                 <ActionCenterStrip />
-
-                <TwoCol style={{ marginBottom: 24 }}>
-                  <ForecastWidget domain="finance" />
-                  <ForecastWidget domain="health" />
-                </TwoCol>
-
-                {!isLoading && goals.length === 0 ? (
-                  <EmptyState
-                    icon={<Target size={24} />}
-                    title="No goals yet"
-                    description="Set a macro goal — the weekly review will track it with you."
-                    action={
-                      <Button size="sm" variant="primary" onClick={() => setAddOpen(true)}>
-                        <Plus size={12} style={{ marginRight: 4 }} /> Add your first goal
-                      </Button>
-                    }
-                  />
-                ) : (
-                  <GoalsGrid>
-                    {goals.map(goal => (
-                      <Card
-                        key={goal.id}
-                        title={goal.title}
-                        icon={<Flag size={16} />}
-                        action={
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <CategoryChip>{goal.category}</CategoryChip>
-                            <IconBtn onClick={() => setDeleteTarget(goal)} aria-label={`Delete goal ${goal.title}`}>
-                              <Trash2 size={14} />
-                            </IconBtn>
-                          </div>
-                        }
-                      >
-                        <GoalDesc>{goal.description || 'No description provided.'}</GoalDesc>
-                        <GoalMeta>
-                          <span>Status: {goal.status}</span>
-                          {goal.target_date && <span>Target: {goal.target_date}</span>}
-                        </GoalMeta>
-                      </Card>
-                    ))}
-                  </GoalsGrid>
-                )}
+                {(() => {
+                  const visibleGoals = goalStatusFilter === 'all'
+                    ? goals
+                    : goals.filter(g => g.status === goalStatusFilter)
+                  return (
+                    <Card
+                      icon={<Target size={16} />}
+                      title="All Goals"
+                      subtitle={`${visibleGoals.length} goal${visibleGoals.length !== 1 ? 's' : ''}`}
+                      action={
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Select
+                            size="sm"
+                            fullWidth={false}
+                            value={goalStatusFilter}
+                            onChange={v => setGoalStatusFilter(v as string)}
+                            options={GOAL_STATUS_FILTER_OPTIONS}
+                          />
+                          <Button size="sm" variant="primary" onClick={() => handleOpenAddGoal()}>
+                            <Plus size={12} style={{ marginRight: 4 }} /> Add Goal
+                          </Button>
+                        </div>
+                      }
+                    >
+                      {!isLoading && goals.length === 0 ? (
+                        <EmptyState
+                          icon={<Target size={24} />}
+                          title="No goals yet"
+                          description="Set a macro goal — the weekly review will track it with you."
+                          action={
+                            <Button size="sm" variant="primary" onClick={() => handleOpenAddGoal()}>
+                              <Plus size={12} style={{ marginRight: 4 }} /> Add your first goal
+                            </Button>
+                          }
+                        />
+                      ) : (
+                        <GoalsGrid>
+                          {visibleGoals.map(goal => (
+                            <Card
+                              key={goal.id}
+                              title={goal.title}
+                              icon={<Flag size={16} />}
+                              action={
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <CategoryChip>{goal.category}</CategoryChip>
+                                  <IconBtn onClick={() => setDeleteTarget(goal)} aria-label={`Delete goal ${goal.title}`}>
+                                    <Trash2 size={14} />
+                                  </IconBtn>
+                                </div>
+                              }
+                            >
+                              <GoalDesc>{goal.description || 'No description provided.'}</GoalDesc>
+                              <GoalMeta>
+                                <span>Status: {goal.status}</span>
+                                {goal.target_date && <span>Target: {goal.target_date}</span>}
+                              </GoalMeta>
+                            </Card>
+                          ))}
+                        </GoalsGrid>
+                      )}
+                    </Card>
+                  )
+                })()}
               </>
             )
           },
           {
             key: 'finance',
             label: <StyledTabLabel><IndianRupee size={14} /> Finance</StyledTabLabel>,
-            children: <FinanceGoalsTab onAdd={() => setBudgetModal({ open: true, tab: 'Goal' })} />
+            children: <FinanceGoalsTab onAdd={() => handleOpenAddGoal('finance')} />
           },
           {
             key: 'health',
             label: <StyledTabLabel><Heart size={14} /> Health</StyledTabLabel>,
             children: (
-              <TwoCol>
-                <BodyGoalsSection />
-                <FitnessGoalsSection />
-                <NutritionGoalsSection />
-              </TwoCol>
+              <>
+                <div style={{ marginBottom: '24px' }}>
+                  <DomainGoalsCard domain="health" onAdd={() => handleOpenAddGoal('health')} />
+                </div>
+                <TwoCol>
+                  <BodyGoalsSection />
+                  <FitnessGoalsSection />
+                  <NutritionGoalsSection />
+                </TwoCol>
+              </>
             )
           },
           {
             key: 'career',
             label: <StyledTabLabel><Briefcase size={14} /> Career</StyledTabLabel>,
-            children: <EmptyState title="Career Goals" description="Career targets and milestones will appear here." />
+            children: <DomainGoalsCard domain="career" onAdd={() => handleOpenAddGoal('career')} />
           },
           {
             key: 'business',
             label: <StyledTabLabel><Rocket size={14} /> Business</StyledTabLabel>,
-            children: <EmptyState title="Business Goals" description="Business targets and milestones will appear here." />
+            children: <DomainGoalsCard domain="business" onAdd={() => handleOpenAddGoal('business')} />
           },
           {
             key: 'content',
             label: <StyledTabLabel><PenLine size={14} /> Content</StyledTabLabel>,
-            children: <EmptyState title="Content Goals" description="Content generation and growth goals will appear here." />
+            children: <DomainGoalsCard domain="content" onAdd={() => handleOpenAddGoal('content')} />
           },
         ]}
       />
 
-      <Dialog open={addOpen} onOpenChange={setAddOpen} title="Add Macro Goal">
+      <Dialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        icon={<Target size={16} />}
+        eyebrow="Goals"
+        title="Add Macro Goal"
+        description="Set a high-level goal and track progress across life areas."
+        size="md"
+      >
         <FormGrid>
           <div>
             <Label htmlFor="goal-title">Title</Label>
-            <Input id="goal-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Reach ₹10L net worth" />
+            <Input id="goal-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Reach ₹10L net worth" autoFocus />
           </div>
           <div>
             <Label>Category</Label>
@@ -284,9 +318,24 @@ export function GoalsPage() {
             <Label htmlFor="goal-desc">Description (optional)</Label>
             <Input id="goal-desc" value={description} onChange={e => setDescription(e.target.value)} placeholder="What does done look like?" />
           </div>
-          <div>
-            <Label htmlFor="goal-date">Target date (optional)</Label>
-            <Input id="goal-date" type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <Label>Priority</Label>
+              <Select
+                options={[
+                  { label: 'Low', value: 'low' },
+                  { label: 'Medium', value: 'medium' },
+                  { label: 'High', value: 'high' },
+                  { label: 'Urgent', value: 'urgent' },
+                ]}
+                value={priority}
+                onChange={v => setPriority(v as string)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="goal-date">Target date (optional)</Label>
+              <Input id="goal-date" type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
@@ -313,11 +362,7 @@ export function GoalsPage() {
         onConfirm={() => { if (deleteTarget) deleteMutation.mutate(deleteTarget.id) }}
       />
 
-      <BudgetTabModal
-        open={budgetModal.open}
-        onClose={() => setBudgetModal(m => ({ ...m, open: false }))}
-        defaultTab={budgetModal.tab}
-      />
-    </Container>
+    </PageContent>
+    </PageContainer>
   )
 }

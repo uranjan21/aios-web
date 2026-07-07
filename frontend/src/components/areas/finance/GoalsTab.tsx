@@ -336,7 +336,7 @@ export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
           rows={visibleGoals}
           columns={columns}
           getRowKey={row => row.id}
-          empty={{ icon: <Target size={20} />, title: 'No goals yet', description: 'Create a savings goal to track your progress.', action: <Button size="sm" variant="primary" onClick={() => window.dispatchEvent(new Event('open-new-goal'))}>Add Goal</Button> }}
+          empty={{ icon: <Target size={20} />, title: 'No goals yet', description: 'Create a savings goal to track your progress.', action: <Button size="sm" variant="primary" onClick={() => onAdd?.()}>Add Goal</Button> }}
         />
 
         <Dialog

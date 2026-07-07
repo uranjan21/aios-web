@@ -45,19 +45,6 @@ const BusinessDescription = styled.div`
   overflow: hidden;
 `
 
-const HeaderWrap = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1rem;
-  
-  @media (min-width: 640px) {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: flex-start;
-  }
-`
-
 export function BusinessPage() {
   const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -74,18 +61,17 @@ export function BusinessPage() {
   return (
     <PageContainer>
       <PageContent>
-        <HeaderWrap>
           <PageHeader
             icon={<Briefcase />}
             eyebrow="Portfolio"
             title="Your Businesses"
             subtitle="Manage all your ventures, side-hustles, and projects from a single hub."
+            actions={
+              <Button variant="primary" size="sm" onClick={() => setIsCreateModalOpen(true)}>
+                <Plus size={14} style={{ marginRight: 6 }} /> New Business
+              </Button>
+            }
           />
-          <Button onClick={() => setIsCreateModalOpen(true)}>
-            <Plus size={16} style={{ marginRight: '8px' }} />
-            New Business
-          </Button>
-        </HeaderWrap>
         <PageDivider />
         <div style={{ marginBottom: '16px' }}>
           <WorkspaceStatsWidget domain="business" />

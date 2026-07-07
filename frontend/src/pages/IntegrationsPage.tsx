@@ -19,9 +19,10 @@ import type { Integration } from '@/types'
 import styled, { useTheme } from 'styled-components'
 
 const PROVIDER_INFO: Record<string, { label: string; desc: string; syncable: boolean }> = {
-  notion: { label: 'Notion', desc: 'Read pages and databases from your Notion workspace', syncable: false },
+  notion: { label: 'Notion', desc: 'Read pages from your workspace — usable as your knowledge base', syncable: true },
   gcal: { label: 'Google Calendar', desc: 'Sync upcoming events for dashboard and agent context', syncable: true },
   gfit: { label: 'Google Fit', desc: 'Sync steps, calories, distance, weight and heart rate', syncable: true },
+  gmail: { label: 'Gmail', desc: 'Read-only inbox highlights for briefings and inbox triage', syncable: true },
   github: { label: 'GitHub', desc: 'Track commits and activity on your repos', syncable: false },
 }
 
@@ -220,7 +221,7 @@ export function IntegrationsPage() {
   return (
     <PageRoot>
       <PageContent>
-        <PageHeader title="Integrations" subtitle="Connect your favorite tools and services." icon={<Puzzle />} />
+        <PageHeader icon={<Puzzle />} eyebrow="Connect" title="Integrations" subtitle="Connect your favorite tools and services." />
         <PageDivider />
         {isError ? (
           <ErrorCard message="Could not load integrations" onRetry={() => refetch()} />

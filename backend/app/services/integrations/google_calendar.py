@@ -121,11 +121,13 @@ async def get_stored_events(
 ) -> list[dict]:
     query = select(CalendarEvent).where(CalendarEvent.user_id == user_id).order_by(col(CalendarEvent.start_time))
 
+    # Column is TIMESTAMP WITHOUT TIME ZONE (naive UTC) — strip tzinfo or asyncpg
+    # rejects the aware/naive comparison.
     if date_from:
-        dt = _parse_dt(date_from + "T00:00:00Z")
+        dt = _parse_dt(date_from + "T00:00:00Z").astimezone(timezone.utc).replace(tzinfo=None)
         query = query.where(CalendarEvent.start_time >= dt)
     if date_to:
-        dt = _parse_dt(date_to + "T23:59:59Z")
+        dt = _parse_dt(date_to + "T23:59:59Z").astimezone(timezone.utc).replace(tzinfo=None)
         query = query.where(CalendarEvent.start_time <= dt)
 
     result = await db.execute(query)

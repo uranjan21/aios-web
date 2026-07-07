@@ -54,9 +54,11 @@ async def _read_with_retry(abs_path: Path, retries: int = 3, delay: float = 1.0)
     return None
 
 
-async def handle_file_change(user_id: uuid.UUID, rel_path: str, change_type: str) -> None:
+async def handle_file_change(
+    user_id: uuid.UUID, rel_path: str, change_type: str, root: Path | None = None
+) -> None:
     settings = get_settings()
-    vault_root = Path(settings.vault_path)
+    vault_root = root if root is not None else Path(settings.vault_path)
     abs_path = vault_root / rel_path
 
     if change_type == "deleted":
@@ -115,6 +117,54 @@ async def handle_file_change(user_id: uuid.UUID, rel_path: str, change_type: str
 
     await _broadcast({"type": "vault_updated", "path": rel_path, "area": area, "user_id": str(user_id)})
     logger.info("Synced vault file: %s (%s)", rel_path, change_type)
+
+
+async def upsert_external_doc(
+    user_id: uuid.UUID, rel_path: str, content: str, area: str | None = None, file_type: str = "note"
+) -> bool:
+    """Upsert one externally fetched document (e.g. a Notion page) into the vault store.
+
+    No conflict detection — external sources are read-only mirrors. Returns True if
+    the stored content changed (and an embedding refresh was scheduled).
+    """
+    new_checksum = _checksum(content)
+    now = datetime.utcnow()
+
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            select(VaultFile).where(VaultFile.user_id == user_id).where(VaultFile.path == rel_path)
+        )
+        existing: VaultFile | None = result.scalar_one_or_none()
+
+        if existing and existing.checksum == new_checksum:
+            return False
+
+        if existing:
+            existing.content = content
+            existing.checksum = new_checksum
+            existing.area = area
+            existing.file_type = file_type
+            existing.sync_status = "ok"
+            existing.last_synced_at = now
+            existing.error_message = None
+            existing.updated_at = now
+            session.add(existing)
+        else:
+            session.add(VaultFile(
+                user_id=user_id,
+                path=rel_path,
+                area=area,
+                file_type=file_type,
+                content=content,
+                checksum=new_checksum,
+                sync_status="ok",
+                last_synced_at=now,
+            ))
+        await session.commit()
+
+    asyncio.create_task(embed_vault_file(user_id, rel_path, content))
+    await _broadcast({"type": "vault_updated", "path": rel_path, "area": area, "user_id": str(user_id)})
+    return True
 
 
 async def _mark_missing(user_id: uuid.UUID, rel_path: str) -> None:

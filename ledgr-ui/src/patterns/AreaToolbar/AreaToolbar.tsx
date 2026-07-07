@@ -101,13 +101,14 @@ export const ToolbarMeta = styled.span`
   white-space: nowrap;
 `
 
-/** Icon button slot — pill shape, white bg, thin border */
+/** Icon button slot — white bg, thin border. Height matches Button size="sm" (32px). */
 export const ToolbarIconBtn = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 16px;
+  height: 32px;
+  padding: 0 16px;
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.card};
@@ -144,8 +145,8 @@ export const DateNavBtn = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: ${({ theme }) => theme.radii.md};
   border: none;
   background: transparent;

@@ -14,6 +14,7 @@ class MacroGoal(SQLModel, table=True):
     category: str = Field(default="general", nullable=False) # finance, health, career, business, content
     target_date: Optional[date] = None
     status: str = Field(default="active", nullable=False) # active, completed, archived
+    priority: Optional[str] = Field(default="medium")  # low, medium, high
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
     updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
 

@@ -12,7 +12,7 @@ export interface PageHeaderProps {
   icon?: ReactNode;
   /** Page title (h1). */
   title: ReactNode;
-  /** Optional subtitle. */
+  /** Optional subtitle — always rendered as its own line below the title row. */
   subtitle?: ReactNode;
   /** Right-aligned slot — typically a primary action button or stack of actions. */
   actions?: ReactNode;
@@ -22,26 +22,15 @@ export interface PageHeaderProps {
 const Root = styled.header`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing[3]};
-
-  @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: ${({ theme }) => theme.spacing[4]};
-  }
+  gap: ${({ theme }) => theme.spacing[2]};
 `;
 
-const TopRow = styled.div`
+const MainRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-
-  @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
-    display: contents; /* fallback to flat DOM layout for desktop */
-  }
+  gap: ${({ theme }) => theme.spacing[3]};
+  flex-wrap: wrap;
 `;
 
 const Left = styled.div`
@@ -54,7 +43,6 @@ const Left = styled.div`
   @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
     align-items: flex-start;
     gap: ${({ theme }) => theme.spacing[3]};
-    min-width: 220px;
   }
 `;
 
@@ -119,26 +107,10 @@ const Title = styled.h1`
 `;
 
 const Subtitle = styled.p`
-  font-size: ${({ theme }) => theme.typography.fontSize.base};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin: 0;
-  display: none;
-
-  @media (min-width: ${({ theme }) => theme.breakpoint.md}) {
-    display: block;
-  }
-`;
-
-const Actions = styled.div`
-  display: none;
-  
-  @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
-    display: flex;
-    align-items: center;
-    gap: ${({ theme }) => theme.spacing[2]};
-    flex-shrink: 0;
-    flex-wrap: wrap;
-  }
+  line-height: 1.4;
 `;
 
 const MobileActions = styled.div`
@@ -147,6 +119,18 @@ const MobileActions = styled.div`
 
   @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
     display: none;
+  }
+`;
+
+const DesktopActions = styled.div`
+  display: none;
+
+  @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing[2]};
+    flex-shrink: 0;
+    flex-wrap: wrap;
   }
 `;
 
@@ -159,15 +143,13 @@ const MobileActionsMenu = styled.div`
 
 export function PageHeader({ eyebrow, icon, title, subtitle, actions, className }: PageHeaderProps) {
   const ctx = useContext(PageHeaderActionsContext);
-  // Portal actions (tab-specific, e.g. "Add Budget") render alongside — not
-  // instead of — the page-level actions prop (e.g. a constant "Settings" button).
   const finalActions = (ctx?.actions || actions) ? (
     <>{ctx?.actions}{actions}</>
   ) : null;
 
   return (
     <Root className={className}>
-      <TopRow>
+      <MainRow>
         <Left>
           {icon && <IconWrap aria-hidden="true">{icon}</IconWrap>}
           <TextCol>
@@ -176,22 +158,24 @@ export function PageHeader({ eyebrow, icon, title, subtitle, actions, className 
           </TextCol>
         </Left>
         {finalActions && (
-          <MobileActions>
-            <Popover>
-              <PopoverTrigger>
-                <Button variant="ghost" size="sm" aria-label="More actions">
-                  <MoreHorizontal size={20} />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" gap={8}>
-                <MobileActionsMenu>{finalActions}</MobileActionsMenu>
-              </PopoverContent>
-            </Popover>
-          </MobileActions>
+          <>
+            <MobileActions>
+              <Popover>
+                <PopoverTrigger>
+                  <Button variant="ghost" size="sm" aria-label="More actions">
+                    <MoreHorizontal size={20} />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" gap={8}>
+                  <MobileActionsMenu>{finalActions}</MobileActionsMenu>
+                </PopoverContent>
+              </Popover>
+            </MobileActions>
+            <DesktopActions>{finalActions}</DesktopActions>
+          </>
         )}
-      </TopRow>
+      </MainRow>
       {subtitle && <Subtitle>{subtitle}</Subtitle>}
-      {finalActions && <Actions>{finalActions}</Actions>}
     </Root>
   );
 }
@@ -205,9 +189,6 @@ interface PageHeaderActionsContextValue {
 
 const PageHeaderActionsContext = createContext<PageHeaderActionsContextValue | null>(null);
 
-/**
- * Wrap your app layout in this provider to enable the HeaderActionPortal.
- */
 export function PageHeaderProvider({ children }: { children: ReactNode }) {
   const [actions, setActions] = useState<ReactNode | null>(null);
   return (
@@ -217,10 +198,6 @@ export function PageHeaderProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * Render this component anywhere in your app (e.g. inside a tab) to "beam" 
- * its children directly into the parent PageHeader's actions slot.
- */
 export function HeaderActionPortal({ children }: { children: ReactNode }) {
   const ctx = useContext(PageHeaderActionsContext);
 

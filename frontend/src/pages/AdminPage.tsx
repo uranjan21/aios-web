@@ -413,7 +413,7 @@ export function AdminPage() {
           title="Admin Panel"
           subtitle="User management, plan overrides, and system overview."
           icon={<Shield />}
-          eyebrow="ADMIN"
+          eyebrow="Admin"
         />
         <PageDivider />
         <StatsSection />

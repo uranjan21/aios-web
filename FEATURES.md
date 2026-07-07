@@ -38,7 +38,8 @@ This document provides a categorized list of all features currently implemented 
 *   **Job Opportunities:** Pipeline tracking for roles, applications, and job prospects.
 
 ## 6. Core AI & OS Capabilities 🧠
-*   **Global Capture (⌘L):** A universal command modal that uses NLP to parse quick-log inputs and route them to the correct domain (e.g., "Spent $5 on coffee").
+*   **Global Capture (⌘L) & Contextual Task Creation (R7):** Intercepts ⌘L on projects or sprints detail pages to open a Contextual Task Creation dialog pre-populating project/sprint fields; falls back to NLP-powered Global Capture note logging elsewhere.
+*   **Interactive Saved Quotes (R6):** Save quotes, mark favorites, delete, and view random quotes via dedicated REST endpoints.
 *   **Multi-LLM Chat Assistant:** Interactive chat powered by Anthropic Claude, OpenAI, or NVIDIA NIM, capable of querying personal data.
 *   **Background Agents:** Scheduled tasks (anomaly scan, weekly digest, recurring financial tasks).
 *   **Local Vault Sync:** Secure, local markdown file synchronization.
@@ -50,8 +51,8 @@ This document provides a categorized list of all features currently implemented 
 *   **Theme Engine:** "Premium Black + Gold" design system utilizing @ledgr/ui.
 
 ## 8. Workspace & Task Management 🗂️
-*   **Cross-Domain Projects:** Group and track initiatives across Finance, Health, Career, and Business.
-*   **Sprint Planning:** Organize work into time-bound sprints.
+*   **Cross-Domain Projects:** Group and track initiatives across Finance, Health, Career, and Business, complete with unified edit capabilities.
+*   **Sprint Planning:** Organize work into time-bound sprints with easy modification and management.
 *   **Task Tracking:** Manage daily to-dos with cross-domain tagging and prioritization.
 
 ---

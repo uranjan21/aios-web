@@ -7,6 +7,7 @@ export interface MacroGoal {
   category: string;
   target_date?: string;
   status: string;
+  priority?: string;
   created_at: string;
 }
 
@@ -21,9 +22,10 @@ export interface GoalProgress {
 
 export const goalsApi = {
   list: () => api.get<MacroGoal[]>('/goals').then(r => r.data),
-  create: (data: { title: string; category: string; description?: string; target_date?: string }) =>
+  create: (data: { title: string; category: string; description?: string; target_date?: string; priority?: string }) =>
     api.post<MacroGoal>('/goals', data).then(r => r.data),
-  update: (goalId: string, data: Partial<{ title: string; category: string; description: string; target_date: string; status: string }>) =>
+  // Nulls are allowed so PATCH can explicitly clear description/target_date.
+  update: (goalId: string, data: Partial<{ title: string; category: string; description: string | null; target_date: string | null; status: string; priority: string }>) =>
     api.patch<MacroGoal>(`/goals/${goalId}`, data).then(r => r.data),
   remove: (goalId: string) => api.delete(`/goals/${goalId}`).then(r => r.data),
   getProgress: (goalId: string) => api.get<GoalProgress[]>(`/goals/${goalId}/progress`).then(r => r.data),
