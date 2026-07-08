@@ -36,12 +36,10 @@ class Settings(BaseSettings):
     vault_watch_interval_seconds: int = 5
 
     # AI
-    llm_provider: str = "nvidia"  # "nvidia" | "anthropic"
+    llm_provider: str = "openai"  # "openai" | "anthropic"
     anthropic_api_key: str = ""
     claude_model: str = "claude-sonnet-4-5"
-    nvidia_api_key: str = ""
-    nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
-    nvidia_chat_model: str = "meta/llama-3.3-70b-instruct"
+    openai_chat_model: str = "gpt-4o"
     openai_api_key: str = ""
     claude_daily_token_limit: int = 200000
     claude_session_token_limit: int = 50000
@@ -110,6 +108,7 @@ class Settings(BaseSettings):
     model_config = ConfigDict(
         env_file=(".env", "../.env"),  # works whether run from backend/ or aios-web/
         case_sensitive=False,
+        extra="ignore",
     )
 
 

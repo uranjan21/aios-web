@@ -62,17 +62,17 @@ class ParseBody(BaseModel):
 async def parse_capture(request: Request, body: ParseBody, current_user=Depends(get_current_user)):
     """LLM-parse a quick-log line into a structured intent. Falls back to plain capture."""
     from app.core.config import get_settings
-    from app.services.ai.nvidia_client import get_nvidia_client
+    from app.services.ai.openai_client import get_openai_client
 
     fallback = {"domain": "capture", "fields": {"text": body.text}, "summary": "Save as note"}
     settings = get_settings()
-    if not settings.nvidia_api_key:
+    if not settings.openai_api_key:
         return fallback
 
     try:
-        client = get_nvidia_client()
+        client = get_openai_client()
         resp = await client.chat.completions.create(
-            model=settings.nvidia_chat_model,
+            model=settings.openai_chat_model,
             messages=[
                 {"role": "system", "content": _PARSE_SYSTEM},
                 {"role": "user", "content": body.text},
