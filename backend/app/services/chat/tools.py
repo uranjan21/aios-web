@@ -273,7 +273,8 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
         for key, value in updates.items():
             pattern = re.compile(rf"^({re.escape(key)}\s*:\s*)(.+)$", re.MULTILINE | re.IGNORECASE)
             if pattern.search(updated):
-                updated = pattern.sub(rf"\g<1>{value}", updated)
+                val_str = str(value)
+                updated = pattern.sub(lambda m, v=val_str: m.group(1) + v, updated)
             else:
                 updated += f"\n{key}: {value}"
 
@@ -358,15 +359,24 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
 
         project_id = None
         if tool_input.get("project_id"):
-            project_id = UUID(tool_input["project_id"])
+            try:
+                project_id = UUID(str(tool_input["project_id"]))
+            except ValueError:
+                return "Error: Invalid project_id UUID format.", []
 
         sprint_id = None
         if tool_input.get("sprint_id"):
-            sprint_id = UUID(tool_input["sprint_id"])
+            try:
+                sprint_id = UUID(str(tool_input["sprint_id"]))
+            except ValueError:
+                return "Error: Invalid sprint_id UUID format.", []
 
         goal_id = None
         if tool_input.get("goal_id"):
-            goal_id = UUID(tool_input["goal_id"])
+            try:
+                goal_id = UUID(str(tool_input["goal_id"]))
+            except ValueError:
+                return "Error: Invalid goal_id UUID format.", []
 
         task = Task(
             user_id=user_id,
@@ -382,10 +392,14 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
             labels=tool_input.get("labels")
         )
 
-        async with AsyncSessionLocal() as db:
-            db.add(task)
-            await db.commit()
-            await db.refresh(task)
+        try:
+            async with AsyncSessionLocal() as db:
+                db.add(task)
+                await db.commit()
+                await db.refresh(task)
+        except Exception as e:
+            logger.error("Database commit failed for create_action: %s", e)
+            return "Error: Database transaction failed. Please try again.", []
 
         return f"Created task: '{task.title}' (ID: {task.id}) in domain {task.domain}", []
 
@@ -394,7 +408,11 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
         from app.db.session import AsyncSessionLocal
         from sqlmodel import select
 
-        goal_id = UUID(tool_input["goal_id"])
+        try:
+            goal_id = UUID(str(tool_input["goal_id"]))
+        except ValueError:
+            return "Error: Invalid goal_id UUID format.", []
+
         progress_score = tool_input.get("progress_score")
         ai_insight = tool_input.get("ai_insight")
         status = tool_input.get("status")
@@ -434,7 +452,11 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
             else:
                 msg = f"Updated goal '{goal.title}' fields"
 
-            await db.commit()
+            try:
+                await db.commit()
+            except Exception as e:
+                logger.error("Database commit failed for update_goal: %s", e)
+                return "Error: Failed to update goal in the database.", []
 
         return msg, []
 
@@ -444,12 +466,22 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
         from sqlmodel import select
         from app.models.finance import Account, AccountType
 
-        amount = Decimal(str(tool_input["amount"]))
+        try:
+            amount = Decimal(str(tool_input["amount"]))
+        except (ValueError, TypeError):
+            return "Error: Invalid amount format.", []
+
+        if amount <= 0:
+            return "Error: Transaction amount must be positive.", []
+
         tx_type = tool_input["type"]
         description = tool_input["description"]
         category = tool_input.get("category")
         category_id_str = tool_input.get("category_id")
-        category_id = UUID(category_id_str) if category_id_str else None
+        try:
+            category_id = UUID(str(category_id_str)) if category_id_str else None
+        except ValueError:
+            return "Error: Invalid category_id UUID format.", []
         tags = tool_input.get("tags")
 
         logged_at_val = datetime.utcnow()
@@ -463,7 +495,10 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
             logged_at_val = logged_at_val.astimezone(timezone.utc).replace(tzinfo=None)
 
         account_id_str = tool_input.get("account_id")
-        account_id = UUID(account_id_str) if account_id_str else None
+        try:
+            account_id = UUID(str(account_id_str)) if account_id_str else None
+        except ValueError:
+            return "Error: Invalid account_id UUID format.", []
 
         async with AsyncSessionLocal() as db:
             # Resolve account
@@ -525,7 +560,11 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
                 )
 
             db.add(tx)
-            await db.commit()
+            try:
+                await db.commit()
+            except Exception as e:
+                logger.error("Database commit failed for log_transaction: %s", e)
+                return "Error: Failed to log transaction in the database.", []
 
         return f"Logged finance {tx_type}: {amount} under account '{account.name}'", []
 
@@ -548,6 +587,39 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
             if entry_type == "workout" or "workout_sets" in tool_input:
                 from app.models.health import WorkoutSession, WorkoutSet
 
+                # Validate sets, reps, and weights in workout_sets
+                workout_sets = tool_input.get("workout_sets") or []
+                for idx, set_info in enumerate(workout_sets):
+                    exercise = set_info.get("exercise")
+                    reps = set_info.get("reps")
+                    if not exercise or reps is None:
+                        continue
+                    
+                    try:
+                        reps_val = int(reps)
+                    except (ValueError, TypeError):
+                        return "Error: Reps must be an integer.", []
+                    if reps_val <= 0:
+                        return "Error: Reps must be positive.", []
+
+                    set_num = set_info.get("set_number")
+                    if set_num is not None:
+                        try:
+                            set_num_val = int(set_num)
+                        except (ValueError, TypeError):
+                            return "Error: Set number must be an integer.", []
+                        if set_num_val <= 0:
+                            return "Error: Set number must be positive.", []
+
+                    weight_kg_val = None
+                    if "weight_kg" in set_info and set_info["weight_kg"] is not None:
+                        try:
+                            weight_kg_val = Decimal(str(set_info["weight_kg"]))
+                        except (ValueError, TypeError):
+                            return "Error: Invalid weight format.", []
+                        if weight_kg_val < 0:
+                            return "Error: Weight must be positive or zero.", []
+
                 session = WorkoutSession(
                     user_id=user_id,
                     name=tool_input.get("workout_name") or "Workout",
@@ -558,7 +630,6 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
                 await db.flush()
 
                 sets_logged = 0
-                workout_sets = tool_input.get("workout_sets") or []
                 for idx, set_info in enumerate(workout_sets):
                     exercise = set_info.get("exercise")
                     reps = set_info.get("reps")
@@ -579,7 +650,11 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
                     db.add(w_set)
                     sets_logged += 1
 
-                await db.commit()
+                try:
+                    await db.commit()
+                except Exception as e:
+                    logger.error("Database commit failed for workout session: %s", e)
+                    return "Error: Failed to save workout session to the database.", []
                 return f"Logged workout session '{session.name}' with {sets_logged} sets.", []
 
             else:
@@ -589,17 +664,35 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
                 if entry_type not in allowed_types:
                     return f"Error: Invalid entry_type '{entry_type}'. Must be one of: {', '.join(allowed_types)}", []
 
+                # Enforce positive values for health metrics (except note/gym maybe, but weight/steps/sleep should be positive)
+                val_input = tool_input.get("value")
+                val_decimal = None
+                if val_input is not None:
+                    try:
+                        val_decimal = Decimal(str(val_input))
+                    except (ValueError, TypeError):
+                        return "Error: Invalid health metric value format.", []
+                    
+                    if entry_type == "weight" and val_decimal <= 0:
+                        return "Error: Weight value must be positive.", []
+                    elif entry_type in ("steps", "sleep", "water", "body_fat") and val_decimal <= 0:
+                        return f"Error: Health metric {entry_type} must be positive.", []
+
                 log = HealthLog(
                     user_id=user_id,
                     entry_type=entry_type,
-                    value=Decimal(str(tool_input["value"])) if tool_input.get("value") is not None else None,
+                    value=val_decimal,
                     unit=tool_input.get("unit"),
                     notes=tool_input.get("notes"),
                     logged_at=logged_at_val,
                     source="agent"
                 )
                 db.add(log)
-                await db.commit()
+                try:
+                    await db.commit()
+                except Exception as e:
+                    logger.error("Database commit failed for health log: %s", e)
+                    return "Error: Failed to save health metric to the database.", []
                 return f"Logged health metric: {log.entry_type} = {log.value} {log.unit or ''}", []
 
     return f"Unknown tool: {tool_name}", []

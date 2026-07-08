@@ -93,14 +93,23 @@ async def resolve_conflict(
     current_user=Depends(get_current_user),
 ):
     from datetime import datetime
+    import uuid
     from sqlmodel import select
     from app.models.vault import VaultConflict, VaultFile
     from app.db.session import AsyncSessionLocal
 
+    try:
+        if isinstance(conflict_id, str):
+            conflict_uuid = uuid.UUID(conflict_id)
+        else:
+            conflict_uuid = conflict_id
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid conflict ID format")
+
     async with AsyncSessionLocal() as session:
         result = await session.execute(
             select(VaultConflict).where(
-                VaultConflict.id == conflict_id,
+                VaultConflict.id == conflict_uuid,
                 VaultConflict.user_id == current_user.id,
             )
         )

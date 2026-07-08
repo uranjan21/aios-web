@@ -294,3 +294,42 @@ async def test_log_health_metric_general(app, user_a, db_session_factory):
         assert logs[0].unit == "kg"
         assert logs[0].notes == "Morning check-in"
         assert logs[0].source == "agent"
+
+
+@pytest.mark.asyncio
+async def test_upi_transaction_parsing_path(app, user_a, db_session_factory):
+    from app.services.agents.runners import run_agent_task
+    from app.models.finance import FinancePendingTransaction
+    from unittest.mock import patch
+    
+    mock_json = """
+    [
+        {"amount": 1250.50, "transaction_type": "expense", "payee_name": "Utsav Store", "suggested_category": "shopping"},
+        {"amount": "500.00", "transaction_type": "income", "payee_name": "Refund", "suggested_category": "misc"}
+    ]
+    """
+    
+    with patch("app.services.agents.runners.generate_text", return_value=mock_json):
+        # We also need to mock `ai_allowed` to return True so it doesn't skip LLM
+        with patch("app.services.billing.usage.ai_allowed", return_value=True):
+            result = await run_agent_task("aios-upi-tracker", user_a.id)
+            assert "queued 2 transactions" in result or "Found and queued 2 transactions" in result
+
+    # Verify the pending transactions were correctly written with Decimal precision
+    async with db_session_factory() as db:
+        query = select(FinancePendingTransaction).where(FinancePendingTransaction.user_id == user_a.id)
+        txs = (await db.execute(query)).scalars().all()
+        assert len(txs) == 2
+        
+        # Check first transaction
+        tx1 = next(t for t in txs if t.payee_name == "Utsav Store")
+        assert tx1.amount == Decimal("1250.50")
+        assert tx1.transaction_type == "expense"
+        assert tx1.suggested_category == "shopping"
+        assert tx1.status == "pending"
+
+        # Check second transaction (amount was string in JSON, parsed correctly)
+        tx2 = next(t for t in txs if t.payee_name == "Refund")
+        assert tx2.amount == Decimal("500.00")
+        assert tx2.transaction_type == "income"
+        assert tx2.suggested_category == "misc"

@@ -146,21 +146,42 @@ async def test_conflict_resolution_write_file_bug(db_session_factory, user_a):
         
         conflict_uuid = conflict.id
         
-    # 2. Invoke resolve_conflict API endpoint directly, passing conflict_uuid as a UUID object
+    # 2. Invoke resolve_conflict API endpoint directly
     req = ResolveRequest(resolution=ResolutionState.kept_app)
     
-    with pytest.raises(AttributeError) as exc_info:
-        await resolve_conflict(
-            conflict_id=conflict_uuid,  # Pass as UUID object to bypass the SQLite string uuid parser issue
+    # Mock settings.vault_path to a temp test directory so write_file can write safely
+    settings = get_settings()
+    old_vault_path = settings.vault_path
+    test_vault_path = "/tmp/vault-adversarial-test-resolve"
+    if os.path.exists(test_vault_path):
+        shutil.rmtree(test_vault_path)
+    os.makedirs(test_vault_path, exist_ok=True)
+    settings.vault_path = test_vault_path
+
+    try:
+        res = await resolve_conflict(
+            conflict_id=conflict_uuid,
             body=req,
             current_user=user_a
         )
-    
-    assert "has no attribute 'write_file'" in str(exc_info.value)
-    print("\n[BUG CONFIRMED] AttributeError was raised as expected: VaultWriteGuard has no 'write_file' method.")
+        assert res == {"status": "resolved"}
+        
+        # Verify that the file was written to the temp vault
+        written_file = Path(test_vault_path) / "01-finance/log/2026.md"
+        assert written_file.exists()
+        assert written_file.read_text(encoding="utf-8") == "App content"
+    finally:
+        # Restore old settings and clean up
+        settings.vault_path = old_vault_path
+        if os.path.exists(test_vault_path):
+            shutil.rmtree(test_vault_path)
 
     # Clean up DB entries created during test
     async with db_session_factory() as session:
-        await session.delete(conflict)
-        await session.delete(vault_file)
+        db_conflict = await session.get(VaultConflict, conflict_uuid)
+        if db_conflict:
+            await session.delete(db_conflict)
+        db_vf = await session.get(VaultFile, vault_file.id)
+        if db_vf:
+            await session.delete(db_vf)
         await session.commit()

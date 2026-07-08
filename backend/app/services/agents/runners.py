@@ -302,8 +302,9 @@ async def run_agent_task(task_id: str, user_id: uuid.UUID) -> str:
                     transactions = json.loads(clean_text.strip())
                     if isinstance(transactions, list) and len(transactions) > 0:
                         async with AsyncSessionLocal() as session:
+                            from decimal import Decimal
                             for tx in transactions:
-                                amount = float(tx.get("amount", 0))
+                                amount = Decimal(str(tx.get("amount", 0)))
                                 if amount <= 0:
                                     continue
                                 pending = FinancePendingTransaction(

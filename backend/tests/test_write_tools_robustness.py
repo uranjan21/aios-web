@@ -94,8 +94,8 @@ async def test_rollback_on_commit_failure(app, user_a, db_session_factory):
 
     # Apply the mock to the AsyncSession.commit method
     with patch("sqlalchemy.ext.asyncio.AsyncSession.commit", side_effect=RuntimeError("Simulated Database Commit Failure")):
-        with pytest.raises(RuntimeError, match="Simulated Database Commit Failure"):
-            await execute_tool("log_transaction", tool_input, user_a.id)
+        result_msg, result_logs = await execute_tool("log_transaction", tool_input, user_a.id)
+        assert "Error: Failed to log transaction in the database." in result_msg
 
     # Check that the balance is still exactly 1000.00 (not 900.00)
     async with db_session_factory() as db:
@@ -128,7 +128,7 @@ async def test_log_transaction_boundaries(app, user_a, db_session_factory):
         await db.refresh(account)
 
     # 1. Negative amount input (boundary condition)
-    # The tool parses negative amounts literally. Let's see what happens.
+    # The tool now enforces positive transaction amounts.
     tool_input_neg = {
         "amount": -50.00,
         "type": "expense",
@@ -137,19 +137,7 @@ async def test_log_transaction_boundaries(app, user_a, db_session_factory):
         "account_id": str(account.id)
     }
     result, affected = await execute_tool("log_transaction", tool_input_neg, user_a.id)
-    assert "Logged finance expense" in result
-
-    async with db_session_factory() as db:
-        acc_query = select(Account).where(Account.id == account.id)
-        updated_acc = (await db.execute(acc_query)).scalar_one()
-        # Since amount is -50.00, delta = -(-50.00) = +50.00.
-        # Balance becomes 1050.00.
-        assert updated_acc.balance == Decimal("1050.00")
-        
-        # Clean up / reset balance back to 1000
-        updated_acc.balance = Decimal("1000.00")
-        db.add(updated_acc)
-        await db.commit()
+    assert "Error: Transaction amount must be positive." in result
 
     # 2. Zero amount input
     tool_input_zero = {
@@ -160,12 +148,7 @@ async def test_log_transaction_boundaries(app, user_a, db_session_factory):
         "account_id": str(account.id)
     }
     result, affected = await execute_tool("log_transaction", tool_input_zero, user_a.id)
-    assert "Logged finance expense" in result
-
-    async with db_session_factory() as db:
-        acc_query = select(Account).where(Account.id == account.id)
-        updated_acc = (await db.execute(acc_query)).scalar_one()
-        assert updated_acc.balance == Decimal("1000.00")
+    assert "Error: Transaction amount must be positive." in result
 
     # 3. Extremely long description
     tool_input_long_desc = {
@@ -232,15 +215,7 @@ async def test_log_health_metric_boundaries(app, user_a, db_session_factory):
         ]
     }
     result, affected = await execute_tool("log_health_metric", tool_input_neg_workout, user_a.id)
-    assert "Logged workout session" in result
-
-    async with db_session_factory() as db:
-        # Check WorkoutSet values
-        query = select(WorkoutSet).where(WorkoutSet.user_id == user_a.id, WorkoutSet.exercise == "Deadlift")
-        sets = (await db.execute(query)).scalars().all()
-        assert len(sets) == 1
-        assert sets[0].reps == -5
-        assert sets[0].weight_kg == Decimal("-100.00")
+    assert "Error: Reps must be positive." in result
 
     # 3. Negative health metric value
     tool_input_neg_metric = {
@@ -249,11 +224,33 @@ async def test_log_health_metric_boundaries(app, user_a, db_session_factory):
         "unit": "kg"
     }
     result, affected = await execute_tool("log_health_metric", tool_input_neg_metric, user_a.id)
-    assert "Logged health metric" in result
+    assert "Error: Weight value must be positive." in result
 
-    async with db_session_factory() as db:
-        query = select(HealthLog).where(HealthLog.user_id == user_a.id, HealthLog.entry_type == "weight")
-        logs = (await db.execute(query)).scalars().all()
-        # Find the one with negative value
-        neg_logs = [log for log in logs if log.value == Decimal("-80.50")]
-        assert len(neg_logs) == 1
+
+@pytest.mark.asyncio
+async def test_invalid_uuid_handling(app, user_a):
+    # 1. create_action invalid UUIDs
+    tool_input_act = {
+        "title": "Test task",
+        "project_id": "not-a-uuid"
+    }
+    result, affected = await execute_tool("create_action", tool_input_act, user_a.id)
+    assert "Error: Invalid project_id UUID format." in result
+
+    # 2. update_goal invalid goal_id
+    tool_input_goal = {
+        "goal_id": "not-a-uuid",
+        "progress_score": 50
+    }
+    result, affected = await execute_tool("update_goal", tool_input_goal, user_a.id)
+    assert "Error: Invalid goal_id UUID format." in result
+
+    # 3. log_transaction invalid category_id
+    tool_input_tx = {
+        "amount": 10.00,
+        "type": "expense",
+        "description": "Test",
+        "category_id": "not-a-uuid"
+    }
+    result, affected = await execute_tool("log_transaction", tool_input_tx, user_a.id)
+    assert "Error: Invalid category_id UUID format." in result

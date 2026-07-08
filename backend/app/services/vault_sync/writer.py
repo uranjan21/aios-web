@@ -92,3 +92,16 @@ class VaultWriteGuard:
         if not abs_path.exists():
             return ""
         return abs_path.read_text(encoding="utf-8")
+
+    def write_file(self, rel_path: str, content: str) -> None:
+        """Write content to a file in the vault. Used for conflict resolution."""
+        if rel_path not in ALLOWED_READ_PATHS:
+            raise VaultWriteError(f"Write not allowed on: {rel_path}")
+        abs_path = self._resolve(rel_path)
+        abs_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Atomic write: tmp → rename
+        tmp = abs_path.with_suffix(".tmp")
+        tmp.write_text(content, encoding="utf-8")
+        tmp.rename(abs_path)
+        logger.info("Wrote file to vault: %s", rel_path)
