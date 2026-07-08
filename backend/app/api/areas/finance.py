@@ -11,6 +11,9 @@ import uuid
 
 router = APIRouter(prefix="/api/areas/finance", tags=["finance"])
 
+from app.api.finance_pending import router as finance_pending_router
+router.include_router(finance_pending_router, prefix="/pending", tags=["finance-pending"])
+
 
 def _to_naive_utc(v: Optional[datetime]) -> Optional[datetime]:
     """Normalize an incoming datetime to naive UTC. The `logged_at` columns are

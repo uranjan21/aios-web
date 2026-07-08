@@ -12,6 +12,7 @@ import { BudgetTab } from '@/components/areas/finance/BudgetTab'
 import { WealthTab } from '@/components/areas/finance/WealthTab'
 import { AnalyticsTab } from '@/components/areas/finance/AnalyticsTab'
 import { SimulatorTab } from '@/components/areas/finance/SimulatorTab'
+import { InboxTab } from '@/components/areas/finance/InboxTab'
 import { AccountsTabModal } from '@/components/areas/finance/QuickAddAccounts'
 import { PageContainer, PageContent } from '@/components/layout/PageLayout'
 
@@ -57,6 +58,11 @@ export function FinancePage() {
       key: '6',
       label: <><FlaskConical size={14} /> Simulator</>,
       children: <SimulatorTab />,
+    },
+    {
+      key: '7',
+      label: <><IndianRupee size={14} /> Inbox</>,
+      children: <InboxTab />,
     },
   ]
 

@@ -26,6 +26,20 @@ export interface SimulationResult {
   }
 }
 
+export interface FinancePendingTransaction {
+  id: string
+  amount: number
+  transaction_type: string
+  payee_name: string | null
+  suggested_category: string | null
+  account_id: string | null
+  description: string | null
+  logged_at: string
+  raw_email_snippet: string
+  auto_commit_at: string
+  status: string
+}
+
 export interface SimulationParams {
   months: number
   income_delta_pct: number
@@ -43,6 +57,11 @@ export const financeApi = {
     api.post<{ duplicates: number[] }>('/areas/finance/import/check', { items }).then(r => r.data),
   importCommit: (items: { logged_at: string; amount: number; kind: string; category?: string; description?: string }[], account_id?: string) =>
     api.post<{ imported_expenses: number; imported_income: number; skipped: number }>('/areas/finance/import/commit', { items, account_id }).then(r => r.data),
+  
+  // Pending Transactions (UPI Tracker)
+  pending: () => api.get<FinancePendingTransaction[]>('/areas/finance/pending/').then(r => r.data),
+  approvePending: (id: string, data: any) => api.post<FinancePendingTransaction>(`/areas/finance/pending/${id}/approve`, data).then(r => r.data),
+  dismissPending: (id: string) => api.post<FinancePendingTransaction>(`/areas/finance/pending/${id}/dismiss`).then(r => r.data),
   searchTransactions: (p: { q?: string; kind?: string; account_id?: string; category?: string; tag?: string; min_amount?: number; max_amount?: number; date_from?: string; date_to?: string; limit?: number; offset?: number }) =>
     api.get<TxnSearchResult>('/areas/finance/transactions/search', { params: p }).then(r => r.data),
   snapshots: () => api.get<FinanceSnapshot[]>('/areas/finance/snapshots').then(r => r.data),

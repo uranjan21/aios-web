@@ -11,18 +11,10 @@ import {
   LayoutDashboard, MessageSquare, Bot, IndianRupee,
   Heart, Briefcase, Rocket, PenLine, Plug, Settings,
   ChevronLeft, BookOpen, LogOut, Target, CalendarCheck,
-  FolderKanban, ListTodo, Zap
+  FolderKanban, ListTodo, Zap, ChevronsUpDown
 } from 'lucide-react'
 import styled, { css } from 'styled-components'
-// import { Tooltip } from '@ledgr/ui' // Assumed available, otherwise use native title or Radix
 
-/**
- * The sidebar is intentionally dark chrome in BOTH light and dark app modes —
- * do NOT swap to theme.color.primary/card, which resolve to near-white in
- * dark mode and would make the sidebar turn white (the original dark-mode
- * contrast bug). Instead it reads theme.chrome.*, which aiosTheme.ts derives
- * from the active palette's dark colors, so it still repaints per palette.
- */
 const SidebarRoot = styled.aside<{ $collapsed: boolean; $mobileOpen?: boolean }>`
   position: relative;
   display: flex;
@@ -104,7 +96,7 @@ const BrandPanel = styled.div`
   gap: 12px;
   padding: 16px;
   border-bottom: 1px solid ${({ theme }) => theme.chrome.border};
-  min-height: 68px; /* 36px badge + 32px padding */
+  min-height: 68px;
   position: relative;
   overflow: hidden;
 `
@@ -259,10 +251,10 @@ const NavItemLink = styled(NavLink)<{ $collapsed: boolean }>`
 `
 
 const UserBlock = styled.button<{ $collapsed: boolean }>`
-  width: 100%;
+  width: calc(100% - 16px);
+  margin: 8px;
   border: none;
-  border-top: 1px solid ${({ theme }) => theme.chrome.border};
-  border-radius: 0;
+  border-radius: 12px;
   background: transparent;
   font: inherit;
   color: inherit;
@@ -270,33 +262,37 @@ const UserBlock = styled.button<{ $collapsed: boolean }>`
   padding: 8px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   position: relative;
-  transition: background-color 120ms cubic-bezier(0.2, 0, 0, 1);
+  transition: background-color 150ms ease, box-shadow 150ms ease;
 
-  &:hover { background: rgba(255, 255, 255, 0.06); }
+  &:hover { 
+    background: ${({ theme }) => theme.chrome.border}; 
+    box-shadow: ${({ theme }) => theme.shadow.sm};
+  }
 
   &:focus-visible {
     outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: -2px;
+    outline-offset: 2px;
   }
 
   ${({ $collapsed }) => $collapsed && css`
     justify-content: center;
+    padding: 8px 0;
   `}
 `
 
 const Avatar = styled.div`
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: ${({ theme }) => theme.color.accent};
   color: ${({ theme }) => theme.color.accentForeground};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   flex-shrink: 0;
 `
 
@@ -305,16 +301,71 @@ const UserInfo = styled.div<{ $collapsed: boolean }>`
   flex-direction: column;
   flex: 1;
   min-width: 0;
+  align-items: flex-start;
   opacity: ${({ $collapsed }) => $collapsed ? 0 : 1};
   display: ${({ $collapsed }) => $collapsed ? 'none' : 'flex'};
 
   .name {
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: 600;
     color: ${({ theme }) => theme.chrome.fg};
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .email {
+    font-size: 11px;
+    font-weight: 500;
+    color: ${({ theme }) => theme.chrome.fg}99;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+`
+
+const MenuProfileCard = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 4px 10px 4px;
+`
+
+const MenuProfileInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  .menu-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ui-text-primary, inherit);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .menu-email {
+    font-size: 0.75rem;
+    color: var(--ui-text-tertiary, #64748B);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+`
+
+const DropdownIconWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${({ theme }) => theme.chrome.fg}80;
+  margin-left: auto;
+
+  svg {
+    width: 16px;
+    height: 16px;
   }
 `
 
@@ -389,7 +440,7 @@ export function Sidebar() {
                   to={item.to}
                   end={item.to === '/app'}
                   $collapsed={collapsed}
-                  title={collapsed ? item.label : undefined} // Native tooltip as fallback
+                  title={collapsed ? item.label : undefined}
                 >
                   <Icon />
                   <span className="label">{item.label}</span>
@@ -400,31 +451,51 @@ export function Sidebar() {
         ))}
       </NavList>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger>
-          <UserBlock $collapsed={collapsed} aria-label={`User menu: ${user?.name || 'User'}`}>
-            {user?.picture_url ? (
-              <img src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-            ) : (
-              <Avatar>{(user?.name || 'U')[0].toUpperCase()}</Avatar>
-            )}
-            <UserInfo $collapsed={collapsed}>
-              <span className="name">{user?.name || 'User'}</span>
-            </UserInfo>
-          </UserBlock>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent side="top" align="start">
-          <DropdownMenuLabel>{user?.email || user?.name || 'Account'}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => navigate('/app/settings')}>
-            <Settings /> Profile &amp; settings
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem destructive onSelect={() => logoutAndRedirect(navigate)}>
-            <LogOut /> Log out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div style={{ padding: '0 0 8px 0', borderTop: '1px solid var(--ui-border)' }}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <UserBlock $collapsed={collapsed} aria-label={`User menu: ${user?.name || 'User'}`}>
+              {user?.picture_url ? (
+                <img src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+              ) : (
+                <Avatar>{(user?.name || 'U')[0].toUpperCase()}</Avatar>
+              )}
+              <UserInfo $collapsed={collapsed}>
+                <span className="name">{user?.name || 'User'}</span>
+                <span className="email">{user?.email || 'user@example.com'}</span>
+              </UserInfo>
+              {!collapsed && (
+                <DropdownIconWrapper>
+                  <ChevronsUpDown />
+                </DropdownIconWrapper>
+              )}
+            </UserBlock>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align={collapsed ? 'start' : 'center'} style={{ width: collapsed ? '220px' : '208px', padding: '8px' }}>
+            <DropdownMenuLabel style={{ padding: 0, marginBottom: '4px' }}>
+              <MenuProfileCard>
+                {user?.picture_url ? (
+                  <img src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                ) : (
+                  <Avatar style={{ width: 36, height: 36, fontSize: '14px' }}>{(user?.name || 'U')[0].toUpperCase()}</Avatar>
+                )}
+                <MenuProfileInfo>
+                  <span className="menu-name">{user?.name || 'Account'}</span>
+                  <span className="menu-email">{user?.email || 'user@example.com'}</span>
+                </MenuProfileInfo>
+              </MenuProfileCard>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => navigate('/app/settings')} style={{ padding: '10px 12px', gap: '10px', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', borderRadius: '6px' }}>
+              <Settings size={16} /> Profile &amp; settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem destructive onSelect={() => logoutAndRedirect(navigate)} style={{ padding: '10px 12px', gap: '10px', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', borderRadius: '6px' }}>
+              <LogOut size={16} /> Log out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </SidebarRoot>
   )
 }

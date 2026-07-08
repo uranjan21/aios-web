@@ -27,3 +27,8 @@ When asked for color palettes, suggest the following color combinations:
 
 ## Feature Tracking
 - **ALWAYS update `FEATURES.md`** in the project root whenever a new feature is added, modified, or removed. This file must be kept up-to-date automatically as the source of truth for the app's current feature set.
+
+## Agent Context & Fallbacks
+- **Domain-Scoped Context:** Agents must only receive and fall back to facts relevant to their specific domain. Do not use a global `_week_facts` string for all agents. 
+- **Graceful Fallbacks:** When an LLM fails or skips execution (e.g., due to quota), the fallback response should clearly state that the agent ran in "fallback mode" and only display data relevant to that agent's stated purpose.
+

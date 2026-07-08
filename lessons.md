@@ -32,3 +32,11 @@ This document serves as a growing knowledge base of mistakes made during develop
   - If there is only ONE button for a tab:
     - If the tab's main content is a single Card, place the button on the right side of the Card's header (parallel to the card's title).
     - Otherwise, elevate the single button to the global `PageHeader` (aligned right, parallel to the page title) using the `HeaderActionPortal`. (Added 2026-07-07)
+
+## LLM Integration & Testing
+
+- **Issue:** The test suite was leaking live network calls to OpenAI APIs (returning 401 Unauthorized), because `get_openai_client` was not globally mocked in `conftest.py` and the client cache (`@lru_cache`) persisted client instances across tests, ignoring test-configured API keys.
+  **Correction:** Always define a global autouse pytest session fixture that mocks client factories (like `get_openai_client`) to return a mock client instance. Parameterize caching decorators (like `@lru_cache`) on the client configuration parameters (e.g., `api_key`) rather than caching a parameterless getter, allowing test-scoped key modifications to instantiate new mock clients. (Added 2026-07-08)
+
+- **Issue:** Token budget tracking was failing in streaming chat endpoints because: (1) `stream_options={"include_usage": True}` was omitted from `client.chat.completions.create`, preventing OpenAI from sending usage metadata in stream chunks, and (2) checks for choice/delta content skipped the final usage-only chunk because it has empty choices.
+  **Correction:** When streaming chat completions, always specify `stream_options={"include_usage": True}`. In the stream reading loop, check and record token usage *before* checking for choices or delta content, so that choice-empty metadata chunks are not prematurely skipped. (Added 2026-07-08)

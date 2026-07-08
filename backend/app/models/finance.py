@@ -189,3 +189,26 @@ class FinanceLoan(SQLModel, table=True):
     last_posted_period: Optional[str] = Field(default=None)  # "YYYY-MM" of last auto-posted EMI
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
     updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+
+class FinancePendingTransaction(SQLModel, table=True):
+    """Transactions fetched by AI agents (e.g. UPI) awaiting user review."""
+    __tablename__ = "finance_pending_transactions"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    
+    amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    transaction_type: str = Field(default="expense", nullable=False) # "expense" or "income"
+    
+    payee_name: Optional[str] = Field(default=None)
+    suggested_category: Optional[str] = Field(default=None)
+    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
+    description: Optional[str] = Field(default=None, sa_column=Column(Text))
+    
+    logged_at: datetime = Field(nullable=False)
+    raw_email_snippet: str = Field(sa_column=Column(Text, nullable=False))
+    
+    auto_commit_at: datetime = Field(nullable=False)
+    status: str = Field(default="pending", nullable=False) # pending / approved / dismissed
+    
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)

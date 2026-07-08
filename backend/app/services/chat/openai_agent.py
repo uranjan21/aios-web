@@ -77,16 +77,23 @@ async def stream_openai_chat_response(
                         tools=_openai_tools(),
                         tool_choice="auto",
                         stream=True,
+                        stream_options={"include_usage": True},
                     )
 
                     tool_call_buffers: dict[int, dict] = {}
 
                     async for chunk in stream:
+                        if chunk.usage:
+                            total_input_tokens += chunk.usage.prompt_tokens or 0
+                            total_output_tokens += chunk.usage.completion_tokens or 0
+
                         if not chunk.choices:
                             continue
 
                         choice = chunk.choices[0]
-                        delta = choice.delta
+                        delta = getattr(choice, "delta", None)
+                        if not delta:
+                            continue
 
                         if delta.content:
                             assistant_text += delta.content
@@ -112,10 +119,6 @@ async def stream_openai_chat_response(
 
                         if choice.finish_reason:
                             finish_reason = choice.finish_reason
-
-                        if chunk.usage:
-                            total_input_tokens += chunk.usage.prompt_tokens or 0
-                            total_output_tokens += chunk.usage.completion_tokens or 0
 
                     tool_calls_in_turn = [tool_call_buffers[i] for i in sorted(tool_call_buffers)]
                     last_error = None

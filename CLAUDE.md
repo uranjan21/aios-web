@@ -36,7 +36,7 @@ A full-stack personal life-management OS — Finance, Health, Career, Business, 
 - **Frontend**: React 18 + TypeScript + Vite + **@ledgr/ui** (component library at `ledgr-ui/`) + styled-components + Ant Design (complex widgets only — Tabs, DatePicker, Segmented)
 - **Backend**: Python 3.11+ + FastAPI + SQLModel (async SQLAlchemy) + asyncpg
 - **Database**: PostgreSQL 15 + pgvector
-- **AI/LLMs**: Anthropic Claude SDK, OpenAI SDK, NVIDIA NIM (`settings.nvidia_chat_model`, default provider)
+- **AI/LLMs**: Anthropic Claude SDK, OpenAI SDK (default provider, `settings.openai_chat_model`)
 - **Real-time**: FastAPI native WebSockets (`/ws/sync`, `/ws/chat`, `/ws/agents`)
 - **State**: Zustand (global) + React Query / TanStack (server state)
 - **Auth**: JWT in httpOnly SameSite=Strict cookie (`aios_token`). Google OAuth added 2026-06-21.
@@ -314,7 +314,7 @@ Re-ran the full audit on the stronger model to verify the 2026-06-30 fixes and c
 ## Recent Updates (2026-06-30)
 
 ### Full backend audit + autonomous fix pass (all 9 domains)
-- **Chat was completely broken in production.** `services/chat/agent.py` and `services/chat/nvidia_agent.py` (NVIDIA is the **default** provider) called `reserve_budget`/`get_token_budget_status`/`record_usage` with the wrong arg count/order (missing `user_id`) — every chat message crashed on both providers. Fixed by threading `user_id` through `stream_chat_response`/`stream_nvidia_chat_response`/`execute_tool`. Also fixed: `get_calendar_events` tool called `get_stored_events` with wrong arg order; chat WS never enforced `ai_allowed()`/AI quota before streaming (now checked before processing each message).
+- **Chat was completely broken in production.** `services/chat/agent.py` and `services/chat/openai_agent.py` (OpenAI is the **default** provider) called `reserve_budget`/`get_token_budget_status`/`record_usage` with the wrong arg count/order (missing `user_id`) — every chat message crashed on both providers. Fixed by threading `user_id` through `stream_chat_response`/`stream_openai_chat_response`/`execute_tool`. Also fixed: `get_calendar_events` tool called `get_stored_events` with wrong arg order; chat WS never enforced `ai_allowed()`/AI quota before streaming (now checked before processing each message).
 - **`delete_business` 500'd on any business with events** — `business_events.business_id` FK has no `ondelete` and the handler never cleaned up child rows. Fixed by explicitly deleting `BusinessEvent` rows before the `Business` delete (no migration needed).
 - **IDOR fixes**: `toggle_habit_check` (health) had no ownership check on `habit_id`; `create_event` (business) and content item create/patch accepted a `campaign_id`/`business_id` with no ownership verification; `import_commit` (finance) never validated `account_id` ownership. All now 404 on cross-tenant IDs.
 - **Finance**: `_adjust_balance` did `float()` arithmetic on a `Decimal` column (rounding drift) and had no row lock (race condition under concurrent writes) — now uses `Decimal` math + `with_for_update()`. Added `Field(gt=0)`/`ge=0` constraints to Bill/Loan/Investment/Budget create models (previously accepted negative/zero amounts).

@@ -40,6 +40,7 @@ class VaultWriteError(Exception):
 class VaultWriteGuard:
     def __init__(self, vault_path: str):
         self._vault_path = Path(vault_path)
+        self._vault_path.mkdir(parents=True, exist_ok=True)
 
     def _resolve(self, rel_path: str) -> Path:
         abs_path = (self._vault_path / rel_path).resolve()

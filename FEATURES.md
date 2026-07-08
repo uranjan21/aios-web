@@ -39,9 +39,10 @@ This document provides a categorized list of all features currently implemented 
 
 ## 6. Core AI & OS Capabilities 🧠
 *   **Global Capture (⌘L) & Contextual Task Creation (R7):** Intercepts ⌘L on projects or sprints detail pages to open a Contextual Task Creation dialog pre-populating project/sprint fields; falls back to NLP-powered Global Capture note logging elsewhere.
+*   **Active Database Write Tools:** Proactive database write capabilities (`create_action`, `update_goal`, `log_transaction`, `log_health_metric`) allowing chat and background agents to record tasks, update goal progress, log transactions (with automated account balance adjustments), and save workouts (including sets and reps) or health logs directly.
 *   **Interactive Saved Quotes (R6):** Save quotes, mark favorites, delete, and view random quotes via dedicated REST endpoints.
-*   **Multi-LLM Chat Assistant:** Interactive chat powered by Anthropic Claude, OpenAI, or NVIDIA NIM, capable of querying personal data.
-*   **Background Agents:** Scheduled tasks (anomaly scan, weekly digest, recurring financial tasks).
+*   **Multi-LLM Chat Assistant:** Interactive chat powered by Anthropic Claude or OpenAI, capable of querying personal data.
+*   **Background Agents:** Scheduled tasks (anomaly scan, weekly digest, recurring financial tasks) with domain-scoped facts isolation, explicit task-to-domain mapping, and graceful fallback modes with standardized warning prefixes. Features a URL-addressable advanced filtering UI for managing run-states, errors, and schedules.
 *   **Local Vault Sync:** Secure, local markdown file synchronization.
 
 ## 7. SaaS & Infrastructure ⚙️

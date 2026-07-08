@@ -137,6 +137,16 @@ async def start_scheduler() -> None:
             misfire_grace_time=3600,
         )
 
+        # Hourly at :45 — auto-commit pending finance transactions that have passed their 24h review window
+        _safe_add_job(
+            "finance_auto_commit",
+            func=_run_global_job,
+            trigger=CronTrigger(minute=45, timezone="UTC"),
+            args=["app.services.finance.pending", "run_auto_commit_pending_transactions"],
+            replace_existing=True,
+            misfire_grace_time=1800,
+        )
+
         # 04:00 UTC = 9:30 IST — daily anomaly sweep (spending spikes, broken streaks)
         _safe_add_job(
             "insights_anomalies",

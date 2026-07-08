@@ -30,6 +30,101 @@ os.environ.setdefault("VAULT_PATH", "/tmp/vault-test")
 os.environ.setdefault("TOKEN_ENCRYPTION_KEY", "dGVzdC1rZXktZm9yLWNpLW9ubHktZG8tbm90LXVzZQ==")
 
 
+@pytest.fixture(scope="session", autouse=True)
+def mock_openai_client_fixture():
+    """Mock get_openai_client globally to avoid real API calls."""
+    import sys
+    import app.services.ai.openai_client
+
+    class MockChoiceDelta:
+        def __init__(self, content=None, tool_calls=None):
+            self.content = content
+            self.tool_calls = tool_calls
+
+    class MockMessage:
+        def __init__(self, content: str):
+            self.content = content
+
+    class MockChoice:
+        def __init__(self, content: str = "", delta = None, finish_reason: str = None):
+            self.message = MockMessage(content)
+            self.delta = delta
+            self.finish_reason = finish_reason
+
+    class MockUsage:
+        def __init__(self, prompt_tokens: int = 10, completion_tokens: int = 5):
+            self.prompt_tokens = prompt_tokens
+            self.completion_tokens = completion_tokens
+
+    class MockChunk:
+        def __init__(self, choices=None, usage=None):
+            self.choices = choices or []
+            self.usage = usage
+
+    class MockResponse:
+        def __init__(self, content: str):
+            self.choices = [MockChoice(content=content)]
+            self.usage = MockUsage()
+
+    class MockCompletions:
+        async def create(self, *args, **kwargs):
+            stream = kwargs.get("stream", False)
+            messages = kwargs.get("messages", [])
+            user_text = "test"
+            if messages and isinstance(messages, list):
+                last_msg = messages[-1]
+                if isinstance(last_msg, dict) and last_msg.get("role") == "user":
+                    user_text = last_msg.get("content", "test")
+            
+            import json
+            content = json.dumps({
+                "domain": "capture",
+                "fields": {"text": user_text},
+                "summary": "Save as note"
+            })
+            if stream:
+                async def stream_gen():
+                    # yield first chunk with the text content
+                    yield MockChunk(choices=[MockChoice(delta=MockChoiceDelta(content=content))])
+                    # yield finish chunk
+                    yield MockChunk(choices=[MockChoice(delta=MockChoiceDelta(content=None), finish_reason="stop")])
+                    # yield usage chunk
+                    yield MockChunk(choices=[], usage=MockUsage(prompt_tokens=15, completion_tokens=8))
+                return stream_gen()
+            else:
+                return MockResponse(content=content)
+
+    class MockChat:
+        def __init__(self):
+            self.completions = MockCompletions()
+
+    class MockAsyncOpenAI:
+        def __init__(self):
+            self.chat = MockChat()
+
+    mock_client = MockAsyncOpenAI()
+
+    def mock_fn():
+        return mock_client
+
+    # Store original
+    original_get = app.services.ai.openai_client.get_openai_client
+
+    # Override in original module
+    app.services.ai.openai_client.get_openai_client = mock_fn
+
+    # Patch in any already imported modules
+    for name, module in list(sys.modules.items()):
+        if name.startswith("app."):
+            if hasattr(module, "get_openai_client"):
+                setattr(module, "get_openai_client", mock_fn)
+
+    yield mock_client
+
+    # Restore in original module
+    app.services.ai.openai_client.get_openai_client = original_get
+
+
 # A single shared in-memory SQLite connection (StaticPool) so schema created in
 # one session is visible to every other session in the test run.
 _test_engine = create_async_engine(
@@ -66,7 +161,7 @@ def _isolation_tables():
     from app.models.workspace import Project, Sprint, Task
     from app.models.goal import MacroGoal, GoalProgress
     from app.models.content import ContentItem, ContentCampaign
-    from app.models.health import HealthLog
+    from app.models.health import HealthLog, HealthGoal, Habit, HabitCheck, WorkoutSession, WorkoutSet, FoodItem
     from app.models.finance import FinanceExpense, FinanceIncome, FinanceTransfer, Account
     from app.models.career import CareerEvent, JobOpportunity
     from app.models.business import BusinessEvent
@@ -75,7 +170,8 @@ def _isolation_tables():
     return [m.__table__ for m in (
         User, ChatSession, ChatMessage, Capture, IntegrationCredential, Agent, PushSubscription, Subscription, AIUsageRecord,
         Project, Sprint, Task, MacroGoal, GoalProgress, ContentItem, ContentCampaign,
-        HealthLog, FinanceExpense, FinanceIncome, FinanceTransfer, Account, CareerEvent, JobOpportunity, BusinessEvent,
+        HealthLog, HealthGoal, Habit, HabitCheck, WorkoutSession, WorkoutSet, FoodItem,
+        FinanceExpense, FinanceIncome, FinanceTransfer, Account, CareerEvent, JobOpportunity, BusinessEvent,
         BriefingPreference, Briefing, Insight, SavedQuote
     )]
 

@@ -30,8 +30,9 @@ DEFAULT_AGENTS = [
     {"task_id": "aios-weekly-refresh", "name": "Weekly Refresh", "cron_expression": "0 20 * * 0", "description": "Weekly goals and context refresh"},
     {"task_id": "aios-content-performance", "name": "Content Performance", "cron_expression": "0 20 * * 5", "description": "Weekly content performance review"},
     {"task_id": "aios-health-coach", "name": "Health Coach", "cron_expression": "0 6 * * 1", "description": "Weekly health check-in from fitness metrics, logs and habits"},
-    {"task_id": "aios-business-pulse", "name": "Business Pulse", "cron_expression": "30 6 * * 1", "description": "Weekly business/product pulse — momentum, risks, next lever"},
+    {"task_id": "aios-business-pulse", "name": "Business Pulse", "cron_expression": "30 7 * * 1", "description": "Monday business pulse (needs Knowledge/Business facts)"},
     {"task_id": "aios-inbox-triage", "name": "Inbox Triage", "cron_expression": "30 5 * * *", "description": "Daily Gmail triage — replies needed, actions, FYI (requires Gmail)"},
+    {"task_id": "aios-upi-tracker", "name": "UPI Tracker", "cron_expression": "0 6 * * *", "description": "Fetches and categorizes UPI transactions from your emails."},
 ]
 
 _ACTIVE_BY_DEFAULT = {
@@ -86,7 +87,8 @@ async def get_agent(agent_id: str, current_user=Depends(get_current_user), db=De
 
 
 class AgentPatch(BaseModel):
-    is_active: bool
+    is_active: bool | None = None
+    cron_expression: str | None = None
 
 
 @router.patch("/{agent_id}")
@@ -95,7 +97,10 @@ async def patch_agent(agent_id: str, body: AgentPatch, current_user=Depends(get_
     agent = result.scalar_one_or_none()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
-    agent.is_active = body.is_active
+    if body.is_active is not None:
+        agent.is_active = body.is_active
+    if body.cron_expression is not None:
+        agent.cron_expression = body.cron_expression
     agent.updated_at = datetime.utcnow()
     db.add(agent)
     await db.commit()
