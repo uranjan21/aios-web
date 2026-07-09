@@ -3,7 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 import { PageTransition } from '@/components/PageTransition'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Loader } from '@/components/ui/Loader'
 import { useAuthStore } from '@/stores/authStore'
 import { api } from '@/api/client'
 
@@ -54,11 +54,21 @@ const SupportPage = lazy(() => import('@/pages/legal/SupportPage').then(m => ({ 
 
 function PageLoader() {
   return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <Skeleton style={{ height: '32px', width: '160px', borderRadius: '8px' }} />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-        {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} style={{ height: '112px', borderRadius: '12px' }} />)}
-      </div>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '60vh',
+        gap: '16px',
+        padding: '24px',
+      }}
+    >
+      <Loader variant="dual-ring" size="lg" tone="cta" label="Loading systems..." />
+      <span style={{ fontSize: '13px', color: 'var(--muted-foreground)', letterSpacing: '0.05em', textTransform: 'uppercase', fontWeight: 500 }}>
+        Loading AI OS...
+      </span>
     </div>
   )
 }

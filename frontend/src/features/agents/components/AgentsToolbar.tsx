@@ -74,89 +74,83 @@ const SearchContainer = styled.div`
   }
 `;
 
-export function AgentsToolbar() {
+export function AgentsFilters() {
   const { search, domain, schedule, status, sort, view, setFilter } = useAgentFilters();
 
   return (
-    <AreaToolbar
-      divider={false}
-      left={
-        <SearchContainer>
-          <Search size={14} />
-          <input 
-            placeholder="Search agents..." 
-            value={search}
-            onChange={(e) => setFilter("search", e.target.value)}
-          />
-        </SearchContainer>
-      }
-    >
-      <FiltersRow>
-        <FilterGroup>
-          <FilterSelect value={domain} onChange={(e) => setFilter("domain", e.target.value)}>
-            {DOMAIN_OPTIONS.map(d => (
-              <option key={d} value={d === "All" ? "all" : d}>{d} Domain</option>
-            ))}
-          </FilterSelect>
-        </FilterGroup>
+    <FiltersRow>
+      <SearchContainer style={{ width: '180px' }}>
+        <Search size={14} />
+        <input 
+          placeholder="Search..." 
+          value={search}
+          onChange={(e) => setFilter("search", e.target.value)}
+        />
+      </SearchContainer>
 
-        <FilterGroup>
-          <FilterSelect value={schedule} onChange={(e) => setFilter("schedule", e.target.value)}>
-            <option value="all">All Schedules</option>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="manual">Manual</option>
-          </FilterSelect>
-        </FilterGroup>
-        
-        <FilterGroup>
-          <FilterSelect value={status} onChange={(e) => setFilter("status", e.target.value)}>
-            <option value="all">All Statuses</option>
-            <option value="success">Success</option>
-            <option value="error">Error</option>
-            <option value="running">Running</option>
-            <option value="idle">Idle</option>
-          </FilterSelect>
-        </FilterGroup>
+      <FilterGroup>
+        <FilterSelect value={domain} onChange={(e) => setFilter("domain", e.target.value)}>
+          {DOMAIN_OPTIONS.map(d => (
+            <option key={d} value={d === "All" ? "all" : d}>{d} Domain</option>
+          ))}
+        </FilterSelect>
+      </FilterGroup>
 
-        <FilterGroup>
-          <FilterSelect value={sort} onChange={(e) => setFilter("sort", e.target.value)}>
-            <option value="name">Sort by: Name</option>
-            <option value="time">Sort by: Time of day</option>
-            <option value="schedule">Sort by: Next run</option>
-            <option value="last_run">Sort by: Last run</option>
-          </FilterSelect>
-        </FilterGroup>
+      <FilterGroup>
+        <FilterSelect value={schedule} onChange={(e) => setFilter("schedule", e.target.value)}>
+          <option value="all">All Schedules</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="manual">Manual</option>
+        </FilterSelect>
+      </FilterGroup>
+      
+      <FilterGroup>
+        <FilterSelect value={status} onChange={(e) => setFilter("status", e.target.value)}>
+          <option value="all">All Statuses</option>
+          <option value="success">Success</option>
+          <option value="error">Error</option>
+          <option value="running">Running</option>
+          <option value="idle">Idle</option>
+        </FilterSelect>
+      </FilterGroup>
 
-        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--card)', borderRadius: '6px', padding: '2px', border: '1px solid var(--border)' }}>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setFilter("view", "list")}
-            style={{ 
-              height: '24px', 
-              padding: '0 8px', 
-              background: view === "list" ? 'var(--muted)' : 'transparent',
-              color: view === "list" ? 'var(--foreground)' : 'var(--muted-foreground)'
-            }}
-          >
-            <List size={14} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setFilter("view", "grid")}
-            style={{ 
-              height: '24px', 
-              padding: '0 8px', 
-              background: view === "grid" ? 'var(--muted)' : 'transparent',
-              color: view === "grid" ? 'var(--foreground)' : 'var(--muted-foreground)'
-            }}
-          >
-            <LayoutGrid size={14} />
-          </Button>
-        </div>
-      </FiltersRow>
+      <div style={{ display: 'flex', alignItems: 'center', background: 'transparent', borderRadius: '6px', padding: '2px', border: '1px solid var(--border)' }}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setFilter("view", "list")}
+          style={{ 
+            height: '24px', 
+            padding: '0 8px', 
+            background: view === "list" ? 'var(--muted)' : 'transparent',
+            color: view === "list" ? 'var(--foreground)' : 'var(--muted-foreground)'
+          }}
+        >
+          <List size={14} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setFilter("view", "grid")}
+          style={{ 
+            height: '24px', 
+            padding: '0 8px', 
+            background: view === "grid" ? 'var(--muted)' : 'transparent',
+            color: view === "grid" ? 'var(--foreground)' : 'var(--muted-foreground)'
+          }}
+        >
+          <LayoutGrid size={14} />
+        </Button>
+      </div>
+    </FiltersRow>
+  );
+}
+
+export function AgentsToolbar() {
+  return (
+    <AreaToolbar divider={false}>
+      <AgentsFilters />
     </AreaToolbar>
   );
 }

@@ -42,7 +42,7 @@ This document provides a categorized list of all features currently implemented 
 *   **AI Vault Extractor & Global Inbox:** Automatically monitors the Obsidian Vault for new markdown file modifications, parses the text asynchronously using LLMs to extract intents (finance, health, business events), and queues them into a Global Inbox (e.g. pending transactions or actions) for user review or 24-hour auto-commit.
 *   **Active Database + Vault Write Tools:** Proactive write capabilities (`create_action`, `update_goal`, `log_transaction`, `log_health_metric`) allowing chat and background agents to record structured data in Postgres, mirror the change into the relevant vault log file, and sync that file straight back into the vault store for RAG/search freshness.
 *   **Interactive Saved Quotes (R6):** Save quotes, mark favorites, delete, and view random quotes via dedicated REST endpoints.
-*   **Global Chat Assistant:** Interactive floating chat powered by Anthropic Claude, OpenAI, or Gemini, with support for file attachments (images/text), on-the-fly model switching, and chat session history tracking.
+*   **Global Chat Assistant:** Overhauled interactive chat interface featuring glassmorphic backdrops, premium Apple-like aesthetics, custom transitions, keyboard accessibility (Escape key closing), responsive mobile width, tooltips, and strict WCAG 4.5:1 text contrast compliance. Supports file attachments (images/text), on-the-fly model switching, and chat session history.
 *   **Per-User LLM Configuration (BYOK):** Override system default LLMs (OpenAI vs Anthropic) per-user and supply personal API keys to bypass token metering limits via the AI Configuration settings.
 *   **Background Agents:** Scheduled tasks (anomaly scan, weekly digest, recurring financial tasks) with domain-scoped facts isolation, explicit task-to-domain mapping, graceful fallback modes with standardized warning prefixes, and structured writeback execution for selected agents via parsed action blocks. Features a URL-addressable advanced filtering UI for managing run-states, errors, and schedules, plus a real seed endpoint and clearer last-output inspection on the Agents page.
 *   **Local Vault Sync:** Secure, local markdown file synchronization.
@@ -52,6 +52,8 @@ This document provides a categorized list of all features currently implemented 
 *   **Modular Pricing / Billing:** Pay-per-module Stripe integration with a free base tier and metered AI usage caps.
 *   **Authentication:** JWT-based strict authentication with Google OAuth integration support.
 *   **Theme Engine:** "Premium Black + Gold" design system utilizing @ledgr/ui.
+*   **Premium Animated Loader & Latency Optimization:** A custom styled-components animated Loader component featuring multiple visual styles (dual-ring, pulse-dots, data-stream, and glow-pulse) for routing/lazy-loading boundaries, coupled with query-caching prefetch warming to bypass page-transition latency.
+
 
 ## 8. Workspace & Task Management 🗂️
 *   **Cross-Domain Projects:** Group and track initiatives across Finance, Health, Career, and Business, complete with unified edit capabilities.

@@ -104,8 +104,14 @@ async def stream_chat_response(
     if effective_provider == "openai":
         from app.services.chat.openai_agent import stream_openai_chat_response
 
-        # Pass attachments to OpenAI if the function supports it (or handle it inside OpenAI)
-        async for event in stream_openai_chat_response(user_id, session_id, user_message, history):
+        async for event in stream_openai_chat_response(
+            user_id, 
+            session_id, 
+            user_message, 
+            history,
+            override_model=model,
+            attachments=attachments,
+        ):
             yield event
         return
 
@@ -126,12 +132,13 @@ async def stream_chat_response(
     user_content_block = []
     if attachments:
         for att in attachments:
-            if att.get("type") == "image" and "data" in att and "media_type" in att:
+            content_type = att.get("contentType", "")
+            if content_type.startswith("image/") and "data" in att:
                 user_content_block.append({
                     "type": "image",
                     "source": {
                         "type": "base64",
-                        "media_type": att["media_type"],
+                        "media_type": content_type,
                         "data": att["data"]
                     }
                 })

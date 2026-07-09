@@ -4,7 +4,7 @@ import { ErrorCard } from "@/components/ErrorCard";
 import { PageContainer, PageContent } from "@/components/layout/PageLayout";
 import { DigitalCronInput } from "@/components/ui/DigitalCronInput";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AgentsToolbar } from "@/features/agents/components/AgentsToolbar";
+import { AgentsToolbar, AgentsFilters } from "@/features/agents/components/AgentsToolbar";
 import { getAgentDomain, getAgentLongDescription } from "@/features/agents/constants/domains";
 import { useAgentFilters } from "@/features/agents/hooks/useAgentFilters";
 import { formatRelativeTime } from "@/lib/utils";
@@ -72,13 +72,26 @@ const AgentGrid = styled.div`
 const RosterCard = styled(Card)`
   overflow: hidden;
   border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: 12px;
+  box-shadow: none;
+
+  h2 {
+    font-size: 17px;
+    font-weight: 600;
+    color: ${({ theme }) => theme.color.foreground};
+  }
+  
+  p {
+    font-size: 13px;
+    color: ${({ theme }) => theme.color.mutedForeground};
+    margin-top: 4px;
+  }
 `;
-
-
 
 const TableShell = styled.div`
   display: flex;
   flex-direction: column;
+  padding-bottom: 20px;
 `;
 
 const TableHeader = styled.div`
@@ -88,10 +101,31 @@ const TableHeader = styled.div`
     display: grid;
     grid-template-columns: minmax(0, 2fr) 95px 140px 110px 110px 110px;
     gap: 12px;
-    padding: 16px 20px 12px 20px;
-    background: transparent;
-    border-bottom: 1px solid color-mix(in srgb, ${({ theme }) => theme.color.border} 50%, transparent);
+    padding: 12px 16px;
+    background: ${({ theme }) => theme.color.muted};
+    border-radius: 8px 8px 0 0;
+    margin: 12px 20px 0 20px;
+    border-bottom: 1px solid ${({ theme }) => theme.color.border};
   }
+`;
+
+const FooterSection = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-top: 1px solid ${({ theme }) => theme.color.border};
+`;
+
+const FooterLabel = styled.span`
+  font-size: 13px;
+  color: ${({ theme }) => theme.color.foreground};
+`;
+
+const FooterValue = styled.span`
+  font-size: 14px;
+  font-weight: 700;
+  color: ${({ theme }) => theme.color.foreground};
 `;
 
 const TableHeaderCell = styled.div<{ $alignRight?: boolean }>`
@@ -124,10 +158,11 @@ const TableHeaderCell = styled.div<{ $alignRight?: boolean }>`
 `;
 
 const RowButton = styled.button<{ $status: string }>`
-  width: 100%;
+  width: auto;
   border: none;
   background: transparent;
-  padding: 14px 20px;
+  padding: 14px 16px;
+  margin: 0 20px;
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
@@ -1138,7 +1173,7 @@ function AgentsContent({ agents }: { agents: Agent[] }) {
 
   const tableRender = (
     <Stack>
-      <AgentsToolbar />
+      {view === "grid" && <AgentsToolbar />}
 
       {view === "grid" ? (
         processedAgents.length === 0 ? (
@@ -1161,6 +1196,7 @@ function AgentsContent({ agents }: { agents: Agent[] }) {
           noPadding
           title="Agents Roster"
           subtitle="One clean list. Scan fast, open details only when you need them."
+          action={<AgentsFilters />}
         >
             {processedAgents.length === 0 ? (
               <EmptyWrap>
@@ -1199,6 +1235,13 @@ function AgentsContent({ agents }: { agents: Agent[] }) {
                   <AgentRow key={agent.id} agent={agent} onOpen={() => setSelectedAgentId(agent.id)} />
                 ))}
               </TableShell>
+            )}
+            
+            {processedAgents.length > 0 && (
+              <FooterSection>
+                <FooterLabel>Total Agents Matching Filters</FooterLabel>
+                <FooterValue>{processedAgents.length}</FooterValue>
+              </FooterSection>
             )}
         </RosterCard>
       )}

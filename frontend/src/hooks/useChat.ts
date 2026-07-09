@@ -192,14 +192,19 @@ export function useChat(initialSessionId?: string): UseChatResult {
 
     const payloadContent = hiddenContext ? `${hiddenContext}\n${content}` : content
 
+    const activeModel = overrides?.provider === 'openai' 
+      ? overrides.openaiModel 
+      : overrides?.provider === 'anthropic' 
+        ? overrides.claudeModel 
+        : undefined
+
     wsRef.current.send(JSON.stringify({
       type: 'message',
       content: payloadContent,
       session_id: sessionId,
       attachments: encodedAttachments.length > 0 ? encodedAttachments : undefined,
-      override_provider: overrides?.provider,
-      override_openai_model: overrides?.openaiModel,
-      override_claude_model: overrides?.claudeModel,
+      provider: overrides?.provider,
+      model: activeModel,
     }))
   }, [sessionId])
 

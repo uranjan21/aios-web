@@ -195,3 +195,69 @@ Ensure that the database writes performed by the tools correctly use the `AsyncS
 - [ ] The `execute_tool` router handles the new database writes and successfully commits to the DB.
 - [ ] Agent system prompts explicitly mention the ability to write to the DB and Vault.
 - [ ] A simulated test confirms that an agent calling `create_action` successfully inserts a row into the database.
+
+## Follow-up — 2026-07-09T20:12:10+05:30
+
+# Teamwork Project Prompt
+
+> Status: Launched
+
+Audit the application to identify areas requiring a loading state and implement a premium, animated inline loader component (replacing skeletons) across lazy loading and data fetching boundaries.
+
+Working directory: /Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web
+Integrity mode: development
+
+## Requirements
+
+### R1. Premium Animated Loader Component
+Implement a premium, animated inline loader component suitable for a data-dense dashboard. It should use fluid animations (e.g. data loading spinners or smooth pulsing) rather than a static skeleton grid. 
+
+### R2. Global Loader Integration
+Integrate the new loader into `frontend/src/router.tsx`'s `PageLoader` to handle lazy loading transitions and the `RequireModule` wrapper, replacing the existing basic `Skeleton` grid.
+
+### R3. Design System Alignment
+The loader must align with the "Data-Dense Dashboard" design system, utilizing theme tokens (Primary: #0F172A, Secondary: #1E293B, CTA: #22C55E) and should support both light and dark modes appropriately. Do not use emoji icons; use SVG animations or CSS effects.
+
+## Acceptance Criteria
+
+### Implementation
+- [ ] A new `Loader` component is created in `frontend/src/components/ui/` (or similar shared directory).
+- [ ] The component utilizes `styled-components` and theme tokens for styling.
+- [ ] `frontend/src/router.tsx` is successfully refactored to use the new loader for page transitions.
+
+### Verification
+- [ ] The frontend successfully typechecks and builds without errors (`npm run tsc` or `npm run build` in `frontend`).
+- [ ] The code strictly adheres to the UI/UX pre-delivery checklist (e.g. correct cursor pointers, smooth transitions).
+
+## Follow-up — 2026-07-09T20:19:01+05:30
+
+# Teamwork Project Prompt
+
+Audit the complete AI Assistant UI/UX, including the header, buttons, menus, interactive elements, and icons. Enhance the design to achieve an award-worthy, sleek, and minimal aesthetic (Apple-like, clean typography, subtle shadows) and upgrade the icons to match the new visual standard.
+
+Working directory: /Users/utsavranjan/Projects - Agentic AI/Project - AiOs/aios-web
+Integrity mode: development
+
+## Requirements
+
+### R1. Minimalist Aesthetic Overhaul
+Redesign `GlobalAssistant.tsx` and related components to have a sleek, minimal aesthetic. Focus on clean typography, subtle drop-shadows, and a refined color palette.
+
+### R2. Icon and Element Standardization
+Audit all interactive elements and icons. Replace any inconsistent icons or emojis with a unified set of Lucide React SVG icons. Ensure all hover states provide clear visual feedback without causing layout shifts.
+
+### R3. UI/UX Pro Max Compliance
+Adhere to the `ui-ux-pro-max` guidelines. This includes ensuring smooth transitions (150-300ms), sufficient text contrast (4.5:1 minimum), proper focus states for keyboard navigation, and maintaining full responsiveness.
+
+## Acceptance Criteria
+
+### Build & Integrity
+- [ ] The frontend compiles successfully without errors (`npm run build`).
+
+### Code-Level UI Compliance
+- [ ] No emojis are used as UI icons in the assistant components.
+- [ ] Hover states use color, opacity, or shadow transitions; `transform: scale()` that causes layout shifts is entirely removed.
+- [ ] All interactive elements (buttons, menus) have explicit `cursor: pointer` or `cursor-pointer` classes.
+
+### Subjective Quality (Agent-as-Judge)
+- [ ] An independent auditor agent confirms the design is sleek, minimal, and matches premium SaaS standards with clean typography and subtle shadows.

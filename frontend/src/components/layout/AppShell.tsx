@@ -9,6 +9,7 @@ import { CommandPalette } from '@/components/CommandPalette'
 import { GlobalAddTaskDialog } from '@/components/GlobalAddTaskDialog'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useNotifications } from '@/hooks/useNotifications'
+import { useSubscription } from '@/hooks/useSubscription'
 import { useUIStore } from '@/stores/uiStore'
 import { WelcomeWizard } from '@/components/onboarding/WelcomeWizard'
 import { GlobalAssistant } from '@/components/assistant/GlobalAssistant'
@@ -76,6 +77,7 @@ const SkipLink = styled.a`
 export function AppShell() {
   useKeyboardShortcuts()
   useNotifications()
+  useSubscription() // Warm up/prefetch subscription query cache
   const location = useLocation()
   const { pushRecentPage, sidebarOpen, setSidebarOpen } = useUIStore()
 

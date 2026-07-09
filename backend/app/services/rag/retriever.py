@@ -56,13 +56,13 @@ async def search(
 
     sql = text("""
         SELECT vc.id, vc.content, vc.chunk_index, vf.path, vf.area,
-               1 - (vc.embedding <=> :vec::vector) AS similarity
+               1 - (vc.embedding <=> CAST(:vec AS vector)) AS similarity
         FROM vault_chunks vc
         JOIN vault_files vf ON vf.id = vc.file_id
         WHERE vc.embedding IS NOT NULL
           AND vf.user_id = :uid
-          AND 1 - (vc.embedding <=> :vec::vector) >= :min_sim
-        ORDER BY vc.embedding <=> :vec::vector
+          AND 1 - (vc.embedding <=> CAST(:vec AS vector)) >= :min_sim
+        ORDER BY vc.embedding <=> CAST(:vec AS vector)
         LIMIT :top_k
     """)
 

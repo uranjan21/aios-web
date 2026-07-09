@@ -1,5 +1,89 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
+## 2026-07-09 — teamwork_preview_worker (Replacement)
+- Shipped: Fixed FAB duplicate hover scale transforms, consolidated header action buttons under HeaderActionButton with theme transitions, replaced Tailwind CSS animation classes in AssistantChatInput.tsx with styled keyframes, standardized active scale transforms and focus outline styles for all assistant controls.
+- Blockers: none
+- Next: None (Task fully complete)
+
+## 2026-07-09 — teamwork_preview_challenger (instance 2)
+- Shipped: Verified Milestone 3 of the AI Assistant UI/UX Redesign. Checked visual layout, responsiveness (under 768px), and active-state click transitions. Confirmed mobile sidebars/panels take 100% width and resize handles are locked. Identified duplicate scale transformation jitter bug on the FAB button.
+- Blockers: none
+- Next: Remove CSS scale on FAB hover to rely solely on Framer Motion's smooth transitions.
+
+## 2026-07-09 — teamwork_preview_challenger (instance 1)
+- Shipped: Completed adversarial review and verification of Milestone 3 AI Assistant UI/UX Redesign. Identified duplicate FAB hover scaling with missing CSS transitions, click snapping on `@ledgr/ui`'s `Button` primitives due to omitted transform/shadow transition settings, a `mono` font mapping bug to `"DM Sans"`, and potential FOUC layout shifts from JS-dependent responsive width.
+- Blockers: none
+- Next: Standardize CSS transitions for transform/box-shadow on buttons, remove redundant FAB hover rules, correct the mono font token definition, and add responsive CSS width overrides.
+
+## 2026-07-09 — teamwork_preview_auditor
+- Shipped: Completed forensic integrity audit of Milestone 3 AI Assistant UI/UX Redesign. Verified code structure, real WebSockets/API interactions, and clean build compile. Identified that Tailwind animation classes and multiple hardcoded transitions/radii tokens remain in the code, contrary to worker handoff assertions.
+- Blockers: none
+- Next: Refactor remaining Tailwind animation classes to styled-keyframe components, and replace hardcoded transitions/radii with theme tokens.
+
+## 2026-07-09 — teamwork_preview_reviewer (instance 1)
+- Shipped: Audited Milestone 3 changes. Verified clean build, dead code removal, cursor pointers, and contrast compliance. Identified major design token violations with hardcoded transitions and focus states, and conflicting FAB hover transforms.
+- Blockers: none
+- Next: Worker to fix transitions to use theme.motion, focus states to use theme.shadow.ring, and remove CSS hover scale on FAB.
+
+## 2026-07-09 — teamwork_preview_reviewer
+- Shipped: Verified Milestone 3 changes in GlobalAssistant.tsx and AssistantChatInput.tsx. Compilation succeeded and dead code was verified as removed, but multiple issues were found including remaining Tailwind classes, hardcoded transitions, hardcoded focus box-shadows, duplicate FAB hover scaling, and text contrast issues.
+- Blockers: none
+- Next: Worker to address style and design token violations (Tailwind classes, transitions, focus states, and contrast).
+
+## 2026-07-09 — antigravity (orchestrator)
+- Shipped: Coordinated the implementation of the premium animated loader component and the visual/accessibility overhaul of the AI Assistant. Prefetched query cache in AppShell, updated router transitions, unified icons to Lucide React SVG components, resolved contrast issues, and implemented mobile responsive panels.
+- Blockers: none
+- Next: Complete E2E testing of the integrated loader and assistant elements.
+
+## 2026-07-09 — antigravity
+- Shipped: Stepped in after the teamwork subagent hit quota limits to verify the premium loader component implementation and the AI Assistant UI/UX overhaul. Verified that the frontend builds successfully without TypeScript errors. Generated a final walkthrough artifact detailing the implementation.
+- Blockers: none
+- Next: Explore applying the new loader to internal API data fetching states throughout the various dashboard widgets.
+## 2026-07-09 — teamwork_preview_worker_assistant
+- Shipped: Redesigned GlobalAssistant.tsx and AssistantChatInput.tsx to standardise Apple-like aesthetics, typography, soft layered drop-shadows, and glassmorphic backdrops. Addressed accessibility (contrast/focus-visible), responsiveness (media queries for sidebar/settings panels, disabled resize handle on mobile), fixed layout spacing issues in message actions, added file tooltips, and pruned dead styled-components.
+- Blockers: none
+- Next: Step 9 (QA verification and end-to-end integration testing).
+
+## 2026-07-09 — teamwork_preview_worker_loader
+- Shipped: Implemented the premium animated `Loader` component with 4 variants (dual-ring, pulse-dots, data-stream, glow-pulse) and 5 sizes. Integrated it in the global `router.tsx` to handle page-suspense transitions. Prefetched `useSubscription` in `AppShell.tsx` to warm up cache and prevent double-loading latency.
+- Blockers: none
+- Next: Validate loader animations in the browser and prepare for deployment.
+
+## 2026-07-09 — teamwork_preview_explorer_assistant_ui_ux_1
+- Shipped: Audited GlobalAssistant.tsx and AssistantChatInput.tsx for emoji icons, hover states, layout shifts, cursors, transitions, and @ledgr/ui theme token compliance. Drafted design system guidelines and step-by-step redesign instructions in handoff.md.
+- Blockers: none
+- Next: Worker agent to implement recommendations, replacing Tailwind animations and standardizing styled-components transition and shadow tokens.
+
+## 2026-07-09 — teamwork_preview_explorer_assistant_1
+- Shipped: Audited UI/UX, responsiveness, and accessibility of AI Assistant components (GlobalAssistant.tsx, AssistantChatInput.tsx). Documented hover/focus gaps, text contrast violations, layout issues on mobile viewports, icon inconsistencies, and multiple dead styled-components in analysis.md and handoff.md.
+- Blockers: none
+- Next: Review recommended enhancements and implement changes to GlobalAssistant.tsx and AssistantChatInput.tsx.
+
+## 2026-07-09 — teamwork_preview_explorer_loader_2
+- Shipped: Audited all usage of Skeleton, loaders, spinners, or lazy loading boundaries in the frontend codebase. Compiled a comprehensive report (analysis.md) mapping core primitives, component library spinner primitives, inline callback spinners, layout-aligned skeletons, inline-styled skeletons, and loading UX gaps across pages.
+- Blockers: none
+- Next: Co-design premium loader templates matching `@ledgr/ui` brand standards.
+
+## 2026-07-09 — teamwork_preview_explorer_loader_3
+- Shipped: Audited styled-components theme integration, active light/dark modes, and existing loading surfaces in the frontend. Drafted a premium animated inline `Loader.tsx` component with four custom SVG/CSS transition variants (dual-ring, pulse-dots, data-stream, and glow-pulse) and prepared a patch for global `router.tsx` PageLoader integration.
+- Blockers: none
+- Next: Implement `Loader.tsx` and apply the router page-suspense transitions.
+
+## 2026-07-09 — teamwork_preview_explorer_loader_1
+- Shipped: Audited `frontend/src/router.tsx`, `PageLoader`, `RequireModule`, and page chunk transitions. Documented a critical double-loader flash issue during route-guard loading and proposed an architectural fix (prefetching subscription queries) and a CSS-animated `PremiumLoader` design.
+- Blockers: none
+- Next: Implement `PremiumLoader.tsx`, prefetch in `AppShell.tsx`, and update `router.tsx` to integrate the new premium loader.
+
+## 2026-07-09 — antigravity
+- Shipped: Audited the AI Assistant FE code and fixed critical UX issues (missing click-outside handlers on Session Action Menu and Settings Panel) and removed a broken "Open in new page" Maximize button mapping to an invalid `/chat` route. Verified the frontend compiles successfully and backend chat models are correct.
+- Blockers: none
+- Next: Explore adding a dedicated full-page `/chat` route if requested.
+## 2026-07-09 — antigravity
+- Shipped: Integrated AssistantChatInput into GlobalAssistant with fully custom styling and robust TypeScript parsing. Replaced original textarea logic with advanced model selection, attachments, drag-and-drop, and proper theming.
+- Blockers: none
+- Next: Deploy or test AI agent integration and the new chat interface extensively.
+
+
 > Every AI tool appends an entry here at end of session — contract in `AGENTS.md`.
 ## 2026-07-09 — antigravity
 - Shipped: Implemented Tiered Cognitive Routing. Added `llm_provider`, `openai_chat_model`, and `claude_model` to the `Agent` database model and applied an Alembic migration. Updated backend pipelines (`runners.py`, `insights.py`, `agent.py`) to inject models dynamically based on a hierarchy: Session Overrides > Agent Overrides > Global Fallback. Updated the frontend `AgentsPage.tsx` to include an "AI Configuration" panel for individual agents, and `GlobalAssistant.tsx` to permit hot-swapping providers/models per session via WebSocket payloads in `useChat.ts`.
@@ -129,7 +213,7 @@
 ## 2026-07-08 — teamwork_preview_auditor_openai_migration_2
 - Shipped: Audited OpenAI API migration in backend codebase. Analyzed AsyncOpenAI initialization, stream options delta handling, and token limits. Verified zero residual NVIDIA references. Executed backend pytest suite successfully (142/142 tests passing). Report finalized at handoff.md with a verdict of CLEAN.
 - Blockers: none
-- Next: Handoff to Project Successor Orchestrator.
+- Next: Handoff to Orchestrator.
 
 ## 2026-07-08 — teamwork_preview_worker_openai_migration_8
 - Shipped: Implemented OpenAI API migration: refactored `openai_agent.py` to correctly extract stream options and token usage before choices checks, avoided AttributeError crash on None choice delta, updated `openai_client.py` to prevent caching stale API keys across tests using `@lru_cache` parameterized on api_key, and added a pytest autouse session fixture in `conftest.py` that mocks `get_openai_client` globally to prevent live requests.

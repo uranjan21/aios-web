@@ -62,9 +62,9 @@ const Surface = styled.div<{ $size: DialogSize }>`
   flex-direction: column;
   background: ${({ theme }) => theme.color.card};
   color: ${({ theme }) => theme.color.cardForeground};
-  border-radius: ${({ theme }) => theme.radii.lg};
+  border-radius: 12px;
   border: 1px solid ${({ theme }) => theme.color.border};
-  box-shadow: ${({ theme }) => theme.shadow.xl};
+  box-shadow: none;
   outline: none;
   overflow: hidden;
   animation: ${popIn} ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.enter};
@@ -103,7 +103,7 @@ const HeaderText = styled.div`
 
 const Title = styled.h2`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
   line-height: 1.3;
   color: ${({ theme }) => theme.color.foreground};
@@ -316,8 +316,9 @@ export const DialogFooter = styled.div`
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  padding-top: 16px;
-  margin-top: 8px;
+  gap: 12px;
+  padding: 16px 20px;
+  margin: 20px -20px -20px -20px;
   border-top: 1px solid ${({ theme }) => theme.color.border};
+  background: ${({ theme }) => theme.color.card};
 `;

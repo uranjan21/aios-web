@@ -110,6 +110,8 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
         while True:
             raw = await websocket.receive_text()
             data = json.loads(raw)
+            logger.info(f"WS Payload: {data}")
+
 
             if data.get("type") != "message":
                 continue

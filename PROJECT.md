@@ -14,6 +14,8 @@
 | 2 | Dashboard & Interactive Features | Implementation | R5 (Dashboard layout), R6 (Saved Quotes), R7 (Contextual Quick Capture) | None | DONE | 996a099d-7d40-499e-9d2c-c704dde5a50b |
 | 3 | Phase 1: E2E Test Pass | Implementation | Run and pass 100% of E2E tests (Tiers 1-4) | E2E, 1, 2 | DONE | 996a099d-7d40-499e-9d2c-c704dde5a50b |
 | 4 | Phase 2: Adversarial Hardening | Implementation | Tier 5 white-box coverage and adversarial tests | 3 | PLANNED | TBD |
+| 5 | Premium Animated Loader | Implementation | Implement animated inline loader and integrate in router and lazy loading | None | IN_PROGRESS | 17a4db69-b51d-4f4b-aad8-5232cde37abf |
+| 6 | AI Assistant UI/UX Overhaul | Implementation | Redesign GlobalAssistant.tsx & related components, unify icons, UI/UX Pro Max compliance | None | PLANNED | TBD |
 
 ## Interface Contracts
 ### R6: Saved Quotes Database Table and Endpoints

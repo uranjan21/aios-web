@@ -32,3 +32,35 @@ When asked for color palettes, suggest the following color combinations:
 - **Domain-Scoped Context:** Agents must only receive and fall back to facts relevant to their specific domain. Do not use a global `_week_facts` string for all agents. 
 - **Graceful Fallbacks:** When an LLM fails or skips execution (e.g., due to quota), the fallback response should clearly state that the agent ran in "fallback mode" and only display data relevant to that agent's stated purpose.
 
+## Card UI/UX Standards
+Whenever designing or building a "Card" component (or any primary content container), ALWAYS follow this precise layout and aesthetic:
+
+- **Container & Skeleton**:
+  - Clean background (typically white or the surface theme token).
+  - Subtle 1px solid light gray border (e.g., `theme.colors.border` or similar).
+  - Distinct rounded corners (approx. 8px - 12px border-radius).
+  - Flat, crisp appearance (faint or no drop shadow).
+
+- **Header Section**:
+  - **Left Side**: 
+    - Optional descriptive icon (e.g., a speed dial or category icon).
+    - **Title**: Dark, prominent, semibold/bold text (e.g., 16px-18px).
+    - **Subtext**: Lighter gray, smaller text (e.g., 12px-14px) directly below the title.
+  - **Right Side (Actions & Filters)**:
+    - Positioned parallel to the title.
+    - **Filters/Selects**: Outline style with light gray border, gray text, and rounded corners (e.g., "All Budgets \/").
+    - **Primary Action Button**: Solid, very dark background (almost black/inverse surface), white text, rounded corners, often with an icon (e.g., "+ Add Budget").
+
+- **Internal Data/Table Display**:
+  - Encapsulate internal lists or tables in their own distinct visual grouping.
+  - **Table Headers**: Light gray background with rounded top corners. Columns labeled with uppercase, small, bold, gray text with wide tracking (e.g., "CATEGORY", "LIMIT").
+  - **Rows**: Separated by very subtle, clean horizontal dividers.
+  - **Visual Elements**: Use subtle accents like gray dot/bullet markers for list items and clean horizontal progress bars (light gray tracks) for utilizations/metrics.
+
+- **Footer Section (Optional)**:
+  - Positioned at the bottom, separated by a line or padding.
+  - Left-aligned label (e.g., "Total Monthly Limit") and right-aligned bolded value (e.g., "₹2.78L").
+
+- **Styling Enforcement**:
+  - All styling MUST be implemented using `styled-components` and `@ledgr/ui` theme tokens.
+  - Absolutely NO Tailwind or utility classes.

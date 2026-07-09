@@ -45,6 +45,7 @@ async def stream_openai_chat_response(
     user_message: str,
     history: list[dict],
     override_model: str | None = None,
+    attachments: list[dict] | None = None,
 ) -> AsyncGenerator[dict, None]:
     settings = get_settings()
     openai_model = settings.openai_chat_model
@@ -79,7 +80,25 @@ async def stream_openai_chat_response(
 
     system_prompt = await build_system_prompt(user_message, user_id=user_id)
     client = get_openai_client(api_key=openai_api_key)
-    messages = _trim_history(history) + [{"role": "user", "content": user_message}]
+    
+    user_content_block = []
+    if attachments:
+        for att in attachments:
+            content_type = att.get("contentType", "")
+            if content_type.startswith("image/") and "data" in att:
+                user_content_block.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{content_type};base64,{att['data']}"
+                    }
+                })
+    if user_content_block:
+        user_content_block.append({"type": "text", "text": user_message})
+        final_user_content = user_content_block
+    else:
+        final_user_content = user_message
+
+    messages = _trim_history(history) + [{"role": "user", "content": final_user_content}]
 
     total_input_tokens = 0
     total_output_tokens = 0
