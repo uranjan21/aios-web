@@ -22,7 +22,7 @@ def _validate_email(value: str) -> str:
 from app.core.config import get_settings
 from app.core.deps import get_current_user, get_db
 from app.core.rate_limit import limiter
-from app.core.security import create_access_token, decode_access_token, hash_password, verify_password
+from app.core.security import create_access_token, decode_access_token, hash_password, verify_password, encrypt_token
 from app.models.user import User
 from app.models.oauth_state import OAuthState
 from app.services.integrations.google_oauth import (
@@ -61,6 +61,11 @@ def _user_dict(user: User) -> dict:
         "auth_provider": user.auth_provider,
         "is_admin": bool(user.is_admin),
         "created_at": user.created_at.isoformat() if user.created_at else None,
+        "llm_provider": user.llm_provider,
+        "openai_chat_model": user.openai_chat_model,
+        "claude_model": user.claude_model,
+        "has_openai_key": bool(user.openai_api_key_encrypted),
+        "has_anthropic_key": bool(user.anthropic_api_key_encrypted),
     }
 
 
@@ -230,6 +235,11 @@ _URL_RE = re.compile(r"^https?://[^\s]{1,2048}$")
 class ProfileUpdate(BaseModel):
     name: str | None = Field(default=None, max_length=200)
     picture_url: str | None = None
+    llm_provider: str | None = None
+    openai_chat_model: str | None = None
+    claude_model: str | None = None
+    openai_api_key: str | None = None
+    anthropic_api_key: str | None = None
 
     @field_validator("picture_url")
     @classmethod
@@ -254,6 +264,17 @@ async def update_profile(request: Request, body: ProfileUpdate, current_user=Dep
         user.name = name
     if body.picture_url is not None:
         user.picture_url = body.picture_url
+    if body.llm_provider is not None:
+        user.llm_provider = body.llm_provider if body.llm_provider != "system" else None
+    if body.openai_chat_model is not None:
+        user.openai_chat_model = body.openai_chat_model
+    if body.claude_model is not None:
+        user.claude_model = body.claude_model
+    if body.openai_api_key is not None:
+        user.openai_api_key_encrypted = encrypt_token(body.openai_api_key) if body.openai_api_key else None
+    if body.anthropic_api_key is not None:
+        user.anthropic_api_key_encrypted = encrypt_token(body.anthropic_api_key) if body.anthropic_api_key else None
+        
     user.updated_at = datetime.utcnow()
     db.add(user)
     await db.commit()

@@ -27,6 +27,43 @@ AREA_CONTEXT_MAP = {
     "master": "master.md",
 }
 
+
+def _area_for_vault_log(area: str | None) -> str:
+    if area in AREA_LOG_MAP:
+        return str(area)
+    return "session"
+
+
+async def _sync_vault_path_if_enabled(settings, user_id: UUID, rel_path: str) -> None:
+    if not settings.vault_sync_enabled:
+        return
+    try:
+        from app.services.vault_sync.sync_engine import handle_file_change
+
+        await handle_file_change(user_id, rel_path, "modified")
+    except Exception as e:
+        logger.warning("Vault sync update failed for %s: %s", rel_path, e)
+
+
+async def _append_vault_entry(
+    guard: VaultWriteGuard,
+    settings,
+    user_id: UUID,
+    area: str | None,
+    entry: str,
+    affected: list[str],
+) -> None:
+    path = AREA_LOG_MAP.get(_area_for_vault_log(area))
+    if not path:
+        return
+    try:
+        guard.append_to_log(path, entry)
+        if path not in affected:
+            affected.append(path)
+        await _sync_vault_path_if_enabled(settings, user_id, path)
+    except Exception as e:
+        logger.warning("Vault mirror failed for %s: %s", path, e)
+
 TOOL_DEFINITIONS = [
     {
         "name": "create_action",
@@ -258,6 +295,7 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
             return f"Unknown area: {area}", []
         guard.append_to_log(path, entry)
         affected.append(path)
+        await _sync_vault_path_if_enabled(settings, user_id, path)
         return f"Logged to {path}", affected
 
     elif tool_name == "update_context":
@@ -280,6 +318,7 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
 
         guard.update_context(path, updated)
         affected.append(path)
+        await _sync_vault_path_if_enabled(settings, user_id, path)
         return f"Updated {path}: {list(updates.keys())}", affected
 
     elif tool_name == "search_vault":
@@ -401,7 +440,18 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
             logger.error("Database commit failed for create_action: %s", e)
             return "Error: Database transaction failed. Please try again.", []
 
-        return f"Created task: '{task.title}' (ID: {task.id}) in domain {task.domain}", []
+        await _append_vault_entry(
+            guard,
+            settings,
+            user_id,
+            task.domain,
+            f"Task created: {task.title}"
+            + (f" — {task.description}" if task.description else "")
+            + (f" (status: {task.status}, priority: {task.priority})" if task.status or task.priority else ""),
+            affected,
+        )
+
+        return f"Created task: '{task.title}' (ID: {task.id}) in domain {task.domain}", affected
 
     elif tool_name == "update_goal":
         from app.models.goal import MacroGoal, GoalProgress
@@ -458,7 +508,19 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
                 logger.error("Database commit failed for update_goal: %s", e)
                 return "Error: Failed to update goal in the database.", []
 
-        return msg, []
+        await _append_vault_entry(
+            guard,
+            settings,
+            user_id,
+            goal.category,
+            f"Goal updated: {goal.title}"
+            + (f" — progress {progress_score}%" if progress_score is not None else "")
+            + (f" — status {goal.status}" if goal.status else "")
+            + (f" — {ai_insight}" if ai_insight else ""),
+            affected,
+        )
+
+        return msg, affected
 
     elif tool_name in ("log_transaction", "log_finance_transaction"):
         from app.db.session import AsyncSessionLocal
@@ -566,7 +628,18 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
                 logger.error("Database commit failed for log_transaction: %s", e)
                 return "Error: Failed to log transaction in the database.", []
 
-        return f"Logged finance {tx_type}: {amount} under account '{account.name}'", []
+        await _append_vault_entry(
+            guard,
+            settings,
+            user_id,
+            "finance",
+            f"{tx_type.title()} logged: {amount} INR for {description}"
+            + (f" [{category}]" if category else "")
+            + f" via {account.name}",
+            affected,
+        )
+
+        return f"Logged finance {tx_type}: {amount} under account '{account.name}'", affected
 
     elif tool_name == "log_health_metric":
         from app.db.session import AsyncSessionLocal
@@ -655,7 +728,16 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
                 except Exception as e:
                     logger.error("Database commit failed for workout session: %s", e)
                     return "Error: Failed to save workout session to the database.", []
-                return f"Logged workout session '{session.name}' with {sets_logged} sets.", []
+                await _append_vault_entry(
+                    guard,
+                    settings,
+                    user_id,
+                    "health",
+                    f"Workout logged: {session.name} with {sets_logged} sets"
+                    + (f" — {session.notes}" if session.notes else ""),
+                    affected,
+                )
+                return f"Logged workout session '{session.name}' with {sets_logged} sets.", affected
 
             else:
                 from app.models.health import HealthLog
@@ -693,6 +775,15 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
                 except Exception as e:
                     logger.error("Database commit failed for health log: %s", e)
                     return "Error: Failed to save health metric to the database.", []
-                return f"Logged health metric: {log.entry_type} = {log.value} {log.unit or ''}", []
+                await _append_vault_entry(
+                    guard,
+                    settings,
+                    user_id,
+                    "health",
+                    f"Health metric logged: {log.entry_type} = {log.value or '—'} {log.unit or ''}".strip()
+                    + (f" — {log.notes}" if log.notes else ""),
+                    affected,
+                )
+                return f"Logged health metric: {log.entry_type} = {log.value} {log.unit or ''}", affected
 
     return f"Unknown tool: {tool_name}", []

@@ -55,11 +55,12 @@ async def _refund_daily_reservation(user_id: UUID, day: date, amount: int) -> No
             await db_session.commit()
 
 
+from sqlalchemy.dialects.postgresql import insert
+
 async def reserve_budget(user_id: UUID, session_id: UUID, estimated_input: int = ESTIMATED_TOKENS) -> None:
     """Atomically check + pre-debit budget. Raises if over limit.
-
-    Uses SELECT FOR UPDATE inside a transaction so two concurrent requests
-    cannot both pass the check before either records usage.
+    
+    Uses ON CONFLICT DO UPDATE to avoid race conditions and unique constraint errors.
     """
     settings = get_settings()
     today = date.today()
@@ -67,34 +68,29 @@ async def reserve_budget(user_id: UUID, session_id: UUID, estimated_input: int =
 
     async with AsyncSessionLocal() as db_session:
         async with db_session.begin():
-            result = await db_session.execute(
-                select(DailyTokenUsage)
-                .where(DailyTokenUsage.user_id == user_id)
-                .where(DailyTokenUsage.usage_date == today)
-                .with_for_update()
-            )
-            daily = result.scalar_one_or_none()
-            daily_used = daily.tokens_used if daily else 0
+            stmt = insert(DailyTokenUsage).values(
+                user_id=user_id,
+                usage_date=today,
+                tokens_used=estimated_input,
+                updated_at=now
+            ).on_conflict_do_update(
+                index_elements=['usage_date', 'user_id'],
+                set_=dict(
+                    tokens_used=DailyTokenUsage.tokens_used + estimated_input,
+                    updated_at=now
+                )
+            ).returning(DailyTokenUsage.tokens_used)
+            
+            result = await db_session.execute(stmt)
+            daily_used_after = result.scalar_one()
 
-            if daily_used + estimated_input > settings.claude_daily_token_limit:
+            if daily_used_after > settings.claude_daily_token_limit:
                 reset_in = _seconds_until_midnight()
                 raise TokenBudgetExceeded(
                     f"Daily limit of {settings.claude_daily_token_limit:,} tokens reached. "
                     f"Resets in {reset_in // 3600}h {(reset_in % 3600) // 60}m.",
                     retry_after=reset_in,
                 )
-
-            if daily:
-                daily.tokens_used = daily_used + estimated_input
-                daily.updated_at = now
-                db_session.add(daily)
-            else:
-                db_session.add(DailyTokenUsage(
-                    user_id=user_id,
-                    usage_date=today,
-                    tokens_used=estimated_input,
-                    updated_at=now,
-                ))
 
     session_used = await get_session_tokens_used(user_id, session_id)
     if session_used + estimated_input > settings.claude_session_token_limit:

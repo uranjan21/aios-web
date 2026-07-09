@@ -54,7 +54,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 const SECTION_META: Record<string, { icon: React.ReactNode; subtitle: string }> = {
   Appearance: { icon: <Palette size={16} />, subtitle: 'Theme, density, and visual preferences' },
   'System Status': { icon: <Activity size={16} />, subtitle: 'Live state of backend, sync, and integrations' },
-  'AI Usage': { icon: <Sparkles size={16} />, subtitle: 'Token spend and model usage this period' },
+  'AI Usage': { icon: <Sparkles size={16} />, subtitle: 'AI budget status and reset window' },
   'Keyboard Shortcuts': { icon: <Keyboard size={16} />, subtitle: 'Quick reference for in-app shortcuts' },
   Billing: { icon: <CreditCard size={16} />, subtitle: 'Manage subscription and billing' },
   Profile: { icon: <User size={16} />, subtitle: 'Your name and avatar' },
@@ -317,7 +317,7 @@ function TokenGauge() {
   return (
     <GaugeWrap>
       <GaugeMeta>
-        <span style={{ color: theme.color.foreground }}>Claude Token Budget</span>
+        <span style={{ color: theme.color.foreground }}>Chat token budget</span>
         <span style={{ fontSize: 12, fontWeight: 500, fontVariantNumeric: 'tabular-nums', color: metaColor ?? theme.color.mutedForeground }}>
           {data.used_today.toLocaleString()} / {data.daily_limit.toLocaleString()}
         </span>
@@ -539,9 +539,6 @@ function SystemStatusSection() {
       <Row label="Backend"><BackendStatus /></Row>
       <VaultSyncRow />
       <PushNotificationsRow />
-      <Row label="Rate limits">
-        <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Chat 20/min · Agents 5/min · Auth 10/min</span>
-      </Row>
     </Section>
   )
 }
@@ -569,8 +566,6 @@ function AiUsageSection() {
       }
     >
       <TokenGauge />
-      <Row label="Model"><span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>claude-sonnet-4-5</span></Row>
-      <Row label="Session limit"><span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>50,000 tokens</span></Row>
     </Section>
   )
 }
@@ -1121,6 +1116,17 @@ function KnowledgeSection() {
     onError: (err: any) => toast.error(err?.response?.data?.detail || 'Could not start sync'),
   })
 
+  const unlinkMutation = useMutation({
+    mutationFn: knowledgeApi.remove,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['knowledge', 'source'] })
+      setPath('')
+      setIntervalMin('30')
+      toast.success('Knowledge source unlinked')
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.detail || 'Could not unlink knowledge source'),
+  })
+
   if (!src) return null
 
   const sourceOptions = [
@@ -1209,6 +1215,23 @@ function KnowledgeSection() {
               />
             </RowRoot>
           )}
+          {src.configured && (
+            <RowRoot style={{ padding: 0 }}>
+              <div>
+                <RowLabel>Connection</RowLabel>
+                <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>
+                  {src.source_type === 'obsidian' ? src.config?.path : 'Notion workspace'}
+                </div>
+              </div>
+              <span style={{ fontSize: 12, color: src.last_status === 'error' ? 'var(--destructive)' : 'var(--muted-foreground)' }}>
+                {src.last_status === 'error'
+                  ? src.last_error || 'Sync failed'
+                  : src.last_synced_at
+                    ? `Last synced ${new Date(src.last_synced_at + 'Z').toLocaleString()}`
+                    : 'Not synced yet'}
+              </span>
+            </RowRoot>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <Button size="sm" onClick={save} disabled={saveMutation.isPending || (sourceType === 'obsidian' && !path.trim())}>
               <Save size={14} style={{ marginRight: 4 }} />
@@ -1221,16 +1244,160 @@ function KnowledgeSection() {
               </Button>
             )}
             {src.configured && (
-              <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>
-                {src.last_synced_at
-                  ? `Last synced ${new Date(src.last_synced_at + 'Z').toLocaleString()}`
-                  : 'Not synced yet'}
-                {src.last_status === 'error' && ' · '}
-                {src.last_status === 'error' && (
-                  <span style={{ color: 'var(--destructive)' }}>{src.last_error || 'sync failed'}</span>
-                )}
-              </span>
+              <Button size="sm" variant="ghost" onClick={() => unlinkMutation.mutate()} disabled={unlinkMutation.isPending}>
+                <Trash2 size={14} style={{ marginRight: 4 }} />
+                {unlinkMutation.isPending ? 'Unlinking…' : 'Unlink'}
+              </Button>
             )}
+          </div>
+        </div>
+      </div>
+    </Section>
+  )
+}
+
+// ── AI Configuration ────────────────────────────────────────────────────────────
+
+function AiConfigSection() {
+  const { user, setUser } = useAuthStore()
+  const [provider, setProvider] = useState(user?.llm_provider || 'system')
+  const [openaiModel, setOpenaiModel] = useState(user?.openai_chat_model || '')
+  const [claudeModel, setClaudeModel] = useState(user?.claude_model || '')
+  const [openaiKey, setOpenaiKey] = useState('')
+  const [anthropicKey, setAnthropicKey] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const save = async () => {
+    setBusy(true)
+    try {
+      const payload: any = {
+        llm_provider: provider
+      }
+      if (openaiModel) payload.openai_chat_model = openaiModel
+      if (claudeModel) payload.claude_model = claudeModel
+      if (openaiKey) payload.openai_api_key = openaiKey
+      if (anthropicKey) payload.anthropic_api_key = anthropicKey
+      
+      const { data } = await api.patch('/auth/profile', payload)
+      setUser(data)
+      setOpenaiKey('')
+      setAnthropicKey('')
+      toast.success('AI configuration updated')
+    } catch {
+      toast.error('Failed to update AI configuration')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const isDirty = provider !== (user?.llm_provider || 'system') ||
+    openaiModel !== (user?.openai_chat_model || '') ||
+    claudeModel !== (user?.claude_model || '') ||
+    openaiKey.length > 0 ||
+    anthropicKey.length > 0
+
+  return (
+    <Section title="AI Configuration">
+      <div style={{ padding: '0 20px 20px' }}>
+        <p style={{ fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 20 }}>
+          Override the system default LLM provider and models. Bring your own API keys to bypass usage limits.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <RowRoot style={{ padding: 0 }}>
+            <div>
+              <RowLabel>LLM Provider</RowLabel>
+              <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Choose your preferred AI</div>
+            </div>
+            <Select
+              size="sm"
+              fullWidth={false}
+              options={[
+                { label: 'System Default', value: 'system' },
+                { label: 'OpenAI', value: 'openai' },
+                { label: 'Anthropic Claude', value: 'anthropic' },
+              ]}
+              value={provider}
+              onChange={(val) => setProvider(val as string)}
+            />
+          </RowRoot>
+
+          <RowRoot style={{ padding: 0 }}>
+            <div>
+              <RowLabel>OpenAI Chat Model</RowLabel>
+              <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Default: gpt-4o</div>
+            </div>
+            <Select
+              size="sm"
+              fullWidth={false}
+              options={[
+                { label: 'System Default', value: '' },
+                { label: 'GPT-4o', value: 'gpt-4o' },
+                { label: 'GPT-4o Mini', value: 'gpt-4o-mini' },
+                { label: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
+                { label: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
+              ]}
+              value={openaiModel || ''}
+              onChange={(val) => setOpenaiModel(val as string)}
+            />
+          </RowRoot>
+
+          <RowRoot style={{ padding: 0 }}>
+            <div>
+              <RowLabel>OpenAI API Key</RowLabel>
+              <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>
+                {user?.has_openai_key ? 'Custom key configured' : 'Using system key'}
+              </div>
+            </div>
+            <Input
+              size="sm"
+              type="password"
+              value={openaiKey}
+              onChange={e => setOpenaiKey(e.target.value)}
+              placeholder={user?.has_openai_key ? 'Enter new key to replace' : 'sk-...'}
+            />
+          </RowRoot>
+
+          <RowRoot style={{ padding: 0 }}>
+            <div>
+              <RowLabel>Claude Model</RowLabel>
+              <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Default: claude-3-5-sonnet-20240620</div>
+            </div>
+            <Select
+              size="sm"
+              fullWidth={false}
+              options={[
+                { label: 'System Default', value: '' },
+                { label: 'Claude 3.5 Sonnet', value: 'claude-3-5-sonnet-20240620' },
+                { label: 'Claude 3.5 Haiku', value: 'claude-3-5-haiku-20241022' },
+                { label: 'Claude 3 Opus', value: 'claude-3-opus-20240229' },
+                { label: 'Claude 3 Sonnet', value: 'claude-3-sonnet-20240229' },
+                { label: 'Claude 3 Haiku', value: 'claude-3-haiku-20240307' },
+              ]}
+              value={claudeModel || ''}
+              onChange={(val) => setClaudeModel(val as string)}
+            />
+          </RowRoot>
+
+          <RowRoot style={{ padding: 0 }}>
+            <div>
+              <RowLabel>Anthropic API Key</RowLabel>
+              <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>
+                {user?.has_anthropic_key ? 'Custom key configured' : 'Using system key'}
+              </div>
+            </div>
+            <Input
+              size="sm"
+              type="password"
+              value={anthropicKey}
+              onChange={e => setAnthropicKey(e.target.value)}
+              placeholder={user?.has_anthropic_key ? 'Enter new key to replace' : 'sk-ant-...'}
+            />
+          </RowRoot>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+            <Button size="sm" variant="primary" disabled={!isDirty || busy} onClick={save}>
+              <Save size={12} style={{ marginRight: 4 }} /> Save
+            </Button>
           </div>
         </div>
       </div>
@@ -1262,6 +1429,7 @@ export function SettingsPage() {
         { key: 'appearance', label: 'Appearance', icon: <Palette size={15} />, content: <AppearanceSection /> },
         { key: 'briefing', label: 'Briefing', icon: <Sunrise size={15} />, content: <BriefingSection /> },
         { key: 'knowledge', label: 'Knowledge Base', icon: <BookOpen size={15} />, content: <KnowledgeSection /> },
+        { key: 'ai-config', label: 'AI Config', icon: <Sparkles size={15} />, content: <AiConfigSection /> },
         { key: 'automations', label: 'Automations', icon: <Zap size={15} />, content: <AutomationsSection /> },
         { key: 'shortcuts', label: 'Shortcuts', icon: <Keyboard size={15} />, content: <ShortcutsSection /> },
       ],

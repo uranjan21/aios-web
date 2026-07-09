@@ -44,17 +44,41 @@ async def stream_openai_chat_response(
     session_id: UUID,
     user_message: str,
     history: list[dict],
+    override_model: str | None = None,
 ) -> AsyncGenerator[dict, None]:
     settings = get_settings()
+    openai_model = settings.openai_chat_model
+    openai_api_key = settings.openai_api_key
 
-    try:
-        await reserve_budget(user_id, session_id, estimated_input=ESTIMATED_TOKENS)
-    except Exception as e:
-        yield {"type": "error", "code": "token_budget_exceeded", "message": str(e)}
-        return
+    from app.db.session import AsyncSessionLocal
+    from sqlmodel import select
+    from app.models.user import User
+    from app.core.security import decrypt_token
+    
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if user:
+            if user.openai_chat_model:
+                openai_model = user.openai_chat_model
+            if user.openai_api_key_encrypted:
+                openai_api_key = decrypt_token(user.openai_api_key_encrypted)
+
+    if override_model:
+        openai_model = override_model
+
+    uses_custom_key = bool(user and user.openai_api_key_encrypted)
+
+    if not uses_custom_key:
+        try:
+            await reserve_budget(user_id, session_id, estimated_input=ESTIMATED_TOKENS)
+        except Exception as e:
+            # Note: if user uses their own key, they probably shouldn't hit the limit. We can handle bypass later.
+            yield {"type": "error", "code": "token_budget_exceeded", "message": str(e)}
+            return
 
     system_prompt = await build_system_prompt(user_message, user_id=user_id)
-    client = get_openai_client()
+    client = get_openai_client(api_key=openai_api_key)
     messages = _trim_history(history) + [{"role": "user", "content": user_message}]
 
     total_input_tokens = 0
@@ -71,7 +95,7 @@ async def stream_openai_chat_response(
             for attempt in range(3):
                 try:
                     stream = await client.chat.completions.create(
-                        model=settings.openai_chat_model,
+                        model=openai_model,
                         max_tokens=4096,
                         messages=[{"role": "system", "content": system_prompt}, *messages],
                         tools=_openai_tools(),
@@ -203,7 +227,7 @@ async def stream_openai_chat_response(
         }
 
     finally:
-        if total_input_tokens + total_output_tokens > 0:
+        if not uses_custom_key and total_input_tokens + total_output_tokens > 0:
             try:
                 await record_usage(
                     user_id,

@@ -10,7 +10,8 @@ export function useAgentFilters() {
   const domain = searchParams.get("domain") || "all";
   const schedule = searchParams.get("schedule") || "all";
   const status = searchParams.get("status") || "all";
-  const sort = searchParams.get("sort") || "name";
+  const sort = searchParams.get("sort") || "schedule";
+  const view = (searchParams.get("view") as "list" | "grid") || "list";
 
   const setFilter = (key: string, value: string) => {
     setSearchParams((prev) => {
@@ -34,6 +35,7 @@ export function useAgentFilters() {
     schedule,
     status,
     sort,
+    view,
     setFilter,
     clearFilters,
   };

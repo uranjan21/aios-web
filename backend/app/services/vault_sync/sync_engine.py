@@ -3,6 +3,7 @@ import asyncio
 import hashlib
 import logging
 import uuid
+import difflib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Awaitable, Set
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 # Broadcast callbacks registered by WebSocket handler
 _sync_subscribers: Set[Callable[[dict], Awaitable[None]]] = set()
+_bg_tasks: set[asyncio.Task] = set()
 
 
 def register_sync_subscriber(cb: Callable[[dict], Awaitable[None]]) -> None:
@@ -44,6 +46,14 @@ def _checksum(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
+def _get_added_lines(old_text: str, new_text: str) -> str:
+    old_lines = old_text.splitlines(keepends=True)
+    new_lines = new_text.splitlines(keepends=True)
+    diff = difflib.ndiff(old_lines, new_lines)
+    added = [line[2:] for line in diff if line.startswith("+ ")]
+    return "".join(added)
+
+
 async def _read_with_retry(abs_path: Path, retries: int = 3, delay: float = 1.0) -> str | None:
     for attempt in range(retries):
         try:
@@ -59,6 +69,7 @@ async def handle_file_change(
 ) -> None:
     settings = get_settings()
     vault_root = root if root is not None else Path(settings.vault_path)
+    rel_path = rel_path.lstrip("/")
     abs_path = vault_root / rel_path
 
     if change_type == "deleted":
@@ -113,7 +124,9 @@ async def handle_file_change(
         await session.commit()
 
     # Embed for RAG (non-blocking)
-    asyncio.create_task(embed_vault_file(user_id, rel_path, content))
+    task = asyncio.create_task(embed_vault_file(user_id, rel_path, content))
+    _bg_tasks.add(task)
+    task.add_done_callback(_bg_tasks.discard)
 
     await _broadcast({"type": "vault_updated", "path": rel_path, "area": area, "user_id": str(user_id)})
     logger.info("Synced vault file: %s (%s)", rel_path, change_type)
@@ -162,7 +175,9 @@ async def upsert_external_doc(
             ))
         await session.commit()
 
-    asyncio.create_task(embed_vault_file(user_id, rel_path, content))
+    task = asyncio.create_task(embed_vault_file(user_id, rel_path, content))
+    _bg_tasks.add(task)
+    task.add_done_callback(_bg_tasks.discard)
     await _broadcast({"type": "vault_updated", "path": rel_path, "area": area, "user_id": str(user_id)})
     return True
 

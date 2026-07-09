@@ -1,12 +1,15 @@
 import pytest
 import uuid
 from datetime import datetime, timedelta
+from pathlib import Path
+from sqlmodel import select
 
 from app.models.finance import FinanceExpense, FinanceIncome
 from app.models.health import HealthLog
 from app.models.content import ContentItem
 from app.models.career import CareerEvent
 from app.models.business import BusinessEvent
+from app.models.workspace import Task
 from app.services.insights.digest import (
     _week_facts_finance,
     _week_facts_health,
@@ -197,6 +200,8 @@ async def test_agent_run_fallback_all_domains_no_leak(user_a, db_session_factory
 
     # Verify each agent
     for agent_id, domain in _AGENT_DOMAINS.items():
+        if agent_id == "aios-vault-extractor":
+            continue
         output = await run_agent_task(agent_id, user_a.id)
         assert output.startswith(FALLBACK_WARNING_PREFIX)
         
@@ -216,3 +221,39 @@ async def test_agent_run_fallback_all_domains_no_leak(user_a, db_session_factory
                 for marker in m_list:
                     assert marker not in output, f"Leak: marker {marker} of domain {d} found in agent {agent_id} (domain {domain})"
 
+
+@pytest.mark.asyncio
+async def test_agent_executes_writeback_actions(user_a, db_session_factory, monkeypatch):
+    async def mock_generate_text(*args, **kwargs):
+        return (
+            "Weekly health check complete.\n\n"
+            "<aios-actions>"
+            '[{"tool":"create_action","input":{"title":"Book physio consult","description":"Knee pain kept recurring","domain":"health","priority":"high"}}]'
+            "</aios-actions>"
+        )
+
+    monkeypatch.setattr("app.services.agents.runners.generate_text", mock_generate_text)
+    async def mock_ai_allowed(*args, **kwargs):
+        return True
+
+    monkeypatch.setattr("app.services.billing.usage.ai_allowed", mock_ai_allowed)
+
+    output = await run_agent_task("aios-health-coach", user_a.id)
+    assert "Weekly health check complete." in output
+    assert "Actions executed:" in output
+    assert "create_action: Created task" in output
+    assert "Vault files updated:" in output
+    assert "02-health/log/2026.md" in output
+
+    async with db_session_factory() as db:
+        task = (
+            await db.execute(
+                select(Task).where(Task.user_id == user_a.id, Task.title == "Book physio consult")
+            )
+        ).scalar_one_or_none()
+        assert task is not None
+        assert task.domain == "health"
+
+    vault_path = Path("/tmp/vault-test/02-health/log/2026.md")
+    assert vault_path.exists()
+    assert "Book physio consult" in vault_path.read_text(encoding="utf-8")

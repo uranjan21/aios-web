@@ -23,7 +23,11 @@ _encoder = tiktoken.get_encoding("cl100k_base")
 _openai_client = None
 
 
-def _get_openai_client():
+def _get_openai_client(api_key: str | None = None):
+    # We create a new client if api_key is provided to avoid caching the user's key globally
+    if api_key:
+        return AsyncOpenAI(api_key=api_key)
+    
     global _openai_client
     settings = get_settings()
     if _openai_client is None:

@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 from uuid import UUID, uuid4
 from decimal import Decimal
 from sqlmodel import select
@@ -8,6 +9,7 @@ from app.models.workspace import Task
 from app.models.goal import MacroGoal, GoalProgress
 from app.models.finance import Account, FinanceExpense, FinanceIncome, AccountType
 from app.models.health import WorkoutSession, WorkoutSet, HealthLog
+from app.models.vault import VaultFile
 
 @pytest.mark.asyncio
 async def test_create_action_tool(app, user_a, db_session_factory):
@@ -36,6 +38,21 @@ async def test_create_action_tool(app, user_a, db_session_factory):
         assert task.priority == tool_input["priority"]
         assert str(task.due_date) == tool_input["due_date"]
         assert task.labels == tool_input["labels"]
+
+        vault_row = (
+            await db.execute(
+                select(VaultFile).where(
+                    VaultFile.user_id == user_a.id,
+                    VaultFile.path == "03-career/log/2026.md",
+                )
+            )
+        ).scalar_one_or_none()
+        assert vault_row is not None
+        assert "Build write capabilities for AI OS" in vault_row.content
+
+    vault_path = Path("/tmp/vault-test/03-career/log/2026.md")
+    assert vault_path.exists()
+    assert "Build write capabilities for AI OS" in vault_path.read_text(encoding="utf-8")
 
 @pytest.mark.asyncio
 async def test_create_action_tool_fallback(app, user_a, db_session_factory):

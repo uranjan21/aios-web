@@ -356,6 +356,17 @@ const MenuProfileInfo = styled.div`
   }
 `
 
+const UserMenuContent = styled.div`
+  width: 208px;
+  padding: 8px;
+`
+
+const UserMenuItemContent = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+`
+
 const DropdownIconWrapper = styled.div`
   display: flex;
   align-items: center;
@@ -374,7 +385,6 @@ const NAV_GROUPS = [
     category: 'Main',
     items: [
       { to: '/app', icon: LayoutDashboard, label: 'Dashboard' },
-      { to: '/app/chat', icon: MessageSquare, label: 'Chat' },
       { to: '/app/agents', icon: Bot, label: 'Agents' },
       { to: '/app/review', icon: CalendarCheck, label: 'Review' },
     ]
@@ -453,7 +463,7 @@ export function Sidebar() {
 
       <div style={{ padding: '0 0 8px 0', borderTop: '1px solid var(--ui-border)' }}>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger>
             <UserBlock $collapsed={collapsed} aria-label={`User menu: ${user?.name || 'User'}`}>
               {user?.picture_url ? (
                 <img src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
@@ -471,28 +481,34 @@ export function Sidebar() {
               )}
             </UserBlock>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="top" align={collapsed ? 'start' : 'center'} style={{ width: collapsed ? '220px' : '208px', padding: '8px' }}>
-            <DropdownMenuLabel style={{ padding: 0, marginBottom: '4px' }}>
-              <MenuProfileCard>
-                {user?.picture_url ? (
-                  <img src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                ) : (
-                  <Avatar style={{ width: 36, height: 36, fontSize: '14px' }}>{(user?.name || 'U')[0].toUpperCase()}</Avatar>
-                )}
-                <MenuProfileInfo>
-                  <span className="menu-name">{user?.name || 'Account'}</span>
-                  <span className="menu-email">{user?.email || 'user@example.com'}</span>
-                </MenuProfileInfo>
-              </MenuProfileCard>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => navigate('/app/settings')} style={{ padding: '10px 12px', gap: '10px', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', borderRadius: '6px' }}>
-              <Settings size={16} /> Profile &amp; settings
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem destructive onSelect={() => logoutAndRedirect(navigate)} style={{ padding: '10px 12px', gap: '10px', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', borderRadius: '6px' }}>
-              <LogOut size={16} /> Log out
-            </DropdownMenuItem>
+          <DropdownMenuContent side="top" align={collapsed ? 'start' : 'center'}>
+            <UserMenuContent style={{ width: collapsed ? '220px' : '208px' }}>
+              <DropdownMenuLabel style={{ padding: 0, marginBottom: '4px' }}>
+                <MenuProfileCard>
+                  {user?.picture_url ? (
+                    <img src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                  ) : (
+                    <Avatar style={{ width: 36, height: 36, fontSize: '14px' }}>{(user?.name || 'U')[0].toUpperCase()}</Avatar>
+                  )}
+                  <MenuProfileInfo>
+                    <span className="menu-name">{user?.name || 'Account'}</span>
+                    <span className="menu-email">{user?.email || 'user@example.com'}</span>
+                  </MenuProfileInfo>
+                </MenuProfileCard>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => navigate('/app/settings')}>
+                <UserMenuItemContent>
+                  <Settings size={16} /> Profile &amp; settings
+                </UserMenuItemContent>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem destructive onSelect={() => logoutAndRedirect(navigate)}>
+                <UserMenuItemContent>
+                  <LogOut size={16} /> Log out
+                </UserMenuItemContent>
+              </DropdownMenuItem>
+            </UserMenuContent>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

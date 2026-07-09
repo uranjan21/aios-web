@@ -1,9 +1,17 @@
-import { Input } from "@ledgr/ui";
-import { AreaToolbar, ToolbarTitle } from "@/components/ui/AreaToolbar";
-import { Search, Filter, PlayCircle, Clock, AlertCircle } from "lucide-react";
+import { AreaToolbar } from "@/components/ui/AreaToolbar";
+import { Search, LayoutGrid, List } from "lucide-react";
+import { Button } from "@ledgr/ui";
 import { useAgentFilters } from "../hooks/useAgentFilters";
 import styled from "styled-components";
 import { DOMAIN_OPTIONS } from "../constants/domains";
+
+const FiltersRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
 
 const FilterGroup = styled.div`
   display: flex;
@@ -14,7 +22,7 @@ const FilterGroup = styled.div`
 const FilterSelect = styled.select`
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 6px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   color: ${({ theme }) => theme.color.foreground};
   font-size: 13px;
   padding: 6px 30px 6px 12px;
@@ -30,14 +38,16 @@ const FilterSelect = styled.select`
   }
   
   &:focus {
-    outline: none;
+    outline: 2px solid ${({ theme }) => theme.color.ring};
+    outline-offset: 2px;
     border-color: ${({ theme }) => theme.color.primary};
   }
 `;
 
 const SearchContainer = styled.div`
   position: relative;
-  width: 200px;
+  width: min(320px, 52vw);
+  flex-shrink: 0;
   
   svg {
     position: absolute;
@@ -52,23 +62,25 @@ const SearchContainer = styled.div`
     padding: 6px 12px 6px 32px;
     background: ${({ theme }) => theme.color.card};
     border: 1px solid ${({ theme }) => theme.color.border};
-    border-radius: 6px;
+    border-radius: ${({ theme }) => theme.radii.sm};
     color: ${({ theme }) => theme.color.foreground};
     font-size: 13px;
     
     &:focus {
-      outline: none;
+      outline: 2px solid ${({ theme }) => theme.color.ring};
+      outline-offset: 2px;
       border-color: ${({ theme }) => theme.color.primary};
     }
   }
 `;
 
 export function AgentsToolbar() {
-  const { search, domain, schedule, status, setFilter } = useAgentFilters();
+  const { search, domain, schedule, status, sort, view, setFilter } = useAgentFilters();
 
   return (
-    <AreaToolbar>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+    <AreaToolbar
+      divider={false}
+      left={
         <SearchContainer>
           <Search size={14} />
           <input 
@@ -77,7 +89,9 @@ export function AgentsToolbar() {
             onChange={(e) => setFilter("search", e.target.value)}
           />
         </SearchContainer>
-        
+      }
+    >
+      <FiltersRow>
         <FilterGroup>
           <FilterSelect value={domain} onChange={(e) => setFilter("domain", e.target.value)}>
             {DOMAIN_OPTIONS.map(d => (
@@ -104,7 +118,45 @@ export function AgentsToolbar() {
             <option value="idle">Idle</option>
           </FilterSelect>
         </FilterGroup>
-      </div>
+
+        <FilterGroup>
+          <FilterSelect value={sort} onChange={(e) => setFilter("sort", e.target.value)}>
+            <option value="name">Sort by: Name</option>
+            <option value="time">Sort by: Time of day</option>
+            <option value="schedule">Sort by: Next run</option>
+            <option value="last_run">Sort by: Last run</option>
+          </FilterSelect>
+        </FilterGroup>
+
+        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--card)', borderRadius: '6px', padding: '2px', border: '1px solid var(--border)' }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setFilter("view", "list")}
+            style={{ 
+              height: '24px', 
+              padding: '0 8px', 
+              background: view === "list" ? 'var(--muted)' : 'transparent',
+              color: view === "list" ? 'var(--foreground)' : 'var(--muted-foreground)'
+            }}
+          >
+            <List size={14} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setFilter("view", "grid")}
+            style={{ 
+              height: '24px', 
+              padding: '0 8px', 
+              background: view === "grid" ? 'var(--muted)' : 'transparent',
+              color: view === "grid" ? 'var(--foreground)' : 'var(--muted-foreground)'
+            }}
+          >
+            <LayoutGrid size={14} />
+          </Button>
+        </div>
+      </FiltersRow>
     </AreaToolbar>
   );
 }

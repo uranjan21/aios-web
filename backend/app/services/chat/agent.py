@@ -44,31 +44,104 @@ def _trim_history(history: list[dict]) -> list[dict]:
     return trimmed
 
 
+def check_prompt_injection(text: str) -> bool:
+    lower_text = text.lower()
+    dangerous_phrases = [
+        "ignore previous instructions",
+        "ignore all previous instructions",
+        "system prompt",
+        "you are a new ai",
+        "disregard previous",
+        "forget all instructions",
+        "new instructions",
+    ]
+    for phrase in dangerous_phrases:
+        if phrase in lower_text:
+            return True
+    return False
+
+
 async def stream_chat_response(
     user_id: UUID,
     session_id: UUID,
     user_message: str,
     history: list[dict],
+    model: str | None = None,
+    provider: str | None = None,
+    attachments: list[dict] | None = None,
 ) -> AsyncGenerator[dict, None]:
-    settings = get_settings()
+    if check_prompt_injection(user_message):
+        yield {"type": "error", "code": "prompt_injection", "message": "Message blocked by security policy."}
+        return
 
-    if settings.llm_provider == "openai":
+    settings = get_settings()
+    effective_provider = provider or settings.llm_provider
+    anthropic_api_key = settings.anthropic_api_key
+    claude_model = model or settings.claude_model
+    openai_api_key = settings.openai_api_key
+
+    from app.db.session import AsyncSessionLocal
+    from sqlmodel import select
+    from app.models.user import User
+    from app.core.security import decrypt_token
+    
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if user:
+            if user.llm_provider and not provider:
+                effective_provider = user.llm_provider
+            if user.claude_model and not model:
+                claude_model = user.claude_model
+            if user.anthropic_api_key_encrypted:
+                anthropic_api_key = decrypt_token(user.anthropic_api_key_encrypted)
+            if user.openai_api_key_encrypted:
+                openai_api_key = decrypt_token(user.openai_api_key_encrypted)
+
+    if effective_provider == "openai" and not openai_api_key and anthropic_api_key:
+        effective_provider = "anthropic"
+
+    if effective_provider == "openai":
         from app.services.chat.openai_agent import stream_openai_chat_response
 
+        # Pass attachments to OpenAI if the function supports it (or handle it inside OpenAI)
         async for event in stream_openai_chat_response(user_id, session_id, user_message, history):
             yield event
         return
 
-    try:
-        await reserve_budget(user_id, session_id, estimated_input=ESTIMATED_TOKENS)
-    except Exception as e:
-        yield {"type": "error", "code": "token_budget_exceeded", "message": str(e)}
-        return
+    uses_custom_key = (effective_provider == "anthropic" and user and user.anthropic_api_key_encrypted) or \
+                      (effective_provider == "openai" and user and user.openai_api_key_encrypted)
+
+    if not uses_custom_key:
+        try:
+            await reserve_budget(user_id, session_id, estimated_input=ESTIMATED_TOKENS)
+        except Exception as e:
+            yield {"type": "error", "code": "token_budget_exceeded", "message": str(e)}
+            return
 
     system_prompt = await build_system_prompt(user_message, user_id=user_id)
 
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-    messages = _trim_history(history) + [{"role": "user", "content": user_message}]
+    client = anthropic.AsyncAnthropic(api_key=anthropic_api_key)
+    
+    user_content_block = []
+    if attachments:
+        for att in attachments:
+            if att.get("type") == "image" and "data" in att and "media_type" in att:
+                user_content_block.append({
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": att["media_type"],
+                        "data": att["data"]
+                    }
+                })
+    if user_content_block:
+        user_content_block.append({"type": "text", "text": user_message})
+        final_user_content = user_content_block
+    else:
+        final_user_content = user_message
+
+    messages = _trim_history(history) + [{"role": "user", "content": final_user_content}]
 
     total_input_tokens = 0
     total_output_tokens = 0
@@ -81,7 +154,7 @@ async def stream_chat_response(
             for attempt in range(3):
                 try:
                     async with client.messages.stream(
-                        model=settings.claude_model,
+                        model=claude_model,
                         max_tokens=4096,
                         system=system_prompt,
                         tools=TOOL_DEFINITIONS,
@@ -188,8 +261,8 @@ async def stream_chat_response(
         }
 
     finally:
-        # Always record usage — even if stream is abandoned mid-response
-        if total_input_tokens + total_output_tokens > 0:
+        # Always record usage — even if stream is abandoned mid-response, unless using custom key
+        if not uses_custom_key and total_input_tokens + total_output_tokens > 0:
             try:
                 await record_usage(
                     user_id,

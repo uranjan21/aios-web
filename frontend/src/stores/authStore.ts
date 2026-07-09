@@ -8,6 +8,11 @@ export interface UserProfile {
   picture_url: string | null
   auth_provider: string
   is_admin?: boolean
+  llm_provider?: string | null
+  openai_chat_model?: string | null
+  claude_model?: string | null
+  has_openai_key?: boolean
+  has_anthropic_key?: boolean
 }
 
 interface AuthState {

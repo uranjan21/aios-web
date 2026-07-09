@@ -21,24 +21,20 @@ logger = logging.getLogger(__name__)
 _agent_subscribers: Set = set()
 
 DEFAULT_AGENTS = [
-    {"task_id": "aios-morning-brief", "name": "Morning Brief", "cron_expression": "0 5 * * *", "description": "Generate daily brief from calendar + context"},
-    {"task_id": "aios-news-radar", "name": "News Radar", "cron_expression": "0 8 * * *", "description": "Scan and summarize relevant tech news"},
-    {"task_id": "aios-weekly-calendar", "name": "Weekly Calendar", "cron_expression": "0 7 * * 1", "description": "Generate LinkedIn calendar content"},
-    {"task_id": "aios-career-checkpoint", "name": "Career Checkpoint", "cron_expression": "0 19 * * 5", "description": "Weekly career review and update"},
+    {"task_id": "aios-morning-brief", "name": "Morning Brief", "cron_expression": "0 6 * * *", "description": "Daily briefing: calendar, priorities, inbox triage, and curated research topics"},
+    {"task_id": "aios-professional-pulse", "name": "Professional Pulse", "cron_expression": "0 7 * * 1", "description": "Weekly career and business review, identifying blockers and highest leverage actions"},
+    {"task_id": "aios-content-strategist", "name": "Content Strategist", "cron_expression": "0 19 * * 0", "description": "Weekly content performance review and 7-day calendar planning"},
     {"task_id": "aios-monthly-finance", "name": "Monthly Finance", "cron_expression": "0 9 1 * *", "description": "Monthly finance snapshot generation"},
-    {"task_id": "aios-evening-review", "name": "Evening Review", "cron_expression": "0 22 * * *", "description": "Daily evening review and planning"},
     {"task_id": "aios-weekly-refresh", "name": "Weekly Refresh", "cron_expression": "0 20 * * 0", "description": "Weekly goals and context refresh"},
-    {"task_id": "aios-content-performance", "name": "Content Performance", "cron_expression": "0 20 * * 5", "description": "Weekly content performance review"},
     {"task_id": "aios-health-coach", "name": "Health Coach", "cron_expression": "0 6 * * 1", "description": "Weekly health check-in from fitness metrics, logs and habits"},
-    {"task_id": "aios-business-pulse", "name": "Business Pulse", "cron_expression": "30 7 * * 1", "description": "Monday business pulse (needs Knowledge/Business facts)"},
-    {"task_id": "aios-inbox-triage", "name": "Inbox Triage", "cron_expression": "30 5 * * *", "description": "Daily Gmail triage — replies needed, actions, FYI (requires Gmail)"},
     {"task_id": "aios-upi-tracker", "name": "UPI Tracker", "cron_expression": "0 6 * * *", "description": "Fetches and categorizes UPI transactions from your emails."},
+    {"task_id": "aios-vault-extractor", "name": "Vault Extractor", "cron_expression": "0 23 * * *", "description": "Daily bulk vault extraction sweep"},
 ]
 
 _ACTIVE_BY_DEFAULT = {
-    "aios-morning-brief", "aios-news-radar",
-    "aios-weekly-calendar", "aios-career-checkpoint", "aios-monthly-finance",
-    "aios-health-coach", "aios-business-pulse",
+    "aios-morning-brief", "aios-professional-pulse",
+    "aios-content-strategist", "aios-monthly-finance",
+    "aios-health-coach", "aios-vault-extractor"
 }
 
 
@@ -77,6 +73,12 @@ async def list_agents(current_user=Depends(get_current_user), db=Depends(get_db)
     return result.scalars().all()
 
 
+@router.post("/seed")
+async def seed_agents(current_user=Depends(get_current_user)):
+    await seed_default_agents_for_user(current_user.id)
+    return {"status": "ok"}
+
+
 @router.get("/{agent_id}")
 async def get_agent(agent_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(select(Agent).where(Agent.task_id == agent_id, Agent.user_id == current_user.id))
@@ -89,6 +91,9 @@ async def get_agent(agent_id: str, current_user=Depends(get_current_user), db=De
 class AgentPatch(BaseModel):
     is_active: bool | None = None
     cron_expression: str | None = None
+    llm_provider: str | None = None
+    openai_chat_model: str | None = None
+    claude_model: str | None = None
 
 
 @router.patch("/{agent_id}")
@@ -101,6 +106,12 @@ async def patch_agent(agent_id: str, body: AgentPatch, current_user=Depends(get_
         agent.is_active = body.is_active
     if body.cron_expression is not None:
         agent.cron_expression = body.cron_expression
+    if body.llm_provider is not None:
+        agent.llm_provider = body.llm_provider
+    if body.openai_chat_model is not None:
+        agent.openai_chat_model = body.openai_chat_model
+    if body.claude_model is not None:
+        agent.claude_model = body.claude_model
     agent.updated_at = datetime.utcnow()
     db.add(agent)
     await db.commit()

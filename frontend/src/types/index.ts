@@ -56,6 +56,9 @@ export interface Agent {
   last_output_path: string | null
   last_output_text: string | null
   run_count: number
+  llm_provider?: string
+  openai_chat_model?: string
+  claude_model?: string
 }
 
 export interface FinanceSnapshot {

@@ -92,7 +92,7 @@ async def generate_briefing(user_id: uuid.UUID) -> bool:
             )
             import json
             try:
-                content_md = await generate_text(system, json.dumps(facts), max_tokens=250)
+                content_md = await generate_text(system, json.dumps(facts), max_tokens=250, user_id=str(user.id))
                 await record_ai_usage(session, user_id, 1, "briefing")
             except Exception as e:
                 logger.warning("Briefing LLM failed, using static text: %s", e)

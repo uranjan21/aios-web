@@ -108,7 +108,7 @@ async def explain_area(request: Request, body: ExplainBody, current_user=Depends
         raise HTTPException(status_code=422, detail="area must be finance or health")
 
     try:
-        text = await generate_text(system, facts, max_tokens=400)
+        text = await generate_text(system, facts, max_tokens=400, user_id=str(current_user.id))
         await record_ai_usage(db, current_user.id, 1, "insights")
         return {"text": text, "facts": facts}
     except Exception as e:
@@ -134,7 +134,7 @@ async def skill_gap(request: Request, body: SkillGapBody, current_user=Depends(g
     user = f"Target role: {body.target_role.strip()}\n\nCurrent skills:\n{skill_lines}"
 
     try:
-        text = await generate_text(system, user, max_tokens=700)
+        text = await generate_text(system, user, max_tokens=700, user_id=str(current_user.id))
         await record_ai_usage(db, current_user.id, 1, "insights")
         return {"text": text}
     except Exception as e:
@@ -168,7 +168,7 @@ async def daily_brief(request: Request, current_user=Depends(get_current_user), 
     facts = f"Financial context:\n{finance_facts}\n\nHealth context:\n{health_facts}"
 
     try:
-        text = await generate_text(system, facts, max_tokens=450)
+        text = await generate_text(system, facts, max_tokens=450, user_id=str(current_user.id))
         await record_ai_usage(db, current_user.id, 1, "insights")
         return {"text": text, "generated_at": now.isoformat()}
     except Exception as e:
@@ -198,7 +198,7 @@ async def draft_content(request: Request, body: DraftBody, current_user=Depends(
     user = f"Idea: {body.title.strip()}" + (f"\nNotes: {body.notes.strip()}" if body.notes else "")
 
     try:
-        text = await generate_text(system, user, max_tokens=800)
+        text = await generate_text(system, user, max_tokens=800, user_id=str(current_user.id))
         await record_ai_usage(db, current_user.id, 1, "insights")
         return {"text": text}
     except Exception as e:

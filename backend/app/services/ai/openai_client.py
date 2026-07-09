@@ -6,9 +6,9 @@ from openai import AsyncOpenAI
 from app.core.config import get_settings
 
 
-def get_openai_client() -> AsyncOpenAI:
+def get_openai_client(api_key: str | None = None) -> AsyncOpenAI:
     settings = get_settings()
-    return _get_cached_client(settings.openai_api_key)
+    return _get_cached_client(api_key or settings.openai_api_key)
 
 
 @lru_cache(maxsize=4)

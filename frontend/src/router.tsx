@@ -10,7 +10,6 @@ import { api } from '@/api/client'
 // Lazy-load all pages for code splitting
 const LoginPage = lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
-const ChatPage = lazy(() => import('@/pages/ChatPage').then(m => ({ default: m.ChatPage })))
 const AgentsPage = lazy(() => import('@/pages/AgentsPage').then(m => ({ default: m.AgentsPage })))
 const IntegrationsPage = lazy(() => import('@/pages/IntegrationsPage').then(m => ({ default: m.IntegrationsPage })))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
@@ -40,7 +39,6 @@ const AdminPage = lazy(() => import('@/pages/AdminPage').then(m => ({ default: m
 // Guide Pages
 const GuideLayout = lazy(() => import('@/pages/guide/GuideLayout').then(m => ({ default: m.GuideLayout })))
 const GuideOverview = lazy(() => import('@/pages/guide/GuideOverview').then(m => ({ default: m.GuideOverview })))
-const ChatGuide = lazy(() => import('@/pages/guide/ChatGuide').then(m => ({ default: m.ChatGuide })))
 const AgentsGuide = lazy(() => import('@/pages/guide/AgentsGuide').then(m => ({ default: m.AgentsGuide })))
 const FinanceGuide = lazy(() => import('@/pages/guide/FinanceGuide').then(m => ({ default: m.FinanceGuide })))
 const HealthGuide = lazy(() => import('@/pages/guide/HealthGuide').then(m => ({ default: m.HealthGuide })))
@@ -147,8 +145,6 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorBoundary />,
     children: [
       { index: true, element: <Page><DashboardPage /></Page> },
-      { path: 'chat', element: <Page><RequireModule module="chat"><ChatPage /></RequireModule></Page> },
-      { path: 'chat/:sessionId', element: <Page><RequireModule module="chat"><ChatPage /></RequireModule></Page> },
       { path: 'agents', element: <Page><RequireModule module="agents"><AgentsPage /></RequireModule></Page> },
       { path: 'goals', element: <Page><GoalsPage /></Page> },
       { path: 'projects', element: <Page><ProjectsPage /></Page> },
@@ -190,7 +186,6 @@ export const router = createBrowserRouter([
         element: <Page><GuideLayout /></Page>,
         children: [
           { index: true, element: <GuideOverview /> },
-          { path: 'chat', element: <ChatGuide /> },
           { path: 'agents', element: <AgentsGuide /> },
           { path: 'areas/finance', element: <FinanceGuide /> },
           { path: 'areas/health', element: <HealthGuide /> },

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import delete
 from pydantic import BaseModel
 from sqlmodel import select
 
@@ -15,6 +16,7 @@ from app.core.config import get_settings
 from app.core.deps import get_current_user, get_db
 from app.core.rate_limit import limiter
 from app.models.knowledge import KnowledgeSource
+from app.models.vault import VaultChunk, VaultFile
 
 router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
 logger = logging.getLogger(__name__)
@@ -138,6 +140,13 @@ async def sync_now(request: Request, current_user=Depends(get_current_user), db=
 async def delete_source(current_user=Depends(get_current_user), db=Depends(get_db)):
     src = await _get_source(db, current_user.id)
     if src:
+        if src.source_type == "notion":
+            file_ids = select(VaultFile.id).where(
+                VaultFile.user_id == current_user.id,
+                VaultFile.path.like("notion/%"),
+            )
+            await db.execute(delete(VaultChunk).where(VaultChunk.user_id == current_user.id, VaultChunk.file_id.in_(file_ids)))
+            await db.execute(delete(VaultFile).where(VaultFile.user_id == current_user.id, VaultFile.path.like("notion/%")))
         await db.delete(src)
-        await db.commit()
+    await db.commit()
     return {"status": "deleted"}

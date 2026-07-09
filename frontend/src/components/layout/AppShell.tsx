@@ -11,6 +11,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useUIStore } from '@/stores/uiStore'
 import { WelcomeWizard } from '@/components/onboarding/WelcomeWizard'
+import { GlobalAssistant } from '@/components/assistant/GlobalAssistant'
 import { useState } from 'react'
 
 const MobileBackdrop = styled.div<{ $show: boolean }>`
@@ -114,6 +115,7 @@ export function AppShell() {
           mounting GlobalCapture too would double-register the ⌘L handler. */}
       <CommandPalette />
       <GlobalAddTaskDialog />
+      <GlobalAssistant />
       <BottomNav />
       {showWizard && <WelcomeWizard onComplete={handleCompleteWizard} />}
     </Root>

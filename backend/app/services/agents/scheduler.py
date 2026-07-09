@@ -147,6 +147,16 @@ async def start_scheduler() -> None:
             misfire_grace_time=1800,
         )
 
+        # Hourly at :50 — auto-commit pending agent actions that have passed their 24h review window
+        _safe_add_job(
+            "agent_action_auto_commit",
+            func=_run_global_job,
+            trigger=CronTrigger(minute=50, timezone="UTC"),
+            args=["app.services.ai.action_runner", "run_auto_commit_pending_actions"],
+            replace_existing=True,
+            misfire_grace_time=1800,
+        )
+
         # 04:00 UTC = 9:30 IST — daily anomaly sweep (spending spikes, broken streaks)
         _safe_add_job(
             "insights_anomalies",

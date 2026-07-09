@@ -12,6 +12,10 @@ class Agent(SQLModel, table=True):
         UniqueConstraint("user_id", "task_id", name="uq_agent_user_task"),
     )
 
+    llm_provider: Optional[str] = Field(default="system", sa_column=Column(Text))
+    openai_chat_model: Optional[str] = Field(default=None, sa_column=Column(Text))
+    claude_model: Optional[str] = Field(default=None, sa_column=Column(Text))
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     task_id: str = Field(nullable=False)

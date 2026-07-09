@@ -99,16 +99,7 @@ const HeaderText = styled.div`
   padding-right: 28px;
 `;
 
-const Eyebrow = styled.span`
-  display: block;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: ${({ theme }) => theme.color.accent};
-  margin-bottom: 2px;
-  line-height: 1.2;
-`;
+
 
 const Title = styled.h2`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
@@ -233,7 +224,6 @@ export function Dialog({
   title,
   description,
   icon,
-  eyebrow,
   steps,
   currentStep = 0,
   size = 'md',
@@ -252,7 +242,7 @@ export function Dialog({
 
   if (!open) return null;
 
-  const hasHeader = title || description || icon || eyebrow;
+  const hasHeader = title || description || icon;
 
   return (
     <Portal>
@@ -271,7 +261,6 @@ export function Dialog({
           <Header>
             {icon && <IconWrap>{icon}</IconWrap>}
             <HeaderText>
-              {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
               {title && <Title id={titleId}>{title}</Title>}
               {description && <Description id={descId}>{description}</Description>}
               {steps && steps.length > 1 && (

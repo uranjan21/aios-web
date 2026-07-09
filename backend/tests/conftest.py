@@ -167,12 +167,13 @@ def _isolation_tables():
     from app.models.business import BusinessEvent
     from app.models.insights import BriefingPreference, Briefing, Insight
     from app.models.quote import SavedQuote
+    from app.models.vault import VaultFile, VaultConflict
     return [m.__table__ for m in (
         User, ChatSession, ChatMessage, Capture, IntegrationCredential, Agent, PushSubscription, Subscription, AIUsageRecord,
         Project, Sprint, Task, MacroGoal, GoalProgress, ContentItem, ContentCampaign,
         HealthLog, HealthGoal, Habit, HabitCheck, WorkoutSession, WorkoutSet, FoodItem,
         FinanceExpense, FinanceIncome, FinanceTransfer, Account, FinancePendingTransaction, CareerEvent, JobOpportunity, BusinessEvent,
-        BriefingPreference, Briefing, Insight, SavedQuote
+        BriefingPreference, Briefing, Insight, SavedQuote, VaultFile, VaultConflict
     )]
 
 

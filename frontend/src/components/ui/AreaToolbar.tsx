@@ -33,7 +33,7 @@ const Shell = styled.div<{ $fullWidth: boolean }>`
   padding: 10px 12px;
   border-radius: ${({ theme }) => theme.radii.md};
   box-shadow: ${({ theme }) => theme.shadow.xs};
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   min-height: 44px;
   flex-shrink: 0;
   width: 100%;

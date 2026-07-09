@@ -161,7 +161,7 @@ async def compute_correlations_for_user(session, user_id: uuid.UUID):
             system = "You are an AI finding lifestyle correlations. Write ONE short sentence explaining the correlation and ONE suggested experiment to test it."
             prompt = f"Metric A: {m1}, Metric B: {m2}. Correlation (r): {r:.2f}, Lag: {lag} days. (Positive means they move together, negative means opposite)."
             try:
-                text = await generate_text(system, prompt, max_tokens=100)
+                text = await generate_text(system, prompt, max_tokens=100, user_id=str(user_id))
                 await record_ai_usage(session, user_id, 1, "synergy")
             except Exception:
                 pass

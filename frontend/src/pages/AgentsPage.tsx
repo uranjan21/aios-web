@@ -1,11 +1,12 @@
 import { agentsApi } from "@/api/agents";
-import ReactMarkdown from "react-markdown";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
-import { Skeleton } from "@/components/ui/skeleton";
 import { PageContainer, PageContent } from "@/components/layout/PageLayout";
-import { PageDivider } from "@/components/layout/PageDivider";
 import { DigitalCronInput } from "@/components/ui/DigitalCronInput";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AgentsToolbar } from "@/features/agents/components/AgentsToolbar";
+import { getAgentDomain, getAgentLongDescription } from "@/features/agents/constants/domains";
+import { useAgentFilters } from "@/features/agents/hooks/useAgentFilters";
 import { formatRelativeTime } from "@/lib/utils";
 import type { Agent } from "@/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,535 +15,468 @@ import {
   Bot,
   Calendar,
   CheckCircle,
-  ChevronDown,
-  ChevronRight,
   Clock3,
   Play,
   RefreshCw,
-  Terminal,
+  Sparkles,
+  TerminalSquare,
   XCircle,
   Zap,
-  Filter
+  Filter,
+  Info,
+  Save,
 } from "lucide-react";
-import { Component, ErrorInfo, ReactNode, useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import styled, { createGlobalStyle, keyframes, useTheme } from "styled-components";
+import ReactMarkdown from "react-markdown";
 
-import { Button, PageHeader, Sheet, Switch, Tooltip, Card, CardHeader, CardTitle, CardDescription, CardContent } from "@ledgr/ui";
+import {
+  Button,
+  Card,
+  Dialog,
+  PageHeader,
+  Switch,
+  Tooltip,
+  Select,
+  Input,
+} from "@ledgr/ui";
 import { AreaTabs } from "@/components/ui/AreaTabs";
-import { AreaToolbar, ToolbarTitle } from "@/components/ui/AreaToolbar";
-import styled, {
-  createGlobalStyle,
-  keyframes,
-  useTheme,
-} from "styled-components";
-
-import { AgentsToolbar } from "@/features/agents/components/AgentsToolbar";
-import { useAgentFilters } from "@/features/agents/hooks/useAgentFilters";
-import { getAgentDomain } from "@/features/agents/constants/domains";
-
-
-class AgentErrorBoundary extends Component<
-  { children: ReactNode },
-  { hasError: boolean; error: Error | null }
-> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("AgentsPage Crash:", error, errorInfo);
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div
-          style={{
-            padding: 16,
-            background:
-              "color-mix(in srgb, var(--destructive) 8%, transparent)",
-            borderRadius: "10px",
-            border:
-              "1px solid color-mix(in srgb, var(--destructive) 20%, transparent)",
-          }}
-        >
-          <h3
-            style={{
-              fontSize: 13,
-              fontWeight: 500,
-              color: "var(--destructive)",
-            }}
-          >
-            Agent card error
-          </h3>
-          <p
-            style={{
-              fontSize: 11,
-              color: "var(--muted-foreground)",
-              marginTop: 4,
-            }}
-          >
-            {this.state.error?.toString()}
-          </p>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-// --- Styled Components ---
 
 const SpinGlobal = createGlobalStyle`
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 `;
 
 const fadeIn = keyframes`
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 `;
 
-const pulseGlow = keyframes`
-  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pulse-color) 40%, transparent); }
-  70% { box-shadow: 0 0 15px 10px color-mix(in srgb, var(--pulse-color) 0%, transparent); }
-  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pulse-color) 0%, transparent); }
-`;
-
-
 const AgentSkeleton = styled(Skeleton)`
-  height: 64px;
-  border-radius: 10px;
-  background-color: ${({ theme }) => theme.color?.muted || "var(--muted)"};
+  height: 88px;
+  border-radius: ${({ theme }) => theme.radii.lg};
 `;
 
-// --- Styled Components ---
-
-const AgentsGrid = styled.div`
+const Stack = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 12px;
 `;
 
-const TableShell = styled.div`
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.xl};
-  background: ${({ theme }) => theme.color.card};
+const AgentGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+`;
+
+const RosterCard = styled(Card)`
   overflow: hidden;
+  border: 1px solid ${({ theme }) => theme.color.border};
+`;
+
+
+
+const TableShell = styled.div`
+  display: flex;
+  flex-direction: column;
 `;
 
 const TableHeader = styled.div`
   display: none;
-  @media (min-width: 900px) {
+
+  @media (min-width: 980px) {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 240px 110px 110px minmax(180px, auto);
-    gap: 16px;
-    padding: 10px 16px;
+    grid-template-columns: minmax(0, 2fr) 95px 140px 110px 110px 110px;
+    gap: 12px;
+    padding: 16px 20px 12px 20px;
     background: transparent;
-    border-bottom: 2px solid ${({ theme }) => theme.color.border};
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: ${({ theme }) => theme.color.mutedForeground};
+    border-bottom: 1px solid color-mix(in srgb, ${({ theme }) => theme.color.border} 50%, transparent);
   }
 `;
 
-const DomainHeaderRow = styled.div<{ $isFirst: boolean, $isExpanded: boolean }>`
-  padding: 12px 16px;
-  background: color-mix(in srgb, var(--primary) 3%, transparent);
+const TableHeaderCell = styled.div<{ $alignRight?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--foreground);
-  border-bottom: ${({ $isExpanded }) => ($isExpanded ? '1px solid var(--border)' : 'none')};
-  border-top: ${({ $isFirst }) => ($isFirst ? 'none' : '1px solid var(--border)')};
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: color-mix(in srgb, var(--primary) 6%, transparent);
-  }
-`;
-
-
-const TableHeaderCell = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-`;
-
-const AgentRow = styled.div<{ $status?: string }>`
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  padding: 12px 16px;
-  background: ${({ theme }) => theme.color.card};
-  border-bottom: 1px solid ${({ theme }) => theme.color.border};
-  animation: ${fadeIn} 0.45s ease-out forwards;
-
-  &::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 3px;
-    background: ${({ theme, $status }) =>
-      $status === "running"
-        ? `linear-gradient(180deg, ${theme.color.primary}, ${theme.color.accent})`
-        : $status === "error"
-          ? theme.color.destructive
-          : $status === "success"
-            ? theme.color.success
-            : "transparent"};
-  }
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  @media (min-width: 900px) {
-    grid-template-columns: minmax(0, 1fr) 240px 110px 110px minmax(180px, auto);
-    gap: 16px;
-    align-items: center;
-    padding: 6px 16px;
-  }
-`;
-
-const AgentMain = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-`;
-
-const AgentHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-`;
-
-const AgentName = styled.h2`
-  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 14px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.color.foreground};
-  margin: 0;
-`;
-
-const AgentDesc = styled.p`
-  font-size: 11px;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  margin: 0;
-  line-height: 1.5;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-`;
-
-const StatusPill = styled.span<{ $status: string }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  background: ${({ theme, $status }) =>
-    $status === "running"
-      ? `color-mix(in srgb, ${theme.color.accent} 12%, transparent)`
-      : $status === "error"
-        ? `color-mix(in srgb, ${theme.color.destructive} 10%, transparent)`
-        : $status === "success"
-          ? `color-mix(in srgb, ${theme.color.success} 10%, transparent)`
-          : `color-mix(in srgb, ${theme.color.mutedForeground} 10%, transparent)`};
-  color: ${({ theme, $status }) =>
-    $status === "running"
-      ? theme.color.accent
-      : $status === "error"
-        ? theme.color.destructive
-        : $status === "success"
-          ? theme.color.success
-          : theme.color.mutedForeground};
-  text-transform: capitalize;
-`;
-
-const MetaCell = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-`;
-
-const MetaLabel = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: ${({ theme }) => theme.color.mutedForeground};
+  user-select: none;
 
-  @media (min-width: 900px) {
+  svg {
+    color: ${({ theme }) => theme.color.foreground};
+    opacity: 0.4;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  &:hover svg {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+  
+  @media (min-width: 980px) {
+    ${({ $alignRight }) => $alignRight && `
+      justify-content: flex-end;
+    `}
+  }
+`;
+
+const RowButton = styled.button<{ $status: string }>`
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 14px 20px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  text-align: left;
+  position: relative;
+  cursor: pointer;
+  animation: ${fadeIn} 0.35s ease-out forwards;
+  transition: all 0.2s ease;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 12px auto 12px 0;
+    width: 3px;
+    border-radius: 0 4px 4px 0;
+    background: ${({ theme, $status }) =>
+      $status === "running" ? theme.color.accent : "transparent"};
+  }
+
+  &:hover {
+    background: color-mix(in srgb, ${({ theme }) => theme.color.primary} 2%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, ${({ theme }) => theme.color.border} 40%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color.ring};
+    outline-offset: -2px;
+  }
+
+  @media (min-width: 980px) {
+    grid-template-columns: minmax(0, 2fr) 95px 140px 110px 110px 110px;
+    gap: 12px;
+    align-items: center;
+  }
+`;
+
+const RowDivider = styled.div`
+  height: 1px;
+  background: color-mix(in srgb, ${({ theme }) => theme.color.border} 30%, transparent);
+  margin: 0 20px;
+`;
+
+const AgentCell = styled.div`
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+`;
+
+const AgentText = styled.div`
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const AgentTop = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const AgentName = styled.h3`
+  margin: 0;
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
+  font-size: 15px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.color.foreground};
+`;
+
+const AgentSummary = styled.p`
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+`;
+
+const StatusBadge = styled.span<{ $status: string }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  border: 1px solid ${({ theme, $status }) =>
+    $status === "success"
+      ? `color-mix(in srgb, ${theme.color.success} 20%, transparent)`
+      : $status === "error"
+        ? `color-mix(in srgb, ${theme.color.destructive} 20%, transparent)`
+        : $status === "running"
+          ? `color-mix(in srgb, ${theme.color.accent} 20%, transparent)`
+          : `color-mix(in srgb, ${theme.color.mutedForeground} 15%, transparent)`};
+  font-size: 11px;
+  font-weight: 600;
+  background: ${({ theme, $status }) =>
+    $status === "success"
+      ? `color-mix(in srgb, ${theme.color.success} 8%, transparent)`
+      : $status === "error"
+        ? `color-mix(in srgb, ${theme.color.destructive} 8%, transparent)`
+        : $status === "running"
+          ? `color-mix(in srgb, ${theme.color.accent} 10%, transparent)`
+          : `color-mix(in srgb, ${theme.color.mutedForeground} 6%, transparent)`};
+  color: ${({ theme, $status }) =>
+    $status === "success"
+      ? theme.color.success
+      : $status === "error"
+        ? theme.color.destructive
+        : $status === "running"
+          ? theme.color.accent
+          : theme.color.mutedForeground};
+  text-transform: capitalize;
+`;
+
+const Cell = styled.div<{ $alignRight?: boolean }>`
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  @media (min-width: 980px) {
+    ${({ $alignRight }) => $alignRight && `
+      align-items: flex-end;
+      text-align: right;
+    `}
+  }
+`;
+
+const MobileLabel = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: ${({ theme }) => theme.color.mutedForeground};
+
+  @media (min-width: 980px) {
     display: none;
   }
 `;
 
-const MetaValue = styled.span`
-  font-size: 12px;
-  font-weight: 500;
+const Value = styled.span`
+  font-size: 13px;
+  font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
+`;
+
+const SubValue = styled.span`
+  font-size: 11px;
+  color: ${({ theme }) => theme.color.mutedForeground};
 `;
 
 const ActionsCell = styled.div`
   display: flex;
   align-items: center;
+  gap: 6px;
   justify-content: flex-start;
-  gap: 0.5rem;
-  flex-wrap: wrap;
 
-  @media (min-width: 900px) {
+  @media (min-width: 980px) {
     justify-content: flex-end;
   }
 `;
 
-const StatusIndicator = styled.div<{ $status: string }>`
-  --pulse-color: ${({ theme }) => theme.color.accent};
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  padding: 0.25rem 0.6rem;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  background: ${({ theme, $status }) =>
-    $status === "running"
-      ? `color-mix(in srgb, ${theme.color.accent} 10%, transparent)`
-      : $status === "error"
-        ? `color-mix(in srgb, ${theme.color.muted} 10%, transparent)`
-        : $status === "success"
-          ? `color-mix(in srgb, ${theme.color.primary} 10%, transparent)`
-          : `color-mix(in srgb, ${theme.color.mutedForeground} 10%, transparent)`};
-  color: ${({ theme, $status }) =>
-    $status === "running"
-      ? theme.color.accent
-      : $status === "error"
-        ? theme.color.muted
-        : $status === "success"
-          ? theme.color.primary
-          : theme.color.mutedForeground};
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+const DetailGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
 
-  ${({ $status }) =>
-    $status === "running" && `animation: ${pulseGlow} 2s infinite;`}
+  @media (min-width: 980px) {
+    grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.4fr);
+  }
 `;
 
-const InfoItem = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-`;
-
-const InfoLabel = styled.span`
-  font-size: 0.6rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted-foreground);
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-weight: 600;
-`;
-
-const InfoValue = styled.span`
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--foreground);
-`;
-
-const ControlsGroup = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`;
-
-const TerminalContainer = styled.div`
-  background: #0F172A;
-  border-radius: 12px;
+const Panel = styled.div`
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radii.lg};
+  background: color-mix(in srgb, ${({ theme }) => theme.color.primary} 2%, ${({ theme }) => theme.color.card});
   overflow: hidden;
-  border: 1px solid #1E293B;
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
-  display: flex;
-  flex-direction: column;
-  height: 100%;
 `;
 
-const TerminalHeaderBar = styled.div`
-  background: #1E293B;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid #334155;
+const PanelHeader = styled.div`
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid ${({ theme }) => theme.color.border};
 `;
 
-const MacDots = styled.div`
-  display: flex;
-  gap: 6px;
-  
-  & > div {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-  }
-  & > div:nth-child(1) { background: #FF5F56; }
-  & > div:nth-child(2) { background: #FFBD2E; }
-  & > div:nth-child(3) { background: #27C93F; }
+const PanelTitle = styled.h4`
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: ${({ theme }) => theme.color.foreground};
 `;
 
-const TerminalTitle = styled.div`
-  flex: 1;
-  text-align: center;
-  font-size: 11px;
-  font-weight: 500;
-  color: #94A3B8;
-  font-family: ${({ theme }) => theme.typography?.fontFamily?.sans || 'sans-serif'};
-  letter-spacing: 0.05em;
-  margin-right: 42px; /* Offset to center title visually */
+const PanelBody = styled.div`
+  padding: 18px;
 `;
 
-const TerminalBody = styled.div`
-  padding: 24px 32px;
-  flex: 1;
-  overflow-y: auto;
-  
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: #334155;
-    border-radius: 4px;
-  }
-`;
-
-const TerminalMarkdownContainer = styled.div`
-  color: #E2E8F0;
-  font-family: ${({ theme }) => theme.typography?.fontFamily?.sans || 'sans-serif'};
-  font-size: 14px;
-  line-height: 1.6;
+const OutputBody = styled.div`
+  color: #dbe4f0;
+  font-size: 13px;
+  line-height: 1.65;
 
   h1, h2, h3, h4, h5, h6 {
-    color: #38BDF8;
-    margin-top: 1.5em;
-    margin-bottom: 0.5em;
-    font-weight: 600;
-    line-height: 1.3;
-  }
-  
-  h1:first-child, h2:first-child, h3:first-child {
+    color: #8fd3ff;
     margin-top: 0;
   }
 
-  p {
-    margin-bottom: 1em;
-  }
-
-  ul, ol {
-    margin-bottom: 1em;
-    padding-left: 1.5em;
-  }
-
-  li {
-    margin-bottom: 0.5em;
-  }
-
-  strong {
-    color: #FFFFFF;
-    font-weight: 600;
+  p, ul, ol, pre, blockquote {
+    margin: 0 0 12px;
   }
 
   code {
-    background: #1E293B;
-    padding: 0.2em 0.4em;
-    border-radius: 4px;
-    font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Fira Code', monospace;
-    font-size: 0.9em;
-    color: #22C55E;
+    background: rgba(255,255,255,0.08);
+    padding: 2px 6px;
+    border-radius: 6px;
   }
 
   pre {
-    background: #0F172A;
-    padding: 1em;
-    border-radius: 6px;
-    border: 1px solid #1E293B;
     overflow-x: auto;
-    margin-bottom: 1em;
-    code {
-      background: transparent;
-      padding: 0;
-      color: #E2E8F0;
-    }
-  }
-
-  blockquote {
-    border-left: 4px solid #334155;
-    padding-left: 1em;
-    color: #94A3B8;
-    margin-left: 0;
-    margin-bottom: 1em;
+    padding: 12px;
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.88);
   }
 `;
 
-const TerminalCursor = styled.span`
-  display: inline-block;
-  width: 8px;
-  height: 14px;
-  background-color: #22C55E;
-  vertical-align: middle;
-  margin-left: 2px;
-  animation: blink 1s step-end infinite;
-
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
-  }
+const OutputShell = styled.div`
+  border-radius: ${({ theme }) => theme.radii.lg};
+  border: 1px solid #223149;
+  background: linear-gradient(180deg, #122033 0%, #0f172a 100%);
 `;
 
-const SortSelect = styled.select`
-  appearance: none;
-  background: ${({ theme }) => theme.color.card};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  color: ${({ theme }) => theme.color.foreground};
-  border-radius: ${({ theme }) => theme.radii.md};
-  padding: 6px 32px 6px 12px;
+const OutputHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #223149;
+  color: #8ea0b8;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+`;
+
+const Dots = styled.div`
+  display: flex;
+  gap: 6px;
+
+  span {
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+  }
+
+  span:nth-child(1) { background: #ff5f56; }
+  span:nth-child(2) { background: #ffbd2e; }
+  span:nth-child(3) { background: #27c93f; }
+`;
+
+const MetaList = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 12px;
+`;
+
+const MetaItem = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const MetaKey = styled.span`
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: ${({ theme }) => theme.color.mutedForeground};
+`;
+
+const MetaText = styled.span`
   font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  outline: none;
-  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23777%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  background-size: 8px auto;
-
-  &:hover, &:focus {
-    border-color: ${({ theme }) => theme.color.primary};
-  }
+  font-weight: 600;
+  color: ${({ theme }) => theme.color.foreground};
 `;
 
-// --- Cron next-run utility ---
+const DialogActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+`;
+
+const EmptyWrap = styled.div`
+  padding: 32px;
+`;
+
+function formatScheduleLabel(cron: string | null, isActive: boolean): { title: string; subtitle: string } {
+  if (!cron || cron === "Manual") {
+    return {
+      title: "Manual only",
+      subtitle: isActive ? "Run on demand" : "Paused",
+    };
+  }
+
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) {
+    return { title: cron, subtitle: "Custom schedule" };
+  }
+
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+  const minuteNum = Number(minute);
+  const hourNum = Number(hour);
+  const timeLabel =
+    Number.isFinite(minuteNum) && Number.isFinite(hourNum)
+      ? new Intl.DateTimeFormat(undefined, {
+          hour: "numeric",
+          minute: "2-digit",
+        }).format(new Date(2026, 0, 1, hourNum, minuteNum))
+      : "Custom";
+
+  if (dayOfMonth === "*" && month === "*" && dayOfWeek === "*") {
+    return { title: "Every day", subtitle: timeLabel };
+  }
+
+  if (dayOfMonth === "*" && month === "*" && dayOfWeek !== "*") {
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    return {
+      title: days[Number(dayOfWeek)] ? `Every ${days[Number(dayOfWeek)]}` : "Weekly",
+      subtitle: timeLabel,
+    };
+  }
+
+  if (dayOfMonth !== "*" && month === "*") {
+    return {
+      title: `Day ${dayOfMonth} monthly`,
+      subtitle: timeLabel,
+    };
+  }
+
+  return {
+    title: "Custom cadence",
+    subtitle: timeLabel,
+  };
+}
 
 function getNextCronRun(cron: string): Date | null {
   const parts = cron.trim().split(/\s+/);
@@ -559,7 +493,6 @@ function getNextCronRun(cron: string): Date | null {
   next.setSeconds(0, 0);
   next.setMinutes(next.getMinutes() + 1);
 
-  // Try up to 64,800 minutes (45 days — handles monthly crons)
   for (let i = 0; i < 64800; i++) {
     if (
       matchField(month, next.getMonth() + 1) &&
@@ -567,17 +500,55 @@ function getNextCronRun(cron: string): Date | null {
       matchField(dow, next.getDay()) &&
       matchField(hour, next.getHours()) &&
       matchField(minute, next.getMinutes())
-    )
+    ) {
       return new Date(next);
+    }
     next.setMinutes(next.getMinutes() + 1);
   }
+
   return null;
 }
 
-function NextRunCountdown({ cron }: { cron: string | null }) {
+function getScheduleSortValue(cron: string): number {
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) return Infinity;
+  const [minute, hour, dom, month, dow] = parts;
+
+  const matchField = (field: string, val: number): boolean => {
+    if (field === "*") return true;
+    if (field.startsWith("*/")) return val % Number(field.slice(2)) === 0;
+    return Number(field) === val;
+  };
+
+  // Start from the beginning of TODAY so that today's morning agents 
+  // always sort before today's evening agents, regardless of current time.
+  const next = new Date();
+  next.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < 64800; i++) {
+    if (
+      matchField(month, next.getMonth() + 1) &&
+      matchField(dom, next.getDate()) &&
+      matchField(dow, next.getDay()) &&
+      matchField(hour, next.getHours()) &&
+      matchField(minute, next.getMinutes())
+    ) {
+      return next.getTime();
+    }
+    next.setMinutes(next.getMinutes() + 1);
+  }
+
+  return Infinity;
+}
+
+function NextRunCountdown({ cron, isActive }: { cron: string | null; isActive: boolean }) {
   const [label, setLabel] = useState("—");
 
   useEffect(() => {
+    if (!isActive) {
+      setLabel("Paused");
+      return;
+    }
     if (!cron || cron === "Manual") {
       setLabel("Manual");
       return;
@@ -591,449 +562,715 @@ function NextRunCountdown({ cron }: { cron: string | null }) {
       }
       const diff = next.getTime() - Date.now();
       if (diff <= 0) {
-        setLabel("now");
+        setLabel("Now");
         return;
       }
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setLabel(h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`);
+      const hours = Math.floor(diff / 3600000);
+      const minutes = Math.floor((diff % 3600000) / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      setLabel(hours > 0 ? `${hours}h ${minutes}m` : minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`);
     };
 
     tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [cron]);
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [cron, isActive]);
 
-  return (
-    <InfoValue style={{ fontVariantNumeric: "tabular-nums" }}>
-      {label}
-    </InfoValue>
-  );
+  return <Value style={{ fontVariantNumeric: "tabular-nums" }}>{label}</Value>;
 }
 
-// --- Component ---
-
-function AgentCard({ agent }: { agent: Agent }) {
+function AgentDetailDialog({
+  agent,
+  open,
+  onOpenChange,
+}: {
+  agent: Agent | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const theme = useTheme();
   const queryClient = useQueryClient();
-  const [triggering, setTriggering] = useState(false);
-  const [terminalOpen, setTerminalOpen] = useState(false);
 
   const toggleMutation = useMutation({
-    mutationFn: (is_active: boolean) =>
-      agentsApi.patch(agent.task_id, { is_active }),
-    onSuccess: (_, is_active) => {
-      queryClient.invalidateQueries({ queryKey: ["agents"] });
-      toast.success(`${agent.name} ${is_active ? "enabled" : "paused"}`);
+    mutationFn: (isActive: boolean) => agentsApi.patch(agent!.task_id, { is_active: isActive }),
+    onSuccess: async (_, isActive) => {
+      await queryClient.invalidateQueries({ queryKey: ["agents"] });
+      toast.success(`${agent?.name} ${isActive ? "enabled" : "paused"}`);
     },
     onError: () => toast.error("Failed to update agent"),
   });
 
   const cronMutation = useMutation({
-    mutationFn: (cron_expression: string) =>
-      agentsApi.patch(agent.task_id, { cron_expression }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["agents"] });
-      toast.success(`${agent.name} schedule updated`);
+    mutationFn: (cronExpression: string) => agentsApi.patch(agent!.task_id, { cron_expression: cronExpression }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["agents"] });
+      toast.success(`${agent?.name} schedule updated`);
     },
     onError: () => toast.error("Failed to update schedule"),
   });
 
+  const configMutation = useMutation({
+    mutationFn: (payload: { llm_provider?: string; openai_chat_model?: string; claude_model?: string }) =>
+      agentsApi.patch(agent!.task_id, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["agents"] });
+      toast.success(`${agent?.name} AI configuration updated`);
+    },
+    onError: () => toast.error("Failed to update AI configuration"),
+  });
+
+  const [provider, setProvider] = useState(agent?.llm_provider || 'system');
+  const [openaiModel, setOpenaiModel] = useState(agent?.openai_chat_model || '');
+  const [claudeModel, setClaudeModel] = useState(agent?.claude_model || '');
+
+  useEffect(() => {
+    if (agent) {
+      setProvider(agent.llm_provider || 'system');
+      setOpenaiModel(agent.openai_chat_model || '');
+      setClaudeModel(agent.claude_model || '');
+    }
+  }, [agent]);
+
+  const isConfigDirty = provider !== (agent?.llm_provider || 'system') ||
+    openaiModel !== (agent?.openai_chat_model || '') ||
+    claudeModel !== (agent?.claude_model || '');
+
+  const saveConfig = () => {
+    configMutation.mutate({
+      llm_provider: provider,
+      openai_chat_model: openaiModel || undefined,
+      claude_model: claudeModel || undefined,
+    });
+  };
+
+  const triggerMutation = useMutation({
+    mutationFn: () => agentsApi.trigger(agent!.task_id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["agents"] });
+      toast.success(`${agent?.name} triggered`);
+    },
+    onError: () => toast.error(`Failed to trigger ${agent?.name}`),
+  });
+
+  if (!agent) return null;
+
+  const status = agent.last_run_status || "idle";
+  const domain = getAgentDomain(agent.task_id);
+  const schedule = formatScheduleLabel(agent.cron_expression, agent.is_active);
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      size="xl"
+      eyebrow="Agent Detail"
+      icon={<Sparkles />}
+      title={agent.name}
+      description={agent.description || "Autonomous background workflow for your life OS."}
+    >
+      <DetailGrid>
+        <Stack>
+          <Panel>
+            <PanelHeader>
+              <PanelTitle>Configuration</PanelTitle>
+            </PanelHeader>
+            <PanelBody>
+              <MetaList>
+                <MetaItem>
+                  <MetaKey>Domain</MetaKey>
+                  <MetaText>{domain}</MetaText>
+                </MetaItem>
+                <MetaItem>
+                  <MetaKey>Status</MetaKey>
+                  <MetaText>{status}</MetaText>
+                </MetaItem>
+                <MetaItem>
+                  <MetaKey>Cadence</MetaKey>
+                  <MetaText>{schedule.title}</MetaText>
+                </MetaItem>
+                <MetaItem>
+                  <MetaKey>Next Window</MetaKey>
+                  <MetaText>
+                    <NextRunCountdown cron={agent.cron_expression} isActive={agent.is_active} />
+                  </MetaText>
+                </MetaItem>
+                <MetaItem>
+                  <MetaKey>Last Run</MetaKey>
+                  <MetaText>{agent.last_run_at ? formatRelativeTime(agent.last_run_at) : "Never"}</MetaText>
+                </MetaItem>
+                <MetaItem>
+                  <MetaKey>Total Runs</MetaKey>
+                  <MetaText>{agent.run_count}</MetaText>
+                </MetaItem>
+              </MetaList>
+
+              <DialogActions>
+                <Tooltip content={agent.is_active ? "Pause agent" : "Enable agent"}>
+                  <div>
+                    <Switch
+                      aria-label={`Toggle ${agent.name}`}
+                      checked={agent.is_active}
+                      onChange={(e) => toggleMutation.mutate(e.target.checked)}
+                      disabled={toggleMutation.isPending}
+                      size="sm"
+                      style={{ background: agent.is_active ? theme.color.primary : theme.color.muted }}
+                    />
+                  </div>
+                </Tooltip>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => triggerMutation.mutate()}
+                  loading={triggerMutation.isPending}
+                >
+                  <Play size={14} style={{ marginRight: 6 }} />
+                  Run now
+                </Button>
+              </DialogActions>
+            </PanelBody>
+          </Panel>
+
+          <Panel>
+            <PanelHeader>
+              <PanelTitle>Schedule</PanelTitle>
+            </PanelHeader>
+            <PanelBody>
+              {agent.cron_expression && agent.cron_expression !== "Manual" ? (
+                <DigitalCronInput
+                  value={agent.cron_expression}
+                  onChange={(newCron) => cronMutation.mutate(newCron)}
+                />
+              ) : (
+                <MetaText>Manual only</MetaText>
+              )}
+            </PanelBody>
+          </Panel>
+
+          <Panel>
+            <PanelHeader>
+              <PanelTitle>AI Configuration</PanelTitle>
+            </PanelHeader>
+            <PanelBody style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <MetaKey style={{ display: 'block', marginBottom: '4px' }}>LLM Provider</MetaKey>
+                <Select
+                  size="sm"
+                  fullWidth
+                  options={[
+                    { label: 'System Default', value: 'system' },
+                    { label: 'OpenAI', value: 'openai' },
+                    { label: 'Anthropic Claude', value: 'anthropic' },
+                  ]}
+                  value={provider}
+                  onChange={(val) => setProvider(val as string)}
+                />
+              </div>
+
+              <div>
+                <MetaKey style={{ display: 'block', marginBottom: '4px' }}>OpenAI Chat Model</MetaKey>
+                <Select
+                  size="sm"
+                  fullWidth
+                  options={[
+                    { label: 'System Default', value: '' },
+                    { label: 'GPT-4o', value: 'gpt-4o' },
+                    { label: 'GPT-4o Mini', value: 'gpt-4o-mini' },
+                    { label: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
+                    { label: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
+                  ]}
+                  value={openaiModel}
+                  onChange={(val) => setOpenaiModel(val as string)}
+                />
+              </div>
+
+              <div>
+                <MetaKey style={{ display: 'block', marginBottom: '4px' }}>Claude Model</MetaKey>
+                <Select
+                  size="sm"
+                  fullWidth
+                  options={[
+                    { label: 'System Default', value: '' },
+                    { label: 'Claude 3.5 Sonnet', value: 'claude-3-5-sonnet-20240620' },
+                    { label: 'Claude 3.5 Haiku', value: 'claude-3-5-haiku-20241022' },
+                    { label: 'Claude 3 Opus', value: 'claude-3-opus-20240229' },
+                    { label: 'Claude 3 Sonnet', value: 'claude-3-sonnet-20240229' },
+                    { label: 'Claude 3 Haiku', value: 'claude-3-haiku-20240307' },
+                  ]}
+                  value={claudeModel}
+                  onChange={(val) => setClaudeModel(val as string)}
+                />
+              </div>
+
+              <div style={{ marginTop: '4px' }}>
+                <Button size="sm" variant="primary" disabled={!isConfigDirty || configMutation.isPending} onClick={saveConfig}>
+                  <Save size={12} style={{ marginRight: 6 }} />
+                  Save overrides
+                </Button>
+              </div>
+            </PanelBody>
+          </Panel>
+        </Stack>
+
+        <Panel>
+          <PanelHeader>
+            <PanelTitle>Latest Output</PanelTitle>
+          </PanelHeader>
+          <PanelBody>
+            <OutputShell>
+              <OutputHeader>
+                <Dots>
+                  <span />
+                  <span />
+                  <span />
+                </Dots>
+                <span>{agent.name} last run</span>
+              </OutputHeader>
+              <div style={{ padding: 18 }}>
+                {agent.last_output_text ? (
+                  <OutputBody>
+                    <ReactMarkdown>{agent.last_output_text}</ReactMarkdown>
+                  </OutputBody>
+                ) : (
+                  <SubValue>No completed run yet. Trigger the agent to inspect the next result here.</SubValue>
+                )}
+              </div>
+            </OutputShell>
+          </PanelBody>
+        </Panel>
+      </DetailGrid>
+    </Dialog>
+  );
+}
+
+function AgentRow({ agent, onOpen }: { agent: Agent; onOpen: () => void }) {
+  const queryClient = useQueryClient();
+  const theme = useTheme();
+  const [triggering, setTriggering] = useState(false);
+
+  const toggleMutation = useMutation({
+    mutationFn: (isActive: boolean) => agentsApi.patch(agent.task_id, { is_active: isActive }),
+    onSuccess: async (_, isActive) => {
+      await queryClient.invalidateQueries({ queryKey: ["agents"] });
+      toast.success(`${agent.name} ${isActive ? "enabled" : "paused"}`);
+    },
+    onError: () => toast.error("Failed to update agent"),
+  });
+
   const triggerMutation = useMutation({
     mutationFn: () => agentsApi.trigger(agent.task_id),
-    onSuccess: () => {
+    onSuccess: async () => {
       setTriggering(true);
       toast.success(`${agent.name} triggered`);
-      setTimeout(() => {
-        setTriggering(false);
-        queryClient.invalidateQueries({ queryKey: ["agents"] });
-      }, 3000);
+      setTimeout(() => setTriggering(false), 2500);
+      await queryClient.invalidateQueries({ queryKey: ["agents"] });
     },
     onError: () => toast.error(`Failed to trigger ${agent.name}`),
   });
 
   const status = agent.last_run_status || "idle";
+  const schedule = formatScheduleLabel(agent.cron_expression, agent.is_active);
 
   return (
     <>
-      <AgentRow $status={status}>
-        <AgentMain>
-          <AgentHeader>
-            <Tooltip content={agent.is_active ? "Pause Agent" : "Enable Agent"}>
+      <RowButton $status={status} onClick={onOpen} aria-label={`Open details for ${agent.name}`}>
+        <AgentCell>
+          <AgentText>
+            <AgentTop>
+              <AgentName>{agent.name}</AgentName>
+              <Tooltip content={<div style={{ whiteSpace: 'pre-wrap', maxWidth: 280, fontSize: 12, lineHeight: 1.5 }}>{getAgentLongDescription(agent.task_id, agent.description || "")}</div>}>
+                <div style={{ color: theme.color.mutedForeground, display: "flex", cursor: "help" }}>
+                  <Info size={14} />
+                </div>
+              </Tooltip>
+            </AgentTop>
+            <AgentSummary>
+              {agent.description || "Scheduled automation agent."}
+            </AgentSummary>
+          </AgentText>
+        </AgentCell>
+
+        <Cell $alignRight>
+          <MobileLabel>
+            <Activity size={12} />
+            Status
+          </MobileLabel>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <StatusBadge $status={status}>
+              {status === "success" ? (
+                <CheckCircle size={12} />
+              ) : status === "error" ? (
+                <XCircle size={12} />
+              ) : status === "running" ? (
+                <RefreshCw size={12} style={{ animation: "spin 1s linear infinite" }} />
+              ) : null}
+              {status}
+            </StatusBadge>
+          </div>
+        </Cell>
+
+        <Cell $alignRight>
+          <MobileLabel>
+            <Calendar size={12} />
+            Schedule
+          </MobileLabel>
+          <Value>{schedule.title}</Value>
+          <SubValue>{schedule.subtitle}</SubValue>
+        </Cell>
+
+        <Cell $alignRight>
+          <MobileLabel>
+            <Clock3 size={12} />
+            Last Run
+          </MobileLabel>
+          <Value>{agent.last_run_at ? formatRelativeTime(agent.last_run_at) : "Never"}</Value>
+        </Cell>
+
+        <Cell $alignRight>
+          <MobileLabel>
+            <RefreshCw size={12} />
+            Next Run
+          </MobileLabel>
+          <NextRunCountdown cron={agent.cron_expression} isActive={agent.is_active} />
+        </Cell>
+
+        <ActionsCell onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+          <Tooltip content={agent.is_active ? "Pause agent" : "Enable agent"}>
+            <div>
               <Switch
                 aria-label={`Toggle ${agent.name}`}
                 checked={agent.is_active}
                 onChange={(e) => toggleMutation.mutate(e.target.checked)}
                 disabled={toggleMutation.isPending}
                 size="sm"
-                style={{
-                  background: agent.is_active
-                    ? theme.color.primary
-                    : theme.color.muted,
-                  marginRight: '6px'
-                }}
+                style={{ background: agent.is_active ? theme.color.primary : theme.color.muted }}
               />
-            </Tooltip>
-            <AgentName>{agent.name}</AgentName>
-            <StatusPill $status={status}>
-              {status === "running" ? (
-                <RefreshCw
-                  size={12}
-                  style={{ animation: "spin 1s linear infinite" }}
-                />
-              ) : status === "success" ? (
-                <CheckCircle size={12} />
-              ) : status === "error" ? (
-                <XCircle size={12} />
-              ) : null}
-              <span>{status}</span>
-            </StatusPill>
-          </AgentHeader>
-          <AgentDesc>
-            {agent.description || "Scheduled automation agent"}
-          </AgentDesc>
-        </AgentMain>
-
-        <MetaCell>
-          <MetaLabel>
-            <Calendar size={12} /> Schedule
-          </MetaLabel>
-          {agent.cron_expression && agent.cron_expression !== "Manual" ? (
-            <DigitalCronInput
-              value={agent.cron_expression}
-              onChange={(newCron) => cronMutation.mutate(newCron)}
-            />
-          ) : (
-            <MetaValue>{agent.cron_expression || "Manual"}</MetaValue>
-          )}
-        </MetaCell>
-
-        <MetaCell>
-          <MetaLabel>
-            <Clock3 size={12} /> Last Run
-          </MetaLabel>
-          <MetaValue>
-            {agent.last_run_at
-              ? formatRelativeTime(agent.last_run_at)
-              : "Never"}
-          </MetaValue>
-        </MetaCell>
-
-        <MetaCell>
-          <MetaLabel>
-            <RefreshCw size={12} /> Next
-          </MetaLabel>
-          {agent.cron_expression && agent.is_active ? (
-            <NextRunCountdown cron={agent.cron_expression} />
-          ) : (
-            <MetaValue>—</MetaValue>
-          )}
-        </MetaCell>
-
-        <ActionsCell>
-          <ControlsGroup>
-            <Button
-              variant="primary"
-              onClick={() => triggerMutation.mutate()}
-              loading={triggerMutation.isPending}
-              disabled={triggering}
-              size="sm"
-              aria-label={`Run ${agent.name}`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                padding: "0 8px",
-              }}
-            >
-              {triggering ? (
-                <RefreshCw
-                  size={14}
-                  style={{ animation: "spin 1s linear infinite" }}
-                />
-              ) : (
-                <Play size={14} />
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setTerminalOpen(true)}
-              size="sm"
-              aria-label={`View terminal logs for ${agent.name}`}
-              style={{
-                color: theme.color.mutedForeground,
-                display: "flex",
-                alignItems: "center",
-                padding: "0 8px",
-              }}
-            >
-              <Terminal size={14} />
-            </Button>
-          </ControlsGroup>
+            </div>
+          </Tooltip>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Run ${agent.name}`}
+            onClick={() => triggerMutation.mutate()}
+            disabled={triggering}
+            style={{ width: 32, height: 32, borderRadius: "50%" }}
+          >
+            {triggering ? (
+              <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
+            ) : (
+              <Play size={14} fill="currentColor" opacity={0.8} />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Open details for ${agent.name}`}
+            onClick={onOpen}
+            style={{ width: 32, height: 32, borderRadius: "50%" }}
+          >
+            <TerminalSquare size={14} opacity={0.8} />
+          </Button>
         </ActionsCell>
-      </AgentRow>
-
-      <Sheet
-        title={
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <Terminal size={20} style={{ color: theme.color.primary }} />
-            <span style={{ letterSpacing: "0.05em" }}>
-              Live Terminal
-            </span>
-          </div>
-        }
-        side="right"
-        size="800px"
-        onOpenChange={(open) => !open && setTerminalOpen(false)}
-        open={terminalOpen}
-      >
-        <div style={{ height: "calc(100vh - 120px)", padding: "16px 0" }}>
-          <TerminalContainer>
-            <TerminalHeaderBar>
-              <MacDots>
-                <div />
-                <div />
-                <div />
-              </MacDots>
-              <TerminalTitle>bash - {agent.name.toLowerCase().replace(/\s+/g, '-')}</TerminalTitle>
-            </TerminalHeaderBar>
-            <TerminalBody>
-              {agent.last_output_text ? (
-                <div style={{ position: "relative" }}>
-                  <TerminalMarkdownContainer>
-                    <ReactMarkdown>{agent.last_output_text}</ReactMarkdown>
-                  </TerminalMarkdownContainer>
-                  {status === "running" && <TerminalCursor />}
-                </div>
-              ) : (
-                <div style={{ opacity: 0.5, fontStyle: "italic", color: "#94A3B8" }}>
-                  Waiting for output stream...
-                  <TerminalCursor />
-                </div>
-              )}
-            </TerminalBody>
-          </TerminalContainer>
-        </div>
-      </Sheet>
+      </RowButton>
+      <RowDivider />
     </>
   );
 }
 
+function AgentCard({ agent, onOpen }: { agent: Agent; onOpen: () => void }) {
+  const queryClient = useQueryClient();
+  const toggleMutation = useMutation({
+    mutationFn: (active: boolean) => agentsApi.patch(agent.id, { is_active: active }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["agents"] }),
+  });
+  const triggerMutation = useMutation({
+    mutationFn: () => agentsApi.trigger(agent.id),
+    onSuccess: () => {
+      toast.success(`Triggered ${agent.name}`);
+      queryClient.invalidateQueries({ queryKey: ["agents"] });
+    },
+  });
+
+  const status = agent.last_run_status || "idle";
+  const triggering = triggerMutation.isPending || status === "running";
+  const schedule = formatScheduleLabel(agent.cron_expression, agent.is_active);
+
+  return (
+    <Card
+      interactive
+      title={agent.name}
+      subtitle={agent.description || "Scheduled automation agent."}
+      onClick={onOpen}
+      style={{ cursor: "pointer", display: "flex", flexDirection: "column", height: "100%" }}
+      action={
+        <div style={{ display: "flex", gap: "6px", alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
+          <Tooltip content={agent.is_active ? "Pause agent" : "Enable agent"}>
+            <div>
+              <Switch
+                aria-label={`Toggle ${agent.name}`}
+                checked={agent.is_active}
+                onChange={(e) => toggleMutation.mutate(e.target.checked)}
+                disabled={toggleMutation.isPending}
+                size="sm"
+              />
+            </div>
+          </Tooltip>
+        </div>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "12px", flex: 1 }}>
+        <RowDivider style={{ margin: "0 -24px" }} />
+        
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <StatusBadge $status={status}>
+            {status === "success" ? (
+              <CheckCircle size={12} />
+            ) : status === "error" ? (
+              <XCircle size={12} />
+            ) : status === "running" ? (
+              <RefreshCw size={12} style={{ animation: "spin 1s linear infinite" }} />
+            ) : null}
+            {status}
+          </StatusBadge>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label={`Run ${agent.name}`}
+            onClick={(e) => { e.stopPropagation(); triggerMutation.mutate(); }}
+            disabled={triggering}
+            style={{ minWidth: 38, paddingInline: 10, height: 28 }}
+          >
+            {triggering ? (
+              <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
+            ) : (
+              <>
+                <Play size={14} fill="currentColor" opacity={0.8} />
+                <span style={{ marginLeft: 6, fontSize: 12 }}>Run</span>
+              </>
+            )}
+          </Button>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "auto" }}>
+          <Cell>
+            <MobileLabel style={{ display: "flex" }}>
+              <Calendar size={12} />
+              Schedule
+            </MobileLabel>
+            <Value>{schedule.title}</Value>
+            <SubValue>{schedule.subtitle}</SubValue>
+          </Cell>
+          <Cell>
+            <MobileLabel style={{ display: "flex" }}>
+              <RefreshCw size={12} />
+              Next Run
+            </MobileLabel>
+            <NextRunCountdown cron={agent.cron_expression} isActive={agent.is_active} />
+          </Cell>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function AgentsContent({ agents }: { agents: Agent[] }) {
+  const { tab, search, domain, schedule, status, sort, view, setFilter } = useAgentFilters();
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+
+  const processedAgents = useMemo(() => {
+    let filtered = agents;
+
+    if (tab === "active") filtered = filtered.filter((agent) => agent.is_active);
+    if (tab === "paused") filtered = filtered.filter((agent) => !agent.is_active);
+    if (tab === "error") filtered = filtered.filter((agent) => agent.last_run_status === "error");
+
+    if (search) {
+      const query = search.toLowerCase();
+      filtered = filtered.filter(
+        (agent) =>
+          agent.name.toLowerCase().includes(query) ||
+          (agent.description || "").toLowerCase().includes(query) ||
+          (agent.last_output_text || "").toLowerCase().includes(query),
+      );
+    }
+
+    if (domain !== "all") {
+      filtered = filtered.filter((agent) => getAgentDomain(agent.task_id) === domain);
+    }
+
+    if (schedule !== "all") {
+      if (schedule === "manual") {
+        filtered = filtered.filter((agent) => !agent.cron_expression || agent.cron_expression === "Manual");
+      } else if (schedule === "daily") {
+        filtered = filtered.filter(
+          (agent) => agent.cron_expression && agent.cron_expression !== "Manual" && agent.cron_expression.split(" ")[4] === "*",
+        );
+      } else if (schedule === "weekly") {
+        filtered = filtered.filter(
+          (agent) => agent.cron_expression && agent.cron_expression !== "Manual" && agent.cron_expression.split(" ")[4] !== "*",
+        );
+      }
+    }
+
+    if (status !== "all") {
+      filtered = filtered.filter((agent) => (agent.last_run_status || "idle") === status);
+    }
+
+    return [...filtered].sort((a, b) => {
+      if (sort === "name") return a.name.localeCompare(b.name);
+      if (sort === "schedule") {
+        const nextA = a.cron_expression && a.cron_expression !== "Manual" ? getNextCronRun(a.cron_expression)?.getTime() || Infinity : Infinity;
+        const nextB = b.cron_expression && b.cron_expression !== "Manual" ? getNextCronRun(b.cron_expression)?.getTime() || Infinity : Infinity;
+        return nextA - nextB;
+      }
+      if (sort === "time") {
+        const nextA = a.cron_expression && a.cron_expression !== "Manual" ? getScheduleSortValue(a.cron_expression) : Infinity;
+        const nextB = b.cron_expression && b.cron_expression !== "Manual" ? getScheduleSortValue(b.cron_expression) : Infinity;
+        return nextA - nextB;
+      }
+      const timeA = a.last_run_at ? new Date(a.last_run_at).getTime() : 0;
+      const timeB = b.last_run_at ? new Date(b.last_run_at).getTime() : 0;
+      return timeB - timeA;
+    });
+  }, [agents, domain, schedule, search, sort, status, tab]);
+
+  const selectedAgent = processedAgents.find((agent) => agent.id === selectedAgentId) ?? agents.find((agent) => agent.id === selectedAgentId) ?? null;
+
+  const tableRender = (
+    <Stack>
+      <AgentsToolbar />
+
+      {view === "grid" ? (
+        processedAgents.length === 0 ? (
+          <EmptyWrap>
+            <EmptyState
+              icon={Filter}
+              title="No agents match this filter"
+              description="Tighten or clear filters to see more of the roster."
+            />
+          </EmptyWrap>
+        ) : (
+          <AgentGrid>
+            {processedAgents.map((agent) => (
+              <AgentCard key={agent.id} agent={agent} onOpen={() => setSelectedAgentId(agent.id)} />
+            ))}
+          </AgentGrid>
+        )
+      ) : (
+        <RosterCard
+          noPadding
+          title="Agents Roster"
+          subtitle="One clean list. Scan fast, open details only when you need them."
+        >
+            {processedAgents.length === 0 ? (
+              <EmptyWrap>
+                <EmptyState
+                  icon={Filter}
+                  title="No agents match this filter"
+                  description="Tighten or clear filters to see more of the roster."
+                />
+              </EmptyWrap>
+            ) : (
+              <TableShell>
+                <TableHeader>
+                  <TableHeaderCell>Agent</TableHeaderCell>
+                  <TableHeaderCell $alignRight>
+                    <Activity size={12} />
+                    Status
+                  </TableHeaderCell>
+                  <TableHeaderCell $alignRight>
+                    <Calendar size={12} />
+                    Schedule
+                  </TableHeaderCell>
+                  <TableHeaderCell $alignRight>
+                    <Clock3 size={12} />
+                    Last run
+                  </TableHeaderCell>
+                  <TableHeaderCell $alignRight>
+                    <RefreshCw size={12} />
+                    Next run
+                  </TableHeaderCell>
+                  <TableHeaderCell $alignRight>
+                    <Zap size={12} />
+                    Actions
+                  </TableHeaderCell>
+                </TableHeader>
+                {processedAgents.map((agent) => (
+                  <AgentRow key={agent.id} agent={agent} onOpen={() => setSelectedAgentId(agent.id)} />
+                ))}
+              </TableShell>
+            )}
+        </RosterCard>
+      )}
+
+      <AgentDetailDialog
+        agent={selectedAgent}
+        open={Boolean(selectedAgent)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedAgentId(null);
+        }}
+      />
+    </Stack>
+  );
+
+  const tabs = [
+    { key: "all", label: `All (${agents.length})`, children: tableRender },
+    { key: "active", label: `Active (${agents.filter((agent) => agent.is_active).length})`, children: tableRender },
+    { key: "paused", label: `Paused (${agents.filter((agent) => !agent.is_active).length})`, children: tableRender },
+    { key: "error", label: `Needs Attention (${agents.filter((agent) => agent.last_run_status === "error").length})`, children: tableRender },
+  ];
+
+  return <AreaTabs activeKey={tab} onChange={(key) => setFilter("tab", key)} items={tabs} />;
+}
+
 export function AgentsPage() {
-  const {
-    data: agents,
-    isLoading,
-    isError,
-    refetch,
-  } = useQuery({
+  const { data: agents, isLoading, isError, refetch } = useQuery({
     queryKey: ["agents"],
     queryFn: agentsApi.list,
+  });
+
+  const seedMutation = useMutation({
+    mutationFn: () => agentsApi.seed(),
+    onSuccess: async () => {
+      await refetch();
+      toast.success("Default agents seeded");
+    },
+    onError: () => toast.error("Failed to seed agents"),
   });
 
   return (
     <PageContainer>
       <PageContent>
-      <SpinGlobal />
-      <PageHeader
-        title="Agents"
-        subtitle="Autonomous agents that manage your life OS."
-        icon={<Bot />}
-        eyebrow="Automation"
-      />
-      {isError ? (
-        <ErrorCard message="Could not load agents" onRetry={() => refetch()} />
-      ) : isLoading ? (
-        <AgentsGrid>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <AgentSkeleton key={i} />
-          ))}
-        </AgentsGrid>
-      ) : agents?.length === 0 ? (
-        <EmptyState
-          icon={Zap}
-          title="No agents yet"
-          description="Agents will appear here once seeded."
-          action={{
-            label: "Seed Agents",
-            onClick: () => {
-              toast.success("Agents pre-seeded! Syncing with workspace...");
-              refetch();
-            },
-          }}
+        <SpinGlobal />
+        <PageHeader
+          title="Agents"
+          subtitle="A compact control room for autonomous workflows across your life OS."
+          icon={<Bot />}
+          eyebrow="Automation"
         />
-      ) : (
-        <AgentsContent agents={agents ?? []} />
-      )}
+
+        {isError ? (
+          <ErrorCard message="Could not load agents" onRetry={() => refetch()} />
+        ) : isLoading ? (
+          <Stack>
+            {Array.from({ length: 6 }).map((_, index) => (
+              <AgentSkeleton key={index} />
+            ))}
+          </Stack>
+        ) : agents?.length === 0 ? (
+          <EmptyState
+            icon={Zap}
+            title="No agents yet"
+            description="Seed the default roster, then refine with filters as your setup grows."
+            action={{
+              label: seedMutation.isPending ? "Seeding..." : "Seed Agents",
+              onClick: () => seedMutation.mutate(),
+            }}
+          />
+        ) : (
+          <AgentsContent agents={agents ?? []} />
+        )}
       </PageContent>
     </PageContainer>
-  );
-}
-
-function DomainSection({ domain, agents, index }: { domain: string, agents: Agent[], index: number }) {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const hasError = agents.some((a) => a.last_run_status === "error");
-  
-  return (
-    <div key={domain}>
-      <DomainHeaderRow 
-        $isFirst={index === 0} 
-        $isExpanded={isExpanded} 
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', color: 'var(--muted-foreground)' }}>
-          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        </div>
-        <div style={{ width: '6px', height: '14px', background: 'var(--primary)', borderRadius: '3px' }} />
-        <span style={{ flex: 1 }}>{domain}</span>
-        {!isExpanded && hasError && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--destructive)' }}>
-            <XCircle size={14} />
-            <span style={{ fontSize: '10px' }}>Errors inside</span>
-          </div>
-        )}
-      </DomainHeaderRow>
-      {isExpanded && agents.map((agent) => (
-        <AgentErrorBoundary key={agent.id}>
-          <AgentCard agent={agent} />
-        </AgentErrorBoundary>
-      ))}
-    </div>
-  );
-}
-
-function AgentsContent({ agents }: { agents: Agent[] }) {
-  const { tab, search, domain, schedule, status, sort, setFilter } = useAgentFilters();
-
-  const processedAgents = useMemo(() => {
-    let filtered = agents;
-    if (tab === "active") filtered = filtered.filter((a) => a.is_active);
-    if (tab === "paused") filtered = filtered.filter((a) => !a.is_active);
-    if (tab === "error") filtered = filtered.filter((a) => a.last_run_status === "error");
-
-    if (search) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter((a) => 
-        a.name.toLowerCase().includes(q) || 
-        (a.description && a.description.toLowerCase().includes(q))
-      );
-    }
-
-    if (domain !== "all") {
-      filtered = filtered.filter((a) => getAgentDomain(a.task_id) === domain);
-    }
-
-    if (schedule !== "all") {
-      if (schedule === "manual") {
-        filtered = filtered.filter((a) => !a.cron_expression || a.cron_expression === "Manual");
-      } else if (schedule === "daily") {
-        filtered = filtered.filter((a) => a.cron_expression && a.cron_expression !== "Manual" && a.cron_expression.split(" ")[4] === "*");
-      } else if (schedule === "weekly") {
-        filtered = filtered.filter((a) => a.cron_expression && a.cron_expression !== "Manual" && a.cron_expression.split(" ")[4] !== "*");
-      }
-    }
-
-    if (status !== "all") {
-      filtered = filtered.filter((a) => (a.last_run_status || "idle") === status);
-    }
-
-    return filtered.sort((a, b) => {
-      if (sort === "name") {
-        return (a.name || "").localeCompare(b.name || "");
-      }
-      if (sort === "schedule") {
-        if (!a.cron_expression || a.cron_expression === "Manual") return 1;
-        if (!b.cron_expression || b.cron_expression === "Manual") return -1;
-        const nextA = getNextCronRun(a.cron_expression)?.getTime() || Infinity;
-        const nextB = getNextCronRun(b.cron_expression)?.getTime() || Infinity;
-        return nextA - nextB;
-      }
-      if (sort === "last_run") {
-        const timeA = a.last_run_at ? new Date(a.last_run_at).getTime() : 0;
-        const timeB = b.last_run_at ? new Date(b.last_run_at).getTime() : 0;
-        return timeB - timeA; 
-      }
-      return 0;
-    });
-  }, [agents, tab, search, domain, schedule, status, sort]);
-
-  const agentsByDomain = useMemo(() => {
-    const grouped: Record<string, Agent[]> = {};
-    for (const agent of processedAgents) {
-      const d = getAgentDomain(agent.task_id);
-      if (!grouped[d]) grouped[d] = [];
-      grouped[d].push(agent);
-    }
-    return grouped;
-  }, [processedAgents]);
-
-  const tableRender = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <AgentsToolbar />
-      <Card>
-        <CardHeader style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div>
-            <CardTitle>Agents Roster</CardTitle>
-            <CardDescription>All scheduled and manual agents categorized by domain.</CardDescription>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>Sort by:</span>
-            <SortSelect value={sort} onChange={(e) => setFilter("sort", e.target.value)}>
-              <option value="name">Name</option>
-              <option value="schedule">Next Run Time</option>
-              <option value="last_run">Last Run Time</option>
-            </SortSelect>
-          </div>
-        </CardHeader>
-        <CardContent style={{ padding: 0 }}>
-        <AgentsGrid>
-          {processedAgents.length === 0 ? (
-            <div style={{ padding: '32px' }}>
-              <EmptyState
-                icon={Filter}
-                title="No agents match this filter"
-                description="Try changing your tab or search criteria."
-              />
-            </div>
-          ) : (
-            <TableShell style={{ border: 'none', borderRadius: 0 }}>
-              <TableHeader>
-                <TableHeaderCell>Agent</TableHeaderCell>
-                <TableHeaderCell>
-                  <Calendar size={12} /> Schedule
-                </TableHeaderCell>
-                <TableHeaderCell>
-                  <Clock3 size={12} /> Last run
-                </TableHeaderCell>
-                <TableHeaderCell>
-                  <RefreshCw size={12} /> Next run
-                </TableHeaderCell>
-                <TableHeaderCell style={{ justifyContent: 'flex-end' }}>
-                  <Zap size={12} /> Actions
-                </TableHeaderCell>
-              </TableHeader>
-              {Object.entries(agentsByDomain).sort(([a], [b]) => a.localeCompare(b)).map(([domain, domainAgents], index) => (
-                <DomainSection key={domain} domain={domain} agents={domainAgents} index={index} />
-              ))}
-            </TableShell>
-          )}
-        </AgentsGrid>
-      </CardContent>
-    </Card>
-    </div>
-  );
-
-  const tabs = [
-    { key: "all", label: `All (${agents.length})`, children: tableRender },
-    { key: "active", label: `Active (${agents.filter((a) => a.is_active).length})`, children: tableRender },
-    { key: "paused", label: `Paused (${agents.filter((a) => !a.is_active).length})`, children: tableRender },
-    { key: "error", label: `Needs Attention (${agents.filter((a) => a.last_run_status === "error").length})`, children: tableRender },
-  ];
-
-  return (
-    <AreaTabs
-      activeKey={tab}
-      onChange={(key) => setFilter("tab", key)}
-      items={tabs}
-    />
   );
 }

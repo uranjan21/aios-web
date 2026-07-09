@@ -1,7 +1,94 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
 > Every AI tool appends an entry here at end of session — contract in `AGENTS.md`.
+## 2026-07-09 — antigravity
+- Shipped: Implemented Tiered Cognitive Routing. Added `llm_provider`, `openai_chat_model`, and `claude_model` to the `Agent` database model and applied an Alembic migration. Updated backend pipelines (`runners.py`, `insights.py`, `agent.py`) to inject models dynamically based on a hierarchy: Session Overrides > Agent Overrides > Global Fallback. Updated the frontend `AgentsPage.tsx` to include an "AI Configuration" panel for individual agents, and `GlobalAssistant.tsx` to permit hot-swapping providers/models per session via WebSocket payloads in `useChat.ts`.
+- Blockers: none
+- Next: Restart Docker containers to confirm backend task routing and perform end-to-end multi-agent behavior tests.
+
+## 2026-07-09 — antigravity
+- Shipped: Updated the `GlobalAssistant` widget for the AIOS Enterprise Upgrade. The assistant window is now resizable with a Maximize option to open in a new tab. Added Provider and Model selection to the header via a Settings dropdown. Implemented file uploads with thumbnails and updated `useChat.ts` to transmit base64 encoded attachments via the WebSocket payload. Added a Chat History sidebar that displays recent sessions (last 7 days) and allows switching between them dynamically.
+- Blockers: none
+- Next: Validate UI interactions and end-to-end functionality for sending attachments to the backend.
+
+
 > Synced weekly into Utsav's AI OS (04-business/products/aios-web/progress.md).
+
+## 2026-07-09 — antigravity
+- Shipped: Fixed the database error for `daily_token_usage` table by creating a new Alembic migration that drops the existing primary key constraint and creates a composite primary key on `(usage_date, user_id)`. Updated `chat_ws_handler` in `backend/app/api/chat.py` and `stream_chat_response` in `backend/app/services/chat/agent.py` to optionally process `model`, `provider`, and `attachments` passed through the frontend WebSocket. Added basic prompt injection guardrails to filter restricted phrases and implemented structural logic to pass base64 image data to the language model.
+- Blockers: none
+- Next: Update the frontend to handle file selection, convert to base64, and transmit it along with the user's message in the WebSocket payload.
+
+## 2026-07-08 — antigravity
+- Shipped: Implemented per-user LLM configuration. Added `llm_provider`, `openai_chat_model`, `claude_model`, `openai_api_key_encrypted`, and `anthropic_api_key_encrypted` fields to the `User` model with an Alembic migration. Updated `backend/app/api/auth.py` to expose these settings in profile updates. Refactored `agent.py`, `openai_agent.py`, and `embedder.py` to override global configurations with user-provided settings dynamically, and added logic to bypass AI token metering when users supply their own keys. Added "AI Configuration" section to the `SettingsPage` UI for per-user LLM configuration management.
+- Blockers: none
+- Next: Update `.env` to configure system keys and test BYOK.
+
+## 2026-07-08 — antigravity
+- Shipped: Removed the dedicated Chat Page and replaced it with a Global Assistant floating widget in `AppShell` that persists across navigation. Updated `_BASE_RULES` in backend agent runners to explicitly communicate when data is missing instead of generating generic fallback facts. Fixed build errors in `AgentsPage.tsx` caused by a missing API method.
+- Blockers: none
+- Next: Check UI interactions with the floating assistant and verify the new transparent fallback outputs from agents.
+
+## 2026-07-08 — antigravity
+- Shipped: Moved the "Sort by" filter from the list view header into the global `AgentsToolbar` so it remains accessible in both List and Grid views.
+- Blockers: none
+- Next: none
+
+## 2026-07-08 — antigravity
+- Shipped: Consolidated backend agents from 12 down to 7 highly functional agents. Merged Inbox Triage and News Radar into Morning Brief; merged Career Checkpoint and Business Pulse into Professional Pulse; merged Weekly Calendar and Content Performance into Content Strategist. Removed Evening Review to reduce notification fatigue. Created Alembic data migration to clean up deprecated agents from the DB and updated tests.
+- Blockers: none
+- Next: Proceed to UI verifications for agents or wait for the next scheduled runs to observe outputs.
+
+## 2026-07-08 — antigravity
+- Shipped: Migrated real-time vault extraction to a Daily Vault Extractor agent to save API costs. Added `last_extracted_content` and `last_extracted_at` to the `VaultFile` model with an Alembic migration. Removed instant extraction triggers from `sync_engine.py` and built an aggregated net-diff daily extractor in `extractor.py`. Scheduled the agent to run at 23:00 UTC via APScheduler.
+- Blockers: none
+- Next: Proceed to testing new daily extraction flows in the real world.
+
+## 2026-07-08 — antigravity
+- Shipped: Implemented AI Vault Extractor and Global Inbox. Added `auto_commit_at` field to `AgentAction` model with an Alembic migration. Integrated text diffing in `sync_engine.py` to trigger asynchronous NLP intent extraction (`extractor.py`) for newly added vault text. Routed extracted events to the finance inbox and action inbox for 24-hour review. Updated `action_runner.py` to process actions through the `execute_tool` router and added a cron job in `scheduler.py` for hourly auto-commit of pending agent actions.
+- Blockers: none
+- Next: Finalize any UI elements for the Global Inbox if needed, or proceed to user testing.
+
+## 2026-07-08 — codex
+- Shipped: Tightened the shared page density by reducing `AreaToolbar` bottom spacing globally and compacted the Agents roster rows with smaller row padding, grid gaps, and action spacing so the page matches the denser rhythm of Finance and Health.
+- Blockers: none
+- Next: do a visual pass across other toolbar-heavy pages to confirm the global spacing change feels correct everywhere, not just on Agents.
+
+## 2026-07-08 — codex
+- Shipped: Refined the Agents roster layout per feedback: removed output text and domain/category labels from rows, kept only the running-state left accent, restored the global Card title/subtitle/action layout with sort on the right, and restyled the toolbar with search left and filters right.
+- Blockers: none
+- Next: optionally do a live browser pass on the Agents page at desktop/mobile widths once the dev server is running.
+
+## 2026-07-08 — codex
+- Shipped: Redesigned the Agents page into a single uncluttered roster with no domain accordions, compact high-signal rows, and a detail dialog for output/configuration. Removed long in-row prose and moved schedule editing plus full output inspection into the dialog.
+- Blockers: none
+- Next: if needed, add subtle live run-state streaming inside the dialog without reintroducing row clutter.
+
+## 2026-07-08 — codex
+- Shipped: Audited and fixed the Agents page UX: real seed action, required `PageDivider`, clearer last-output drawer, inline “why this exists” and output preview, and token-consistent toolbar focus/radius styling. Fixed the unrelated `Sidebar` dropdown typing issues so the frontend builds clean again.
+- Shipped: Wired agent/chat write tools to dual-write structured DB updates into vault log files and immediately sync those files into the vault store; added agent writeback action parsing so selected agents can execute `create_action`/`update_goal`/`log_transaction`/`log_health_metric` style follow-ups.
+- Blockers: none
+- Next: if you want broader agent autonomy, move from the current parsed action block approach to first-class model tool-calling for background agents too.
+
+## 2026-07-08 — teamwork_preview_orchestrator
+- Shipped: Orchestrated the implementation of active write capabilities for AI OS agents, including database write tools, vault write enhancements, agent prompt updates, and robustness/security fixes. All E2E tests, boundary checks, and forensic audits passed cleanly.
+- Blockers: none
+- Next: Ready for user interaction or further feature additions.
+
+## 2026-07-08 — teamwork_preview_auditor_3
+- Shipped: Completed forensic integrity audit on the final write tools codebase. Verified database write operations, test results, and codebase layout. Documented findings and CLEAN verdict in `audit.md` and `handoff.md`.
+- Blockers: none
+- Next: hand off audit reports to orchestrator parent.
+
+## 2026-07-08 — teamwork_preview_challenger_3
+- Shipped: Ran final stress and safety test suites on active write tools, resolving two test mock/database setup discrepancies and one exception assertion mismatch. All 18 tests passed cleanly. Verified VaultWriteGuard path traversal safety, negative health/finance value validation, context building domain-scoping, and conflict resolution UUID compilation.
+- Blockers: none
+- Next: Final handoff and completion of the task.
+
+## 2026-07-08 — teamwork_preview_reviewer_3
+- Shipped: Completed final quality & adversarial review of safety and robustness fixes. Verified regex lambda replacement, Decimal usage, try-except safety wraps, positive boundary checks, and conflict resolution fixes.
+- Blockers: none
+- Next: hand off and report success to the parent orchestrator.
 
 ## 2026-07-08 — teamwork_preview_worker_write_tools_fixes
 - Shipped: Fixed regex substitution backslash/backreference vulnerabilities in `update_context` tool, resolved UPI parser Decimal precision mismatch, added safety try-except blocks for UUID type casting in `execute_tool`, added positive boundary checks for transactions and workout sets/health logs, wrapped DB session commits in try-except logs, implemented `write_file` in `VaultWriteGuard` to fix resolution AttributeError, resolved SQLite query UUID comparison crash, updated chat SYSTEM_TEMPLATE instructions, and added/updated unit tests verifying all fixes.

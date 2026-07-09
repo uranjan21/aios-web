@@ -116,6 +116,9 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
 
             user_content = data.get("content", "")
             session_id_str = data.get("session_id")
+            model = data.get("model")
+            provider = data.get("provider")
+            attachments = data.get("attachments")
 
             async with AsyncSessionLocal() as session:
                 user_result = await session.execute(select(User).where(User.id == user_id))
@@ -181,7 +184,15 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
             # Always persist partial response — save in finally so disconnect doesn't lose it
             full_response = ""
             try:
-                async for event in stream_chat_response(current_user.id, session_id, user_content, history):
+                async for event in stream_chat_response(
+                    current_user.id,
+                    session_id,
+                    user_content,
+                    history,
+                    model=model,
+                    provider=provider,
+                    attachments=attachments,
+                ):
                     await websocket.send_text(json.dumps(event))
                     if event.get("type") == "chunk":
                         full_response += event.get("content", "")

@@ -39,10 +39,12 @@ This document provides a categorized list of all features currently implemented 
 
 ## 6. Core AI & OS Capabilities 🧠
 *   **Global Capture (⌘L) & Contextual Task Creation (R7):** Intercepts ⌘L on projects or sprints detail pages to open a Contextual Task Creation dialog pre-populating project/sprint fields; falls back to NLP-powered Global Capture note logging elsewhere.
-*   **Active Database Write Tools:** Proactive database write capabilities (`create_action`, `update_goal`, `log_transaction`, `log_health_metric`) allowing chat and background agents to record tasks, update goal progress, log transactions (with automated account balance adjustments), and save workouts (including sets and reps) or health logs directly.
+*   **AI Vault Extractor & Global Inbox:** Automatically monitors the Obsidian Vault for new markdown file modifications, parses the text asynchronously using LLMs to extract intents (finance, health, business events), and queues them into a Global Inbox (e.g. pending transactions or actions) for user review or 24-hour auto-commit.
+*   **Active Database + Vault Write Tools:** Proactive write capabilities (`create_action`, `update_goal`, `log_transaction`, `log_health_metric`) allowing chat and background agents to record structured data in Postgres, mirror the change into the relevant vault log file, and sync that file straight back into the vault store for RAG/search freshness.
 *   **Interactive Saved Quotes (R6):** Save quotes, mark favorites, delete, and view random quotes via dedicated REST endpoints.
-*   **Multi-LLM Chat Assistant:** Interactive chat powered by Anthropic Claude or OpenAI, capable of querying personal data.
-*   **Background Agents:** Scheduled tasks (anomaly scan, weekly digest, recurring financial tasks) with domain-scoped facts isolation, explicit task-to-domain mapping, and graceful fallback modes with standardized warning prefixes. Features a URL-addressable advanced filtering UI for managing run-states, errors, and schedules.
+*   **Global Chat Assistant:** Interactive floating chat powered by Anthropic Claude, OpenAI, or Gemini, with support for file attachments (images/text), on-the-fly model switching, and chat session history tracking.
+*   **Per-User LLM Configuration (BYOK):** Override system default LLMs (OpenAI vs Anthropic) per-user and supply personal API keys to bypass token metering limits via the AI Configuration settings.
+*   **Background Agents:** Scheduled tasks (anomaly scan, weekly digest, recurring financial tasks) with domain-scoped facts isolation, explicit task-to-domain mapping, graceful fallback modes with standardized warning prefixes, and structured writeback execution for selected agents via parsed action blocks. Features a URL-addressable advanced filtering UI for managing run-states, errors, and schedules, plus a real seed endpoint and clearer last-output inspection on the Agents page.
 *   **Local Vault Sync:** Secure, local markdown file synchronization.
 
 ## 7. SaaS & Infrastructure ⚙️

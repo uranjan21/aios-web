@@ -18,8 +18,9 @@ interface UseChatResult {
   isStreaming: boolean
   tokenInfo: { input: number; output: number; daily_remaining: number } | null
   affectedPaths: string[]
-  sendMessage: (content: string) => void
+  sendMessage: (content: string, hiddenContext?: string, attachments?: File[], overrides?: { provider?: string; openaiModel?: string; claudeModel?: string }) => void
   newSession: () => void
+  loadSession: (id: string) => void
   connected: boolean
   loadingMessages: boolean
 }
@@ -161,8 +162,24 @@ export function useChat(initialSessionId?: string): UseChatResult {
     }
   }, [initialSessionId])
 
-  const sendMessage = useCallback((content: string) => {
+  const sendMessage = useCallback(async (content: string, hiddenContext?: string, attachments?: File[], overrides?: { provider?: string; openaiModel?: string; claudeModel?: string }) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
+
+    let encodedAttachments: { filename: string; contentType: string; data: string }[] = []
+    
+    if (attachments && attachments.length > 0) {
+      encodedAttachments = await Promise.all(attachments.map(async (file) => {
+        return new Promise<any>((resolve) => {
+          const reader = new FileReader()
+          reader.onload = () => {
+            const result = reader.result as string
+            const base64Data = result.split(',')[1] // remove data url prefix
+            resolve({ filename: file.name, contentType: file.type, data: base64Data })
+          }
+          reader.readAsDataURL(file)
+        })
+      }))
+    }
 
     const userMsgId = nextId()
     setMessages(prev => [...prev, { id: userMsgId, role: 'user', content }])
@@ -173,10 +190,16 @@ export function useChat(initialSessionId?: string): UseChatResult {
     setIsStreaming(true)
     setAffectedPaths([])
 
+    const payloadContent = hiddenContext ? `${hiddenContext}\n${content}` : content
+
     wsRef.current.send(JSON.stringify({
       type: 'message',
-      content,
+      content: payloadContent,
       session_id: sessionId,
+      attachments: encodedAttachments.length > 0 ? encodedAttachments : undefined,
+      override_provider: overrides?.provider,
+      override_openai_model: overrides?.openaiModel,
+      override_claude_model: overrides?.claudeModel,
     }))
   }, [sessionId])
 
@@ -187,5 +210,25 @@ export function useChat(initialSessionId?: string): UseChatResult {
     setTokenInfo(null)
   }, [])
 
-  return { messages, sessionId, isStreaming, tokenInfo, affectedPaths, sendMessage, newSession, connected, loadingMessages }
+  const loadSession = useCallback((id: string) => {
+    setSessionId(id)
+    setLoadingMessages(true)
+    chatApi.session(id)
+      .then(data => {
+        if (data && Array.isArray(data.messages)) {
+          const mapped: LocalMessage[] = data.messages.map((m: any) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            toolCalls: m.tool_calls || undefined,
+            toolResults: m.tool_results || undefined,
+          }))
+          setMessages(mapped)
+        }
+      })
+      .catch(err => console.error("Failed to load session:", err))
+      .finally(() => setLoadingMessages(false))
+  }, [])
+
+  return { messages, sessionId, isStreaming, tokenInfo, affectedPaths, sendMessage, newSession, loadSession, connected, loadingMessages }
 }

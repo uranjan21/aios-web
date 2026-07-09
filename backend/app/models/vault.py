@@ -20,6 +20,8 @@ class VaultFile(SQLModel, table=True):
     checksum: str = Field(nullable=False)
     sync_status: str = Field(default="ok", nullable=False)
     last_synced_at: Optional[datetime] = None
+    last_extracted_content: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
+    last_extracted_at: Optional[datetime] = None
     error_message: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
     updated_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
