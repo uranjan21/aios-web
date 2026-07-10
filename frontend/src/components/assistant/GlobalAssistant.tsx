@@ -60,7 +60,7 @@ const StreamingCursor = styled.span`
 const TimelineContainer = styled.div`
   display: flex;
   flex-direction: column;
-  margin: 6px 0;
+  margin: 0;
 `
 
 const ToolCallContainer = styled.div<{ $isLast?: boolean }>`
@@ -108,7 +108,7 @@ const ToolCallCard = styled.div`
   }
 `
 
-const ToolCallButton = styled.button<{ $open: boolean }>`
+const ToolCallButton = styled.button.attrs({ type: 'button' })<{ $open: boolean }>`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing[3]};
@@ -284,7 +284,6 @@ const PathsWrapper = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: ${({ theme }) => theme.spacing[1]};
-  margin-top: ${({ theme }) => theme.spacing[2]};
   padding: 0 ${({ theme }) => theme.spacing[1]};
 `
 
@@ -330,7 +329,8 @@ const MessageContainer = styled.div<{ $isUser: boolean }>`
   justify-content: ${({ $isUser }) => $isUser ? 'flex-end' : 'flex-start'};
   position: relative;
   
-  &:hover .message-actions {
+  &:hover .message-actions,
+  &:focus-within .message-actions {
     opacity: 1;
     visibility: visible;
   }
@@ -418,10 +418,10 @@ const MarkdownWrapper = styled.div`
 const ThinkingContainer = styled.details`
   font-size: 11px;
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-bottom: ${({ theme }) => theme.spacing[2]};
   border-left: 2px solid ${({ theme }) => theme.color.border};
   padding-left: ${({ theme }) => theme.spacing[2]};
-  
+  margin: 0;
+
   &[open] summary ~ * {
     animation: fadein ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
   }
@@ -450,8 +450,18 @@ const ThinkingContent = styled.div`
 `
 
 function ThinkingBlock({ content, streaming }: { content: string, streaming: boolean }) {
+  const [isOpen, setIsOpen] = useState(streaming)
+
+  useEffect(() => {
+    setIsOpen(streaming)
+  }, [streaming])
+
+  const handleToggle = (e: React.SyntheticEvent<HTMLDetailsElement>) => {
+    setIsOpen(e.currentTarget.open)
+  }
+
   return (
-    <ThinkingContainer open={streaming}>
+    <ThinkingContainer open={isOpen} onToggle={handleToggle}>
       <ThinkingSummary>
         <BrainCircuit size={12} />
         {streaming ? 'Thinking...' : 'Thoughts'}
@@ -464,12 +474,11 @@ function ThinkingBlock({ content, streaming }: { content: string, streaming: boo
 }
 
 const ArtifactContainer = styled.div`
-  margin-top: ${({ theme }) => theme.spacing[2]};
-  margin-bottom: ${({ theme }) => theme.spacing[2]};
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.lg};
   overflow: hidden;
   max-width: 100%;
+  margin: 0;
 `
 
 const ArtifactHeader = styled.div`
@@ -531,6 +540,11 @@ const MessageActionsWrapper = styled.div<{ $isUser: boolean }>`
   opacity: 0;
   visibility: hidden;
   transition: opacity ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard}, visibility ${({ theme }) => theme.motion.duration.fast};
+
+  &:focus-within {
+    opacity: 1;
+    visibility: visible;
+  }
 `
 
 const ActionBtn = styled.button.attrs({ type: 'button' })`
@@ -745,7 +759,7 @@ const HeaderLeft = styled.div`
 `
 
 const HeaderTitle = styled.span`
-  font-family: ${({ theme }) => theme.typography?.fontFamily?.serif || '"Playfair Display", serif'};
+  font-family: ${({ theme }) => theme.typography?.fontFamily?.sans || '"DM Sans", sans-serif'};
   font-weight: 600;
   font-size: 14px;
 `
@@ -879,22 +893,28 @@ const HistoryList = styled.div`
   gap: 2px;
 `
 
-const HistoryItem = styled.button.attrs({ type: 'button' })<{ $active?: boolean }>`
+const HistoryItem = styled.div`
   width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+`
+
+const HistorySelectBtn = styled.button.attrs({ type: 'button' })<{ $active?: boolean }>`
+  flex: 1;
   border: none;
   padding: 10px 12px;
   background: ${({ theme, $active }) => $active ? theme.color.muted : 'transparent'};
   border-radius: ${({ theme }) => theme.radii.md};
   font-size: 12px;
   cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   color: ${({ theme, $active }) => $active ? theme.color.foreground : theme.color.mutedForeground};
   font-weight: ${({ $active }) => $active ? 500 : 400};
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  min-width: 0;
+  text-align: left;
   transition: background-color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard},
               color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
 
@@ -1005,7 +1025,7 @@ const QuickPromptsGrid = styled.div`
   width: 100%;
 `
 
-const QuickPromptButton = styled.button`
+const QuickPromptButton = styled.button.attrs({ type: 'button' })`
   padding: 8px 12px;
   font-size: 12px;
   border-radius: ${({ theme }) => theme.radii.md};
@@ -1025,43 +1045,7 @@ const QuickPromptButton = styled.button`
   }
 `
 
-const ContextDropdown = styled.div`
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 0;
-  background: ${({ theme }) => theme.color.background};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.md};
-  box-shadow: ${({ theme }) => theme.shadow.md};
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  z-index: 100;
-  min-width: 150px;
-`
-
-const ContextOption = styled.button`
-  text-align: left;
-  padding: 6px 10px;
-  font-size: 12px;
-  border: none;
-  background: transparent;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  cursor: pointer;
-  color: ${({ theme }) => theme.color.foreground};
-  transition: background-color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
-  
-  &:hover {
-    background: ${({ theme }) => theme.color.muted};
-  }
-
-  &:focus-visible {
-    outline: none;
-    background: ${({ theme }) => theme.color.muted};
-    box-shadow: ${({ theme }) => theme.shadow.ring};
-  }
-`
+// Mentions styling moved to AssistantChatInput.tsx
 
 export function GlobalAssistant() {
   const [panelWidth, setPanelWidth] = useState(400)
@@ -1081,7 +1065,8 @@ export function GlobalAssistant() {
       if (!isResizing.current) return
       if (window.innerWidth < 768) return
       const newWidth = window.innerWidth - e.clientX
-      if (newWidth >= 320 && newWidth <= 800) {
+      const maxAllowedWidth = Math.min(800, window.innerWidth)
+      if (newWidth >= 320 && newWidth <= maxAllowedWidth) {
         setPanelWidth(newWidth)
       }
     }
@@ -1111,18 +1096,6 @@ export function GlobalAssistant() {
     document.body.style.userSelect = 'none'
   }
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setShowSettings(false)
-        setShowHistory(false)
-        setSessionMenuId(null)
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
-
   const [isOpen, setIsOpen] = useState(false)
   const theme = useTheme()
   const { messages, sessionId, isStreaming, sendMessage, connected, newSession, loadSession, loadingMessages } = useChat()
@@ -1140,6 +1113,22 @@ export function GlobalAssistant() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const settingsRef = useRef<HTMLDivElement>(null)
   const sessionMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (!showSettings && !showHistory && !sessionMenuId) {
+          setIsOpen(false)
+        } else {
+          setShowSettings(false)
+          setShowHistory(false)
+          setSessionMenuId(null)
+        }
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [showSettings, showHistory, sessionMenuId])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1243,14 +1232,17 @@ export function GlobalAssistant() {
     if (textareaRef.current) textareaRef.current.focus()
   }
 
-  const mentionMatch = input.match(/@(\w*)$/)
-  const mentionQuery = mentionMatch ? mentionMatch[1].toLowerCase() : ''
-  const availableMentions = ['vault', 'finance', 'health', 'goals'].filter(m => m.includes(mentionQuery))
-
-  const handleMention = (tag: string) => {
-    setInput(prev => prev.replace(/@\w*$/, '') + `@${tag} `)
-    textareaRef.current?.focus()
-  }
+  // Scroll lock when Assistant drawer is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isOpen])
 
   const handleAssistantSend = (data: {
     message: string;
@@ -1418,30 +1410,36 @@ export function GlobalAssistant() {
                     </HeaderActionButton>
                   </HistoryHeader>
                   <HistoryList>
-                    <HistoryItem 
-                      onClick={() => { newSession(); setShowHistory(false) }}
-                      $active={!sessionId}
-                    >
-                      <Plus size={14} style={{ marginRight: 6 }} /> New Chat
+                    <HistoryItem>
+                      <HistorySelectBtn 
+                        onClick={() => { newSession(); setShowHistory(false) }}
+                        $active={!sessionId}
+                      >
+                        <Plus size={14} style={{ marginRight: 6 }} /> New Chat
+                      </HistorySelectBtn>
                     </HistoryItem>
                     {sessions.filter(s => new Date(s.started_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).map(session => (
-                      <HistoryItem 
-                        key={session.id}
-                        onClick={() => {
-                          loadSession(session.id)
-                          setShowHistory(false)
-                        }}
-                        $active={session.id === sessionId}
-                      >
-                        <SessionTitle>
-                          {session.title || new Date(session.started_at).toLocaleString()}
-                        </SessionTitle>
+                      <HistoryItem key={session.id}>
+                        <HistorySelectBtn 
+                          onClick={() => {
+                            loadSession(session.id)
+                            setShowHistory(false)
+                          }}
+                          $active={session.id === sessionId}
+                        >
+                          <SessionTitle>
+                            {session.title || new Date(session.started_at).toLocaleString()}
+                          </SessionTitle>
+                        </HistorySelectBtn>
                         
-                        <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                          <SessionActionBtn onClick={(e) => {
-                            e.stopPropagation()
-                            setSessionMenuId(sessionMenuId === session.id ? null : session.id)
-                          }}>
+                        <div style={{ position: 'relative' }}>
+                          <SessionActionBtn 
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSessionMenuId(sessionMenuId === session.id ? null : session.id)
+                            }}
+                            aria-label="Session actions"
+                          >
                             <MoreHorizontal size={14} />
                           </SessionActionBtn>
                           
@@ -1532,16 +1530,6 @@ export function GlobalAssistant() {
             </MessagesContainer>
 
             <div style={{ padding: '0 16px 16px', position: 'relative' }}>
-              {mentionMatch && availableMentions.length > 0 && (
-                <ContextDropdown>
-                  <div style={{ fontSize: '10px', color: theme.color.mutedForeground, padding: '4px 6px', fontWeight: 600, textTransform: 'uppercase' }}>Mentions</div>
-                  {availableMentions.map(m => (
-                    <ContextOption key={m} onClick={() => handleMention(m)}>
-                      @{m}
-                    </ContextOption>
-                  ))}
-                </ContextDropdown>
-              )}
               <AssistantChatInput
                 onSendMessage={handleAssistantSend}
                 disabled={isStreaming || !connected}

@@ -95,6 +95,12 @@ const FileCard = styled.div`
     }
   }
 
+  @media (hover: none) {
+    .remove-btn {
+      opacity: 0.8;
+    }
+  }
+
   &:hover .remove-btn {
     opacity: 1;
   }
@@ -209,7 +215,7 @@ function FilePreviewCard({ file, onRemove }: { file: AttachedFile; onRemove: (id
         </FileDetails>
       )}
 
-      <button className="remove-btn" onClick={() => onRemove(file.id)}>
+      <button type="button" className="remove-btn" onClick={() => onRemove(file.id)}>
         <Icons.X size={12} />
       </button>
 
@@ -290,7 +296,7 @@ function PastedContentCard({ content, onRemove }: { content: { id: string; conte
       <div className="badge-container">
         <div className="badge">PASTED</div>
       </div>
-      <button className="remove-btn" onClick={() => onRemove(content.id)}>
+      <button type="button" className="remove-btn" onClick={() => onRemove(content.id)}>
         <Icons.X size={10} />
       </button>
     </PastedCard>
@@ -301,7 +307,7 @@ const SelectorWrapper = styled.div`
   position: relative;
 `
 
-const SelectorButton = styled.button<{ $isOpen: boolean }>`
+const SelectorButton = styled.button.attrs({ type: 'button' })<{ $isOpen: boolean }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -364,7 +370,7 @@ const DropdownMenu = styled.div`
   transform-origin: bottom right;
 `
 
-const DropdownItem = styled.button`
+const DropdownItem = styled.button.attrs({ type: 'button' })`
   width: 100%;
   text-align: left;
   padding: 10px 12px;
@@ -455,9 +461,23 @@ function ModelSelector({ models, selectedModel, onSelect }: { models: Model[]; s
         setIsOpen(false)
       }
     }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
+    const handleEscKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation()
+        setIsOpen(false)
+      }
+    }
+    
+    const wrapper = dropdownRef.current
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+      wrapper?.addEventListener("keydown", handleEscKeyDown)
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      wrapper?.removeEventListener("keydown", handleEscKeyDown)
+    }
+  }, [isOpen])
 
   return (
     <SelectorWrapper ref={dropdownRef}>
@@ -558,12 +578,12 @@ const ArtifactsRow = styled.div`
 
 const TextAreaWrapper = styled.div`
   position: relative;
-  margin-bottom: 4px;
   max-height: 384px;
   width: 100%;
   overflow-y: auto;
   min-height: 40px;
   padding-left: 4px;
+  margin: 0;
 
   &::-webkit-scrollbar {
     width: 4px;
@@ -690,6 +710,10 @@ const SendButton = styled.button.attrs({ type: 'button' })<{ $hasContent: boolea
   cursor: ${({ $hasContent }) => $hasContent ? 'pointer' : 'not-allowed'};
   box-shadow: ${({ $hasContent, theme }) => $hasContent ? theme.shadow.sm : 'none'};
   
+  &:disabled {
+    cursor: not-allowed;
+  }
+  
   &:hover {
     opacity: ${({ $hasContent }) => $hasContent ? 0.9 : 1};
   }
@@ -739,6 +763,44 @@ const ModelSelectorWrapper = styled.div`
   align-items: center;
 `
 
+const ContextDropdown = styled.div`
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  background: ${({ theme }) => theme.color.background};
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radii.md};
+  box-shadow: ${({ theme }) => theme.shadow.md};
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 100;
+  min-width: 150px;
+`
+
+const ContextOption = styled.button.attrs({ type: 'button' })<{ $active?: boolean }>`
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 12px;
+  border: none;
+  background: ${({ theme, $active }) => $active ? theme.color.muted : 'transparent'};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  cursor: pointer;
+  color: ${({ theme }) => theme.color.foreground};
+  transition: background-color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
+  
+  &:hover {
+    background: ${({ theme }) => theme.color.muted};
+  }
+
+  &:focus-visible {
+    outline: none;
+    background: ${({ theme }) => theme.color.muted};
+    box-shadow: ${({ theme }) => theme.shadow.ring};
+  }
+`
+
 export interface AssistantChatInputProps {
   onSendMessage: (data: {
     message: string
@@ -768,11 +830,35 @@ export function AssistantChatInput({
   onChangeMessage,
   inputRef
 }: AssistantChatInputProps) {
+  const theme = useTheme()
   const [files, setFiles] = useState<AttachedFile[]>([])
   const [pastedContent, setPastedContent] = useState<{ id: string; content: string; timestamp: Date }[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [selectedModel, setSelectedModel] = useState(defaultModel)
   const [isThinkingEnabled, setIsThinkingEnabled] = useState(false)
+
+  const mentionMatch = message.match(/@(\w*)$/)
+  const mentionQuery = mentionMatch ? mentionMatch[1].toLowerCase() : ''
+  const availableMentions = ['vault', 'finance', 'health', 'goals'].filter(m => m.includes(mentionQuery))
+  const [activeMentionIndex, setActiveMentionIndex] = useState(0)
+  const [mentionsDismissed, setMentionsDismissed] = useState(false)
+
+  useEffect(() => {
+    setActiveMentionIndex(0)
+  }, [message])
+
+  useEffect(() => {
+    if (!mentionMatch) {
+      setMentionsDismissed(false)
+    }
+  }, [mentionMatch])
+
+  const handleMention = (tag: string) => {
+    onChangeMessage(message.replace(/@\w*$/, '') + `@${tag} `)
+    setTimeout(() => {
+      textareaRef.current?.focus()
+    }, 10)
+  }
 
   const internalTextareaRef = useRef<HTMLTextAreaElement>(null)
   const textareaRef = inputRef || internalTextareaRef
@@ -810,8 +896,6 @@ export function AssistantChatInput({
     })
 
     setFiles(prev => [...prev, ...newFiles])
-
-    onChangeMessage(message || (newFiles.length === 1 ? (newFiles[0].type.startsWith('image/') ? "Analyzed image..." : "Analyzed document...") : "Analyzed " + newFiles.length + " files..."))
 
     newFiles.forEach(f => {
       setTimeout(() => {
@@ -853,8 +937,6 @@ export function AssistantChatInput({
         timestamp: new Date()
       }
       setPastedContent(prev => [...prev, snippet])
-
-      if (!message) onChangeMessage("Analyzed pasted text...")
     }
   }
 
@@ -876,6 +958,32 @@ export function AssistantChatInput({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    const showMentions = mentionMatch && availableMentions.length > 0 && !mentionsDismissed
+    if (showMentions) {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        e.nativeEvent.stopImmediatePropagation()
+        setMentionsDismissed(true)
+        return
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setActiveMentionIndex(prev => (prev + 1) % availableMentions.length)
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setActiveMentionIndex(prev => (prev - 1 + availableMentions.length) % availableMentions.length)
+        return
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        handleMention(availableMentions[activeMentionIndex])
+        return
+      }
+    }
+
     if (e.ctrlKey && e.shiftKey && (e.key === 'e' || e.key === 'E')) {
       e.preventDefault()
       setIsThinkingEnabled(prev => !prev)
@@ -889,6 +997,8 @@ export function AssistantChatInput({
 
   const hasContent = !!message.trim() || files.length > 0 || pastedContent.length > 0
 
+  const showMentions = mentionMatch && availableMentions.length > 0 && !mentionsDismissed
+
   return (
     <ChatContainer
       onDragOver={onDragOver}
@@ -896,6 +1006,20 @@ export function AssistantChatInput({
       onDrop={onDrop}
       $isDragging={isDragging}
     >
+      {showMentions && (
+        <ContextDropdown>
+          <div style={{ fontSize: '10px', color: theme.color.mutedForeground, padding: '4px 6px', fontWeight: 600, textTransform: 'uppercase' }}>Mentions</div>
+          {availableMentions.map((m, idx) => (
+            <ContextOption 
+              key={m} 
+              onClick={() => handleMention(m)}
+              $active={idx === activeMentionIndex}
+            >
+              @{m}
+            </ContextOption>
+          ))}
+        </ContextDropdown>
+      )}
       <InputBox>
         <InnerPadding>
           {(files.length > 0 || pastedContent.length > 0) && (

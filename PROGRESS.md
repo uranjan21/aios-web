@@ -1,5 +1,60 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
+## 2026-07-10 — <tool: challenger_assistant_ui_ux_9>
+- Shipped: Adversarially challenged layout, accessibility, and responsiveness changes in GlobalAssistant.tsx and AssistantChatInput.tsx. Verified build success.
+- Blockers: Identified a blocking accessibility bug where `visibility: hidden` on message actions prevents keyboard Tab focus, making `:focus-within` trigger unreachable. Also identified that tabbing out of ModelSelector and pressing Escape closes the entire assistant drawer instead of just the dropdown.
+- Next: Fix the `visibility: hidden` property to `pointer-events: none` on message actions to restore keyboard tab focus, and add focusout close listener to the model selector dropdown.
+
+## 2026-07-10 — <tool: auditor_assistant_ui_ux_6>
+- Shipped: Performed forensic integrity audit of GlobalAssistant.tsx and AssistantChatInput.tsx. Confirmed design system compliance (no Tailwind, DM Sans font, tokens usage) and verified authentic, functional implementations with zero compiler errors. Verdict: CLEAN.
+- Blockers: none
+- Next: none
+
+## 2026-07-10 — <tool: teamwork_preview_challenger_assistant_ui_ux_4>
+- Shipped: Adversarially challenged visual, UI/UX, and accessibility fixes in GlobalAssistant.tsx and AssistantChatInput.tsx. Confirmed build success. Identified escape key bubbling closure bug on mentions suggestion and a margin-gap spacing violation on PathsWrapper.
+- Blockers: none
+- Next: Implementer to resolve the identified keyboard event interception and spacing conflicts.
+
+## 2026-07-10 — <tool: teamwork_preview_auditor_assistant_ui_ux_4>
+- Shipped: Performed forensic integrity audit of GlobalAssistant.tsx and AssistantChatInput.tsx. Confirmed there are no hardcoded test results, mock behaviors, or facade implementation shortcuts. Verified the typescript typecheck and production build compile successfully. Verdict: CLEAN.
+- Blockers: none
+- Next: none
+
+## 2026-07-10 — <tool: teamwork_preview_reviewer_assistant_ui_ux_4>
+- Shipped: Verified visual, accessibility, layout, and HTML nesting fixes in GlobalAssistant.tsx and AssistantChatInput.tsx. Confirmed correct HistoryItem div rendering, overflow behavior, touch device delete control visibility, resize clamping, Escape key handler, button types, disabled cursors, and margin-gap spacing. Verified clean production compilation build. Verdict: APPROVE.
+- Blockers: none
+- Next: none
+
+## 2026-07-10 — <tool: teamwork_preview_worker_assistant_ui_ux_5>
+- Shipped: Fixed all 10 remaining accessibility/visual issues in GlobalAssistant.tsx and AssistantChatInput.tsx. Refactored History sidebar to use sibling buttons, fixed message actions visibility focus-within, updated header typography, corrected touch device delete control opacity, cleaned margins/gaps spacing, implemented model selector Esc keydown dismissal, synchronized thinking details open state, enabled body scroll lock, added mentions keyboard controls, and removed attachment prompt override. Production build passes cleanly.
+- Blockers: none
+- Next: none
+
+## 2026-07-10 — <tool: teamwork_preview_worker_6>
+- Shipped: Implemented visual, accessibility, layout, and HTML nesting fixes in GlobalAssistant.tsx and AssistantChatInput.tsx. Added type="button" to styled-component and JSX interactive buttons, fixed dropdown clipping and mobile remove button visibility, resolved resize dead-zones, and eliminated margin-gap conflicts. Build passes successfully.
+- Blockers: none
+- Next: none
+
+## 2026-07-10 — <tool: teamwork_preview_reviewer_8>
+- Shipped: Reviewed GlobalAssistant.tsx and AssistantChatInput.tsx. Verified keyboard accessibility, focus visible rings on FAB/ToolCallButton, correct replacement of hardcoded values with design tokens, and clean compilation check. Verdict: APPROVE.
+- Blockers: none
+- Next: none
+
+## 2026-07-10 — <tool: teamwork_preview_auditor>
+- Shipped: Audited changes in `GlobalAssistant.tsx` and `AssistantChatInput.tsx`. Confirmed compilation passes. Found serif UI font violation, nested history buttons, hover-only mobile remove button, and keyboard-inaccessible actions. Verdict: INTEGRITY VIOLATION.
+- Blockers: none
+- Next: Implementer must resolve the accessibility and design guidelines issues.
+
+## 2026-07-10 — <tool: teamwork_preview_challenger_assistant_ui_ux_8>
+- Shipped: Challenged and verified UI/UX changes in `GlobalAssistant.tsx` and `AssistantChatInput.tsx`. Confirmed production build success (`pnpm build`). Identified nested button elements in history sidebar, hover-only tooltip/message actions focus-blindness, controlled details synchronization issue collapsing thoughts during streaming, and non-navigable autocomplete mentions. Verdict: BLOCKING.
+- Blockers: none
+- Next: Have worker/implementer fix accessibility issues, details state synchronization, and keyboard triggers.
+
+## 2026-07-10 — <tool: teamwork_preview_reviewer_assistant_ui_ux_7>
+- Shipped: Reviewed GlobalAssistant.tsx and AssistantChatInput.tsx. Confirmed keyboard accessibility, focus visible rings on FAB/ToolCallButton, and correct replacement of hardcoded values with design tokens. Confirmed clean compilation check. Verdict: APPROVE.
+- Blockers: none
+- Next: none
+
 ## 2026-07-10 — <tool: teamwork_preview_challenger_assistant_ui_ux_7>
 - Shipped: Challenged and verified UI/UX changes in `GlobalAssistant.tsx` and `AssistantChatInput.tsx`. Confirmed clean production build compile (`pnpm build`). Identified nested interactive buttons in history, hidden actions inaccessible to keyboard, serif UI title violation, and mixed margins/gaps spacing issues. Verdict: BLOCKING.
 - Blockers: none

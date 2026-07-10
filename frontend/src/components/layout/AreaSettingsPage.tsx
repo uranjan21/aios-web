@@ -1,139 +1,190 @@
-import { ReactNode, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import styled from 'styled-components'
-import { PageHeader, Button } from '@ledgr/ui'
-import { ArrowLeft, Plus } from 'lucide-react'
-import { PageContainer, PageContent } from './PageLayout'
-import { PageDivider } from './PageDivider'
+import { ReactNode, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import styled from "styled-components";
+import { PageHeader, Button } from "@ledgr/ui";
+import { ArrowLeft, Plus } from "lucide-react";
+
+import { PageContainer, PageContent } from "./PageLayout";
+import { PageDivider } from "./PageDivider";
 
 export interface SettingsItem {
-  key: string
-  label: string
-  icon: ReactNode
-  content: ReactNode
-  addLabel?: string
-  onAdd?: () => void
+  key: string;
+  label: string;
+  icon: ReactNode;
+  content: ReactNode;
+  addLabel?: string;
+  onAdd?: () => void;
 }
 
 export interface SettingsGroup {
-  label: string
-  items: SettingsItem[]
+  label: string;
+  items: SettingsItem[];
 }
 
 interface AreaSettingsPageProps {
-  icon: ReactNode
-  title: string
-  subtitle: string
-  backTo: string
-  groups: SettingsGroup[]
-  eyebrow?: string
+  icon: ReactNode;
+  title: string;
+  subtitle: string;
+  backTo: string;
+  groups: SettingsGroup[];
+  eyebrow?: string;
 }
 
 export const Shell = styled.div`
   display: flex;
   align-items: flex-start;
   gap: 24px;
+  width: 100%;
 
   @media (max-width: 1023px) {
     flex-direction: column;
   }
-`
+`;
 
 export const NavRail = styled.nav`
   width: 260px;
   flex-shrink: 0;
-  background: ${({ theme }) => theme.color.card};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.lg};
-  padding: 14px 12px;
+
   display: flex;
   flex-direction: column;
   gap: 18px;
 
+  padding: 14px 12px;
+
+  background: ${({ theme }) => theme.color.card};
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radii.lg};
+
   @media (min-width: 1024px) {
     position: sticky;
     top: 24px;
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
   }
 
   @media (max-width: 1023px) {
     width: 100%;
   }
-`
+`;
 
-export const GroupBlock = styled.div`
+export const GroupBlock = styled.section`
   display: flex;
   flex-direction: column;
   gap: 2px;
-`
+`;
 
-export const GroupLabel = styled.div`
+export const GroupLabel = styled.h3`
+  margin: 0;
+  padding: 0 10px 6px;
+
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+
   color: ${({ theme }) => theme.color.mutedForeground};
-  padding: 0 10px 6px;
-`
+`;
 
 export const GroupItems = styled.div`
   display: flex;
   flex-direction: column;
   gap: 2px;
+
   margin-left: 12px;
   padding-left: 9px;
+
   border-left: 1px solid ${({ theme }) => theme.color.border};
-`
+`;
 
 export const NavItem = styled.button<{ $active: boolean }>`
   display: flex;
   align-items: center;
   gap: 9px;
+
   width: 100%;
-  text-align: left;
   padding: 8px 10px;
-  border-radius: ${({ theme }) => theme.radii.md};
+
   border: none;
-  background: ${({ $active, theme }) => ($active ? `${theme.color.accent}14` : 'transparent')};
-  color: ${({ $active, theme }) => ($active ? theme.color.accent : theme.color.foreground)};
+  border-radius: ${({ theme }) => theme.radii.md};
+
+  background: ${({ $active, theme }) =>
+    $active ? `${theme.color.accent}14` : "transparent"};
+
+  color: ${({ $active, theme }) =>
+    $active ? theme.color.accent : theme.color.foreground};
+
+  text-align: left;
   font-size: 13px;
   font-weight: ${({ $active }) => ($active ? 600 : 500)};
+
   cursor: pointer;
-  transition: background 120ms, color 120ms;
+
+  transition:
+    background 150ms ease,
+    color 150ms ease;
 
   &:hover {
-    background: ${({ theme, $active }) => ($active ? `${theme.color.accent}1f` : theme.color.muted)};
+    background: ${({ theme, $active }) =>
+      $active ? `${theme.color.accent}20` : theme.color.muted};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.color.accent};
+    outline-offset: 2px;
   }
 
   svg {
     flex-shrink: 0;
-    color: ${({ $active, theme }) => ($active ? theme.color.accent : theme.color.mutedForeground)};
+    color: ${({ $active, theme }) =>
+      $active ? theme.color.accent : theme.color.mutedForeground};
   }
-`
+`;
 
-export const ContentPane = styled.div`
+export const ContentPane = styled.main`
   flex: 1;
   min-width: 0;
   width: 100%;
+
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-`
+  gap: 24px;
+`;
 
 const ContentHeader = styled.div`
   display: flex;
   justify-content: flex-end;
-`
+`;
 
-export function AreaSettingsPage({ icon, title, subtitle, backTo, groups, eyebrow = 'Settings' }: AreaSettingsPageProps) {
-  const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const allKeys = groups.flatMap(g => g.items.map(i => i.key))
-  const initialKey = searchParams.get('section')
-  const [activeKey, setActiveKey] = useState(
-    initialKey && allKeys.includes(initialKey) ? initialKey : (groups[0]?.items[0]?.key ?? '')
-  )
+export function AreaSettingsPage({
+  icon,
+  title,
+  subtitle,
+  backTo,
+  groups,
+  eyebrow = "Settings",
+}: AreaSettingsPageProps) {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const activeItem = groups.flatMap(g => g.items).find(i => i.key === activeKey)
+  const allItems = useMemo(
+    () => groups.flatMap((group) => group.items),
+    [groups],
+  );
+
+  const allKeys = useMemo(() => allItems.map((item) => item.key), [allItems]);
+
+  const initialKey = searchParams.get("section");
+
+  const [activeKey, setActiveKey] = useState(() =>
+    initialKey && allKeys.includes(initialKey)
+      ? initialKey
+      : (allItems[0]?.key ?? ""),
+  );
+
+  const activeItem = useMemo(
+    () => allItems.find((item) => item.key === activeKey),
+    [allItems, activeKey],
+  );
 
   return (
     <PageContainer>
@@ -145,23 +196,28 @@ export function AreaSettingsPage({ icon, title, subtitle, backTo, groups, eyebro
           subtitle={subtitle}
           actions={
             <Button variant="ghost" size="sm" onClick={() => navigate(backTo)}>
-              <ArrowLeft size={14} style={{ marginRight: 6 }} /> Back
+              <ArrowLeft size={14} style={{ marginRight: 6 }} />
+              Back
             </Button>
           }
         />
+
         <PageDivider />
+
         <Shell>
           <NavRail aria-label="Settings sections">
-            {groups.map(group => (
+            {groups.map((group) => (
               <GroupBlock key={group.label}>
                 <GroupLabel>{group.label}</GroupLabel>
+
                 <GroupItems>
-                  {group.items.map(item => (
+                  {group.items.map((item) => (
                     <NavItem
                       key={item.key}
                       type="button"
                       $active={item.key === activeKey}
                       onClick={() => setActiveKey(item.key)}
+                      aria-current={item.key === activeKey ? "page" : undefined}
                     >
                       {item.icon}
                       {item.label}
@@ -171,18 +227,21 @@ export function AreaSettingsPage({ icon, title, subtitle, backTo, groups, eyebro
               </GroupBlock>
             ))}
           </NavRail>
+
           <ContentPane>
             {activeItem?.onAdd && (
               <ContentHeader>
                 <Button variant="primary" size="sm" onClick={activeItem.onAdd}>
-                  <Plus size={12} style={{ marginRight: 4 }} /> {activeItem.addLabel ?? `Add ${activeItem.label}`}
+                  <Plus size={12} style={{ marginRight: 4 }} />
+                  {activeItem.addLabel ?? `Add ${activeItem.label}`}
                 </Button>
               </ContentHeader>
             )}
+
             {activeItem?.content}
           </ContentPane>
         </Shell>
       </PageContent>
     </PageContainer>
-  )
+  );
 }
