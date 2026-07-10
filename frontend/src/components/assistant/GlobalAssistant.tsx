@@ -12,6 +12,12 @@ import { useLocation } from 'react-router-dom'
 import { chatApi } from '@/api/chat'
 import { AssistantChatInput, AttachedFile } from './AssistantChatInput'
 
+const monospaceFont = ({ theme }: { theme: any }) => {
+  const font = theme.fontFamily?.mono || theme.typography?.fontFamily?.mono;
+  if (font && !font.includes('DM Sans')) return font;
+  return 'sfmono-regular, consolas, "liberation mono", menlo, courier, monospace';
+};
+
 const QUICK_PROMPTS = [
   { label: 'Log gym session', value: "Log today's gym session" },
   { label: 'Week spending?', value: 'What did I spend this week?' },
@@ -94,7 +100,7 @@ const ToolCallCard = styled.div`
   background-color: ${({ theme }) => theme.color.background};
   font-size: 13px;
   box-shadow: ${({ theme }) => theme.shadow.sm};
-  transition: box-shadow 0.2s, border-color 0.2s;
+  transition: box-shadow ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard}, border-color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
 
   &:hover {
     box-shadow: ${({ theme }) => theme.shadow.md};
@@ -111,12 +117,17 @@ const ToolCallButton = styled.button<{ $open: boolean }>`
   background-color: transparent;
   color: ${({ theme }) => theme.color.foreground};
   text-align: left;
-  transition: background-color 0.2s;
+  transition: background-color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
   border: none;
   cursor: pointer;
   
   &:hover {
     background-color: ${({ theme }) => theme.color.muted}33;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: ${({ theme }) => theme.shadow.ring};
   }
 `
 
@@ -147,8 +158,9 @@ const ToolCallStatusText = styled.span<{ $success?: boolean; $pending?: boolean 
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 4px 8px;
-  border-radius: 12px;
+  border-radius: ${({ theme }) => theme.radii.md};
   flex-shrink: 0;
+  font-family: ${monospaceFont};
   ${({ $success, $pending, theme }) => {
     if ($success) return `
       color: ${theme.color.success};
@@ -180,12 +192,14 @@ const ToolCallDetailsInput = styled.p`
   color: ${({ theme }) => theme.color.mutedForeground};
   white-space: pre-wrap;
   word-break: break-all;
+  font-family: ${monospaceFont};
 `
 
 const ToolCallDetailsResult = styled.p`
   color: ${({ theme }) => theme.color.foreground};
   margin-top: ${({ theme }) => theme.spacing[1]};
   white-space: pre-wrap;
+  font-family: ${monospaceFont};
 `
 
 const AffectedPathsContainer = styled.div`
@@ -201,6 +215,7 @@ const AffectedPathPill = styled.span`
   background-color: ${({ theme }) => theme.color.success}1a;
   color: ${({ theme }) => theme.color.success};
   font-size: 10px;
+  font-family: ${monospaceFont};
 `
 
 function ToolCallBlock({ tool, input, result, affected, isLast }: {
@@ -238,12 +253,12 @@ function ToolCallBlock({ tool, input, result, affected, isLast }: {
 
       <AnimatePresence>
         {open && (
-          <ToolCallDetailsContainer
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
+            <ToolCallDetailsContainer
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
             <ToolCallDetails>
               <ToolCallDetailsInput>{JSON.stringify(input, null, 2)}</ToolCallDetailsInput>
               {result && <ToolCallDetailsResult>{result.slice(0, 500)}{result.length > 500 ? '…' : ''}</ToolCallDetailsResult>}
@@ -283,6 +298,7 @@ const PathChip = styled.span`
   background-color: ${({ theme }) => theme.color.primary}14;
   color: ${({ theme }) => theme.color.primary};
   border: 1px solid ${({ theme }) => theme.color.primary}33;
+  font-family: ${monospaceFont};
 `
 
 function AffectedPaths({ paths }: { paths: string[] }) {
@@ -317,8 +333,6 @@ const MessageContainer = styled.div<{ $isUser: boolean }>`
   &:hover .message-actions {
     opacity: 1;
     visibility: visible;
-    height: 24px;
-    margin-top: 2px;
   }
 `
 
@@ -359,18 +373,18 @@ const MessageContentWrapper = styled.div<{ $isUser: boolean }>`
 `
 
 const MessageBubble = styled.div<{ $isUser: boolean }>`
-  border-radius: 18px;
+  border-radius: ${({ theme }) => theme.radii.lg};
   padding: ${({ theme }) => theme.spacing[2]} ${({ theme }) => theme.spacing[3]};
   font-size: 13px;
   ${({ theme, $isUser }) => $isUser ? `
     background-color: ${theme.color.primary};
     color: ${theme.color.primaryForeground};
-    border-top-right-radius: 2px;
+    border-top-right-radius: ${theme.radii.sm};
   ` : `
     background-color: ${theme.color.background};
     color: ${theme.color.foreground};
     border: 1px solid ${theme.color.border}80;
-    border-top-left-radius: 2px;
+    border-top-left-radius: ${theme.radii.sm};
   `}
 `
 
@@ -390,6 +404,10 @@ const MarkdownWrapper = styled.div`
     padding: ${({ theme }) => theme.spacing[2]};
     border-radius: ${({ theme }) => theme.radii.md};
     overflow-x: auto;
+    font-family: ${monospaceFont};
+  }
+  & code {
+    font-family: ${monospaceFont};
   }
   ul, ol {
     padding-left: 20px;
@@ -405,7 +423,7 @@ const ThinkingContainer = styled.details`
   padding-left: ${({ theme }) => theme.spacing[2]};
   
   &[open] summary ~ * {
-    animation: fadein 0.2s ease-in-out;
+    animation: fadein ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
   }
   @keyframes fadein {
     from { opacity: 0; }
@@ -473,6 +491,10 @@ const ArtifactContent = styled.div`
   max-height: 400px;
   overflow-y: auto;
   color: ${({ theme }) => theme.color.foreground};
+
+  pre, code {
+    font-family: ${monospaceFont};
+  }
 `
 
 function ArtifactBlock({ title, type, content }: { title: string, type: string, content: string }) {
@@ -495,24 +517,29 @@ function ArtifactBlock({ title, type, content }: { title: string, type: string, 
 }
 
 const MessageActionsWrapper = styled.div<{ $isUser: boolean }>`
+  position: absolute;
+  bottom: -16px;
+  ${({ $isUser }) => $isUser ? 'right: 36px;' : 'left: 36px;'}
+  background: ${({ theme }) => theme.color.background};
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  padding: 2px;
+  box-shadow: ${({ theme }) => theme.shadow.sm};
+  z-index: 10;
   display: flex;
   gap: 4px;
   opacity: 0;
   visibility: hidden;
-  height: 0;
-  margin-top: 0;
-  overflow: hidden;
-  transition: opacity 0.15s ease-in-out, visibility 0.15s, height 0.15s ease-in-out, margin-top 0.15s ease-in-out;
-  align-self: ${({ $isUser }) => $isUser ? 'flex-end' : 'flex-start'};
+  transition: opacity ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard}, visibility ${({ theme }) => theme.motion.duration.fast};
 `
 
-const ActionBtn = styled.button`
+const ActionBtn = styled.button.attrs({ type: 'button' })`
   display: flex;
   align-items: center;
   justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: 4px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: transparent;
   border: none;
   color: ${({ theme }) => theme.color.mutedForeground};
@@ -644,7 +671,7 @@ function Message({ message, onEdit }: { message: ReturnType<typeof useChat>['mes
   )
 }
 
-const FAB = styled(motion.button)`
+const FAB = styled(motion.button).attrs({ type: 'button' })`
   position: fixed;
   bottom: 24px;
   right: 24px;
@@ -660,6 +687,11 @@ const FAB = styled(motion.button)`
   justify-content: center;
   cursor: pointer;
   z-index: 50;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: ${({ theme }) => theme.shadow.ring};
+  }
 `
 
 const ResizeHandle = styled.div`
@@ -686,7 +718,7 @@ const AssistantWindow = styled(motion.div)`
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-left: 1px solid ${({ theme }) => theme.color.border}80;
-  box-shadow: -4px 0 24px ${({ theme }) => theme.color.border};
+  box-shadow: ${({ theme }) => theme.shadow.lg};
   display: flex;
   flex-direction: column;
   z-index: 50;
@@ -724,7 +756,7 @@ const HeaderRight = styled.div`
   gap: 12px;
 `
 
-const HeaderActionButton = styled.button`
+const HeaderActionButton = styled.button.attrs({ type: 'button' })`
   background: transparent;
   border: none;
   cursor: pointer;
@@ -758,7 +790,7 @@ const MessagesContainer = styled.div`
   }
   &::-webkit-scrollbar-thumb {
     background: ${({ theme }) => theme.color.mutedForeground}4d;
-    border-radius: 10px;
+    border-radius: ${({ theme }) => theme.radii.full || '9999px'};
   }
 `
 
@@ -781,7 +813,7 @@ const SettingsPanel = styled(motion.div)`
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid ${({ theme }) => theme.color.border}80;
   border-radius: ${({ theme }) => theme.radii.md};
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02);
+  box-shadow: ${({ theme }) => theme.shadow.md};
   padding: ${({ theme }) => theme.spacing[3]};
   display: flex;
   flex-direction: column;
@@ -847,7 +879,9 @@ const HistoryList = styled.div`
   gap: 2px;
 `
 
-const HistoryItem = styled.div<{ $active?: boolean }>`
+const HistoryItem = styled.button.attrs({ type: 'button' })<{ $active?: boolean }>`
+  width: 100%;
+  border: none;
   padding: 10px 12px;
   background: ${({ theme, $active }) => $active ? theme.color.muted : 'transparent'};
   border-radius: ${({ theme }) => theme.radii.md};
@@ -875,14 +909,24 @@ const HistoryItem = styled.div<{ $active?: boolean }>`
   }
 `
 
-const SessionActionBtn = styled.button`
+const SessionTitle = styled.span`
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 8px;
+  text-align: left;
+`
+
+const SessionActionBtn = styled.button.attrs({ type: 'button' })`
   background: transparent;
   border: none;
   cursor: pointer;
   color: ${({ theme }) => theme.color.mutedForeground};
   display: flex;
   padding: 2px;
-  border-radius: 4px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   opacity: 0.5;
   transition: all ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
   &:hover {
@@ -911,7 +955,7 @@ const SessionMenu = styled.div`
   padding: 4px;
 `
 
-const SessionMenuItem = styled.button`
+const SessionMenuItem = styled.button.attrs({ type: 'button' })`
   text-align: left;
   padding: 6px 10px;
   font-size: 12px;
@@ -1003,7 +1047,7 @@ const ContextOption = styled.button`
   font-size: 12px;
   border: none;
   background: transparent;
-  border-radius: 4px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   cursor: pointer;
   color: ${({ theme }) => theme.color.foreground};
   transition: background-color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
@@ -1269,7 +1313,7 @@ export function GlobalAssistant() {
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            transition={{ x: { type: 'spring', damping: 25, stiffness: 300 } }}
             style={{ width: isMobile ? '100%' : panelWidth }}
           >
             {!isMobile && <ResizeHandle onMouseDown={startResizing} />}
@@ -1389,9 +1433,9 @@ export function GlobalAssistant() {
                         }}
                         $active={session.id === sessionId}
                       >
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <SessionTitle>
                           {session.title || new Date(session.started_at).toLocaleString()}
-                        </span>
+                        </SessionTitle>
                         
                         <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                           <SessionActionBtn onClick={(e) => {
@@ -1427,7 +1471,7 @@ export function GlobalAssistant() {
                                   if (sessionId === session.id) newSession()
                                   fetchSessions()
                                 }
-                              }} style={{ color: '#e11d48' }}>Delete</SessionMenuItem>
+                              }} style={{ color: theme.color.destructive }}>Delete</SessionMenuItem>
                             </SessionMenu>
                           )}
                         </div>
@@ -1490,7 +1534,7 @@ export function GlobalAssistant() {
             <div style={{ padding: '0 16px 16px', position: 'relative' }}>
               {mentionMatch && availableMentions.length > 0 && (
                 <ContextDropdown>
-                  <div style={{ fontSize: '10px', color: '#888', padding: '4px 6px', fontWeight: 600, textTransform: 'uppercase' }}>Mentions</div>
+                  <div style={{ fontSize: '10px', color: theme.color.mutedForeground, padding: '4px 6px', fontWeight: 600, textTransform: 'uppercase' }}>Mentions</div>
                   {availableMentions.map(m => (
                     <ContextOption key={m} onClick={() => handleMention(m)}>
                       @{m}
@@ -1520,6 +1564,7 @@ export function GlobalAssistant() {
           animate={{ scale: 1 }}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
+          aria-label="Open AI Assistant"
         >
           <Bot size={24} />
         </FAB>

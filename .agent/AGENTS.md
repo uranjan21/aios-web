@@ -64,3 +64,6 @@ Whenever designing or building a "Card" component (or any primary content contai
 - **Styling Enforcement**:
   - All styling MUST be implemented using `styled-components` and `@ledgr/ui` theme tokens.
   - Absolutely NO Tailwind or utility classes.
+
+## Layout & Spacing
+- **Do not mix margins with gaps:** When building layouts inside flex or grid containers that use `gap` (such as `WorkspaceLayout`, `PageContent`, or styled Grids), NEVER add explicit outer margins (e.g., `margin-bottom`, `mt-4`, etc.) to the child elements. Let the parent container's `gap` handle the uniform spacing to prevent double-gaps and visual inconsistency.

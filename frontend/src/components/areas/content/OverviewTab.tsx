@@ -94,9 +94,7 @@ export function OverviewTab({ items, isLoading, onEdit }: {
 
   return (
     <>
-      <div style={{ marginBottom: '16px' }}>
-        <WorkspaceStatsWidget domain="content" />
-      </div>
+      <WorkspaceStatsWidget domain="content" />
       <KpiGrid $cols={4}>
         <KpiCell><KpiCard label="Total Content" icon={FileText} sub="All pieces across every stage" loading={statsLoading} value={stats?.total ?? 0} /></KpiCell>
         <KpiCell><KpiCard label="Published" icon={Send} sub="Shipped and live" loading={statsLoading} value={counts.published ?? 0} /></KpiCell>

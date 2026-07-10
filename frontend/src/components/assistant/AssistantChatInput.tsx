@@ -2,6 +2,12 @@ import React, { useState, useRef, useEffect, useCallback } from "react"
 import styled, { keyframes, useTheme } from "styled-components"
 import { Plus, ChevronDown, ArrowUp, X, FileText, Loader2, Check, Archive, BrainCircuit, ChevronRight } from "lucide-react"
 
+const monospaceFont = ({ theme }: { theme: any }) => {
+  const font = theme.fontFamily?.mono || theme.typography?.fontFamily?.mono;
+  if (font && !font.includes('DM Sans')) return font;
+  return 'sfmono-regular, consolas, "liberation mono", menlo, courier, monospace';
+};
+
 /* --- ICONS --- */
 const Icons = {
   Plus,
@@ -54,8 +60,8 @@ const FileCard = styled.div`
   overflow: hidden;
   border: 1px solid ${({ theme }) => theme.color.border};
   background-color: ${({ theme }) => theme.color.muted}4d;
-  transition: all 0.2s;
-  animation: fadein 0.2s ease-out;
+  transition: all ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
+  animation: fadein ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
 
   &:hover {
     border-color: ${({ theme }) => theme.color.mutedForeground};
@@ -75,7 +81,7 @@ const FileCard = styled.div`
     border-radius: 50%;
     color: white;
     opacity: 0;
-    transition: opacity 0.2s, box-shadow ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
+    transition: opacity ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard}, box-shadow ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
     border: none;
     cursor: pointer;
     display: flex;
@@ -121,7 +127,7 @@ const FileIconWrapper = styled.div`
   .icon-bg {
     padding: 6px;
     background-color: ${({ theme }) => theme.color.muted};
-    border-radius: 4px;
+    border-radius: ${({ theme }) => theme.radii.sm};
     display: flex;
   }
   
@@ -224,13 +230,13 @@ const PastedCard = styled(FileCard)`
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  box-shadow: ${({ theme }) => theme.shadow.sm};
 
   .content-text {
     font-size: 10px;
     color: ${({ theme }) => theme.color.mutedForeground};
     line-height: 1.4;
-    font-family: monospace;
+    font-family: ${monospaceFont};
     word-break: break-word;
     white-space: pre-wrap;
     display: -webkit-box;
@@ -253,7 +259,7 @@ const PastedCard = styled(FileCard)`
     align-items: center;
     justify-content: center;
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: ${({ theme }) => theme.radii.sm};
     border: 1px solid ${({ theme }) => theme.color.border};
     background-color: ${({ theme }) => theme.color.background};
     font-size: 11px;
@@ -261,6 +267,7 @@ const PastedCard = styled(FileCard)`
     color: ${({ theme }) => theme.color.foreground};
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    font-family: ${monospaceFont};
   }
 
   .remove-btn {
@@ -301,7 +308,8 @@ const SelectorButton = styled.button<{ $isOpen: boolean }>`
   position: relative;
   transition: transform ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard},
               background-color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard},
-              color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
+              color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard},
+              box-shadow ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
   height: 32px;
   border-radius: ${({ theme }) => theme.radii.lg};
   padding: 0 8px 0 10px;
@@ -330,7 +338,7 @@ const SelectorButton = styled.button<{ $isOpen: boolean }>`
   }
 
   .arrow {
-    transition: transform 0.2s;
+    transition: transform ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
     ${({ $isOpen }) => $isOpen && 'transform: rotate(180deg);'}
   }
 `
@@ -346,13 +354,13 @@ const DropdownMenu = styled.div`
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid ${({ theme }) => theme.color.border}80;
   border-radius: ${({ theme }) => theme.radii.xl};
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02);
+  box-shadow: ${({ theme }) => theme.shadow.md};
   overflow: hidden;
   z-index: 50;
   display: flex;
   flex-direction: column;
   padding: 6px;
-  animation: fadein 0.15s ease-out;
+  animation: fadein ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
   transform-origin: bottom right;
 `
 
@@ -404,10 +412,11 @@ const DropdownItem = styled.button`
 
   .badge {
     padding: 2px 6px;
-    border-radius: 12px;
+    border-radius: ${({ theme }) => theme.radii.md};
     font-size: 10px;
     font-weight: 500;
     border: 1px solid;
+    font-family: ${monospaceFont};
     &.upgrade {
       border-color: rgba(59, 130, 246, 0.3);
       color: rgb(96, 165, 250);
@@ -497,7 +506,7 @@ function ModelSelector({ models, selectedModel, onSelect }: { models: Model[]; s
 const ChatContainer = styled.div<{ $isDragging: boolean }>`
   position: relative;
   width: 100%;
-  transition: all 0.3s;
+  transition: all ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
 `
 
 const InputBox = styled.div`
@@ -505,20 +514,20 @@ const InputBox = styled.div`
   flex-direction: column;
   position: relative;
   z-index: 10;
-  border-radius: 16px;
+  border-radius: ${({ theme }) => theme.radii.lg};
   border: 1px solid ${({ theme }) => theme.color.border}80;
   background-color: ${({ theme }) => theme.color.background}b3;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02);
-  transition: all 0.2s;
+  box-shadow: ${({ theme }) => theme.shadow.md};
+  transition: all ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
 
   &:hover {
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: ${({ theme }) => theme.shadow.lg};
   }
   
   &:focus-within {
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08), 0 0 0 2px ${({ theme }) => theme.color.primary}40;
+    box-shadow: ${({ theme }) => theme.shadow.ring};
     border-color: ${({ theme }) => theme.color.primary}80;
   }
 `
@@ -543,7 +552,7 @@ const ArtifactsRow = styled.div`
   }
   &::-webkit-scrollbar-thumb {
     background: ${({ theme }) => theme.color.mutedForeground}4d;
-    border-radius: 4px;
+    border-radius: ${({ theme }) => theme.radii.sm};
   }
 `
 
@@ -561,7 +570,7 @@ const TextAreaWrapper = styled.div`
   }
   &::-webkit-scrollbar-thumb {
     background: ${({ theme }) => theme.color.mutedForeground}4d;
-    border-radius: 4px;
+    border-radius: ${({ theme }) => theme.radii.sm};
   }
 `
 
@@ -598,14 +607,15 @@ const LeftTools = styled.div`
   min-width: 0;
 `
 
-const ToolButton = styled.button<{ $active?: boolean }>`
+const ToolButton = styled.button.attrs({ type: 'button' })<{ $active?: boolean }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
   position: relative;
   transition: transform ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard},
               background-color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard},
-              color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
+              color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard},
+              box-shadow ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
   height: 32px;
   width: 32px;
   border-radius: ${({ theme }) => theme.radii.lg};
@@ -640,10 +650,10 @@ const ToolButton = styled.button<{ $active?: boolean }>`
     color: ${({ theme }) => theme.color.background};
     font-size: 11px;
     font-weight: 500;
-    border-radius: 6px;
+    border-radius: ${({ theme }) => theme.radii.sm};
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s;
+    transition: opacity ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
     white-space: nowrap;
     z-index: 50;
     box-shadow: ${({ theme }) => theme.shadow.sm};
@@ -661,7 +671,7 @@ const RightTools = styled.div`
   min-width: 0;
 `
 
-const SendButton = styled.button<{ $hasContent: boolean }>`
+const SendButton = styled.button.attrs({ type: 'button' })<{ $hasContent: boolean }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -677,7 +687,7 @@ const SendButton = styled.button<{ $hasContent: boolean }>`
 
   background-color: ${({ $hasContent, theme }) => $hasContent ? theme.color.primary : theme.color.primary + '4d'};
   color: ${({ $hasContent, theme }) => $hasContent ? theme.color.primaryForeground : theme.color.primaryForeground + '99'};
-  cursor: ${({ $hasContent }) => $hasContent ? 'pointer' : 'default'};
+  cursor: ${({ $hasContent }) => $hasContent ? 'pointer' : 'not-allowed'};
   box-shadow: ${({ $hasContent, theme }) => $hasContent ? theme.shadow.sm : 'none'};
   
   &:hover {
@@ -866,6 +876,11 @@ export function AssistantChatInput({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.ctrlKey && e.shiftKey && (e.key === 'e' || e.key === 'E')) {
+      e.preventDefault()
+      setIsThinkingEnabled(prev => !prev)
+      return
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()

@@ -42,7 +42,6 @@ const StyledKpiGrid = styled.div`
   overflow-x: auto;
   gap: 8px;
   padding-bottom: 4px;
-  margin-bottom: 16px;
   
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -226,9 +225,7 @@ export function HealthPage() {
 
             <StyledDashboardGrid>
             <StyledGridItemMain>
-              <div style={{ marginBottom: '16px' }}>
-                <WorkspaceStatsWidget domain="health" />
-              </div>
+              <WorkspaceStatsWidget domain="health" />
               <SectionCard
                 title="Weight Progression"
                 subtitle="Body weight logs over the selected window"

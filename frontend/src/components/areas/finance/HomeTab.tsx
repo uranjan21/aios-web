@@ -108,10 +108,6 @@ const AnalyticsGrid = styled.div`
   }
 `
 
-const ForecastWrapper = styled.div`
-  margin-bottom: ${({ theme }) => theme.spacing[4]};
-`
-
 /* Fixed height only where the 2-col grid needs equal cards — on mobile the
    stacked cards auto-size so a short list doesn't leave a large dead area. */
 const AnalyticsCell = styled.div`
@@ -435,9 +431,7 @@ export function HomeTab() {
   return (
     <>
       <WorkspaceLayout>
-        <div style={{ marginBottom: '16px' }}>
-          <WorkspaceStatsWidget domain="finance" />
-        </div>
+        <WorkspaceStatsWidget domain="finance" />
         {/* KPI lead row */}
         <KpiGrid>
           <KpiCard
@@ -466,9 +460,7 @@ export function HomeTab() {
           />
         </KpiGrid>
 
-        <ForecastWrapper>
-          <ForecastWidget domain="finance" />
-        </ForecastWrapper>
+        <ForecastWidget domain="finance" />
 
         {/* Analytics: 2×2 */}
         <AnalyticsGrid>
@@ -524,8 +516,6 @@ export function HomeTab() {
           </AnalyticsCell>
         </AnalyticsGrid>
 
-        {/* Forward-looking: AI projection of month-end balance */}
-        <ForecastWidget domain="finance" />
 
       </WorkspaceLayout>
     </>

@@ -6,7 +6,7 @@ import styled from 'styled-components'
 const StyledTabsWrapper = styled.div`
   /* Ensure the tabs list matches the exact spacing requested */
   [role="tablist"] {
-    margin-bottom: 8px;
+    margin-bottom: ${({ theme }) => theme.spacing[6]};
   }
   
   [role="tab"] {

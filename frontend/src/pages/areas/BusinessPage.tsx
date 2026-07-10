@@ -73,9 +73,7 @@ export function BusinessPage() {
             }
           />
         <PageDivider />
-        <div style={{ marginBottom: '16px' }}>
-          <WorkspaceStatsWidget domain="business" />
-        </div>
+        <WorkspaceStatsWidget domain="business" />
         {isLoading ? (
           <Grid>
             <Skeleton style={{ height: 200, borderRadius: 12 }} />

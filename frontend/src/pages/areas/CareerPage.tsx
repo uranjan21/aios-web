@@ -62,7 +62,6 @@ const KpiGrid = styled.div`
   overflow-x: auto;
   gap: 8px;
   padding-bottom: 4px;
-  margin-bottom: 16px;
   
   scrollbar-width: none;
   -ms-overflow-style: none;
