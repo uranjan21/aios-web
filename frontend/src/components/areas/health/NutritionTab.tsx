@@ -1,16 +1,46 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import styled from 'styled-components'
 
-import { Utensils, Clock, Search, Plus, Flame, ListChecks, Coffee } from 'lucide-react'
+import { Utensils, Clock, Plus, Flame, ListChecks, Coffee } from 'lucide-react'
 import { healthApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
 import { format } from 'date-fns'
 import type { FoodDbItem } from '@/types'
-import { Card as GlassCard } from '@ledgr/ui';
-import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
+import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
 import { Dialog, Button, Input, Select, Card, HeaderActionPortal } from '@ledgr/ui'
+
+import { MacroBar } from './nutrition/MacroBar'
+import { CalorieRing } from './nutrition/CalorieRing'
+import { parseMealNotes } from './nutrition/mealNotes'
+import {
+  StyledContainer,
+  StyledMacrosWrapper,
+  StyledMacroBarsContainer,
+  StyledEmptyState,
+  StyledMealsList,
+  StyledMealItem,
+  StyledMealInfo,
+  StyledMealIconWrapper,
+  StyledMealName,
+  StyledMealTime,
+  StyledMealType,
+  StyledMealStats,
+  StyledMealCalories,
+  StyledMealMacros,
+  StyledModalContent,
+  StyledQuickAddSection,
+  StyledQuickAddTitle,
+  StyledQuickAddButtons,
+  StyledQuickAddButton,
+  StyledSearchSection,
+  StyledSearchInputWrapper,
+  StyledSearchFeedback,
+  StyledForm,
+  StyledFormGroup,
+  StyledLabel,
+  StyledFormGrid,
+} from './nutrition/NutritionTab.styles'
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack']
 
@@ -20,360 +50,6 @@ const QUICK_ADDS = [
   { label: 'Whey', kcal: 130, protein: 24, carbs: 5, fat: 2, type: 'Snack' },
   { label: 'Coffee', kcal: 15, protein: 1, carbs: 2, fat: 1, type: 'Snack' },
 ]
-
-interface MacroBarProps {
-  label: string
-  current: number
-  target: number
-  unit?: string
-  color: string
-}
-
-const StyledMacroBarWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-`;
-
-const StyledMacroBarHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-`;
-
-const StyledMacroBarLabel = styled.span`
-  font-weight: 500;
-  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
-`;
-
-const StyledMacroBarValues = styled.span`
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-`;
-
-const StyledMacroBarTrack = styled.div`
-  height: 0.5rem;
-  background-color: ${({ theme }) => theme.color?.muted || 'var(--muted)'};
-  border-radius: ${({ theme }) => theme.radii.sm};
-  overflow: hidden;
-`;
-
-const StyledMacroBarFill = styled.div<{ $pct: number; $color: string }>`
-  height: 100%;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  transition: width 0.5s ease;
-  width: ${({ $pct }) => `${$pct}%`};
-  background-color: ${({ $color }) => $color};
-`;
-
-function MacroBar({ label, current, target, unit = 'g', color }: MacroBarProps) {
-  const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
-  return (
-    <StyledMacroBarWrapper>
-      <StyledMacroBarHeader>
-        <StyledMacroBarLabel>{label}</StyledMacroBarLabel>
-        <StyledMacroBarValues>{current}{unit} / {target}{unit}</StyledMacroBarValues>
-      </StyledMacroBarHeader>
-      <StyledMacroBarTrack>
-        <StyledMacroBarFill $pct={pct} $color={color} />
-      </StyledMacroBarTrack>
-    </StyledMacroBarWrapper>
-  )
-}
-
-interface CalorieRingProps {
-  calories: number
-  target: number
-}
-
-const StyledCalorieRingWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-`;
-
-const StyledCalorieRingSvgWrapper = styled.div`
-  position: relative;
-`;
-
-const StyledCalorieRingSvg = styled.svg`
-  transform: rotate(-90deg);
-`;
-
-const StyledCalorieRingTextWrapper = styled.div`
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-`;
-
-const StyledCalorieRingValue = styled.span`
-  font-size: 12px;
-  font-weight: 500;
-  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
-`;
-
-const StyledCalorieRingUnit = styled.span`
-  font-size: 10px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-`;
-
-const StyledCalorieRingSubtitle = styled.p`
-  font-size: 11px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  margin: 0;
-`;
-
-function CalorieRing({ calories, target }: CalorieRingProps) {
-  const pct = target > 0 ? Math.min(100, (calories / target) * 100) : 0
-  const size = 120
-  const stroke = 10
-  const r = (size - stroke) / 2
-  const circ = 2 * Math.PI * r
-  const offset = circ - (pct / 100) * circ
-
-  return (
-    <StyledCalorieRingWrapper>
-      <StyledCalorieRingSvgWrapper style={{ width: size, height: size }}>
-        <StyledCalorieRingSvg width={size} height={size}>
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--muted)" strokeWidth={stroke} />
-          <circle
-            cx={size / 2} cy={size / 2} r={r} fill="none"
-            stroke="#F8D168" strokeWidth={stroke}
-            strokeDasharray={circ} strokeDashoffset={offset}
-            strokeLinecap="round"
-            style={{ transition: 'stroke-dashoffset 0.5s ease' }}
-          />
-        </StyledCalorieRingSvg>
-        <StyledCalorieRingTextWrapper>
-          <StyledCalorieRingValue>{calories}</StyledCalorieRingValue>
-          <StyledCalorieRingUnit>kcal</StyledCalorieRingUnit>
-        </StyledCalorieRingTextWrapper>
-      </StyledCalorieRingSvgWrapper>
-      <StyledCalorieRingSubtitle>Target: {target} kcal · {Math.round(pct)}% reached</StyledCalorieRingSubtitle>
-    </StyledCalorieRingWrapper>
-  )
-}
-
-interface ParsedMeal {
-  food_name: string
-  protein: number
-  carbs: number
-  fat: number
-  meal_type: string
-}
-
-function parseMealNotes(notes: string | null): ParsedMeal {
-  if (!notes) return { food_name: 'Meal', protein: 0, carbs: 0, fat: 0, meal_type: 'snack' }
-  try {
-    return JSON.parse(notes) as ParsedMeal
-  } catch {
-    return { food_name: notes, protein: 0, carbs: 0, fat: 0, meal_type: 'snack' }
-  }
-}
-
-const StyledContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-`;
-
-const StyledMacrosWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  align-items: center;
-
-  @media (min-width: 640px) {
-    flex-direction: row;
-  }
-`;
-
-const StyledMacroBarsContainer = styled.div`
-  flex: 1;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-`;
-const StyledEmptyState = styled.div`
-  padding: 2rem;
-  text-align: center;
-  font-size: 0.875rem;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-`;
-
-const StyledMealsList = styled.div`
-  display: flex;
-  flex-direction: column;
-  
-  & > div {
-    border-bottom: 1px solid rgba(45, 49, 58, 0.15);
-  }
-  
-  & > div:last-child {
-    border-bottom: none;
-  }
-`;
-
-const StyledMealItem = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 20px;
-  transition: background-color 0.2s;
-  cursor: pointer;
-  
-  &:hover {
-    background-color: rgba(45, 49, 58, 0.02);
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color?.ring || '#CA8A04'};
-    outline-offset: -2px;
-  }
-`;
-
-const StyledMealInfo = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-`;
-
-const StyledMealIconWrapper = styled.div`
-  padding: 0.375rem;
-  border-radius: 0.5rem;
-  background-color: rgba(248, 209, 104, 0.1);
-`;
-
-const StyledMealName = styled.p`
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
-  margin: 0;
-`;
-
-const StyledMealTime = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 10px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  margin-top: 0.125rem;
-`;
-
-const StyledMealType = styled.span`
-  text-transform: capitalize;
-`;
-
-const StyledMealStats = styled.div`
-  text-align: right;
-`;
-
-const StyledMealCalories = styled.p`
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
-  margin: 0;
-`;
-
-const StyledMealMacros = styled.p`
-  font-size: 10px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  margin: 0;
-`;
-
-const StyledModalContent = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-`;
-
-const StyledQuickAddSection = styled.div`
-  margin-bottom: 0.5rem;
-`;
-
-const StyledQuickAddTitle = styled.p`
-  font-size: 11px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  margin: 0 0 0.375rem 0;
-`;
-
-const StyledQuickAddButtons = styled.div`
-  display: flex;
-  gap: 0.375rem;
-  flex-wrap: wrap;
-`;
-
-const StyledQuickAddButton = styled.button`
-  font-size: 11px;
-  font-weight: 500;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.5rem;
-  background-color: ${({ theme }) => theme.color?.muted || 'var(--muted)'};
-  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
-  border: 1px solid rgba(45, 49, 58, 0.15);
-  transition: background-color 0.2s;
-  cursor: pointer;
-  
-  &:hover {
-    background-color: rgba(45, 49, 58, 0.2);
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color?.ring || '#CA8A04'};
-    outline-offset: 1px;
-  }
-`;
-
-const StyledSearchSection = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-`;
-
-const StyledSearchInputWrapper = styled.div`
-  flex: 1;
-  position: relative;
-`;
-
-const StyledSearchFeedback = styled.div`
-  font-size: 11px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  margin-bottom: 0.5rem;
-`;
-
-const StyledForm = styled.form`
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-`;
-
-const StyledFormGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-`;
-
-const StyledLabel = styled.label`
-  font-size: 11px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  display: block;
-`;
-
-const StyledFormGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
-`;
-
-const StyledButtonContent = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-`;
 
 export function NutritionTab() {
   const [formState, setFormState] = useState({ food_name: '', calories: '', protein: '', carbs: '', fat: '', meal_type: 'Snack' })
@@ -622,13 +298,13 @@ export function NutritionTab() {
             aria-label="Weight in grams"
           />
         </StyledSearchSection>
-        
+
         {selectedFood && grams && (
           <StyledSearchFeedback>
             {selectedFood.name} × {grams}g — macros auto-filled
           </StyledSearchFeedback>
         )}
-        
+
         <StyledForm onSubmit={e => { e.preventDefault(); logMealMutation.mutate(formState); }}>
           <StyledFormGroup>
             <StyledLabel htmlFor="nut-food-name">Food Name</StyledLabel>

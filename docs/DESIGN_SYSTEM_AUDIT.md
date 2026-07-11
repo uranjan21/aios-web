@@ -96,7 +96,7 @@ Verified counts (grep, `frontend/src`):
 | `border-radius: _px` literals | 107 | → `theme.radii.sm/md` |
 | z-index literals | 29 | → `theme.zIndex.*` |
 | Files with literal box-shadow | 13 | → `theme.shadow.*` |
-| **Non-circular `9999px` pills** | **8** | 🔴 no-pills rule ([[feedback-ui-radius-and-toggle-style]]) — incl. `StatusBadge` in AgentsPage |
+| **Non-circular `9999px` pills** | **1** ✅ fixed | On inspection 7 of the 8 `9999px` hits were structural circles (equal-w/h dots + a round color swatch — exempt); only AgentsPage `StatusBadge` (`padding:4px 10px`) was a real capsule → changed to `theme.radii.sm`. `GlobalAssistant.tsx:819` left for now (file under concurrent edit by other agents). |
 | White/near-white shadows | **0** | 🟢 no-white-shadows rule respected |
 | Serif font references | 24 | ⚠️ see §7 |
 
@@ -152,7 +152,11 @@ These directly conflict. **I will not silently pick.** Options:
 
 Sequenced low-risk-first, each phase independently shippable and verifiable.
 
-> **STATUS 2026-07-11:** ✅ **P1 COMPLETE** (tsc + `pnpm build` verified). Removed 6 duplicate `ui/*` implementations (Card, button, Loader→Spinner, ui/EmptyState, alert-dialog→ConfirmDialog, AreaToolbar); collapsed `components/EmptyState` (16 sites) → DS; deduped `ui/skeleton` to a DS-delegating adapter. Deferred within P1: `ErrorCard`→`ErrorState` (blocked on P0 — the DS component doesn't exist yet). Kept by design: `ui/Table`, `ui/Popconfirm`, `ui/AreaTabs` (composition/adapter/mandated, not duplicate implementations).
+> **STATUS 2026-07-11:** ✅ **P1 COMPLETE** (tsc + `pnpm build` verified). Removed 6 duplicate `ui/*` implementations (Card, button, Loader→Spinner, ui/EmptyState, alert-dialog→ConfirmDialog, AreaToolbar); collapsed `components/EmptyState` (16 sites) → DS; deduped `ui/skeleton` to a DS-delegating adapter. Kept by design: `ui/Table`, `ui/Popconfirm`, `ui/AreaTabs` (composition/adapter/mandated, not duplicate implementations).
+>
+> ✅ **P0 (partial):** built new `@ledgr/ui` `ErrorState` component (mirrors EmptyState; destructive icon + retry button; dependency-free default SVG) and migrated all **6 `ErrorCard` sites** → `ErrorState` (`ErrorCard.tsx` deleted; ledgr-ui rebuilt + dist copied to the pnpm store; tsc + `pnpm build` verified). **This closes the last duplicate.** Remaining P0: token additions (icon-size / opacity / `radii.xs`) and `IconButton`.
+>
+> ✅ **P3/P4 (partial):** fixed the 1 real pill violation (AgentsPage `StatusBadge`); pruned `OverviewInsightCard` 636→314 (removed dead "Daily Brief" subsystem); split `LandingPage` 818→244 (extracted `landing.styles.ts` + `landing.data.tsx`). **Still open:** de-God SettingsPage (1469), AgentsPage (1319), TransactionsTab (1077, `@ts-nocheck`), FitnessTab (893), TasksPage (722), NutritionTab (672), AccountManager (644), RelevantCards (619); full **P2** DS-bypass sweep; **P3** retokenize (476 hex). Per-file split plans in §5 below.
 
 - **P0 — Foundations (low risk, high leverage):** add missing tokens (icon-size, opacity, `radii.xs`); add DS `ErrorState`, `IconButton`, and (decision) resolve serif. Prereq for clean downstream work.
 - **P1 — Kill duplicates:** delete `ui/Card`, migrate `ui/skeleton`(36)→Skeleton, `components/EmptyState`(9)+`ui/EmptyState`(1)→DS EmptyState, `ui/Loader`+6 custom spinners→Spinner, `ui/AreaToolbar`/`ui/button`/`ui/alert-dialog`→DS, `ErrorCard`(6)→new ErrorState. Pure adoption, mechanical, high count.

@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AgentsToolbar, AgentsFilters } from "@/features/agents/components/AgentsToolbar";
 import { getAgentDomain, getAgentLongDescription } from "@/features/agents/constants/domains";
 import { useAgentFilters } from "@/features/agents/hooks/useAgentFilters";
+import { formatScheduleLabel, getNextCronRun, getScheduleSortValue } from "@/features/agents/lib/cron";
 import { formatRelativeTime } from "@/lib/utils";
 import type { Agent } from "@/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -250,7 +251,7 @@ const StatusBadge = styled.span<{ $status: string }>`
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   border: 1px solid ${({ theme, $status }) =>
     $status === "success"
       ? `color-mix(in srgb, ${theme.color.success} 20%, transparent)`
@@ -463,118 +464,6 @@ const DialogActions = styled.div`
 const EmptyWrap = styled.div`
   padding: 32px;
 `;
-
-function formatScheduleLabel(cron: string | null, isActive: boolean): { title: string; subtitle: string } {
-  if (!cron || cron === "Manual") {
-    return {
-      title: "Manual only",
-      subtitle: isActive ? "Run on demand" : "Paused",
-    };
-  }
-
-  const parts = cron.trim().split(/\s+/);
-  if (parts.length !== 5) {
-    return { title: cron, subtitle: "Custom schedule" };
-  }
-
-  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
-  const minuteNum = Number(minute);
-  const hourNum = Number(hour);
-  const timeLabel =
-    Number.isFinite(minuteNum) && Number.isFinite(hourNum)
-      ? new Intl.DateTimeFormat(undefined, {
-          hour: "numeric",
-          minute: "2-digit",
-        }).format(new Date(2026, 0, 1, hourNum, minuteNum))
-      : "Custom";
-
-  if (dayOfMonth === "*" && month === "*" && dayOfWeek === "*") {
-    return { title: "Every day", subtitle: timeLabel };
-  }
-
-  if (dayOfMonth === "*" && month === "*" && dayOfWeek !== "*") {
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    return {
-      title: days[Number(dayOfWeek)] ? `Every ${days[Number(dayOfWeek)]}` : "Weekly",
-      subtitle: timeLabel,
-    };
-  }
-
-  if (dayOfMonth !== "*" && month === "*") {
-    return {
-      title: `Day ${dayOfMonth} monthly`,
-      subtitle: timeLabel,
-    };
-  }
-
-  return {
-    title: "Custom cadence",
-    subtitle: timeLabel,
-  };
-}
-
-function getNextCronRun(cron: string): Date | null {
-  const parts = cron.trim().split(/\s+/);
-  if (parts.length !== 5) return null;
-  const [minute, hour, dom, month, dow] = parts;
-
-  const matchField = (field: string, val: number): boolean => {
-    if (field === "*") return true;
-    if (field.startsWith("*/")) return val % Number(field.slice(2)) === 0;
-    return Number(field) === val;
-  };
-
-  const next = new Date();
-  next.setSeconds(0, 0);
-  next.setMinutes(next.getMinutes() + 1);
-
-  for (let i = 0; i < 64800; i++) {
-    if (
-      matchField(month, next.getMonth() + 1) &&
-      matchField(dom, next.getDate()) &&
-      matchField(dow, next.getDay()) &&
-      matchField(hour, next.getHours()) &&
-      matchField(minute, next.getMinutes())
-    ) {
-      return new Date(next);
-    }
-    next.setMinutes(next.getMinutes() + 1);
-  }
-
-  return null;
-}
-
-function getScheduleSortValue(cron: string): number {
-  const parts = cron.trim().split(/\s+/);
-  if (parts.length !== 5) return Infinity;
-  const [minute, hour, dom, month, dow] = parts;
-
-  const matchField = (field: string, val: number): boolean => {
-    if (field === "*") return true;
-    if (field.startsWith("*/")) return val % Number(field.slice(2)) === 0;
-    return Number(field) === val;
-  };
-
-  // Start from the beginning of TODAY so that today's morning agents 
-  // always sort before today's evening agents, regardless of current time.
-  const next = new Date();
-  next.setHours(0, 0, 0, 0);
-
-  for (let i = 0; i < 64800; i++) {
-    if (
-      matchField(month, next.getMonth() + 1) &&
-      matchField(dom, next.getDate()) &&
-      matchField(dow, next.getDay()) &&
-      matchField(hour, next.getHours()) &&
-      matchField(minute, next.getMinutes())
-    ) {
-      return next.getTime();
-    }
-    next.setMinutes(next.getMinutes() + 1);
-  }
-
-  return Infinity;
-}
 
 function NextRunCountdown({ cron, isActive }: { cron: string | null; isActive: boolean }) {
   const [label, setLabel] = useState("—");

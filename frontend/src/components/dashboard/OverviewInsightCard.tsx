@@ -4,13 +4,10 @@ import { UpgradeWall, is402 } from "@/components/UpgradeWall";
 import { Button, Card, EmptyState } from "@ledgr/ui";
 import { useMutation } from "@tanstack/react-query";
 import {
-  BookOpen,
   Heart,
   IndianRupee,
   RefreshCw,
   Sparkles,
-  Target,
-  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
@@ -20,10 +17,8 @@ import styled, { keyframes, useTheme } from "styled-components";
 // ─────────────────────────── Cache utils ───────────────────────────
 
 const OVERVIEW_KEY = "aios-dashboard-overview-cache";
-const BRIEF_KEY = "aios-daily-brief-cache";
 
 type InsightSnapshot = { finance: string | null; health: string | null; date?: string };
-type BriefCache = { text: string; date: string };
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -44,7 +39,7 @@ function writeJson(key: string, data: unknown) {
   } catch { /* ignore */ }
 }
 
-// ─────────────────────────── Text parsers ───────────────────────────
+// ─────────────────────────── Text parser ───────────────────────────
 
 function splitIntoBullets(text: string | null): string[] {
   if (!text) return [];
@@ -55,29 +50,6 @@ function splitIntoBullets(text: string | null): string[] {
     .map((p) => p.replace(/^[-•*]\s*/, "").trim())
     .filter(Boolean)
     .slice(0, 3);
-}
-
-const BRIEF_HEADERS = ["TODAY'S FOCUS", "MONEY PULSE", "HEALTH PULSE", "KEY ACTION"];
-
-type BriefSection = { header: string; items: string[] };
-
-function parseBrief(text: string): BriefSection[] {
-  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-  const sections: BriefSection[] = [];
-  let current: BriefSection | null = null;
-  for (const line of lines) {
-    const upper = line.toUpperCase();
-    const matched = BRIEF_HEADERS.find((h) => upper.includes(h));
-    if (matched) {
-      if (current) sections.push(current);
-      current = { header: matched, items: [] };
-    } else if (current) {
-      const cleaned = line.replace(/^\d+\.\s*/, "").replace(/^[-•*]\s*/, "").trim();
-      if (cleaned) current.items.push(cleaned);
-    }
-  }
-  if (current) sections.push(current);
-  return sections;
 }
 
 // ─────────────────────────── Domain config ───────────────────────────
@@ -97,59 +69,6 @@ const DOMAINS: Record<
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
-`;
-
-// ─────────────────────────── Toggle ───────────────────────────
-
-type Mode = "overview" | "brief";
-
-const SegControl = styled.div`
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  background: ${({ theme }) => theme.color.muted};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.md};
-  padding: 3px;
-`;
-
-const SegIndicator = styled.span<{ $mode: Mode }>`
-  position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: ${({ $mode }) => ($mode === "overview" ? "3px" : "calc(50%)")};
-  right: ${({ $mode }) => ($mode === "brief" ? "3px" : "calc(50%)")};
-  background: ${({ theme }) => theme.color.card};
-  border-radius: ${({ theme }) => theme.radii.sm};
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  transition:
-    left 220ms cubic-bezier(0.2, 0, 0, 1),
-    right 220ms cubic-bezier(0.2, 0, 0, 1);
-`;
-
-const SegBtn = styled.button<{ $active: boolean }>`
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 12px;
-  border: none;
-  background: transparent;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  color: ${({ theme, $active }) =>
-    $active ? theme.color.foreground : theme.color.mutedForeground};
-  transition: color 200ms;
-  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: 2px;
-  }
 `;
 
 // ─────────────────────────── Life Overview — row list ───────────────────────────
@@ -309,246 +228,6 @@ function OverviewSkeleton() {
     </SkeletonList>
   );
 }
-
-// ─────────────────────────── Daily Brief ───────────────────────────
-
-const BriefBody = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  animation: ${fadeIn} 200ms cubic-bezier(0.2, 0, 0, 1) both;
-`;
-
-const BriefSection = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const BriefSectionLabel = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: ${({ theme }) => theme.color.mutedForeground};
-`;
-
-const PriorityList = styled.ol`
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-`;
-
-const PriorityItem = styled.li`
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: ${({ theme }) => theme.color.foreground};
-  font-weight: 500;
-`;
-
-const NumBadge = styled.span`
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: ${({ theme }) => theme.color.foreground};
-  color: ${({ theme }) => theme.color.background};
-  font-size: 9px;
-  font-weight: 800;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 2px;
-`;
-
-const PulseGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  @media (min-width: 560px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-`;
-
-const PulseTile = styled.div<{ $accent: string }>`
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 10px 12px;
-  border-radius: ${({ theme }) => theme.radii.md};
-  background: ${({ $accent }) => $accent}0D;
-  border: 1px solid ${({ $accent }) => $accent}22;
-`;
-
-const PulseTileHeader = styled.div<{ $accent: string }>`
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: ${({ $accent }) => $accent};
-`;
-
-const PulseLine = styled.p`
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: ${({ theme }) => theme.color.foreground};
-`;
-
-const ActionBlock = styled.div`
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 10px 12px;
-  border-radius: ${({ theme }) => theme.radii.md};
-  background: ${({ theme }) => theme.color.accent}0D;
-  border: 1px solid ${({ theme }) => theme.color.accent}28;
-`;
-
-const ActionIcon = styled.span`
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
-  background: ${({ theme }) => theme.color.accent}1E;
-  color: ${({ theme }) => theme.color.accent};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
-const ActionText = styled.p`
-  margin: 0;
-  font-size: 12.5px;
-  font-weight: 600;
-  line-height: 1.5;
-  color: ${({ theme }) => theme.color.foreground};
-`;
-
-function BriefView({ sections }: { sections: BriefSection[] }) {
-  const focusSection  = sections.find((s) => s.header === "TODAY'S FOCUS");
-  const moneySection  = sections.find((s) => s.header === "MONEY PULSE");
-  const healthSection = sections.find((s) => s.header === "HEALTH PULSE");
-  const actionSection = sections.find((s) => s.header === "KEY ACTION");
-
-  return (
-    <BriefBody>
-      {focusSection && focusSection.items.length > 0 && (
-        <BriefSection>
-          <BriefSectionLabel><Target size={10} />Today's Priorities</BriefSectionLabel>
-          <PriorityList>
-            {focusSection.items.slice(0, 3).map((item, i) => (
-              <PriorityItem key={i}>
-                <NumBadge>{i + 1}</NumBadge>
-                {item}
-              </PriorityItem>
-            ))}
-          </PriorityList>
-        </BriefSection>
-      )}
-
-      {(moneySection || healthSection) && (
-        <PulseGrid>
-          {moneySection && (
-            <PulseTile $accent="#CA8A04">
-              <PulseTileHeader $accent="#CA8A04">
-                <IndianRupee size={10} />Money Pulse
-              </PulseTileHeader>
-              {moneySection.items.slice(0, 2).map((item, i) => (
-                <PulseLine key={i}>{item}</PulseLine>
-              ))}
-            </PulseTile>
-          )}
-          {healthSection && (
-            <PulseTile $accent="#16A34A">
-              <PulseTileHeader $accent="#16A34A">
-                <Heart size={10} />Health Pulse
-              </PulseTileHeader>
-              {healthSection.items.slice(0, 2).map((item, i) => (
-                <PulseLine key={i}>{item}</PulseLine>
-              ))}
-            </PulseTile>
-          )}
-        </PulseGrid>
-      )}
-
-      {actionSection && actionSection.items.length > 0 && (
-        <ActionBlock>
-          <ActionIcon><Zap size={13} /></ActionIcon>
-          <ActionText>{actionSection.items[0]}</ActionText>
-        </ActionBlock>
-      )}
-    </BriefBody>
-  );
-}
-
-// ─────────────────────────── Empty states ───────────────────────────
-
-const DomainPills = styled.div`
-  display: flex;
-  gap: 6px;
-  margin-top: 4px;
-  flex-wrap: wrap;
-  justify-content: center;
-`;
-
-const DomainPill = styled.span<{ $accent: string }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 9px;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  background: ${({ $accent }) => $accent}14;
-  color: ${({ $accent }) => $accent};
-  font-size: 11px;
-  font-weight: 600;
-`;
-
-// ─────────────────────────── Card header ───────────────────────────
-
-const HeaderRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  border-bottom: 1px solid ${({ theme }) => theme.color.border};
-  padding-bottom: 12px;
-  margin-bottom: 14px;
-  flex-wrap: wrap;
-  row-gap: 8px;
-`;
-
-const HeaderLeft = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const HeaderTitle = styled.h2`
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.color.foreground};
-  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-`;
-
-const HeaderRight = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
 
 // ─────────────────────────── Root component ───────────────────────────
 
