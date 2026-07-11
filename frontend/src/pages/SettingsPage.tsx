@@ -14,8 +14,7 @@ import { useVaultSync } from '@/hooks/useVaultSync'
 import { useFeatures } from '@/hooks/useFeatures'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ProgressBar } from '@/components/lumina';
-import { Card as GlassCard, Select, Switch, Input, SegmentedControl } from '@ledgr/ui';
-import { Button } from '@/components/ui/button'
+import { Card as GlassCard, Select, Switch, Input, SegmentedControl, Button } from '@ledgr/ui';
 import styled, { useTheme } from 'styled-components'
 import { AreaSettingsPage } from '@/components/layout/AreaSettingsPage'
 import { PALETTES } from '@/theme/palettes'

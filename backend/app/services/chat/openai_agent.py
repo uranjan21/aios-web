@@ -10,14 +10,14 @@ from openai import APIConnectionError, RateLimitError
 from app.core.config import get_settings
 from app.services.ai.openai_client import get_openai_client
 from app.services.chat.agent import _trim_history
-from app.services.chat.context_builder import build_system_prompt
+from app.services.chat.context_builder import build_prompt
 from app.services.chat.memory import (
     ESTIMATED_TOKENS,
     get_token_budget_status,
     record_usage,
     reserve_budget,
 )
-from app.services.chat.tools import TOOL_DEFINITIONS, execute_tool
+from app.services.chat.tools import tool_definitions_for, execute_tool
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ MAX_TOOL_ITERATIONS = 8
 _RETRYABLE = (RateLimitError, APIConnectionError)
 
 
-def _openai_tools() -> list[dict]:
+def _openai_tools(tool_defs: list[dict]) -> list[dict]:
     return [
         {
             "type": "function",
@@ -35,7 +35,7 @@ def _openai_tools() -> list[dict]:
                 "parameters": tool["input_schema"],
             },
         }
-        for tool in TOOL_DEFINITIONS
+        for tool in tool_defs
     ]
 
 
@@ -78,9 +78,17 @@ async def stream_openai_chat_response(
             yield {"type": "error", "code": "token_budget_exceeded", "message": str(e)}
             return
 
-    system_prompt = await build_system_prompt(user_message, user_id=user_id)
+    static_system, dynamic_context, vault_enabled = await build_prompt(
+        user_message, user_id, user_name=user.name if user else None
+    )
+    openai_tools = _openai_tools(tool_definitions_for(vault_enabled))
     client = get_openai_client(api_key=openai_api_key)
-    
+
+    # Dynamic context rides in the latest user message so the stable prefix
+    # (system + tools + history) stays eligible for OpenAI's automatic prompt
+    # caching. Persisted history stays raw.
+    user_text = f"<context>\n{dynamic_context}\n</context>\n\n{user_message}"
+
     user_content_block = []
     if attachments:
         for att in attachments:
@@ -93,10 +101,10 @@ async def stream_openai_chat_response(
                     }
                 })
     if user_content_block:
-        user_content_block.append({"type": "text", "text": user_message})
+        user_content_block.append({"type": "text", "text": user_text})
         final_user_content = user_content_block
     else:
-        final_user_content = user_message
+        final_user_content = user_text
 
     messages = _trim_history(history) + [{"role": "user", "content": final_user_content}]
 
@@ -116,8 +124,8 @@ async def stream_openai_chat_response(
                     stream = await client.chat.completions.create(
                         model=openai_model,
                         max_tokens=4096,
-                        messages=[{"role": "system", "content": system_prompt}, *messages],
-                        tools=_openai_tools(),
+                        messages=[{"role": "system", "content": static_system}, *messages],
+                        tools=openai_tools,
                         tool_choice="auto",
                         stream=True,
                         stream_options={"include_usage": True},
@@ -129,6 +137,13 @@ async def stream_openai_chat_response(
                         if chunk.usage:
                             total_input_tokens += chunk.usage.prompt_tokens or 0
                             total_output_tokens += chunk.usage.completion_tokens or 0
+                            details = getattr(chunk.usage, "prompt_tokens_details", None)
+                            logger.info(
+                                "chat usage user=%s input=%s cached=%s output=%s",
+                                user_id, chunk.usage.prompt_tokens,
+                                getattr(details, "cached_tokens", None),
+                                chunk.usage.completion_tokens,
+                            )
 
                         if not chunk.choices:
                             continue

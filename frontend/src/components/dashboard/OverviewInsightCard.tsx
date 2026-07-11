@@ -1,8 +1,7 @@
 import { aiApi } from "@/api/areas";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { UpgradeWall, is402 } from "@/components/UpgradeWall";
-import { Button, Card } from "@ledgr/ui";
+import { Button, Card, EmptyState } from "@ledgr/ui";
 import { useMutation } from "@tanstack/react-query";
 import {
   BookOpen,

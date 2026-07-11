@@ -93,20 +93,20 @@ const FileCard = styled.div`
       box-shadow: ${({ theme }) => theme.shadow.ring};
       opacity: 1;
     }
-  }
 
-  @media (hover: none) {
-    .remove-btn {
-      opacity: 0.8;
+    &:hover {
+      background: rgba(0, 0, 0, 0.7);
     }
   }
 
   &:hover .remove-btn {
     opacity: 1;
   }
-  
-  .remove-btn:hover {
-    background: rgba(0, 0, 0, 0.7);
+
+  @media (hover: none) {
+    .remove-btn {
+      opacity: 0.8;
+    }
   }
 `
 
@@ -463,19 +463,26 @@ function ModelSelector({ models, selectedModel, onSelect }: { models: Model[]; s
     }
     const handleEscKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        event.stopPropagation()
+        event.stopImmediatePropagation()
+        event.preventDefault()
+        setIsOpen(false)
+      }
+    }
+    const handleFocusOut = (event: FocusEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.relatedTarget as Node)) {
         setIsOpen(false)
       }
     }
     
-    const wrapper = dropdownRef.current
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside)
-      wrapper?.addEventListener("keydown", handleEscKeyDown)
+      document.addEventListener("focusout", handleFocusOut)
+      document.addEventListener("keydown", handleEscKeyDown, { capture: true })
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside)
-      wrapper?.removeEventListener("keydown", handleEscKeyDown)
+      document.removeEventListener("focusout", handleFocusOut)
+      document.removeEventListener("keydown", handleEscKeyDown, { capture: true })
     }
   }, [isOpen])
 
@@ -836,8 +843,10 @@ export function AssistantChatInput({
   const [isDragging, setIsDragging] = useState(false)
   const [selectedModel, setSelectedModel] = useState(defaultModel)
   const [isThinkingEnabled, setIsThinkingEnabled] = useState(false)
+  const createdUrlsRef = useRef<Set<string>>(new Set())
+  const dragCounter = useRef(0)
 
-  const mentionMatch = message.match(/@(\w*)$/)
+  const mentionMatch = message.match(/(?:^|\s)@(\w*)$/)
   const mentionQuery = mentionMatch ? mentionMatch[1].toLowerCase() : ''
   const availableMentions = ['vault', 'finance', 'health', 'goals'].filter(m => m.includes(mentionQuery))
   const [activeMentionIndex, setActiveMentionIndex] = useState(0)
@@ -853,6 +862,26 @@ export function AssistantChatInput({
     }
   }, [mentionMatch])
 
+  // Clean up object URLs when files are removed or component unmounts
+  useEffect(() => {
+    const currentPreviews = new Set(files.map(f => f.preview).filter(Boolean) as string[])
+    createdUrlsRef.current.forEach(url => {
+      if (!currentPreviews.has(url)) {
+        URL.revokeObjectURL(url)
+        createdUrlsRef.current.delete(url)
+      }
+    })
+  }, [files])
+
+  useEffect(() => {
+    return () => {
+      createdUrlsRef.current.forEach(url => {
+        URL.revokeObjectURL(url)
+      })
+      createdUrlsRef.current.clear()
+    }
+  }, [])
+
   const handleMention = (tag: string) => {
     onChangeMessage(message.replace(/@\w*$/, '') + `@${tag} `)
     setTimeout(() => {
@@ -863,6 +892,29 @@ export function AssistantChatInput({
   const internalTextareaRef = useRef<HTMLTextAreaElement>(null)
   const textareaRef = inputRef || internalTextareaRef
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Prevent escape key from bubbling to global assistant drawer when mentions are open
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const handleNativeKeyDown = (e: KeyboardEvent) => {
+      const showMentions = mentionMatch && availableMentions.length > 0 && !mentionsDismissed
+      if (showMentions && e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        e.stopImmediatePropagation()
+        setMentionsDismissed(true)
+        textareaRef.current?.focus()
+      }
+    }
+
+    el.addEventListener('keydown', handleNativeKeyDown, true) // capture phase
+    return () => {
+      el.removeEventListener('keydown', handleNativeKeyDown, true)
+    }
+  }, [message, mentionsDismissed, textareaRef])
 
   useEffect(() => {
     setSelectedModel(defaultModel)
@@ -886,11 +938,16 @@ export function AssistantChatInput({
   const handleFiles = useCallback((newFilesList: FileList | File[]) => {
     const newFiles = Array.from(newFilesList).map(file => {
       const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file.name)
+      let preview: string | null = null
+      if (isImage) {
+        preview = URL.createObjectURL(file)
+        createdUrlsRef.current.add(preview)
+      }
       return {
         id: Math.random().toString(36).substr(2, 9),
         file,
         type: isImage ? 'image/unknown' : (file.type || 'application/octet-stream'),
-        preview: isImage ? URL.createObjectURL(file) : null,
+        preview,
         uploadStatus: 'pending'
       }
     })
@@ -904,10 +961,29 @@ export function AssistantChatInput({
     })
   }, [message, onChangeMessage])
 
-  const onDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true) }
-  const onDragLeave = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false) }
+  const onDragEnter = (e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounter.current++
+    if (dragCounter.current === 1) {
+      setIsDragging(true)
+    }
+  }
+
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+
+  const onDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    dragCounter.current--
+    if (dragCounter.current === 0) {
+      setIsDragging(false)
+    }
+  }
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault()
+    dragCounter.current = 0
     setIsDragging(false)
     if (e.dataTransfer.files) handleFiles(e.dataTransfer.files)
   }
@@ -1001,6 +1077,8 @@ export function AssistantChatInput({
 
   return (
     <ChatContainer
+      ref={containerRef}
+      onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}

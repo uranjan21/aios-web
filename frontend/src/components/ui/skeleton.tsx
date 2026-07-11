@@ -1,11 +1,16 @@
-import styled, { keyframes } from 'styled-components'
+/**
+ * Backwards-compat Skeleton shim. Rendering is delegated to the @ledgr/ui
+ * `Skeleton` so there is a SINGLE source of visual truth (no duplicate pulse /
+ * styling implementation). This shim only translates the legacy Tailwind
+ * `className` API (~36 call sites) into DS `width`/`height` props.
+ *
+ * New code: import { Skeleton } from '@ledgr/ui' and pass width/height/shape.
+ * This file can be deleted once the remaining call sites are codemod-migrated.
+ */
+import type { CSSProperties } from 'react'
+import { Skeleton as UISkeleton } from '@ledgr/ui'
 
-const pulse = keyframes`
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.4; }
-`
-
-// Maps common Tailwind h-/w- class tokens to CSS values for backwards-compat callers.
+// Maps common Tailwind h-/w-/rounded- class tokens to CSS values for legacy callers.
 const H_MAP: Record<string, string> = {
   'h-1.5': '6px', 'h-2': '8px', 'h-3': '12px', 'h-3.5': '14px',
   'h-4': '16px', 'h-5': '20px', 'h-6': '24px', 'h-8': '32px', 'h-10': '40px',
@@ -37,22 +42,14 @@ function parseClassName(className = '') {
   }
 }
 
-const Root = styled.div<{ $h?: string; $w?: string; $r?: string }>`
-  border-radius: ${({ $r }) => $r ?? '6px'};
-  background: ${({ theme }) => theme.color.muted};
-  animation: ${pulse} 1.5s ease-in-out infinite;
-  height: ${({ $h }) => $h ?? '16px'};
-  width: ${({ $w }) => $w ?? '100%'};
-`
-
-export function Skeleton({ className, style }: { className?: string; style?: React.CSSProperties }) {
-  const { height, width, borderRadius } = parseClassName(className)
-  return (
-    <Root
-      $h={height ?? style?.height?.toString()}
-      $w={width ?? style?.width?.toString()}
-      $r={borderRadius}
-      style={style}
-    />
-  )
+export function Skeleton({ className, style }: { className?: string; style?: CSSProperties }) {
+  const parsed = parseClassName(className)
+  const width = parsed.width ?? (style?.width as string | number | undefined)
+  const height = parsed.height ?? (style?.height as string | number | undefined)
+  // Preserve any other inline style (e.g. margin) but let width/height flow through props.
+  const rest: CSSProperties = { ...style }
+  delete rest.width
+  delete rest.height
+  const mergedStyle = parsed.borderRadius ? { borderRadius: parsed.borderRadius, ...rest } : rest
+  return <UISkeleton width={width} height={height} style={mergedStyle} />
 }

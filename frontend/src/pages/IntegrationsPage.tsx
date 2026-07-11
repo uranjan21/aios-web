@@ -4,17 +4,11 @@ import { toast } from 'sonner'
 import { CheckCircle, XCircle, AlertCircle, ExternalLink, Trash2, Puzzle, RefreshCw } from 'lucide-react'
 import { integrationsApi } from '@/api/integrations'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ErrorCard } from '@/components/ErrorCard'
-import {
-  AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
-  AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
-  AlertDialogCancel, AlertDialogAction,
-} from '@/components/ui/alert-dialog'
+import { ErrorState } from '@ledgr/ui'
 import { IconBadge, StatusPill } from '@/components/lumina';
-import { Card as GlassCard, PageHeader } from '@ledgr/ui';
+import { Card as GlassCard, PageHeader, Button, ConfirmDialog } from '@ledgr/ui';
 import { PageDivider } from '@/components/layout/PageDivider'
-import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/EmptyState'
+import { EmptyState } from '@ledgr/ui'
 import type { Integration } from '@/types'
 import styled, { useTheme } from 'styled-components'
 
@@ -176,35 +170,24 @@ function IntegrationCard({ integration }: { integration: Integration }) {
                 {syncMutation.isPending ? 'Syncing...' : 'Sync Now'}
               </Button>
             )}
-            <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" aria-label={`Disconnect ${info.label}`}>
-                  <Trash2 size={14} /> Disconnect
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle style={{ fontSize: 16, fontWeight: 600, color: theme.color.foreground }}>
-                    Disconnect {info.label}?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription style={{ fontSize: 14, color: theme.color.mutedForeground }}>
-                    The agent will no longer be able to read data from {info.label}. You can reconnect at any time.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel asChild><Button variant="secondary">Cancel</Button></AlertDialogCancel>
-                  <AlertDialogAction asChild>
-                    <Button
-                      variant="destructive"
-                      onClick={() => { setDialogOpen(false); disconnectMutation.mutate() }}
-                      disabled={disconnectMutation.isPending}
-                    >
-                      {disconnectMutation.isPending ? 'Disconnecting...' : 'Disconnect'}
-                    </Button>
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <Button
+              variant="destructive"
+              aria-label={`Disconnect ${info.label}`}
+              onClick={() => setDialogOpen(true)}
+            >
+              <Trash2 size={14} /> Disconnect
+            </Button>
+            <ConfirmDialog
+              open={dialogOpen}
+              onOpenChange={setDialogOpen}
+              destructive
+              title={`Disconnect ${info.label}?`}
+              description={`The agent will no longer be able to read data from ${info.label}. You can reconnect at any time.`}
+              confirmLabel={disconnectMutation.isPending ? 'Disconnecting...' : 'Disconnect'}
+              cancelLabel="Cancel"
+              loading={disconnectMutation.isPending}
+              onConfirm={() => disconnectMutation.mutate()}
+            />
           </>
         )}
       </CardActions>
@@ -224,7 +207,7 @@ export function IntegrationsPage() {
         <PageHeader icon={<Puzzle />} eyebrow="Connect" title="Integrations" subtitle="Connect your favorite tools and services." />
         <PageDivider />
         {isError ? (
-          <ErrorCard message="Could not load integrations" onRetry={() => refetch()} />
+          <ErrorState title="Could not load integrations" onRetry={() => refetch()} />
         ) : (
           <IntGrid>
             {isLoading
@@ -234,18 +217,23 @@ export function IntegrationsPage() {
               : (
                   <div style={{ gridColumn: '1 / -1' }}>
                     <EmptyState
-                      icon={ExternalLink}
+                      icon={<ExternalLink size={24} />}
                       title="No integrations configured yet"
                       description="Connect Notion, Google Calendar, Google Fit, or GitHub to enrich your AI OS"
-                      action={{
-                        label: "Connect Integration",
-                        onClick: () => {
-                          toast.info("Connecting Google Calendar...");
-                          integrationsApi.authUrl('gcal')
-                            .then(({ url }) => { window.location.href = url })
-                            .catch(() => toast.error("Failed to initiate connection"));
-                        }
-                      }}
+                      action={
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            toast.info("Connecting Google Calendar...");
+                            integrationsApi.authUrl('gcal')
+                              .then(({ url }) => { window.location.href = url })
+                              .catch(() => toast.error("Failed to initiate connection"));
+                          }}
+                        >
+                          Connect Integration
+                        </Button>
+                      }
                     />
                   </div>
                 )

@@ -4,12 +4,57 @@ from uuid import UUID, uuid4
 from decimal import Decimal
 from sqlmodel import select
 
-from app.services.chat.tools import execute_tool
+from app.services.chat.tools import VAULT_UNAVAILABLE, execute_tool
 from app.models.workspace import Task
 from app.models.goal import MacroGoal, GoalProgress
 from app.models.finance import Account, FinanceExpense, FinanceIncome, AccountType
 from app.models.health import WorkoutSession, WorkoutSet, HealthLog
 from app.models.vault import VaultFile
+
+
+@pytest.fixture(autouse=True)
+def _as_vault_owner(request, monkeypatch):
+    """Vault mirroring is owner-only; these tests exercise the owner path.
+
+    Tests marked with `no_vault_owner` keep the non-owner behavior instead.
+    """
+    if "no_vault_owner" in request.keywords:
+        async def _no(user_id):
+            return False
+        monkeypatch.setattr("app.services.chat.tools.is_vault_owner", _no)
+    else:
+        async def _yes(user_id):
+            return True
+        monkeypatch.setattr("app.services.chat.tools.is_vault_owner", _yes)
+
+
+@pytest.mark.asyncio
+@pytest.mark.no_vault_owner
+async def test_vault_blocked_for_non_owner(app, user_a, db_session_factory):
+    # Direct vault tools refuse…
+    result, affected = await execute_tool("read_context", {"area": "finance"}, user_a.id)
+    assert result == VAULT_UNAVAILABLE
+    result, affected = await execute_tool("append_log", {"area": "health", "entry": "leak?"}, user_a.id)
+    assert result == VAULT_UNAVAILABLE
+    assert affected == []
+
+    # …and DB tools still work but skip the vault mirror.
+    result, affected = await execute_tool(
+        "create_action", {"title": "Non-owner task", "domain": "career"}, user_a.id
+    )
+    assert "Created task" in result
+    assert affected == []
+    async with db_session_factory() as db:
+        vault_row = (
+            await db.execute(
+                select(VaultFile).where(
+                    VaultFile.user_id == user_a.id,
+                    VaultFile.path == "03-career/log/2026.md",
+                )
+            )
+        ).scalar_one_or_none()
+        assert vault_row is None
+
 
 @pytest.mark.asyncio
 async def test_create_action_tool(app, user_a, db_session_factory):

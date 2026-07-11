@@ -8,7 +8,7 @@ import { Select, Badge, EmptyState, Button, HeaderActionPortal, KpiCard } from '
 import { financeApi } from '@/api/areas'
 import { formatCurrency, cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ErrorCard } from '@/components/ErrorCard'
+import { ErrorState } from '@ledgr/ui'
 import { ProgressBar } from '@/components/lumina';
 import { Card as GlassCard } from '@ledgr/ui';
 import { WorkspaceLayout, RailHeading } from '@/components/layout/WorkspaceLayout'
@@ -425,7 +425,7 @@ export function HomeTab() {
   }
 
   if (errorSnapshot) {
-    return <ErrorCard message="Could not load financial data" />
+    return <ErrorState title="Could not load financial data" />
   }
 
   return (

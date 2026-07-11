@@ -6,7 +6,7 @@ import { Badge, Card, SegmentedControl } from '@ledgr/ui'
 import { History, MapPin } from 'lucide-react'
 import { careerApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
-import { EmptyState } from '@/components/EmptyState'
+import { EmptyState, Button } from '@ledgr/ui'
 import { format } from 'date-fns'
 import type { CareerEvent } from '@/types'
 import { SkillGapCard } from './SkillGapCard'
@@ -159,10 +159,10 @@ export function RoadmapTab({ onAddEvent }: { onAddEvent?: () => void }) {
   if (!events?.length) {
     return (
       <EmptyState
-        icon={History}
+        icon={<History size={24} />}
         title="No events yet"
         description="Log career milestones, learning, and projects from the Career tab."
-        action={{ label: "Add Entry", onClick: onAddEvent || (() => {}) }}
+        action={<Button variant="secondary" size="sm" onClick={onAddEvent || (() => {})}>Add Entry</Button>}
       />
     )
   }

@@ -9,15 +9,16 @@ import anthropic
 import tiktoken
 
 from app.core.config import get_settings
-from app.services.chat.context_builder import build_system_prompt
+from app.services.chat.context_builder import build_prompt
 from app.services.chat.memory import reserve_budget, record_usage, get_token_budget_status, ESTIMATED_TOKENS
-from app.services.chat.tools import TOOL_DEFINITIONS, execute_tool
+from app.services.chat.tools import tool_definitions_for, execute_tool
 
 logger = logging.getLogger(__name__)
 
 MAX_TOOL_ITERATIONS = 8
 _RETRYABLE = (anthropic.RateLimitError, anthropic.APIConnectionError)
 _HISTORY_TOKEN_LIMIT = 24_000  # trim history above this estimate
+_CACHE_MARKER = {"type": "ephemeral"}
 
 try:
     _encoding = tiktoken.get_encoding("cl100k_base")
@@ -44,21 +45,27 @@ def _trim_history(history: list[dict]) -> list[dict]:
     return trimmed
 
 
-def check_prompt_injection(text: str) -> bool:
-    lower_text = text.lower()
-    dangerous_phrases = [
-        "ignore previous instructions",
-        "ignore all previous instructions",
-        "system prompt",
-        "you are a new ai",
-        "disregard previous",
-        "forget all instructions",
-        "new instructions",
-    ]
-    for phrase in dangerous_phrases:
-        if phrase in lower_text:
-            return True
-    return False
+def _mark_cache_breakpoint(messages: list[dict]) -> None:
+    """Move the message-level cache breakpoint to the last content block.
+
+    Max 4 breakpoints per request, so strip prior markers first. String content
+    is converted to block form (required to carry cache_control).
+    """
+    for m in messages:
+        content = m.get("content")
+        if isinstance(content, list):
+            for block in content:
+                if isinstance(block, dict):
+                    block.pop("cache_control", None)
+    if not messages:
+        return
+    last = messages[-1]
+    content = last.get("content")
+    if isinstance(content, str):
+        if content:
+            last["content"] = [{"type": "text", "text": content, "cache_control": dict(_CACHE_MARKER)}]
+    elif isinstance(content, list) and content and isinstance(content[-1], dict):
+        content[-1]["cache_control"] = dict(_CACHE_MARKER)
 
 
 async def stream_chat_response(
@@ -70,21 +77,18 @@ async def stream_chat_response(
     provider: str | None = None,
     attachments: list[dict] | None = None,
 ) -> AsyncGenerator[dict, None]:
-    if check_prompt_injection(user_message):
-        yield {"type": "error", "code": "prompt_injection", "message": "Message blocked by security policy."}
-        return
-
     settings = get_settings()
     effective_provider = provider or settings.llm_provider
     anthropic_api_key = settings.anthropic_api_key
     claude_model = model or settings.claude_model
+
     openai_api_key = settings.openai_api_key
 
     from app.db.session import AsyncSessionLocal
     from sqlmodel import select
     from app.models.user import User
     from app.core.security import decrypt_token
-    
+
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
@@ -105,9 +109,9 @@ async def stream_chat_response(
         from app.services.chat.openai_agent import stream_openai_chat_response
 
         async for event in stream_openai_chat_response(
-            user_id, 
-            session_id, 
-            user_message, 
+            user_id,
+            session_id,
+            user_message,
             history,
             override_model=model,
             attachments=attachments,
@@ -125,16 +129,23 @@ async def stream_chat_response(
             yield {"type": "error", "code": "token_budget_exceeded", "message": str(e)}
             return
 
-    system_prompt = await build_system_prompt(user_message, user_id=user_id)
+    static_system, dynamic_context, vault_enabled = await build_prompt(
+        user_message, user_id, user_name=user.name if user else None
+    )
+    tools = tool_definitions_for(vault_enabled)
 
     client = anthropic.AsyncAnthropic(api_key=anthropic_api_key)
-    
-    user_content_block = []
+
+    # Dynamic context rides in the latest user message, after the cacheable
+    # prefix (tools + system + history). Persisted history stays raw.
+    user_content_blocks: list[dict] = [
+        {"type": "text", "text": f"<context>\n{dynamic_context}\n</context>"}
+    ]
     if attachments:
         for att in attachments:
             content_type = att.get("contentType", "")
             if content_type.startswith("image/") and "data" in att:
-                user_content_block.append({
+                user_content_blocks.append({
                     "type": "image",
                     "source": {
                         "type": "base64",
@@ -142,13 +153,9 @@ async def stream_chat_response(
                         "data": att["data"]
                     }
                 })
-    if user_content_block:
-        user_content_block.append({"type": "text", "text": user_message})
-        final_user_content = user_content_block
-    else:
-        final_user_content = user_message
+    user_content_blocks.append({"type": "text", "text": user_message})
 
-    messages = _trim_history(history) + [{"role": "user", "content": final_user_content}]
+    messages = _trim_history(history) + [{"role": "user", "content": user_content_blocks}]
 
     total_input_tokens = 0
     total_output_tokens = 0
@@ -156,6 +163,7 @@ async def stream_chat_response(
 
     try:
         for iteration in range(MAX_TOOL_ITERATIONS):
+            _mark_cache_breakpoint(messages)
             # Retry on transient Anthropic API errors
             last_error = None
             for attempt in range(3):
@@ -163,8 +171,8 @@ async def stream_chat_response(
                     async with client.messages.stream(
                         model=claude_model,
                         max_tokens=4096,
-                        system=system_prompt,
-                        tools=TOOL_DEFINITIONS,
+                        system=[{"type": "text", "text": static_system, "cache_control": dict(_CACHE_MARKER)}],
+                        tools=tools,
                         messages=messages,
                     ) as stream:
                         tool_calls_in_turn = []
@@ -186,9 +194,17 @@ async def stream_chat_response(
                                     tool_calls_in_turn[-1]["input_buffer"] += event.delta.partial_json
 
                         final_message = await stream.get_final_message()
-                        total_input_tokens += final_message.usage.input_tokens
-                        total_output_tokens = final_message.usage.output_tokens
+                        usage = final_message.usage
+                        total_input_tokens += usage.input_tokens
+                        total_output_tokens += usage.output_tokens
                         stop_reason = final_message.stop_reason
+                        logger.info(
+                            "chat usage user=%s iter=%d input=%s cache_read=%s cache_write=%s output=%s",
+                            user_id, iteration, usage.input_tokens,
+                            getattr(usage, "cache_read_input_tokens", None),
+                            getattr(usage, "cache_creation_input_tokens", None),
+                            usage.output_tokens,
+                        )
                     last_error = None
                     break  # success
 
@@ -213,6 +229,7 @@ async def stream_chat_response(
                         tool_input = json.loads(tc["input_buffer"])
                     except json.JSONDecodeError:
                         pass
+                tc["input"] = tool_input
 
                 yield {"type": "tool_call", "tool": tc["name"], "input": tool_input}
 
@@ -248,7 +265,7 @@ async def stream_chat_response(
                     "type": "tool_use",
                     "id": tc["id"],
                     "name": tc["name"],
-                    "input": json.loads(tc["input_buffer"]) if tc["input_buffer"] else {},
+                    "input": tc["input"],
                 })
 
             messages = messages + [

@@ -238,6 +238,12 @@ async def test_agent_executes_writeback_actions(user_a, db_session_factory, monk
 
     monkeypatch.setattr("app.services.billing.usage.ai_allowed", mock_ai_allowed)
 
+    # Vault mirroring is owner-only; make user_a the owner for this test.
+    async def mock_is_vault_owner(user_id):
+        return True
+
+    monkeypatch.setattr("app.services.chat.tools.is_vault_owner", mock_is_vault_owner)
+
     output = await run_agent_task("aios-health-coach", user_a.id)
     assert "Weekly health check complete." in output
     assert "Actions executed:" in output

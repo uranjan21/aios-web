@@ -1,11 +1,15 @@
 import json
 import logging
+import time
 import uuid
+from collections import deque
 
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from sqlmodel import select, desc
 
+from app.core.config import get_settings
 from app.core.deps import get_current_user, get_db
+from app.core.llm_models import allowed_models, validate_model, validate_provider
 from app.core.rate_limit import limiter
 from app.db.session import AsyncSessionLocal
 from app.models.chat import ChatSession, ChatMessage
@@ -16,6 +20,20 @@ from app.services.chat.memory import get_token_budget_status
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 logger = logging.getLogger(__name__)
+
+
+@router.get("/models")
+async def list_models(current_user=Depends(get_current_user)):
+    """Allowlisted chat models — single source for every frontend model menu."""
+    settings = get_settings()
+    return {
+        "providers": allowed_models(),
+        "default_provider": settings.llm_provider,
+        "defaults": {
+            "openai": settings.openai_chat_model,
+            "anthropic": settings.claude_model,
+        },
+    }
 
 
 @router.get("/sessions")
@@ -106,6 +124,10 @@ async def token_budget(current_user=Depends(get_current_user)):
 async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
     await websocket.accept()
 
+    # Per-connection sliding-window rate limit (a connection is per-user).
+    per_min = get_settings().rate_limit_chat_per_min
+    message_times: deque[float] = deque()
+
     try:
         while True:
             raw = await websocket.receive_text()
@@ -116,10 +138,23 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
             if data.get("type") != "message":
                 continue
 
+            now = time.monotonic()
+            while message_times and message_times[0] < now - 60:
+                message_times.popleft()
+            if len(message_times) >= per_min:
+                await websocket.send_text(json.dumps({
+                    "type": "error",
+                    "code": "rate_limited",
+                    "message": "Too many messages — wait a moment and try again.",
+                }))
+                continue
+            message_times.append(now)
+
             user_content = data.get("content", "")
             session_id_str = data.get("session_id")
-            model = data.get("model")
-            provider = data.get("provider")
+            # Never trust raw model strings on the operator's key.
+            provider = validate_provider(data.get("provider"))
+            model = validate_model(provider, data.get("model"))
             attachments = data.get("attachments")
 
             async with AsyncSessionLocal() as session:
@@ -135,11 +170,17 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
 
             if not session_id_str:
                 async with AsyncSessionLocal() as session:
-                    new_session = ChatSession(user_id=user_id)
+                    # Title from the first message — free, keeps history scannable.
+                    new_session = ChatSession(user_id=user_id, title=user_content.strip()[:60] or None)
                     session.add(new_session)
                     await session.commit()
                     await session.refresh(new_session)
                     session_id = new_session.id
+                # Tell the client, or its next message creates ANOTHER session.
+                await websocket.send_text(json.dumps({
+                    "type": "session_created",
+                    "session_id": str(session_id),
+                }))
             else:
                 try:
                     session_id = uuid.UUID(session_id_str)

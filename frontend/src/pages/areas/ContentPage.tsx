@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import styled from 'styled-components'
 import { contentApi } from '@/api/areas'
-import { ErrorCard } from '@/components/ErrorCard'
+import { ErrorState } from '@ledgr/ui'
 import { AreaTabs } from '@/components/ui/AreaTabs'
 import { PageContainer, PageContent } from '@/components/layout/PageLayout'
 import type { ContentItem } from '@/types'
@@ -83,7 +83,7 @@ export function ContentPage() {
     return (
       <PageContainer>
         <PageContent>
-          <ErrorCard message="Could not load content" onRetry={() => refetch()} />
+          <ErrorState title="Could not load content" onRetry={() => refetch()} />
         </PageContent>
       </PageContainer>
     )

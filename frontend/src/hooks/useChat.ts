@@ -10,6 +10,13 @@ export interface LocalMessage {
   toolResults?: Array<{ tool: string; status: string; result: string; affected: string[] }>
   affectedPaths?: string[]
   streaming?: boolean
+  error?: boolean
+}
+
+export interface SendOverrides {
+  provider?: string
+  openaiModel?: string
+  claudeModel?: string
 }
 
 interface UseChatResult {
@@ -18,7 +25,9 @@ interface UseChatResult {
   isStreaming: boolean
   tokenInfo: { input: number; output: number; daily_remaining: number } | null
   affectedPaths: string[]
-  sendMessage: (content: string, hiddenContext?: string, attachments?: File[], overrides?: { provider?: string; openaiModel?: string; claudeModel?: string }) => void
+  sendMessage: (content: string, hiddenContext?: string, attachments?: File[], overrides?: SendOverrides) => void
+  retryLast: () => void
+  canRetry: boolean
   newSession: () => void
   loadSession: (id: string) => void
   connected: boolean
@@ -36,8 +45,10 @@ export function useChat(initialSessionId?: string): UseChatResult {
   const [tokenInfo, setTokenInfo] = useState<UseChatResult['tokenInfo']>(null)
   const [affectedPaths, setAffectedPaths] = useState<string[]>([])
   const [connected, setConnected] = useState(false)
+  const [canRetry, setCanRetry] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
   const currentAssistantId = useRef<string | null>(null)
+  const lastSentRef = useRef<{ content: string; hiddenContext?: string; overrides?: SendOverrides } | null>(null)
 
   const isMounted = useRef(true)
 
@@ -99,10 +110,14 @@ export function useChat(initialSessionId?: string): UseChatResult {
         }
         return prev
       })
+    } else if (event.type === 'session_created') {
+      // Adopt the server-created session so follow-ups continue it.
+      setSessionId(event.session_id)
     } else if (event.type === 'done') {
       setIsStreaming(false)
       setTokenInfo(event.tokens)
       setAffectedPaths(event.affected_paths)
+      setCanRetry(false)
       setMessages(prev => {
         const last = prev[prev.length - 1]
         if (last && last.id === currentAssistantId.current) {
@@ -113,13 +128,21 @@ export function useChat(initialSessionId?: string): UseChatResult {
       currentAssistantId.current = null
     } else if (event.type === 'error') {
       setIsStreaming(false)
-      const id = nextId()
-      setMessages(prev => [...prev, {
-        id,
-        role: 'assistant',
-        content: `⚠️ ${event.message}`,
-        streaming: false,
-      }])
+      setCanRetry(lastSentRef.current !== null)
+      setMessages(prev => {
+        // Replace the empty streaming stub instead of leaving it dangling.
+        const last = prev[prev.length - 1]
+        const base = last && last.id === currentAssistantId.current && !last.content && !last.toolCalls?.length
+          ? prev.slice(0, -1)
+          : prev
+        return [...base, {
+          id: nextId(),
+          role: 'assistant' as const,
+          content: event.message,
+          streaming: false,
+          error: true,
+        }]
+      })
       currentAssistantId.current = null
     }
   }, [])
@@ -162,11 +185,11 @@ export function useChat(initialSessionId?: string): UseChatResult {
     }
   }, [initialSessionId])
 
-  const sendMessage = useCallback(async (content: string, hiddenContext?: string, attachments?: File[], overrides?: { provider?: string; openaiModel?: string; claudeModel?: string }) => {
+  const sendMessage = useCallback(async (content: string, hiddenContext?: string, attachments?: File[], overrides?: SendOverrides) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
 
     let encodedAttachments: { filename: string; contentType: string; data: string }[] = []
-    
+
     if (attachments && attachments.length > 0) {
       encodedAttachments = await Promise.all(attachments.map(async (file) => {
         return new Promise<any>((resolve) => {
@@ -189,13 +212,16 @@ export function useChat(initialSessionId?: string): UseChatResult {
     setMessages(prev => [...prev, { id: assistantMsgId, role: 'assistant', content: '', streaming: true }])
     setIsStreaming(true)
     setAffectedPaths([])
+    setCanRetry(false)
+    // Attachments aren't kept for retry — re-encoding Files after failure is unreliable.
+    lastSentRef.current = { content, hiddenContext, overrides }
 
     const payloadContent = hiddenContext ? `${hiddenContext}\n${content}` : content
 
-    const activeModel = overrides?.provider === 'openai' 
-      ? overrides.openaiModel 
-      : overrides?.provider === 'anthropic' 
-        ? overrides.claudeModel 
+    const activeModel = overrides?.provider === 'openai'
+      ? overrides.openaiModel
+      : overrides?.provider === 'anthropic'
+        ? overrides.claudeModel
         : undefined
 
     wsRef.current.send(JSON.stringify({
@@ -208,16 +234,32 @@ export function useChat(initialSessionId?: string): UseChatResult {
     }))
   }, [sessionId])
 
+  const retryLast = useCallback(() => {
+    const last = lastSentRef.current
+    if (!last) return
+    // Drop the failed turn (error bubble + its user message) before re-sending.
+    setMessages(prev => {
+      const trimmed = [...prev]
+      if (trimmed[trimmed.length - 1]?.error) trimmed.pop()
+      if (trimmed[trimmed.length - 1]?.role === 'user') trimmed.pop()
+      return trimmed
+    })
+    setCanRetry(false)
+    sendMessage(last.content, last.hiddenContext, undefined, last.overrides)
+  }, [sendMessage])
+
   const newSession = useCallback(() => {
     setSessionId(null)
     setMessages([])
     setAffectedPaths([])
     setTokenInfo(null)
+    setCanRetry(false)
   }, [])
 
   const loadSession = useCallback((id: string) => {
     setSessionId(id)
     setLoadingMessages(true)
+    setCanRetry(false)
     chatApi.session(id)
       .then(data => {
         if (data && Array.isArray(data.messages)) {
@@ -235,5 +277,5 @@ export function useChat(initialSessionId?: string): UseChatResult {
       .finally(() => setLoadingMessages(false))
   }, [])
 
-  return { messages, sessionId, isStreaming, tokenInfo, affectedPaths, sendMessage, newSession, loadSession, connected, loadingMessages }
+  return { messages, sessionId, isStreaming, tokenInfo, affectedPaths, sendMessage, retryLast, canRetry, newSession, loadSession, connected, loadingMessages }
 }

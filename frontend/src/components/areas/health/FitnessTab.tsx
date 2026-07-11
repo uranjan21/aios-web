@@ -8,7 +8,7 @@ import dayjs from 'dayjs'
 import { Plus, Trash2, Dumbbell, Trophy, X, Target, Droplets, Scale, CheckCircle2, Flame, Repeat } from 'lucide-react'
 import { healthApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
-import { EmptyState } from '@/components/EmptyState'
+import { EmptyState } from '@ledgr/ui'
 import type { WorkoutSessionItem, HabitItem } from '@/types'
 import { Card as GlassCard } from '@ledgr/ui';
 import { KpiCard, KpiGrid } from '@ledgr/ui';
@@ -741,16 +741,21 @@ export function FitnessTab() {
               </div>
             ) : !habits?.length ? (
               <EmptyState
-                icon={Repeat}
+                icon={<Repeat size={24} />}
                 title="No habits yet"
                 description="Add a daily habit and build your streaks."
-                action={{
-                  label: "Add Entry",
-                  onClick: () => {
-                    setLogType('habit')
-                    setLogModalOpen(true)
-                  }
-                }}
+                action={
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setLogType('habit')
+                      setLogModalOpen(true)
+                    }}
+                  >
+                    Add Entry
+                  </Button>
+                }
               />
             ) : (
               habits
@@ -791,16 +796,21 @@ export function FitnessTab() {
             </StyledListWrapper>
           ) : !sessions?.length ? (
             <EmptyState
-              icon={Dumbbell}
+              icon={<Dumbbell size={24} />}
               title="No workouts logged"
               description="Log your first session with exercises, sets and weights."
-              action={{
-                label: "Log Workout",
-                onClick: () => {
-                  setLogType('workout')
-                  setLogModalOpen(true)
-                }
-              }}
+              action={
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setLogType('workout')
+                    setLogModalOpen(true)
+                  }}
+                >
+                  Log Workout
+                </Button>
+              }
             />
           ) : (
             <StyledListWrapper style={{ padding: '0.75rem' }}>

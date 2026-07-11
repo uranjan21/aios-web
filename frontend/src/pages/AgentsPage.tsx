@@ -1,6 +1,6 @@
 import { agentsApi } from "@/api/agents";
-import { EmptyState } from "@/components/EmptyState";
-import { ErrorCard } from "@/components/ErrorCard";
+import { EmptyState } from "@ledgr/ui";
+import { ErrorState } from "@ledgr/ui";
 import { PageContainer, PageContent } from "@/components/layout/PageLayout";
 import { DigitalCronInput } from "@/components/ui/DigitalCronInput";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -1179,7 +1179,7 @@ function AgentsContent({ agents }: { agents: Agent[] }) {
         processedAgents.length === 0 ? (
           <EmptyWrap>
             <EmptyState
-              icon={Filter}
+              icon={<Filter size={24} />}
               title="No agents match this filter"
               description="Tighten or clear filters to see more of the roster."
             />
@@ -1201,7 +1201,7 @@ function AgentsContent({ agents }: { agents: Agent[] }) {
             {processedAgents.length === 0 ? (
               <EmptyWrap>
                 <EmptyState
-                  icon={Filter}
+                  icon={<Filter size={24} />}
                   title="No agents match this filter"
                   description="Tighten or clear filters to see more of the roster."
                 />
@@ -1293,7 +1293,7 @@ export function AgentsPage() {
         />
 
         {isError ? (
-          <ErrorCard message="Could not load agents" onRetry={() => refetch()} />
+          <ErrorState title="Could not load agents" onRetry={() => refetch()} />
         ) : isLoading ? (
           <Stack>
             {Array.from({ length: 6 }).map((_, index) => (
@@ -1302,13 +1302,14 @@ export function AgentsPage() {
           </Stack>
         ) : agents?.length === 0 ? (
           <EmptyState
-            icon={Zap}
+            icon={<Zap size={24} />}
             title="No agents yet"
             description="Seed the default roster, then refine with filters as your setup grows."
-            action={{
-              label: seedMutation.isPending ? "Seeding..." : "Seed Agents",
-              onClick: () => seedMutation.mutate(),
-            }}
+            action={
+              <Button variant="secondary" size="sm" onClick={() => seedMutation.mutate()}>
+                {seedMutation.isPending ? "Seeding..." : "Seed Agents"}
+              </Button>
+            }
           />
         ) : (
           <AgentsContent agents={agents ?? []} />

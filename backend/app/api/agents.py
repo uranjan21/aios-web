@@ -102,15 +102,22 @@ async def patch_agent(agent_id: str, body: AgentPatch, current_user=Depends(get_
     agent = result.scalar_one_or_none()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
+    from app.core.llm_models import validate_model, validate_provider
     if body.is_active is not None:
         agent.is_active = body.is_active
     if body.cron_expression is not None:
         agent.cron_expression = body.cron_expression
     if body.llm_provider is not None:
+        if validate_provider(body.llm_provider) is None:
+            raise HTTPException(status_code=422, detail="Unknown provider")
         agent.llm_provider = body.llm_provider
     if body.openai_chat_model is not None:
+        if validate_model("openai", body.openai_chat_model) is None:
+            raise HTTPException(status_code=422, detail="Model not allowed")
         agent.openai_chat_model = body.openai_chat_model
     if body.claude_model is not None:
+        if validate_model("anthropic", body.claude_model) is None:
+            raise HTTPException(status_code=422, detail="Model not allowed")
         agent.claude_model = body.claude_model
     agent.updated_at = datetime.utcnow()
     db.add(agent)

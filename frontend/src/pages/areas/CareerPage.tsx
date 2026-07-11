@@ -15,8 +15,7 @@ import { RoadmapTab } from '@/components/areas/career/RoadmapTab'
 import { OpportunitiesTab } from '@/components/areas/career/OpportunitiesTab'
 import { CareerLogModal } from '@/components/areas/career/CareerLogModal'
 import { careerApi } from '@/api/areas'
-import { ErrorCard } from '@/components/ErrorCard'
-import { EmptyState } from '@/components/EmptyState'
+import { EmptyState } from '@ledgr/ui'
 import { PageHeader } from '@ledgr/ui'
 import { CareerRadar } from '@/components/CareerRadar'
 import { Card as GlassCard, KpiCard } from '@ledgr/ui';
@@ -352,10 +351,10 @@ export function CareerPage() {
                     {loadingOpps ? <StyledSkeleton $height="40px" /> :
                       filteredActiveOpps.length ? filteredActiveOpps.map(opp => <OpportunityRow key={opp.id} opp={opp} />) :
                       <EmptyState
-                        icon={Briefcase}
+                        icon={<Briefcase size={24} />}
                         title="No opportunities"
                         description="Use the Add button above to add one."
-                        action={{ label: "Add Entry", onClick: () => setIsLogModalOpen(true) }}
+                        action={<Button variant="secondary" size="sm" onClick={() => setIsLogModalOpen(true)}>Add Entry</Button>}
                       />}
                   </GlassCard>
 
@@ -415,10 +414,10 @@ export function CareerPage() {
                         />
                       ) : (
                         <EmptyState
-                          icon={History}
+                          icon={<History size={24} />}
                           title="No history"
                           description="Log your first milestone."
-                          action={{ label: "Add Entry", onClick: () => setIsLogModalOpen(true) }}
+                          action={<Button variant="secondary" size="sm" onClick={() => setIsLogModalOpen(true)}>Add Entry</Button>}
                         />
                       )}
                     </GlassCard>
@@ -454,10 +453,10 @@ export function CareerPage() {
                         </>
                       ) : (
                         <EmptyState
-                          icon={BookOpen}
+                          icon={<BookOpen size={24} />}
                           title="No skills"
                           description="Add a skill to see your radar."
-                          action={{ label: "Add Entry", onClick: () => setIsLogModalOpen(true) }}
+                          action={<Button variant="secondary" size="sm" onClick={() => setIsLogModalOpen(true)}>Add Entry</Button>}
                         />
                       )}
                     </GlassCard>

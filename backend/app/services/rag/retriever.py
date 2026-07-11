@@ -1,5 +1,7 @@
 """pgvector cosine similarity search over vault chunks."""
 import logging
+import time
+from collections import OrderedDict
 from typing import Optional
 
 from openai import AsyncOpenAI
@@ -16,6 +18,17 @@ MAX_TOP_K = 10
 
 _openai_client: Optional[AsyncOpenAI] = None
 
+# The chat turn embeds the user message for context RAG and the model may then
+# call search_vault with the same text — memoize so one turn costs one embed.
+_embed_cache: OrderedDict[str, list[float]] = OrderedDict()
+_EMBED_CACHE_MAX = 64
+
+# Chunk-presence memo: skip embedding entirely for users with no indexed
+# content. True is stable (chunks aren't bulk-deleted); False expires so a
+# first knowledge pull is picked up.
+_chunk_presence: dict[str, tuple[bool, float]] = {}
+_CHUNKLESS_RECHECK_SECONDS = 300.0
+
 
 def _get_openai_client() -> Optional[AsyncOpenAI]:
     global _openai_client
@@ -28,11 +41,36 @@ def _get_openai_client() -> Optional[AsyncOpenAI]:
 
 
 async def _embed_query(query: str) -> Optional[list[float]]:
+    cached = _embed_cache.get(query)
+    if cached is not None:
+        _embed_cache.move_to_end(query)
+        return cached
     client = _get_openai_client()
     if client is None:
         return None
     response = await client.embeddings.create(model=EMBEDDING_MODEL, input=[query])
-    return response.data[0].embedding
+    embedding = response.data[0].embedding
+    _embed_cache[query] = embedding
+    while len(_embed_cache) > _EMBED_CACHE_MAX:
+        _embed_cache.popitem(last=False)
+    return embedding
+
+
+async def user_has_chunks(user_id) -> bool:
+    """Cheap existence check so callers can skip the embedding API call."""
+    key = str(user_id)
+    hit = _chunk_presence.get(key)
+    if hit is not None and (hit[0] or time.monotonic() < hit[1]):
+        return hit[0]
+    async with AsyncSessionLocal() as session:
+        row = (
+            await session.execute(
+                text("SELECT 1 FROM vault_chunks WHERE user_id = :uid LIMIT 1"), {"uid": key}
+            )
+        ).first()
+    present = row is not None
+    _chunk_presence[key] = (present, time.monotonic() + _CHUNKLESS_RECHECK_SECONDS)
+    return present
 
 
 async def search(

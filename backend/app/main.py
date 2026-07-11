@@ -18,7 +18,12 @@ from app.api.auth import router as auth_router
 from app.api.sync import router as sync_router, sync_ws_handler
 from app.api.chat import router as chat_router, chat_ws_handler
 from app.api.agents import router as agents_router, agents_ws_handler
-from app.services.agents.scheduler import start_scheduler, stop_scheduler
+from app.services.agents.scheduler import (
+    acquire_scheduler_leadership,
+    release_scheduler_leadership,
+    start_scheduler,
+    stop_scheduler,
+)
 from app.api.integrations import router as integrations_router
 from app.api.areas.finance import router as finance_router
 from app.api.areas.health import router as health_router
@@ -58,15 +63,27 @@ async def lifespan(app: FastAPI):
 
     logger.info("AIOS Web backend starting — vault: %s", settings.vault_path)
 
-    # Backfill default agents for existing users BEFORE the scheduler loads
-    # active agents, so new default agents get cron-registered on first boot.
+    # Exactly one worker runs cron jobs + the seed backfill — otherwise every
+    # autoscaled worker fires every agent (duplicate LLM spend + pushes).
+    is_leader = False
     try:
-        from app.api.agents import seed_default_agents
-        await seed_default_agents()
+        is_leader = await acquire_scheduler_leadership()
     except Exception as e:
-        logger.error("Default agent seeding failed (non-fatal): %s", e)
+        logger.error("Scheduler leader election failed (this worker runs without cron jobs): %s", e)
 
-    await start_scheduler()
+    if is_leader:
+        logger.info("SCHEDULER LEADER: this worker runs cron jobs and agent seeding")
+        # Backfill default agents for existing users BEFORE the scheduler loads
+        # active agents, so new default agents get cron-registered on first boot.
+        try:
+            from app.api.agents import seed_default_agents
+            await seed_default_agents()
+        except Exception as e:
+            logger.error("Default agent seeding failed (non-fatal): %s", e)
+
+        await start_scheduler()
+    else:
+        logger.info("Scheduler not started — another worker holds the leader lock")
 
     from pathlib import Path
     vault_path = Path(settings.vault_path)
@@ -134,6 +151,7 @@ async def lifespan(app: FastAPI):
     if _watcher:
         _watcher.stop()
     stop_scheduler()
+    await release_scheduler_leadership()
 
 
 def create_app() -> FastAPI:

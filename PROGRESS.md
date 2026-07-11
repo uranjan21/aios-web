@@ -1,5 +1,115 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
+## 2026-07-11 — antigravity
+- Shipped: Audited workspace and cleaned up unnecessary files including 74+ old agent logs in `.agents/`, `.pytest_cache/`, `__pycache__` artifacts, `.DS_Store` files, stale logs (`tsc_errors.log`), and removed sensitive personal seed data files (`backend/seed_finance_real_data.py`, `backend/data_finance_2026.json`) from the repo.
+- Blockers: none
+- Next: Await next user request.
+
+## 2026-07-11 — <tool: teamwork_preview_auditor_assistant_ui_ux_4_gen4_replacement3>
+- Shipped: Performed forensic integrity audit on worker_6's UI/UX fixes. Verified styled-components compliance, @ledgr/ui design tokens, accessibility fixes, and compilation. Verdict: CLEAN.
+- Blockers: none
+- Next: none
+
+## 2026-07-11 — <tool: teamwork_preview_worker (worker_11)>
+- Shipped: Implemented Model Selector Escape key bubbling fix by using capture phase event listener registration. Verified touch screen actions visibility, virtualized item keys config, and margin-gap layout compliance. Verified clean frontend production compilation and typechecking.
+- Blockers: none
+- Next: none
+
+## 2026-07-11 — <tool: teamwork_preview_reviewer (reviewer_assistant_ui_ux_4_gen4_r4)>
+- Shipped: Audited GlobalAssistant.tsx and AssistantChatInput.tsx for UI/UX guidelines, button types, cursors, and layout transitions. Verified clean build compilation via npm run build. Verdict: REQUEST_CHANGES.
+- Blockers: none (issues documented in handoff.md: HistoryItem is defined as styled.li instead of styled.div and lacks JSX keyboard/accessibility handlers).
+- Next: Implementer must redefine HistoryItem as styled.div and attach role="button", tabIndex={0}, and onKeyDown handlers in JSX.
+
+## 2026-07-11 — <tool: teamwork_preview_reviewer_assistant_ui_ux_4_gen4_replacement3>
+- Shipped: Audited, verified, and reviewed the visual, styling, and accessibility fixes in GlobalAssistant.tsx and AssistantChatInput.tsx. Confirmed successful production build compilation and type correctness. Verdict: REQUEST_CHANGES.
+- Blockers: none (discrepancy found: .remove-btn has opacity: 0.8 on mobile touch devices under hover: none, instead of requested opacity: 1).
+- Next: Implementer must update .remove-btn's opacity under hover: none to 1.
+
+## 2026-07-11 — <tool: teamwork_preview_worker (worker_10)>
+- Shipped: Implemented 6 specific UI/UX bug fixes in GlobalAssistant.tsx and AssistantChatInput.tsx including: touch screen message actions tabIndex accessibility, resize cursor/user-select leak cleanup, object URL leak prevention, suffix mentions trigger pattern adjustment, drag counter flicker solution, and natural inline scroll constraint for artifacts.
+- Blockers: none
+- Next: none
+
+## 2026-07-11 — <tool: teamwork_preview_reviewer_assistant_ui_ux_4_gen4_replacement4>
+- Shipped: Verified worker_6's visual, accessibility, layout, and HTML nesting fixes in GlobalAssistant.tsx and AssistantChatInput.tsx. Confirmed correct HistoryItem li/ul rendering, keyboard Escape propagation fixes, button types, disabled cursors, and margin-gap spacing. Verified clean production compilation build. Verdict: APPROVE.
+- Blockers: none
+- Next: none
+
+## 2026-07-11 — <tool: teamwork_preview_auditor>
+- Shipped: Performed forensic integrity audit on the AI Assistant UI/UX Redesign changes. Verified build succeeds and confirmed no hardcoded test results, facade implementations, or bypasses. Verdict: CLEAN.
+- Blockers: none
+- Next: none
+
+## 2026-07-11 — <tool: teamwork_preview_challenger_assistant_ui_ux_4_gen4_replacement2>
+- Shipped: Audited, stress-tested, and verified layout spacing, accessibility, and interaction mechanics of the AI Assistant components. Documented findings in handoff.md. Verdict: BLOCKING.
+- Blockers: none (issues documented in handoff.md: Escape key drawer closing conflict, width clamping dead zones, scrollbar lock layout shift, avatar margins in gap container, missing ARIA tags, and lack of focus trap).
+- Next: Address identified visual layout, width clamping, and interaction blocking issues.
+
+## 2026-07-11 — <tool: teamwork_preview_reviewer (reviewer_10)>
+- Shipped: Audited, verified, and reviewed the 10 visual, styling, and accessibility fixes in GlobalAssistant.tsx and AssistantChatInput.tsx. Confirmed successful production build compilation and type correctness. Verdict: REQUEST_CHANGES.
+- Blockers: none (issues documented in handoff.md: ModelSelector Escape key bubbles and closes the assistant drawer, and a double-gap spacing violation exists in HeaderLeft).
+- Next: Implementer must resolve the ModelSelector Escape key handler bubbling issue and remove the inline margin-left style on the Bot icon.
+
+## 2026-07-11 — <tool: teamwork_preview_challenger_gen3_2>
+- Shipped: Audited, stress-tested, and verified the layout, responsiveness, and interaction mechanics of the AI Assistant. Validated build compilation and verified issues with Escape key propagation, message action touchscreen accessibility, and layout double-spacing. Verdict: BLOCKING.
+- Blockers: none (issues documented in handoff.md)
+- Next: Address blocking issues (Escape key interception, touch actions media queries, and header margin spacing).
+
+## 2026-07-11 — <tool: teamwork_preview_auditor (auditor_6)>
+- Shipped: Performed forensic integrity audit of GlobalAssistant.tsx and AssistantChatInput.tsx fixes. Confirmed design token compliance (no Tailwind, DM Sans header typography). Verified compiler correctness via frontend typecheck and production build. Verdict: CLEAN.
+- Blockers: none
+- Next: none
+
+## 2026-07-11 — <tool: teamwork_preview_reviewer>
+- Shipped: Audited, verified, and approved the 10 visual, styling, and accessibility fixes in GlobalAssistant.tsx and AssistantChatInput.tsx. Confirmed successful production build compilation and type correctness. Verdict: APPROVE.
+- Blockers: none
+- Next: Final project delivery to user.
+
+## 2026-07-11 — <tool: teamwork_preview_challenger>
+- Shipped: Audited, stress-tested, and verified layout spacing, accessibility, and interaction mechanics of the AI Assistant components. Verdict: BLOCKING.
+- Blockers: Found interaction bugs (Escape key in model selector closes drawer), touch-screen accessibility failure (message actions copy/edit are hover-only), details state leaks across sessions/messages (due to index-based virtualization keys), and spacing bug (mixed margins/gaps in header).
+- Next: Implementer must resolve the model selector Escape handler bubble prevention, touch media queries for message actions, message ID-based virtualizer keys, and remove inline margins in HeaderLeft.
+
+## 2026-07-11 — <tool: teamwork_preview_worker>
+- Shipped: Implemented 10 accessibility and visual fixes in GlobalAssistant.tsx and AssistantChatInput.tsx including: HistoryItem refactor to li/ul, visible copy/edit actions on focus-within, sans typography HeaderTitle, mobile close opacity media query, layout spacing margin removals, model selector Escape key handler, ThinkingBlock details toggle state, body scroll lock, mentions dropdown key controls, and attachment override prevention.
+- Blockers: none
+- Next: Handoff and notify parent agent of successful implementation and typecheck.
+
+## 2026-07-11 — <tool: claude_code_design_system_audit_P1>
+- Shipped: Full design-system/architecture audit (5 read-only agent passes; 2 died on the account session limit, reconstructed via grep) → `docs/DESIGN_SYSTEM_AUDIT.md`. Then executed **P1 "kill duplicates"** — all verified (`tsc --noEmit` EXIT=0 + `pnpm build` clean). Removed 6 duplicate `components/ui/*` implementations: `Card.tsx` (0 importers, dead), `button.tsx`→@ledgr Button (3 pages), `Loader.tsx`→@ledgr Spinner (router PageLoader), `ui/EmptyState.tsx` (dead) + `components/EmptyState.tsx`→@ledgr EmptyState (9 files / 16 sites; rewrote object `action={{label,onClick}}`→`<Button>` node and component `icon`→node), `alert-dialog.tsx`→@ledgr ConfirmDialog (IntegrationsPage disconnect flow), `AreaToolbar.tsx`→@ledgr AreaToolbar (AgentsToolbar). `ui/skeleton.tsx` deduped: now a thin adapter delegating rendering to @ledgr Skeleton (single visual source of truth; 36 call sites unchanged). Recorded scoped serif exception (Playfair display-only allowed in aios-web) in memory.
+- Blockers: 2 audit passes (exhaustive token sweep + page-consistency matrix) need re-run after session-limit reset (5:50am IST). `ErrorCard.tsx` (6 importers) can't collapse yet — needs a NEW `@ledgr/ui` `ErrorState` built first (P0; requires ledgr-ui rebuild + reinstall). Intentionally KEPT (not duplicate implementations): `ui/Table` (composition wrapper, 4), `ui/Popconfirm` (adapter, 14), `ui/AreaTabs` (mandated by CLAUDE.md), `ui/ChartTooltip`/`DigitalCronInput`/`DocStyles`/`progress` (no DS equivalent).
+- Next: P0 (add missing tokens icon-size/opacity/`radii.xs`; build `ErrorState`), P2 (DS-bypass sweep — 74 inline `styled.button`, custom overlays→Sheet/Dialog/Popover), P3 (retokenize 476 hex / 107 radius / 8 pill violations), P4–P5 (de-God the 12 large files; per-file split plans in the audit doc §5). Optional: codemod the 36 skeleton call sites to import `@ledgr/ui` Skeleton directly, then delete the shim.
+
+## 2026-07-11 — <tool: challenger_assistant_ui_ux_4_2>
+- Shipped: Empirically audited and stress-tested UI/UX of GlobalAssistant and AssistantChatInput. Verified successful production build compilation and type correctness.
+- Blockers: Identified 5 visual/memory/interaction edge-cases: drag resize global body style leak, preview image object URL leak, email address autocomplete suffix matching, drag and drop hover flickering, and nested scrollbars on long artifacts.
+- Next: Implement mitigations for resizing style leaks and preview image object URL lifetime management.
+
+## 2026-07-11 — <tool: challenger_assistant_ui_ux_4_1>
+- Shipped: Empirically verified and stress-tested UI/UX fixes implemented by worker_6 in GlobalAssistant.tsx and AssistantChatInput.tsx. Confirmed build and pytest test suites pass successfully.
+- Blockers: Identified touch screen accessibility issue where message copy/edit actions are hidden/inaccessible on mobile due to lack of touch-screen media queries or interactive touch toggles.
+- Next: Fix the touch-screen accessibility of message copy/edit actions.
+
+## 2026-07-11 — <tool: auditor_assistant_ui_ux_4_1>
+- Shipped: Audited UI/UX fixes implemented by worker_6 in GlobalAssistant.tsx and AssistantChatInput.tsx. Verified authenticity of refactored accessibility elements, Escape key handling, resize clamping, disabled cursors, and spacing rules. Confirmed successful production build compile. Verdict: CLEAN.
+- Blockers: none
+- Next: none
+
+## 2026-07-11 — <tool: teamwork_preview_reviewer_assistant_ui_ux_4_2>
+- Shipped: Reviewed and verified UI/UX visual, accessibility, layout, and keyboard event fixes in GlobalAssistant.tsx and AssistantChatInput.tsx. Confirmed correct HistoryItem div rendering, overflow behavior, touch device delete control visibility, Escape key handler, button types, disabled cursors, and margin-gap spacing. Verified clean production compilation build. Verdict: APPROVE.
+- Blockers: none
+- Next: none
+
+## 2026-07-11 — <tool: reviewer_assistant_ui_ux_4_1>
+- Shipped: Verified UI/UX fixes implemented by worker_6 in the AI Assistant components (GlobalAssistant.tsx and AssistantChatInput.tsx). Confirmed correct HistoryItem refactoring to div, overflow clipping removal, touch device support, Escape key handlers, and margin-gap spacing compliance. Checked clean compilation of the frontend build. Verdict: APPROVE.
+- Blockers: none
+- Next: none
+
+## 2026-07-11 — <tool: teamwork_preview_worker_assistant_ui_ux_6>
+- Shipped: Fixed accessibility/focus issues in GlobalAssistant.tsx by replacing visibility hidden with pointer-events toggling, and in AssistantChatInput.tsx by closing the model selector dropdown on focusout. Verified that the production build compiles cleanly.
+- Blockers: none
+- Next: none
+
 ## 2026-07-10 — <tool: challenger_assistant_ui_ux_9>
 - Shipped: Adversarially challenged layout, accessibility, and responsiveness changes in GlobalAssistant.tsx and AssistantChatInput.tsx. Verified build success.
 - Blockers: Identified a blocking accessibility bug where `visibility: hidden` on message actions prevents keyboard Tab focus, making `:focus-within` trigger unreachable. Also identified that tabbing out of ModelSelector and pressing Escape closes the entire assistant drawer instead of just the dropdown.

@@ -17,7 +17,7 @@ dependencies = [
     "pydantic-settings==2.5.2",
     "PyJWT==2.8.0",
     "passlib[bcrypt]==1.7.4",
-    "anthropic==0.34.2",
+    "anthropic>=0.40,<1",
     "openai==1.47.0",
     "watchdog==5.0.2",
     "slowapi==0.1.9",
@@ -49,4 +49,7 @@ packages = ["app"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
+markers = [
+    "no_vault_owner: run with the user NOT owning the shared vault",
+]
 

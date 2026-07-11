@@ -8,7 +8,7 @@ import { useUIStore } from '@/stores/uiStore'
 import { healthApi } from '@/api/areas'
 import { formatRelativeTime, exportToCsv } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ErrorCard } from '@/components/ErrorCard'
+import { ErrorState } from '@ledgr/ui'
 import { useCountUp } from '@/hooks/useCountUp'
 import { StatusPill } from '@/components/lumina';
 import { KpiCard } from '@ledgr/ui';
@@ -185,7 +185,7 @@ export function HealthPage() {
   }, [weightLogs, weightRange])
 
   if (errorStreak || errorGym) {
-    return <ErrorCard message="Could not load health data" onRetry={() => { refetchStreak(); refetchGym() }} />
+    return <ErrorState title="Could not load health data" onRetry={() => { refetchStreak(); refetchGym() }} />
   }
 
   return (

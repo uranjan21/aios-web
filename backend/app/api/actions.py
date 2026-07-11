@@ -37,11 +37,12 @@ async def approve_action(
         
     if action.status != "pending":
         raise HTTPException(status_code=400, detail="Action is not pending")
-        
-    # In V2, we would trigger action_runner.py here. For V1, we just mark it.
-    action.status = "approved"
+
     action.updated_at = datetime.utcnow()
-    
+    # execute_action sets status to executed/rejected and stages the row.
+    from app.services.ai.action_runner import execute_action
+    await execute_action(action, db)
+
     await db.commit()
     await db.refresh(action)
     return action

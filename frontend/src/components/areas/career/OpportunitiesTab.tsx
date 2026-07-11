@@ -12,7 +12,7 @@ import {
 } from '@dnd-kit/core'
 import { careerApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
-import { EmptyState } from '@/components/EmptyState'
+import { EmptyState } from '@ledgr/ui'
 import type { JobOpportunity, OpportunityStatus } from '@/types'
 import { format } from 'date-fns'
 import { OpportunityForm } from './OpportunityForm'
@@ -497,10 +497,10 @@ function OppListSection({ label, opps, isLoading, onAdd }: { label: string; opps
         </ListSkeletonPad>
       ) : !filteredOpps.length ? (
         <EmptyState
-          icon={Briefcase}
+          icon={<Briefcase size={24} />}
           title="No opportunities found"
           description="Try changing the period filter."
-          action={{ label: "Add Entry", onClick: onAdd }}
+          action={<Button variant="secondary" size="sm" onClick={onAdd}>Add Entry</Button>}
         />
       ) : (
         <ListPad>
@@ -545,10 +545,10 @@ export function OpportunitiesTab() {
           </PipelineGrid>
         ) : !active.length ? (
           <EmptyState
-            icon={Briefcase}
+            icon={<Briefcase size={24} />}
             title="No active opportunities"
             description="Track jobs you're applying to here."
-            action={{ label: "Add Entry", onClick: () => setShowForm(true) }}
+            action={<Button variant="secondary" size="sm" onClick={() => setShowForm(true)}>Add Entry</Button>}
           />
         ) : (
           <PipelineBoard opps={active} />

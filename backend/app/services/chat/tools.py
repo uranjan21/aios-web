@@ -1,13 +1,17 @@
 """All Claude tool definitions + execution handlers."""
+import asyncio
 import logging
 from datetime import datetime, timezone, date
 from uuid import UUID
 
 from app.core.config import get_settings
+from app.services.vault_sync.owner import is_vault_owner
 from app.services.vault_sync.writer import VaultWriteGuard
 from app.services.rag import retriever
 
 logger = logging.getLogger(__name__)
+
+VAULT_UNAVAILABLE = "(Vault access is not available on this account.)"
 
 AREA_LOG_MAP = {
     "finance": "01-finance/log/2026.md",
@@ -53,18 +57,21 @@ async def _append_vault_entry(
     entry: str,
     affected: list[str],
 ) -> None:
+    # The vault is one shared filesystem — only its owner's writes may land there.
+    if not await is_vault_owner(user_id):
+        return
     path = AREA_LOG_MAP.get(_area_for_vault_log(area))
     if not path:
         return
     try:
-        guard.append_to_log(path, entry)
+        await asyncio.to_thread(guard.append_to_log, path, entry)
         if path not in affected:
             affected.append(path)
         await _sync_vault_path_if_enabled(settings, user_id, path)
     except Exception as e:
         logger.warning("Vault mirror failed for %s: %s", path, e)
 
-TOOL_DEFINITIONS = [
+_TOOL_SPECS = [
     {
         "name": "create_action",
         "description": "Create a new task/action in the workspace tasks list (Task model)",
@@ -81,11 +88,8 @@ TOOL_DEFINITIONS = [
                 "project_id": {"type": "string", "description": "Optional project UUID"},
                 "sprint_id": {"type": "string", "description": "Optional sprint UUID"},
                 "goal_id": {"type": "string", "description": "Optional goal UUID"},
-                "action_type": {"type": "string", "description": "Legacy fallback: maps to title"},
-                "source_domain": {"type": "string", "description": "Legacy fallback: maps to domain"},
-                "ai_explanation": {"type": "string", "description": "Legacy fallback: maps to description"},
             },
-            "required": [],
+            "required": ["title"],
         },
     },
     {
@@ -118,20 +122,6 @@ TOOL_DEFINITIONS = [
                 "account_id": {"type": "string", "description": "Optional account UUID. If not provided, the default/first account will be used."},
                 "tags": {"type": "string", "description": "Optional comma-separated tags"},
                 "logged_at": {"type": "string", "description": "Optional ISO timestamp or date, defaults to current time"}
-            },
-            "required": ["amount", "type", "description"],
-        },
-    },
-    {
-        "name": "log_finance_transaction",
-        "description": "Legacy alias for log_transaction",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "amount": {"type": "number"},
-                "type": {"type": "string", "enum": ["expense", "income"]},
-                "description": {"type": "string"},
-                "category": {"type": "string"}
             },
             "required": ["amount", "type", "description"],
         },
@@ -241,16 +231,6 @@ TOOL_DEFINITIONS = [
         },
     },
     {
-        "name": "get_github_activity",
-        "description": "Get recent GitHub commits and activity for tracked repos",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "days": {"type": "integer", "default": 7},
-            },
-        },
-    },
-    {
         "name": "get_notion_page",
         "description": "Read a Notion page by title. Returns the page content if the Notion integration is connected.",
         "input_schema": {
@@ -274,6 +254,17 @@ TOOL_DEFINITIONS = [
     },
 ]
 
+_VAULT_TOOL_NAMES = {"read_context", "append_log", "update_context"}
+
+# Two byte-stable variants so the tool block never varies within a cohort —
+# a changing tool list would invalidate the provider-side prompt cache.
+TOOLS_WITH_VAULT = _TOOL_SPECS
+TOOLS_BASE = [t for t in _TOOL_SPECS if t["name"] not in _VAULT_TOOL_NAMES]
+
+
+def tool_definitions_for(vault_enabled: bool) -> list[dict]:
+    return TOOLS_WITH_VAULT if vault_enabled else TOOLS_BASE
+
 
 async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple[str, list[str]]:
     """Returns (result_text, affected_paths)."""
@@ -282,30 +273,36 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
     affected: list[str] = []
 
     if tool_name == "read_context":
+        if not await is_vault_owner(user_id):
+            return VAULT_UNAVAILABLE, []
         area = tool_input["area"]
         path = AREA_CONTEXT_MAP.get(area, "master.md")
-        content = guard.read_file(path)
+        content = await asyncio.to_thread(guard.read_file, path)
         return content or f"(context file not found: {path})", []
 
     elif tool_name == "append_log":
+        if not await is_vault_owner(user_id):
+            return VAULT_UNAVAILABLE, []
         area = tool_input["area"]
         entry = tool_input["entry"]
         path = AREA_LOG_MAP.get(area)
         if not path:
             return f"Unknown area: {area}", []
-        guard.append_to_log(path, entry)
+        await asyncio.to_thread(guard.append_to_log, path, entry)
         affected.append(path)
         await _sync_vault_path_if_enabled(settings, user_id, path)
         return f"Logged to {path}", affected
 
     elif tool_name == "update_context":
+        if not await is_vault_owner(user_id):
+            return VAULT_UNAVAILABLE, []
         area = tool_input["area"]
         updates: dict = tool_input["updates"]
         path = AREA_CONTEXT_MAP.get(area)
         if not path:
             return f"Unknown area: {area}", []
 
-        current = guard.read_file(path) or ""
+        current = await asyncio.to_thread(guard.read_file, path) or ""
         import re
         updated = current
         for key, value in updates.items():
@@ -316,7 +313,7 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
             else:
                 updated += f"\n{key}: {value}"
 
-        guard.update_context(path, updated)
+        await asyncio.to_thread(guard.update_context, path, updated)
         affected.append(path)
         await _sync_vault_path_if_enabled(settings, user_id, path)
         return f"Updated {path}: {list(updates.keys())}", affected
@@ -343,10 +340,7 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
         if not events:
             return "(No calendar events found — is Google Calendar connected?)", []
         lines = [f"• {e['start_time'][:16]} — {e['title']}" for e in events[:20]]
-        return f"Calendar events ({len(events)} total):\n" + "\n".join(lines), []
-
-    elif tool_name == "get_github_activity":
-        return "(GitHub integration not connected)", []
+        return f"Calendar events ({len(events)} total):\n<external_data>\n" + "\n".join(lines) + "\n</external_data>", []
 
     elif tool_name == "get_notion_page":
         from app.services.integrations.notion import get_page_by_title
@@ -355,7 +349,7 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
         except Exception as e:
             logger.warning("get_notion_page failed: %s", e)
             return "(Notion request failed — try again or re-connect Notion.)", []
-        return text[:6000], []
+        return f"<external_data>\n{text[:6000]}\n</external_data>", []
 
     elif tool_name == "get_recent_emails":
         from app.services.integrations.gmail import get_stored_messages
@@ -372,7 +366,7 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
             f"• [{(e['received_at'] or '')[:16]}] {'(unread) ' if e['is_unread'] else ''}{e['sender']} — {e['subject']}\n  {(e['snippet'] or '')[:150]}"
             for e in emails
         ]
-        return f"Recent emails ({len(emails)}):\n" + "\n".join(lines), []
+        return f"Recent emails ({len(emails)}):\n<external_data>\n" + "\n".join(lines) + "\n</external_data>", []
 
     elif tool_name == "create_action":
         from app.models.workspace import Task

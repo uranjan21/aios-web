@@ -5,10 +5,52 @@ import uuid
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
 _scheduler: AsyncIOScheduler | None = None
+
+# Advisory lock so exactly ONE worker runs cron jobs in a multi-worker deploy —
+# otherwise every worker fires every agent (duplicate LLM spend + pushes).
+_LEADER_LOCK_KEY = 0x41494F53  # "AIOS"
+_leader_conn = None  # held open for the process lifetime; lock is session-scoped
+
+
+async def acquire_scheduler_leadership() -> bool:
+    """Try to become the scheduler leader via a Postgres advisory lock.
+
+    The lock releases automatically when this worker's connection dies, so a
+    crashed leader is replaced on the next worker restart.
+    """
+    global _leader_conn
+    if _leader_conn is not None:
+        return True
+    from app.db.session import engine
+
+    conn = await engine.connect()
+    try:
+        got = (
+            await conn.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": _LEADER_LOCK_KEY})
+        ).scalar()
+    except Exception:
+        await conn.close()
+        raise
+    if got:
+        _leader_conn = conn
+        return True
+    await conn.close()
+    return False
+
+
+async def release_scheduler_leadership() -> None:
+    global _leader_conn
+    if _leader_conn is not None:
+        try:
+            await _leader_conn.close()
+        except Exception:
+            pass
+        _leader_conn = None
 
 
 def get_scheduler() -> AsyncIOScheduler:

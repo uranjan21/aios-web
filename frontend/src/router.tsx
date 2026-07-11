@@ -3,7 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 import { PageTransition } from '@/components/PageTransition'
-import { Loader } from '@/components/ui/Loader'
+import { Spinner } from '@ledgr/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { api } from '@/api/client'
 
@@ -65,7 +65,7 @@ function PageLoader() {
         padding: '24px',
       }}
     >
-      <Loader variant="dual-ring" size="lg" tone="cta" label="Loading systems..." />
+      <Spinner size="lg" tone="primary" label="Loading AI OS…" />
       <span style={{ fontSize: '13px', color: 'var(--muted-foreground)', letterSpacing: '0.05em', textTransform: 'uppercase', fontWeight: 500 }}>
         Loading AI OS...
       </span>

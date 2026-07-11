@@ -328,11 +328,12 @@ const MessageContainer = styled.div<{ $isUser: boolean }>`
   gap: ${({ theme }) => theme.spacing[3]};
   justify-content: ${({ $isUser }) => $isUser ? 'flex-end' : 'flex-start'};
   position: relative;
+  outline: none;
   
   &:hover .message-actions,
   &:focus-within .message-actions {
     opacity: 1;
-    visibility: visible;
+    pointer-events: auto;
   }
 `
 
@@ -453,7 +454,9 @@ function ThinkingBlock({ content, streaming }: { content: string, streaming: boo
   const [isOpen, setIsOpen] = useState(streaming)
 
   useEffect(() => {
-    setIsOpen(streaming)
+    if (streaming) {
+      setIsOpen(true)
+    }
   }, [streaming])
 
   const handleToggle = (e: React.SyntheticEvent<HTMLDetailsElement>) => {
@@ -497,12 +500,15 @@ const ArtifactContent = styled.div`
   padding: ${({ theme }) => theme.spacing[3]};
   background-color: ${({ theme }) => theme.color.background};
   font-size: 13px;
-  max-height: 400px;
-  overflow-y: auto;
   color: ${({ theme }) => theme.color.foreground};
 
   pre, code {
     font-family: ${monospaceFont};
+  }
+
+  pre {
+    margin: 0;
+    overflow-x: auto;
   }
 `
 
@@ -538,12 +544,18 @@ const MessageActionsWrapper = styled.div<{ $isUser: boolean }>`
   display: flex;
   gap: 4px;
   opacity: 0;
-  visibility: hidden;
-  transition: opacity ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard}, visibility ${({ theme }) => theme.motion.duration.fast};
+  pointer-events: none;
+  transition: opacity ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
 
+  &:hover,
   &:focus-within {
     opacity: 1;
-    visibility: visible;
+    pointer-events: auto;
+  }
+
+  @media (hover: none) {
+    opacity: 0.8;
+    pointer-events: auto;
   }
 `
 
@@ -629,7 +641,7 @@ function Message({ message, onEdit }: { message: ReturnType<typeof useChat>['mes
   }
 
   return (
-    <MessageContainer $isUser={isUser}>
+    <MessageContainer $isUser={isUser} tabIndex={0}>
       {!isUser && (
         <BotAvatar>
           <Bot style={{ width: '14px', height: '14px', color: theme.color.primary }} aria-hidden="true" />
@@ -759,7 +771,7 @@ const HeaderLeft = styled.div`
 `
 
 const HeaderTitle = styled.span`
-  font-family: ${({ theme }) => theme.typography?.fontFamily?.sans || '"DM Sans", sans-serif'};
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-weight: 600;
   font-size: 14px;
 `
@@ -884,16 +896,18 @@ const HistoryHeader = styled.div`
   font-size: 13px;
 `
 
-const HistoryList = styled.div`
+const HistoryList = styled.ul`
   flex: 1;
   overflow-y: auto;
   padding: ${({ theme }) => theme.spacing[2]};
   display: flex;
   flex-direction: column;
   gap: 2px;
+  list-style: none;
+  margin: 0;
 `
 
-const HistoryItem = styled.div`
+const HistoryItem = styled.li`
   width: 100%;
   display: flex;
   justify-content: space-between;
@@ -1085,6 +1099,8 @@ export function GlobalAssistant() {
     return () => {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
     }
   }, [])
 
@@ -1188,6 +1204,7 @@ export function GlobalAssistant() {
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 100,
     overscan: 5,
+    getItemKey: (index) => messages[index]?.id || index,
   })
 
   useEffect(() => {
@@ -1238,9 +1255,16 @@ export function GlobalAssistant() {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
+      if (isResizing.current) {
+        isResizing.current = false
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+      }
     }
     return () => {
       document.body.style.overflow = ''
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
     }
   }, [isOpen])
 
@@ -1317,7 +1341,7 @@ export function GlobalAssistant() {
                 >
                   <History size={16} />
                 </HeaderActionButton>
-                <Bot size={16} color={theme.color.primary} style={{ marginLeft: 8 }} />
+                <Bot size={16} color={theme.color.primary} />
                 <HeaderTitle>AIOS Assistant</HeaderTitle>
               </HeaderLeft>
               <HeaderRight>

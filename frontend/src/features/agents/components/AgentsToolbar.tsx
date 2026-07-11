@@ -1,6 +1,5 @@
-import { AreaToolbar } from "@/components/ui/AreaToolbar";
 import { Search, LayoutGrid, List } from "lucide-react";
-import { Button } from "@ledgr/ui";
+import { AreaToolbar, Button } from "@ledgr/ui";
 import { useAgentFilters } from "../hooks/useAgentFilters";
 import styled from "styled-components";
 import { DOMAIN_OPTIONS } from "../constants/domains";

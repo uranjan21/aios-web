@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import styled from 'styled-components'
 import { businessApi } from '@/api/areas'
 import { Skeleton } from '@/components/ui/skeleton'
-import { EmptyState } from '@/components/EmptyState'
+import { EmptyState } from '@ledgr/ui'
 import { format } from 'date-fns'
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
@@ -306,8 +306,8 @@ export function EventsTab({ businessId }: { businessId?: string }) {
           <EmptyState
             title="No events yet"
             description="Start logging milestones, feature ships, and blockers."
-            icon={History}
-            action={{ label: "Add Entry", onClick: () => setShowForm(true) }}
+            icon={<History size={24} />}
+            action={<Button variant="secondary" size="sm" onClick={() => setShowForm(true)}>Add Entry</Button>}
           />
         ) : (
           <Timeline items={timelineItems} />

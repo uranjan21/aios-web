@@ -6,7 +6,7 @@ import { BookOpen, Plus } from 'lucide-react'
 import { careerApi } from '@/api/areas'
 import type { SkillInventory } from '@/types'
 import { SkillForm, LEVEL_LABELS } from './SkillForm'
-import { EmptyState } from '@/components/EmptyState'
+import { EmptyState } from '@ledgr/ui'
 import { Skeleton } from '@/components/ui/skeleton'
 import styled from 'styled-components'
 
@@ -77,7 +77,7 @@ export function SkillsManager() {
           {[1, 2, 3].map(i => <Skeleton key={i} style={{ height: 40 }} />)}
         </LoadingWrap>
       ) : !skills?.length ? (
-        <EmptyState icon={BookOpen} title="No skills yet" description="Add a skill to start tracking your growth." action={{ label: 'Add Skill', onClick: () => setShowForm(true) }} />
+        <EmptyState icon={<BookOpen size={24} />} title="No skills yet" description="Add a skill to start tracking your growth." action={<Button variant="secondary" size="sm" onClick={() => setShowForm(true)}>Add Skill</Button>} />
       ) : (
         skills.map(skill => (
           <Row key={skill.id}>

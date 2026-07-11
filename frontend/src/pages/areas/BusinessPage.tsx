@@ -4,7 +4,7 @@ import { Rocket, Plus, Briefcase } from 'lucide-react'
 import { PageContainer, PageContent } from '@/components/layout/PageLayout'
 import { PageDivider } from '@/components/layout/PageDivider'
 import { PageHeader, Button, Card as GlassCard, Badge } from '@ledgr/ui'
-import { EmptyState } from '@/components/EmptyState'
+import { EmptyState } from '@ledgr/ui'
 import styled from 'styled-components'
 
 import { businessApi } from '@/api/areas'
@@ -110,10 +110,10 @@ export function BusinessPage() {
         ) : (
           <div style={{ marginTop: '3rem' }}>
             <EmptyState
-              icon={Briefcase}
+              icon={<Briefcase size={24} />}
               title="No businesses yet"
               description="Start tracking your first venture or side hustle."
-              action={{ label: "Create Business", onClick: () => setIsCreateModalOpen(true) }}
+              action={<Button variant="secondary" size="sm" onClick={() => setIsCreateModalOpen(true)}>Create Business</Button>}
             />
           </div>
         )}

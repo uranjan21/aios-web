@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     claude_daily_token_limit: int = 200000
     claude_session_token_limit: int = 50000
+    # Models clients may request (chat WS payload / agent overrides). Anything
+    # else falls back to the defaults above — never trust a raw model string on
+    # the operator's key.
+    allowed_openai_models: list[str] = ["gpt-4o", "gpt-4o-mini"]
+    allowed_claude_models: list[str] = ["claude-sonnet-4-5", "claude-haiku-4-5"]
 
     # Encryption
     token_encryption_key: str = ""
