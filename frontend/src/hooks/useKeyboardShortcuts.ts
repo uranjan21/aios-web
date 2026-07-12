@@ -4,7 +4,7 @@ import { useUIStore } from '@/stores/uiStore'
 
 export function useKeyboardShortcuts() {
   const navigate = useNavigate()
-  const { setCmdPaletteOpen, toggleTheme } = useUIStore()
+  const { setCmdPaletteOpen, toggleTheme, toggleAssistant } = useUIStore()
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -14,8 +14,15 @@ export function useKeyboardShortcuts() {
       // Cmd+K — command palette (handled in CommandPalette itself, but duplicate-guard here)
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') return
 
-      // Cmd+L — quick capture (handled in GlobalCapture itself)
+      // Cmd+L — quick capture (handled in CommandPalette itself)
       if ((e.metaKey || e.ctrlKey) && e.key === 'l') return
+
+      // Cmd+J — toggle the assistant drawer (works while typing too)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
+        e.preventDefault()
+        toggleAssistant()
+        return
+      }
 
       // Cmd+Shift+T — toggle theme
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 't') {
@@ -31,16 +38,16 @@ export function useKeyboardShortcuts() {
         const onSecond = (e2: KeyboardEvent) => {
           window.removeEventListener('keydown', onSecond)
           switch (e2.key) {
-            case 'd': navigate('/'); break
-            case 'c': navigate('/chat'); break
-            case 'a': navigate('/agents'); break
-            case 'f': navigate('/areas/finance'); break
-            case 'h': navigate('/areas/health'); break
-            case 'r': navigate('/areas/career'); break
-            case 'b': navigate('/areas/business'); break
-            case 'n': navigate('/areas/content'); break
-            case 'i': navigate('/integrations'); break
-            case 's': navigate('/settings'); break
+            case 'd': navigate('/app'); break
+            case 'c': navigate('/app/chat'); break
+            case 'a': navigate('/app/agents'); break
+            case 'f': navigate('/app/areas/finance'); break
+            case 'h': navigate('/app/areas/health'); break
+            case 'r': navigate('/app/areas/career'); break
+            case 'b': navigate('/app/areas/business'); break
+            case 'n': navigate('/app/areas/content'); break
+            case 'i': navigate('/app/integrations'); break
+            case 's': navigate('/app/settings'); break
           }
         }
         window.addEventListener('keydown', onSecond, { once: true })
@@ -56,5 +63,5 @@ export function useKeyboardShortcuts() {
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [navigate, setCmdPaletteOpen, toggleTheme])
+  }, [navigate, setCmdPaletteOpen, toggleTheme, toggleAssistant])
 }

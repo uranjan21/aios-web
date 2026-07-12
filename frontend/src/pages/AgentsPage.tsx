@@ -31,6 +31,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import styled, { createGlobalStyle, keyframes, useTheme } from "styled-components";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import {
   Button,
@@ -367,12 +368,12 @@ const PanelBody = styled.div`
 `;
 
 const OutputBody = styled.div`
-  color: #dbe4f0;
+  color: ${({ theme }) => theme.color.foreground};
   font-size: 13px;
   line-height: 1.65;
 
   h1, h2, h3, h4, h5, h6 {
-    color: #8fd3ff;
+    color: ${({ theme }) => theme.color.foreground};
     margin-top: 0;
   }
 
@@ -381,23 +382,23 @@ const OutputBody = styled.div`
   }
 
   code {
-    background: rgba(255,255,255,0.08);
+    background: ${({ theme }) => theme.color.muted};
     padding: 2px 6px;
-    border-radius: 6px;
+    border-radius: ${({ theme }) => theme.radii.sm};
   }
 
   pre {
     overflow-x: auto;
     padding: 12px;
-    border-radius: 10px;
-    background: rgba(15, 23, 42, 0.88);
+    border-radius: ${({ theme }) => theme.radii.md};
+    background: ${({ theme }) => theme.color.muted};
   }
 `;
 
 const OutputShell = styled.div`
   border-radius: ${({ theme }) => theme.radii.lg};
-  border: 1px solid #223149;
-  background: linear-gradient(180deg, #122033 0%, #0f172a 100%);
+  border: 1px solid ${({ theme }) => theme.color.border};
+  background: ${({ theme }) => theme.color.background};
 `;
 
 const OutputHeader = styled.div`
@@ -405,26 +406,11 @@ const OutputHeader = styled.div`
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border-bottom: 1px solid #223149;
-  color: #8ea0b8;
+  border-bottom: 1px solid ${({ theme }) => theme.color.border};
+  color: ${({ theme }) => theme.color.mutedForeground};
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-`;
-
-const Dots = styled.div`
-  display: flex;
-  gap: 6px;
-
-  span {
-    width: 8px;
-    height: 8px;
-    border-radius: 9999px;
-  }
-
-  span:nth-child(1) { background: #ff5f56; }
-  span:nth-child(2) { background: #ffbd2e; }
-  span:nth-child(3) { background: #27c93f; }
 `;
 
 const MetaList = styled.div`
@@ -742,17 +728,12 @@ function AgentDetailDialog({
           <PanelBody>
             <OutputShell>
               <OutputHeader>
-                <Dots>
-                  <span />
-                  <span />
-                  <span />
-                </Dots>
                 <span>{agent.name} last run</span>
               </OutputHeader>
               <div style={{ padding: 18 }}>
                 {agent.last_output_text ? (
                   <OutputBody>
-                    <ReactMarkdown>{agent.last_output_text}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{agent.last_output_text}</ReactMarkdown>
                   </OutputBody>
                 ) : (
                   <SubValue>No completed run yet. Trigger the agent to inspect the next result here.</SubValue>
@@ -903,11 +884,13 @@ function AgentRow({ agent, onOpen }: { agent: Agent; onOpen: () => void }) {
 function AgentCard({ agent, onOpen }: { agent: Agent; onOpen: () => void }) {
   const queryClient = useQueryClient();
   const toggleMutation = useMutation({
-    mutationFn: (active: boolean) => agentsApi.patch(agent.id, { is_active: active }),
+    // The API routes agents by task_id, not the DB id — the row/dialog views
+    // already do this; using agent.id here 404s.
+    mutationFn: (active: boolean) => agentsApi.patch(agent.task_id, { is_active: active }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["agents"] }),
   });
   const triggerMutation = useMutation({
-    mutationFn: () => agentsApi.trigger(agent.id),
+    mutationFn: () => agentsApi.trigger(agent.task_id),
     onSuccess: () => {
       toast.success(`Triggered ${agent.name}`);
       queryClient.invalidateQueries({ queryKey: ["agents"] });

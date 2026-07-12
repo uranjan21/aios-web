@@ -1,700 +1,30 @@
-import styled, { keyframes, useTheme } from 'styled-components'
+import styled, { useTheme } from 'styled-components'
 import { useRef, useEffect, useState } from 'react'
-import { Button, Spinner, Select } from '@ledgr/ui'
-import { useVirtualizer } from '@tanstack/react-virtual'
-import { Plus, ChevronDown, ChevronRight, Wifi, WifiOff,
-  Bot, FileText, Database, Calendar, Github, BookOpen, Search, X, Copy, Edit2, Check, Code, BrainCircuit, Settings, History, MoreHorizontal
-} from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
+import { Spinner, Select } from '@ledgr/ui'
+import { Bot, Wifi, WifiOff, X, Settings, History } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useChat } from '@/hooks/useChat'
 import { useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { useChat } from '@/hooks/useChat'
+import { useUIStore } from '@/stores/uiStore'
 import { chatApi } from '@/api/chat'
 import { AssistantChatInput, AttachedFile } from './AssistantChatInput'
-
-const monospaceFont = ({ theme }: { theme: any }) => {
-  const font = theme.fontFamily?.mono || theme.typography?.fontFamily?.mono;
-  if (font && !font.includes('DM Sans')) return font;
-  return 'sfmono-regular, consolas, "liberation mono", menlo, courier, monospace';
-};
+import { Message } from './messages'
+import { SessionList } from './SessionList'
 
 const QUICK_PROMPTS = [
   { label: 'Log gym session', value: "Log today's gym session" },
   { label: 'Week spending?', value: 'What did I spend this week?' },
 ]
 
-type ToolMeta = { icon: React.FC<{ className?: string, style?: any }>; colorKey: 'primary' | 'accent' | 'foreground' | 'muted' | 'mutedForeground'; summary: (input: Record<string, unknown>) => string }
-
-const TOOL_META: Record<string, ToolMeta> = {
-  append_log:           { icon: FileText,  colorKey: 'primary', summary: i => `Logging to ${i.area}: ${String(i.entry ?? '').slice(0, 50)}${String(i.entry ?? '').length > 50 ? '…' : ''}` },
-  read_context:         { icon: BookOpen,  colorKey: 'accent', summary: i => `Reading ${i.area} context` },
-  update_context:       { icon: FileText,  colorKey: 'primary', summary: i => `Updating ${i.area}: ${Object.keys((i.updates as object) ?? {}).join(', ')}` },
-  search_vault:         { icon: Search,    colorKey: 'primary', summary: i => `Searching vault: "${i.query}"` },
-  get_calendar_events:  { icon: Calendar,  colorKey: 'accent', summary: i => `Calendar: ${i.date_from} → ${i.date_to}` },
-  get_github_activity:  { icon: Github,    colorKey: 'foreground', summary: i => `GitHub activity (${i.days ?? 7} days)` },
-  get_notion_page:      { icon: Database,  colorKey: 'mutedForeground', summary: i => `Reading Notion: "${i.title}"` },
-}
-
-function getToolMeta(tool: string): ToolMeta {
-  return TOOL_META[tool] ?? { icon: Bot, colorKey: 'mutedForeground', summary: () => tool }
-}
-
-const blink = keyframes`
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-`
-
-const StreamingCursor = styled.span`
-  &::after {
-    content: '';
-    display: inline-block;
-    width: 2px;
-    height: 1em;
-    background: ${({ theme }) => theme.color.primary};
-    animation: ${blink} 1s step-end infinite;
-    vertical-align: text-bottom;
-    margin-left: 2px;
-  }
-`
-
-const TimelineContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-`
-
-const ToolCallContainer = styled.div<{ $isLast?: boolean }>`
-  position: relative;
-  padding-left: 28px;
-  padding-bottom: ${({ $isLast }) => ($isLast ? '0' : '16px')};
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: 4px;
-    top: 24px;
-    bottom: ${({ $isLast }) => ($isLast ? '16px' : '-8px')};
-    width: 2px;
-    background-color: ${({ theme }) => theme.color.border};
-    display: ${({ $isLast }) => ($isLast ? 'none' : 'block')};
-  }
-`
-
-const TimelineDot = styled.div<{ $success?: boolean; $pending?: boolean }>`
-  position: absolute;
-  left: 2px;
-  top: 16px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: ${({ theme, $success, $pending }) => 
-    $success ? theme.color.success : $pending ? theme.color.primary : theme.color.mutedForeground};
-  z-index: 2;
-  box-shadow: 0 0 0 4px ${({ theme }) => theme.color.background}, 0 0 0 5px ${({ theme }) => theme.color.border};
-`
-
-const ToolCallCard = styled.div`
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.lg};
-  overflow: hidden;
-  background-color: ${({ theme }) => theme.color.background};
-  font-size: 13px;
-  box-shadow: ${({ theme }) => theme.shadow.sm};
-  transition: box-shadow ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard}, border-color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
-
-  &:hover {
-    box-shadow: ${({ theme }) => theme.shadow.md};
-    border-color: ${({ theme }) => theme.color.primary}40;
-  }
-`
-
-const ToolCallButton = styled.button.attrs({ type: 'button' })<{ $open: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing[3]};
-  width: 100%;
-  padding: ${({ theme }) => theme.spacing[2]} ${({ theme }) => theme.spacing[3]};
-  background-color: transparent;
-  color: ${({ theme }) => theme.color.foreground};
-  text-align: left;
-  transition: background-color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
-  border: none;
-  cursor: pointer;
-  
-  &:hover {
-    background-color: ${({ theme }) => theme.color.muted}33;
-  }
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: ${({ theme }) => theme.shadow.ring};
-  }
-`
-
-const ToolIconWrapper = styled.div<{ $color: string }>`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: ${({ theme }) => theme.radii.md};
-  background-color: ${({ $color }) => $color}1a;
-  color: ${({ $color }) => $color};
-  flex-shrink: 0;
-`
-
-const ToolCallTitle = styled.span`
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-weight: 500;
-`
-
-const ToolCallStatusText = styled.span<{ $success?: boolean; $pending?: boolean }>`
-  margin-left: auto;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 4px 8px;
-  border-radius: ${({ theme }) => theme.radii.md};
-  flex-shrink: 0;
-  font-family: ${monospaceFont};
-  ${({ $success, $pending, theme }) => {
-    if ($success) return `
-      color: ${theme.color.success};
-      background-color: ${theme.color.success}1a;
-    `;
-    if ($pending) return `
-      color: ${theme.color.primary};
-      background-color: ${theme.color.primary}1a;
-    `;
-    return `
-      color: ${theme.color.foreground};
-      background-color: ${theme.color.muted}4d;
-    `;
-  }}
-`
-
-const ToolCallDetailsContainer = styled(motion.div)`
-  overflow: hidden;
-`
-
-const ToolCallDetails = styled.div`
-  padding: ${({ theme }) => theme.spacing[2]} ${({ theme }) => theme.spacing[3]};
-  background-color: ${({ theme }) => theme.color.background}4d;
-  border-top: 1px solid ${({ theme }) => theme.color.border};
-  font-size: 11px;
-`
-
-const ToolCallDetailsInput = styled.p`
-  color: ${({ theme }) => theme.color.mutedForeground};
-  white-space: pre-wrap;
-  word-break: break-all;
-  font-family: ${monospaceFont};
-`
-
-const ToolCallDetailsResult = styled.p`
-  color: ${({ theme }) => theme.color.foreground};
-  margin-top: ${({ theme }) => theme.spacing[1]};
-  white-space: pre-wrap;
-  font-family: ${monospaceFont};
-`
-
-const AffectedPathsContainer = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: ${({ theme }) => theme.spacing[1]};
-  margin-top: ${({ theme }) => theme.spacing[1]};
-`
-
-const AffectedPathPill = styled.span`
-  padding: 2px 6px;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  background-color: ${({ theme }) => theme.color.success}1a;
-  color: ${({ theme }) => theme.color.success};
-  font-size: 10px;
-  font-family: ${monospaceFont};
-`
-
-function ToolCallBlock({ tool, input, result, affected, isLast }: {
-  tool: string
-  input: Record<string, unknown>
-  result?: string
-  affected?: string[]
-  isLast?: boolean
-}) {
-  const [open, setOpen] = useState(false)
-  const theme = useTheme()
-  const { icon: Icon, colorKey, summary } = getToolMeta(tool)
-  const color = theme.color[colorKey]
-
-  return (
-    <ToolCallContainer $isLast={isLast}>
-      <TimelineDot $success={affected && affected.length > 0} $pending={result === undefined} />
-      <ToolCallCard>
-        <ToolCallButton
-          onClick={() => setOpen(o => !o)}
-          $open={open}
-        >
-          <ToolIconWrapper $color={color}>
-            <Icon style={{ width: '12px', height: '12px', flexShrink: 0, color: 'inherit' }} />
-          </ToolIconWrapper>
-          <ToolCallTitle>{summary(input)}</ToolCallTitle>
-          {result === undefined
-            ? <ToolCallStatusText $pending>Running</ToolCallStatusText>
-            : affected && affected.length > 0
-            ? <ToolCallStatusText $success>Saved</ToolCallStatusText>
-            : <ToolCallStatusText>Done</ToolCallStatusText>
-          }
-          {open ? <ChevronDown style={{ width: '12px', height: '12px', flexShrink: 0, color: theme.color.mutedForeground }} /> : <ChevronRight style={{ width: '12px', height: '12px', flexShrink: 0, color: theme.color.mutedForeground }} />}
-        </ToolCallButton>
-
-      <AnimatePresence>
-        {open && (
-            <ToolCallDetailsContainer
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.15 }}
-            >
-            <ToolCallDetails>
-              <ToolCallDetailsInput>{JSON.stringify(input, null, 2)}</ToolCallDetailsInput>
-              {result && <ToolCallDetailsResult>{result.slice(0, 500)}{result.length > 500 ? '…' : ''}</ToolCallDetailsResult>}
-              {affected && affected.length > 0 && (
-                <AffectedPathsContainer>
-                  {affected.map(path => (
-                    <AffectedPathPill key={path}>
-                      {path.split('/').pop() ?? path}
-                    </AffectedPathPill>
-                  ))}
-                </AffectedPathsContainer>
-              )}
-            </ToolCallDetails>
-          </ToolCallDetailsContainer>
-        )}
-      </AnimatePresence>
-      </ToolCallCard>
-    </ToolCallContainer>
-  )
-}
-
-const PathsWrapper = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: ${({ theme }) => theme.spacing[1]};
-  padding: 0 ${({ theme }) => theme.spacing[1]};
-`
-
-const PathChip = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing[1]};
-  font-size: 10px;
-  padding: 2px 8px;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  background-color: ${({ theme }) => theme.color.primary}14;
-  color: ${({ theme }) => theme.color.primary};
-  border: 1px solid ${({ theme }) => theme.color.primary}33;
-  font-family: ${monospaceFont};
-`
-
-function AffectedPaths({ paths }: { paths: string[] }) {
-  const theme = useTheme()
-  if (!paths.length) return null
-  return (
-    <PathsWrapper>
-      {paths.slice(0, 5).map(path => {
-        const parts = path.split('/')
-        const filename = parts.pop() ?? path
-        const area = parts.pop() ?? ''
-        return (
-          <PathChip key={path} title={path}>
-            <FileText style={{ width: '10px', height: '10px', flexShrink: 0 }} aria-hidden="true" />
-            {area ? `${area}/` : ''}{filename}
-          </PathChip>
-        )
-      })}
-      {paths.length > 5 && (
-        <span style={{ fontSize: '10px', color: theme.color.mutedForeground, alignSelf: 'center' }}>+{paths.length - 5} more</span>
-      )}
-    </PathsWrapper>
-  )
-}
-
-const MessageContainer = styled.div<{ $isUser: boolean }>`
-  display: flex;
-  gap: ${({ theme }) => theme.spacing[3]};
-  justify-content: ${({ $isUser }) => $isUser ? 'flex-end' : 'flex-start'};
-  position: relative;
-  outline: none;
-  
-  &:hover .message-actions,
-  &:focus-within .message-actions {
-    opacity: 1;
-    pointer-events: auto;
-  }
-`
-
-const BotAvatar = styled.div`
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background-color: ${({ theme }) => theme.color.primary}26;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-top: 2px;
-  border: 1px solid ${({ theme }) => theme.color.primary}33;
-`
-
-const UserAvatar = styled.div`
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background-color: ${({ theme }) => theme.color.primary};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-top: 2px;
-  color: ${({ theme }) => theme.color.primaryForeground};
-  font-size: 10px;
-  font-weight: bold;
-`
-
-const MessageContentWrapper = styled.div<{ $isUser: boolean }>`
-  max-width: 85%;
-  display: flex;
-  flex-direction: column;
-  gap: ${({ theme }) => theme.spacing[1]};
-  align-items: ${({ $isUser }) => $isUser ? 'flex-end' : 'flex-start'};
-`
-
-const MessageBubble = styled.div<{ $isUser: boolean }>`
-  border-radius: ${({ theme }) => theme.radii.lg};
-  padding: ${({ theme }) => theme.spacing[2]} ${({ theme }) => theme.spacing[3]};
-  font-size: 13px;
-  ${({ theme, $isUser }) => $isUser ? `
-    background-color: ${theme.color.primary};
-    color: ${theme.color.primaryForeground};
-    border-top-right-radius: ${theme.radii.sm};
-  ` : `
-    background-color: ${theme.color.background};
-    color: ${theme.color.foreground};
-    border: 1px solid ${theme.color.border}80;
-    border-top-left-radius: ${theme.radii.sm};
-  `}
-`
-
-const BubbleText = styled.p`
-  white-space: pre-wrap;
-  margin: 0;
-`
-
-const MarkdownWrapper = styled.div`
-  max-width: 100%;
-  word-break: break-word;
-  & p {
-    margin: 0;
-  }
-  & pre {
-    background-color: ${({ theme }) => theme.color.muted};
-    padding: ${({ theme }) => theme.spacing[2]};
-    border-radius: ${({ theme }) => theme.radii.md};
-    overflow-x: auto;
-    font-family: ${monospaceFont};
-  }
-  & code {
-    font-family: ${monospaceFont};
-  }
-  ul, ol {
-    padding-left: 20px;
-    margin: 8px 0;
-  }
-`
-
-const ThinkingContainer = styled.details`
-  font-size: 11px;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  border-left: 2px solid ${({ theme }) => theme.color.border};
-  padding-left: ${({ theme }) => theme.spacing[2]};
-  margin: 0;
-
-  &[open] summary ~ * {
-    animation: fadein ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
-  }
-  @keyframes fadein {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-`
-
-const ThinkingSummary = styled.summary`
-  cursor: pointer;
-  font-weight: 500;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
-  &:hover {
-    color: ${({ theme }) => theme.color.foreground};
-  }
-`
-
-const ThinkingContent = styled.div`
-  margin-top: ${({ theme }) => theme.spacing[1]};
-  white-space: pre-wrap;
-`
-
-function ThinkingBlock({ content, streaming }: { content: string, streaming: boolean }) {
-  const [isOpen, setIsOpen] = useState(streaming)
-
-  useEffect(() => {
-    if (streaming) {
-      setIsOpen(true)
-    }
-  }, [streaming])
-
-  const handleToggle = (e: React.SyntheticEvent<HTMLDetailsElement>) => {
-    setIsOpen(e.currentTarget.open)
-  }
-
-  return (
-    <ThinkingContainer open={isOpen} onToggle={handleToggle}>
-      <ThinkingSummary>
-        <BrainCircuit size={12} />
-        {streaming ? 'Thinking...' : 'Thoughts'}
-      </ThinkingSummary>
-      <ThinkingContent>
-        {content}
-      </ThinkingContent>
-    </ThinkingContainer>
-  )
-}
-
-const ArtifactContainer = styled.div`
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.lg};
-  overflow: hidden;
-  max-width: 100%;
-  margin: 0;
-`
-
-const ArtifactHeader = styled.div`
-  background-color: ${({ theme }) => theme.color.muted}80;
-  padding: ${({ theme }) => theme.spacing[2]} ${({ theme }) => theme.spacing[3]};
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing[2]};
-  border-bottom: 1px solid ${({ theme }) => theme.color.border};
-  font-weight: 600;
-  font-size: 12px;
-  color: ${({ theme }) => theme.color.foreground};
-`
-
-const ArtifactContent = styled.div`
-  padding: ${({ theme }) => theme.spacing[3]};
-  background-color: ${({ theme }) => theme.color.background};
-  font-size: 13px;
-  color: ${({ theme }) => theme.color.foreground};
-
-  pre, code {
-    font-family: ${monospaceFont};
-  }
-
-  pre {
-    margin: 0;
-    overflow-x: auto;
-  }
-`
-
-function ArtifactBlock({ title, type, content }: { title: string, type: string, content: string }) {
-  const Icon = type === 'code' ? Code : FileText;
-  return (
-    <ArtifactContainer>
-      <ArtifactHeader>
-        <Icon size={14} />
-        {title}
-      </ArtifactHeader>
-      <ArtifactContent>
-        {type === 'code' ? (
-          <pre style={{ margin: 0 }}><code>{content}</code></pre>
-        ) : (
-          <MarkdownWrapper><ReactMarkdown>{content}</ReactMarkdown></MarkdownWrapper>
-        )}
-      </ArtifactContent>
-    </ArtifactContainer>
-  )
-}
-
-const MessageActionsWrapper = styled.div<{ $isUser: boolean }>`
-  position: absolute;
-  bottom: -16px;
-  ${({ $isUser }) => $isUser ? 'right: 36px;' : 'left: 36px;'}
-  background: ${({ theme }) => theme.color.background};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.sm};
-  padding: 2px;
-  box-shadow: ${({ theme }) => theme.shadow.sm};
-  z-index: 10;
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
-
-  &:hover,
-  &:focus-within {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  @media (hover: none) {
-    opacity: 0.8;
-    pointer-events: auto;
-  }
-`
-
-const ActionBtn = styled.button.attrs({ type: 'button' })`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  background: transparent;
-  border: none;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  cursor: pointer;
-  transition: all ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
-  &:hover {
-    background: ${({ theme }) => theme.color.muted};
-    color: ${({ theme }) => theme.color.foreground};
-  }
-  &:focus-visible {
-    outline: none;
-    box-shadow: ${({ theme }) => theme.shadow.ring};
-  }
-`
-
-function MessageActions({ message, onEdit }: { message: ReturnType<typeof useChat>['messages'][number]; onEdit?: (content: string) => void }) {
-  const isUser = message.role === 'user'
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = async () => {
-    if (message.content) {
-      await navigator.clipboard.writeText(message.content)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
-  }
-
-  return (
-    <MessageActionsWrapper className="message-actions" $isUser={isUser}>
-      {message.content && (
-        <ActionBtn onClick={handleCopy} title="Copy text">
-          {copied ? <Check size={12} /> : <Copy size={12} />}
-        </ActionBtn>
-      )}
-      {isUser && onEdit && message.content && (
-        <ActionBtn onClick={() => onEdit(message.content!)} title="Edit">
-          <Edit2 size={12} />
-        </ActionBtn>
-      )}
-    </MessageActionsWrapper>
-  )
-}
-
-function Message({ message, onEdit }: { message: ReturnType<typeof useChat>['messages'][number]; onEdit?: (content: string) => void }) {
-  const isUser = message.role === 'user'
-  const theme = useTheme()
-  
-  let rawContent = message.content || ""
-  let thinkContent = ""
-  const thinkMatch = rawContent.match(/<think>([\s\S]*?)(?:<\/think>|$)/)
-  let isThinkingOpen = false
-  if (thinkMatch) {
-    thinkContent = thinkMatch[1].trim()
-    isThinkingOpen = !rawContent.includes('</think>') && message.streaming === true
-    rawContent = rawContent.replace(/<think>[\s\S]*?(?:<\/think>|$)/, "").trim()
-  }
-
-  let artifactContent = null
-  const artifactMatch = rawContent.match(/<aios-artifact type="([^"]*)" title="([^"]*)">([\s\S]*?)(?:<\/aios-artifact>|$)/)
-  if (artifactMatch) {
-    artifactContent = {
-      type: artifactMatch[1],
-      title: artifactMatch[2],
-      content: artifactMatch[3].trim()
-    }
-    rawContent = rawContent.replace(/<aios-artifact[\s\S]*?(?:<\/aios-artifact>|$)/, "").trim()
-  }
-
-  const hasContent = !!rawContent || !!thinkContent || !!artifactContent
-  const hasToolCalls = message.toolCalls && message.toolCalls.length > 0
-  if (!isUser && !hasContent && !hasToolCalls && !message.streaming && !message.affectedPaths?.length) {
-    return null
-  }
-
-  return (
-    <MessageContainer $isUser={isUser} tabIndex={0}>
-      {!isUser && (
-        <BotAvatar>
-          <Bot style={{ width: '14px', height: '14px', color: theme.color.primary }} aria-hidden="true" />
-        </BotAvatar>
-      )}
-      <MessageContentWrapper $isUser={isUser}>
-        {message.toolCalls && message.toolCalls.length > 0 && (
-          <TimelineContainer>
-            {message.toolCalls.map((tc, i) => (
-              <ToolCallBlock
-                key={i}
-                tool={tc.tool}
-                input={tc.input}
-                result={message.toolResults?.[i]?.result}
-                affected={message.toolResults?.[i]?.affected}
-                isLast={i === message.toolCalls!.length - 1}
-              />
-            ))}
-          </TimelineContainer>
-        )}
-
-        {!isUser && thinkContent && (
-          <ThinkingBlock content={thinkContent} streaming={isThinkingOpen} />
-        )}
-
-        {!isUser && artifactContent && (
-          <ArtifactBlock title={artifactContent.title} type={artifactContent.type} content={artifactContent.content} />
-        )}
-
-        {(rawContent || (message.streaming && !thinkContent && !artifactContent)) && (
-          <MessageBubble $isUser={isUser}>
-            {isUser ? (
-              <BubbleText>{rawContent}</BubbleText>
-            ) : (
-              <MarkdownWrapper>
-                {rawContent ? (
-                  <ReactMarkdown>{rawContent}</ReactMarkdown>
-                ) : null}
-              </MarkdownWrapper>
-            )}
-          </MessageBubble>
-        )}
-
-        {!isUser && message.affectedPaths && (
-          <AffectedPaths paths={message.affectedPaths} />
-        )}
-        <MessageActions message={message} onEdit={onEdit} />
-      </MessageContentWrapper>
-      {isUser && (
-        <UserAvatar>U</UserAvatar>
-      )}
-    </MessageContainer>
-  )
+/** Prefix @-mention + current-route hints the backend treats as data context. */
+export function buildHiddenContext(message: string, pathname: string): string {
+  let extraContext = ''
+  if (message.includes('@vault')) extraContext += '\n[System: The user mentioned @vault. Prioritize searching the vault.]'
+  if (message.includes('@finance')) extraContext += '\n[System: The user mentioned @finance. Use financial context and tools.]'
+  if (message.includes('@health')) extraContext += '\n[System: The user mentioned @health. Use health context and tools.]'
+  if (message.includes('@goals')) extraContext += '\n[System: The user mentioned @goals. Use goal tracking context.]'
+  return `[System: The user is currently viewing the ${pathname} route in the app. Use this context if the user asks a contextual question like 'what is this' or 'summarize my page'.]${extraContext}`
 }
 
 const FAB = styled(motion.button).attrs({ type: 'button' })`
@@ -714,6 +44,10 @@ const FAB = styled(motion.button).attrs({ type: 'button' })`
   cursor: pointer;
   z-index: 50;
 
+  @media (max-width: 767px) {
+    bottom: 88px; /* clear the mobile BottomNav (64px + margin) */
+  }
+
   &:focus-visible {
     outline: none;
     box-shadow: ${({ theme }) => theme.shadow.ring};
@@ -728,7 +62,7 @@ const ResizeHandle = styled.div`
   height: 100%;
   cursor: ew-resize;
   z-index: 100;
-  
+
   &:hover, &:active {
     background-color: ${({ theme }) => theme.color.primary}33;
   }
@@ -810,23 +144,17 @@ const MessagesContainer = styled.div`
   overflow-x: hidden;
   padding: ${({ theme }) => theme.spacing[4]};
   position: relative;
-  
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing[4]};
+
   &::-webkit-scrollbar {
     width: 6px;
   }
   &::-webkit-scrollbar-thumb {
     background: ${({ theme }) => theme.color.mutedForeground}4d;
-    border-radius: ${({ theme }) => theme.radii.full || '9999px'};
+    border-radius: ${({ theme }) => theme.radii.sm};
   }
-`
-
-const InputContainer = styled.div`
-  padding: ${({ theme }) => theme.spacing[3]};
-  border-top: 1px solid ${({ theme }) => theme.color.border};
-  display: flex;
-  gap: ${({ theme }) => theme.spacing[2]};
-  align-items: flex-end;
-  background-color: ${({ theme }) => theme.color.background};
 `
 
 const SettingsPanel = styled(motion.div)`
@@ -896,118 +224,11 @@ const HistoryHeader = styled.div`
   font-size: 13px;
 `
 
-const HistoryList = styled.ul`
-  flex: 1;
-  overflow-y: auto;
-  padding: ${({ theme }) => theme.spacing[2]};
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  list-style: none;
-  margin: 0;
-`
-
-const HistoryItem = styled.li`
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 4px;
-`
-
-const HistorySelectBtn = styled.button.attrs({ type: 'button' })<{ $active?: boolean }>`
-  flex: 1;
-  border: none;
-  padding: 10px 12px;
-  background: ${({ theme, $active }) => $active ? theme.color.muted : 'transparent'};
-  border-radius: ${({ theme }) => theme.radii.md};
-  font-size: 12px;
-  cursor: pointer;
-  color: ${({ theme, $active }) => $active ? theme.color.foreground : theme.color.mutedForeground};
-  font-weight: ${({ $active }) => $active ? 500 : 400};
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  text-align: left;
-  transition: background-color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard},
-              color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
-
-  &:hover {
-    background: ${({ theme }) => theme.color.muted};
-    color: ${({ theme }) => theme.color.foreground};
-  }
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: ${({ theme }) => theme.shadow.ring};
-  }
-`
-
-const SessionTitle = styled.span`
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-right: 8px;
-  text-align: left;
-`
-
-const SessionActionBtn = styled.button.attrs({ type: 'button' })`
-  background: transparent;
-  border: none;
-  cursor: pointer;
+const QuotaLine = styled.div`
+  font-size: 10px;
   color: ${({ theme }) => theme.color.mutedForeground};
-  display: flex;
-  padding: 2px;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  opacity: 0.5;
-  transition: all ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
-  &:hover {
-    background: ${({ theme }) => theme.color.border};
-    opacity: 1;
-    color: ${({ theme }) => theme.color.foreground};
-  }
-  &:focus-visible {
-    outline: none;
-    box-shadow: ${({ theme }) => theme.shadow.ring};
-  }
-`
-
-const SessionMenu = styled.div`
-  position: absolute;
-  right: 12px;
-  margin-top: 24px;
-  background: ${({ theme }) => theme.color.background};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.md};
-  box-shadow: ${({ theme }) => theme.shadow.md};
-  display: flex;
-  flex-direction: column;
-  z-index: 101;
-  min-width: 120px;
-  padding: 4px;
-`
-
-const SessionMenuItem = styled.button.attrs({ type: 'button' })`
-  text-align: left;
-  padding: 6px 10px;
-  font-size: 12px;
-  border: none;
-  background: transparent;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  cursor: pointer;
-  color: ${({ theme }) => theme.color.foreground};
-  transition: all ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
-  
-  &:hover {
-    background: ${({ theme }) => theme.color.muted};
-  }
-  &:focus-visible {
-    outline: none;
-    background: ${({ theme }) => theme.color.muted};
-    box-shadow: ${({ theme }) => theme.shadow.ring};
-  }
+  text-align: right;
+  padding: 0 4px 4px;
 `
 
 const EmptyStateContainer = styled.div`
@@ -1049,7 +270,7 @@ const QuickPromptButton = styled.button.attrs({ type: 'button' })`
   color: ${({ theme }) => theme.color.foreground};
   cursor: pointer;
   transition: all ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
-  
+
   &:hover {
     background-color: ${({ theme }) => theme.color.muted}80;
   }
@@ -1059,17 +280,44 @@ const QuickPromptButton = styled.button.attrs({ type: 'button' })`
   }
 `
 
-// Mentions styling moved to AssistantChatInput.tsx
-
 export function GlobalAssistant() {
   const [panelWidth, setPanelWidth] = useState(400)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const isResizing = useRef(false)
 
+  const isOpen = useUIStore(s => s.assistantOpen)
+  const setIsOpen = useUIStore(s => s.setAssistantOpen)
+
+  const theme = useTheme()
+  const { messages, sessionId, isStreaming, tokenInfo, sendMessage, retryLast, canRetry, connected, newSession, loadSession, loadingMessages } = useChat()
+  const [input, setInput] = useState('')
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const pinnedRef = useRef(true)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const location = useLocation()
+
+  const [showHistory, setShowHistory] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const settingsRef = useRef<HTMLDivElement>(null)
+
+  const [provider, setProvider] = useState('system')
+  const [model, setModel] = useState('system')
+
+  const { data: modelsInfo } = useQuery({
+    queryKey: ['chat', 'models'],
+    queryFn: chatApi.models,
+    staleTime: Infinity,
+    enabled: isOpen,
+  })
+  const { data: budget } = useQuery({
+    queryKey: ['chat', 'token-budget'],
+    queryFn: chatApi.tokenBudget,
+    staleTime: 60_000,
+    enabled: isOpen,
+  })
+
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
@@ -1112,39 +360,20 @@ export function GlobalAssistant() {
     document.body.style.userSelect = 'none'
   }
 
-  const [isOpen, setIsOpen] = useState(false)
-  const theme = useTheme()
-  const { messages, sessionId, isStreaming, sendMessage, connected, newSession, loadSession, loadingMessages } = useChat()
-  const [input, setInput] = useState('')
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const location = useLocation()
-  
-  const [showHistory, setShowHistory] = useState(false)
-  const [showSettings, setShowSettings] = useState(false)
-  const [sessions, setSessions] = useState<any[]>([])
-  const [sessionMenuId, setSessionMenuId] = useState<string | null>(null)
-  
-  const [attachments, setAttachments] = useState<File[]>([])
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const settingsRef = useRef<HTMLDivElement>(null)
-  const sessionMenuRef = useRef<HTMLDivElement>(null)
-
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        if (!showSettings && !showHistory && !sessionMenuId) {
+        if (!showSettings && !showHistory) {
           setIsOpen(false)
         } else {
           setShowSettings(false)
           setShowHistory(false)
-          setSessionMenuId(null)
         }
       }
     }
-    document.addEventListener('keydown', handleKeyDown)
+    if (isOpen) document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [showSettings, showHistory, sessionMenuId])
+  }, [isOpen, showSettings, showHistory, setIsOpen])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1153,96 +382,30 @@ export function GlobalAssistant() {
       }
     }
     if (showSettings) {
-      document.addEventListener("mousedown", handleClickOutside)
+      document.addEventListener('mousedown', handleClickOutside)
     }
-    return () => document.removeEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showSettings])
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (sessionMenuRef.current && !sessionMenuRef.current.contains(event.target as Node)) {
-        setSessionMenuId(null)
-      }
-    }
-    if (sessionMenuId) {
-      document.addEventListener("mousedown", handleClickOutside)
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [sessionMenuId])
-  const [provider, setProvider] = useState('openai')
-  const [model, setModel] = useState('gpt-4o')
-
-  const fetchSessions = async () => {
-    try {
-      const data = await chatApi.sessions()
-      // Sort by recent first
-      setSessions(data.sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime()))
-    } catch (e) {
-      console.error(e)
-    }
+  // Pinned auto-scroll: follow the stream unless the user scrolled up.
+  const handleScroll = () => {
+    const el = scrollRef.current
+    if (!el) return
+    pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
   }
 
   useEffect(() => {
-    if (showHistory) {
-      fetchSessions()
+    const el = scrollRef.current
+    if (el && pinnedRef.current) {
+      el.scrollTop = el.scrollHeight
     }
-  }, [showHistory])
+  }, [messages])
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setAttachments(prev => [...prev, ...Array.from(e.target.files!)])
-    }
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  const handleRemoveAttachment = (idx: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== idx))
-  }
-
-  const virtualizer = useVirtualizer({
-    count: messages.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => 100,
-    overscan: 5,
-    getItemKey: (index) => messages[index]?.id || index,
-  })
-
-  useEffect(() => {
-    if (messages.length > 0) {
-      virtualizer.scrollToIndex(messages.length - 1, { behavior: 'auto' })
-    }
-  }, [messages.length])
-  
   useEffect(() => {
     if (isOpen && textareaRef.current) {
       textareaRef.current.focus()
     }
   }, [isOpen])
-
-  const handleSend = () => {
-    const trimmed = input.trim()
-    if ((!trimmed && attachments.length === 0) || isStreaming) return
-    setInput('')
-    if (textareaRef.current) textareaRef.current.style.height = 'auto'
-    
-    // Add extra hidden context if @ mentions are used
-    let extraContext = ""
-    if (trimmed.includes("@vault")) extraContext += "\n[System: The user mentioned @vault. Prioritize searching the vault.]"
-    if (trimmed.includes("@finance")) extraContext += "\n[System: The user mentioned @finance. Use financial context and tools.]"
-    if (trimmed.includes("@health")) extraContext += "\n[System: The user mentioned @health. Use health context and tools.]"
-    if (trimmed.includes("@goals")) extraContext += "\n[System: The user mentioned @goals. Use goal tracking context.]"
-
-    const hiddenContext = `[System: The user is currently viewing the ${location.pathname} route in the app. Use this context if the user asks a contextual question like 'what is this' or 'summarize my page'.]${extraContext}`
-    
-    const overrides = {
-      provider: provider === 'system' ? undefined : provider,
-      openaiModel: provider === 'openai' ? (model === 'system' ? undefined : model) : undefined,
-      claudeModel: provider === 'anthropic' ? (model === 'system' ? undefined : model) : undefined,
-    }
-    
-    sendMessage(trimmed, hiddenContext, attachments, overrides)
-    setAttachments([])
-  }
 
   function handleQuickPrompt(value: string) {
     setInput(value)
@@ -1269,30 +432,22 @@ export function GlobalAssistant() {
   }, [isOpen])
 
   const handleAssistantSend = (data: {
-    message: string;
-    files: AttachedFile[];
-    pastedContent: { id: string; content: string; timestamp: Date }[];
-    model: string;
-    isThinkingEnabled: boolean;
+    message: string
+    files: AttachedFile[]
+    pastedContent: { id: string; content: string; timestamp: Date }[]
+    model: string
   }) => {
     const trimmed = data.message.trim()
     let finalMessage = trimmed
-    
+
     if (data.pastedContent.length > 0) {
       finalMessage += '\n\n' + data.pastedContent.map(c => c.content).join('\n\n')
     }
 
     if (!finalMessage && data.files.length === 0) return
 
-    let extraContext = ""
-    if (finalMessage.includes("@vault")) extraContext += "\n[System: The user mentioned @vault. Prioritize searching the vault.]"
-    if (finalMessage.includes("@finance")) extraContext += "\n[System: The user mentioned @finance. Use financial context and tools.]"
-    if (finalMessage.includes("@health")) extraContext += "\n[System: The user mentioned @health. Use health context and tools.]"
-    if (finalMessage.includes("@goals")) extraContext += "\n[System: The user mentioned @goals. Use goal tracking context.]"
-    if (data.isThinkingEnabled) extraContext += "\n[System: The user enabled extended thinking. Please think step-by-step deeply before answering.]"
-
-    const hiddenContext = `[System: The user is currently viewing the ${location.pathname} route in the app. Use this context if the user asks a contextual question like 'what is this' or 'summarize my page'.]${extraContext}`
-    
+    pinnedRef.current = true
+    const hiddenContext = buildHiddenContext(finalMessage, location.pathname)
     const filesToUpload = data.files.map(f => f.file)
 
     const overrides = {
@@ -1300,26 +455,21 @@ export function GlobalAssistant() {
       openaiModel: provider === 'openai' ? (data.model === 'system' ? undefined : data.model) : undefined,
       claudeModel: provider === 'anthropic' ? (data.model === 'system' ? undefined : data.model) : undefined,
     }
-    
+
     sendMessage(finalMessage, hiddenContext, filesToUpload, overrides)
   }
 
+  // Model menus come from GET /api/chat/models — the backend allowlist is the
+  // single source of truth; nothing is hardcoded here.
+  const providerModels = provider === 'openai' || provider === 'anthropic'
+    ? (modelsInfo?.providers[provider] ?? [])
+    : []
   const chatModels = [
     { id: 'system', name: 'System Default', description: 'Default configured model' },
-    ...(provider === 'openai' ? [
-      { id: 'gpt-4o', name: 'GPT-4o', description: 'Most capable OpenAI model' },
-      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', description: 'Fast and efficient' },
-      { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', description: 'Balanced performance' },
-      { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', description: 'Fastest legacy model' },
-    ] : []),
-    ...(provider === 'anthropic' ? [
-      { id: 'claude-3-5-sonnet-20240620', name: 'Claude 3.5 Sonnet', description: 'Best for coding and complex tasks', badge: 'Upgrade' },
-      { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', description: 'Fastest for everyday tasks' },
-      { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', description: 'High capability model' },
-      { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet', description: 'Balanced model' },
-      { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', description: 'Fast and capable' },
-    ] : [])
+    ...providerModels.map(id => ({ id, name: id, description: '' })),
   ]
+
+  const remaining = tokenInfo?.daily_remaining ?? (budget ? budget.daily_limit - budget.used_today : null)
 
   return (
     <>
@@ -1335,7 +485,7 @@ export function GlobalAssistant() {
             {!isMobile && <ResizeHandle onMouseDown={startResizing} />}
             <AssistantHeader>
               <HeaderLeft>
-                <HeaderActionButton 
+                <HeaderActionButton
                   onClick={() => setShowHistory(h => !h)}
                   title="History"
                 >
@@ -1349,14 +499,13 @@ export function GlobalAssistant() {
                   ? <Wifi style={{ width: '14px', height: '14px', color: theme.color.success }} />
                   : <WifiOff style={{ width: '14px', height: '14px', color: theme.color.mutedForeground }} />
                 }
-                
+
                 <HeaderActionButton
                   onClick={() => setShowSettings(s => !s)}
                   title="Settings"
                 >
                   <Settings size={16} />
                 </HeaderActionButton>
-
 
                 <HeaderActionButton
                   onClick={() => setIsOpen(false)}
@@ -1376,9 +525,9 @@ export function GlobalAssistant() {
                   >
                     <SettingRow>
                       <SettingLabel>Provider</SettingLabel>
-                      <Select 
-                        size="sm" 
-                        value={provider} 
+                      <Select
+                        size="sm"
+                        value={provider}
                         onChange={(val) => { setProvider(val as string); setModel('system'); }}
                         options={[
                           { label: 'System Default', value: 'system' },
@@ -1389,26 +538,11 @@ export function GlobalAssistant() {
                     </SettingRow>
                     <SettingRow>
                       <SettingLabel>Model</SettingLabel>
-                      <Select 
-                        size="sm" 
-                        value={model} 
+                      <Select
+                        size="sm"
+                        value={model}
                         onChange={(val) => setModel(val as string)}
-                        options={[
-                          { label: 'System Default', value: 'system' },
-                          ...(provider === 'openai' ? [
-                            { label: 'GPT-4o', value: 'gpt-4o' },
-                            { label: 'GPT-4o Mini', value: 'gpt-4o-mini' },
-                            { label: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
-                            { label: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' }
-                          ] : []),
-                          ...(provider === 'anthropic' ? [
-                            { label: 'Claude 3.5 Sonnet', value: 'claude-3-5-sonnet-20240620' },
-                            { label: 'Claude 3.5 Haiku', value: 'claude-3-5-haiku-20241022' },
-                            { label: 'Claude 3 Opus', value: 'claude-3-opus-20240229' },
-                            { label: 'Claude 3 Sonnet', value: 'claude-3-sonnet-20240229' },
-                            { label: 'Claude 3 Haiku', value: 'claude-3-haiku-20240307' }
-                          ] : [])
-                        ]}
+                        options={chatModels.map(m => ({ label: m.name, value: m.id }))}
                       />
                     </SettingRow>
                   </SettingsPanel>
@@ -1426,85 +560,23 @@ export function GlobalAssistant() {
                 >
                   <HistoryHeader>
                     <span>Chat History</span>
-                    <HeaderActionButton 
+                    <HeaderActionButton
                       onClick={() => setShowHistory(false)}
                       title="Close history"
                     >
                       <X size={16} />
                     </HeaderActionButton>
                   </HistoryHeader>
-                  <HistoryList>
-                    <HistoryItem>
-                      <HistorySelectBtn 
-                        onClick={() => { newSession(); setShowHistory(false) }}
-                        $active={!sessionId}
-                      >
-                        <Plus size={14} style={{ marginRight: 6 }} /> New Chat
-                      </HistorySelectBtn>
-                    </HistoryItem>
-                    {sessions.filter(s => new Date(s.started_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).map(session => (
-                      <HistoryItem key={session.id}>
-                        <HistorySelectBtn 
-                          onClick={() => {
-                            loadSession(session.id)
-                            setShowHistory(false)
-                          }}
-                          $active={session.id === sessionId}
-                        >
-                          <SessionTitle>
-                            {session.title || new Date(session.started_at).toLocaleString()}
-                          </SessionTitle>
-                        </HistorySelectBtn>
-                        
-                        <div style={{ position: 'relative' }}>
-                          <SessionActionBtn 
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSessionMenuId(sessionMenuId === session.id ? null : session.id)
-                            }}
-                            aria-label="Session actions"
-                          >
-                            <MoreHorizontal size={14} />
-                          </SessionActionBtn>
-                          
-                          {sessionMenuId === session.id && (
-                            <SessionMenu ref={sessionMenuRef}>
-                              <SessionMenuItem onClick={async (e) => {
-                                e.stopPropagation()
-                                setSessionMenuId(null)
-                                const newTitle = prompt('Enter new session name:', session.title || '')
-                                if (newTitle && newTitle !== session.title) {
-                                  await chatApi.updateSession(session.id, { title: newTitle })
-                                  fetchSessions()
-                                }
-                              }}>Rename</SessionMenuItem>
-                              <SessionMenuItem onClick={async (e) => {
-                                e.stopPropagation()
-                                setSessionMenuId(null)
-                                await chatApi.updateSession(session.id, { is_archived: true })
-                                if (sessionId === session.id) newSession()
-                                fetchSessions()
-                              }}>Archive</SessionMenuItem>
-                              <SessionMenuItem onClick={async (e) => {
-                                e.stopPropagation()
-                                setSessionMenuId(null)
-                                if (confirm('Are you sure you want to delete this session?')) {
-                                  await chatApi.deleteSession(session.id)
-                                  if (sessionId === session.id) newSession()
-                                  fetchSessions()
-                                }
-                              }} style={{ color: theme.color.destructive }}>Delete</SessionMenuItem>
-                            </SessionMenu>
-                          )}
-                        </div>
-                      </HistoryItem>
-                    ))}
-                  </HistoryList>
+                  <SessionList
+                    activeSessionId={sessionId}
+                    onSelect={(id) => { loadSession(id); setShowHistory(false) }}
+                    onNew={() => { newSession(); setShowHistory(false) }}
+                  />
                 </HistorySidebar>
               )}
             </AnimatePresence>
 
-            <MessagesContainer ref={scrollRef}>
+            <MessagesContainer ref={scrollRef} onScroll={handleScroll}>
               {loadingMessages ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '12px' }}>
                   <Spinner size="md" tone="primary" />
@@ -1516,7 +588,7 @@ export function GlobalAssistant() {
                   </EmptyStateIconWrapper>
                   <span style={{ fontSize: '13px', fontWeight: 500, color: theme.color.foreground }}>How can I help?</span>
                   <span style={{ fontSize: '12px', marginTop: '4px' }}>Log data or ask questions.</span>
-                  
+
                   <QuickPromptsGrid>
                     {QUICK_PROMPTS.map(({ label, value }) => (
                       <QuickPromptButton key={value} onClick={() => handleQuickPrompt(value)}>
@@ -1526,34 +598,26 @@ export function GlobalAssistant() {
                   </QuickPromptsGrid>
                 </EmptyStateContainer>
               ) : (
-                <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
-                  {virtualizer.getVirtualItems().map(vItem => {
-                    const message = messages[vItem.index]
-                    if (!message) return null
-                    return (
-                      <div
-                        key={vItem.key}
-                        data-index={vItem.index}
-                        ref={virtualizer.measureElement}
-                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vItem.start}px)` }}
-                      >
-                        <div style={{ padding: '8px 0' }}>
-                          <Message 
-                            message={message} 
-                            onEdit={(content) => {
-                              setInput(content)
-                              textareaRef.current?.focus()
-                            }} 
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
+                messages.map((message, idx) => (
+                  <Message
+                    key={message.id}
+                    message={message}
+                    onEdit={(content) => {
+                      setInput(content)
+                      textareaRef.current?.focus()
+                    }}
+                    onRetry={canRetry && idx === messages.length - 1 && message.error ? retryLast : undefined}
+                  />
+                ))
               )}
             </MessagesContainer>
 
             <div style={{ padding: '0 16px 16px', position: 'relative' }}>
+              {remaining !== null && remaining !== undefined && (
+                <QuotaLine title="Daily AI token budget remaining">
+                  {remaining.toLocaleString()} tokens left today
+                </QuotaLine>
+              )}
               <AssistantChatInput
                 onSendMessage={handleAssistantSend}
                 disabled={isStreaming || !connected}
@@ -1568,15 +632,15 @@ export function GlobalAssistant() {
           </AssistantWindow>
         )}
       </AnimatePresence>
-      
-      {!isOpen && (
+
+      {!isOpen && location.pathname !== '/app/chat' && (
         <FAB
           onClick={() => setIsOpen(true)}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          aria-label="Open AI Assistant"
+          aria-label="Open AI Assistant (⌘J)"
         >
           <Bot size={24} />
         </FAB>

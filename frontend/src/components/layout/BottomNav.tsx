@@ -48,11 +48,11 @@ const IconWrap = styled.div<{ $active: boolean }>`
 `
 
 const TABS = [
-  { to: '/', icon: LayoutDashboard, label: 'Home' },
-  { to: '/chat', icon: MessageSquare, label: 'Chat' },
-  { to: '/areas', icon: Grid3X3, label: 'Areas' },
-  { to: '/agents', icon: Bot, label: 'Agents' },
-  { to: '/settings', icon: MoreHorizontal, label: 'More' },
+  { to: '/app', icon: LayoutDashboard, label: 'Home' },
+  { to: '/app/chat', icon: MessageSquare, label: 'Chat' },
+  { to: '/app/areas', icon: Grid3X3, label: 'Areas' },
+  { to: '/app/agents', icon: Bot, label: 'Agents' },
+  { to: '/app/settings', icon: MoreHorizontal, label: 'More' },
 ]
 
 export function BottomNav() {
@@ -61,8 +61,8 @@ export function BottomNav() {
   return (
     <Nav aria-label="Mobile navigation">
       {TABS.map(({ to, icon: Icon, label }) => {
-        const active = to === '/'
-          ? location.pathname === '/'
+        const active = to === '/app'
+          ? location.pathname === '/app'
           : location.pathname.startsWith(to)
 
         return (

@@ -3,7 +3,7 @@
  * Monospace is reserved for actual code content (markdown pre/code, tool JSON);
  * all UI chrome stays on the sans stack per the design system.
  */
-import styled, { useTheme } from 'styled-components'
+import styled, { keyframes, useTheme } from 'styled-components'
 import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -376,6 +376,21 @@ const BubbleText = styled.p`
   margin: 0;
 `
 
+const blink = keyframes`
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+`
+
+const StreamingCursor = styled.span`
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: ${({ theme }) => theme.color.primary};
+  animation: ${blink} 1s step-end infinite;
+  vertical-align: text-bottom;
+  margin-left: 2px;
+`
+
 export const MarkdownWrapper = styled.div`
   max-width: 100%;
   word-break: break-word;
@@ -688,7 +703,10 @@ export function Message({ message, onEdit, onRetry }: {
             {isUser ? (
               <BubbleText>{rawContent}</BubbleText>
             ) : (
-              <Markdown>{rawContent}</Markdown>
+              <>
+                <Markdown>{rawContent}</Markdown>
+                {message.streaming && <StreamingCursor aria-hidden="true" />}
+              </>
             )}
           </MessageBubble>
         )}

@@ -385,6 +385,7 @@ const NAV_GROUPS = [
     category: 'Main',
     items: [
       { to: '/app', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/app/chat', icon: MessageSquare, label: 'Chat' },
       { to: '/app/agents', icon: Bot, label: 'Agents' },
       { to: '/app/review', icon: CalendarCheck, label: 'Review' },
     ]

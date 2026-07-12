@@ -15,16 +15,16 @@ import { capturesApi, financeApi, healthApi, type ParsedCapture } from '@/api/ar
 import { Button } from '@ledgr/ui'
 
 const NAV_COMMANDS = [
-  { label: 'Dashboard', icon: LayoutDashboard, to: '/', section: 'Navigate' },
-  { label: 'Chat', icon: MessageSquare, to: '/chat', section: 'Navigate' },
-  { label: 'Agents', icon: Bot, to: '/agents', section: 'Navigate' },
-  { label: 'Finance', icon: IndianRupee, to: '/areas/finance', section: 'Areas' },
-  { label: 'Health', icon: Heart, to: '/areas/health', section: 'Areas' },
-  { label: 'Career', icon: Briefcase, to: '/areas/career', section: 'Areas' },
-  { label: 'Business', icon: Rocket, to: '/areas/business', section: 'Areas' },
-  { label: 'Content', icon: PenLine, to: '/areas/content', section: 'Areas' },
-  { label: 'Integrations', icon: Plug, to: '/integrations', section: 'System' },
-  { label: 'Settings', icon: Settings, to: '/settings', section: 'System' },
+  { label: 'Dashboard', icon: LayoutDashboard, to: '/app', section: 'Navigate' },
+  { label: 'Chat', icon: MessageSquare, to: '/app/chat', section: 'Navigate' },
+  { label: 'Agents', icon: Bot, to: '/app/agents', section: 'Navigate' },
+  { label: 'Finance', icon: IndianRupee, to: '/app/areas/finance', section: 'Areas' },
+  { label: 'Health', icon: Heart, to: '/app/areas/health', section: 'Areas' },
+  { label: 'Career', icon: Briefcase, to: '/app/areas/career', section: 'Areas' },
+  { label: 'Business', icon: Rocket, to: '/app/areas/business', section: 'Areas' },
+  { label: 'Content', icon: PenLine, to: '/app/areas/content', section: 'Areas' },
+  { label: 'Integrations', icon: Plug, to: '/app/integrations', section: 'System' },
+  { label: 'Settings', icon: Settings, to: '/app/settings', section: 'System' },
 ]
 
 const PATH_LABEL: Record<string, string> = Object.fromEntries(NAV_COMMANDS.map(c => [c.to, c.label]))
@@ -316,12 +316,14 @@ export function CommandPalette() {
   }
 
   // Ask mode hands the question to the chat agent (which has real tools) —
-  // the palette never fabricates an answer itself.
+  // the palette never fabricates an answer itself. Router state survives
+  // StrictMode double-mounts (unlike one-shot sessionStorage keys).
   const askQuestion = query.startsWith('?') ? query.slice(1).trim() : ''
   const handleAsk = () => {
     if (!askQuestion) return
-    sessionStorage.setItem('aios.chat.prefill', askQuestion)
-    handleNav('/app/chat')
+    setCmdPaletteOpen(false)
+    setCaptureModalOpen(false)
+    navigate('/app/chat', { state: { prefill: askQuestion } })
   }
 
   const handleEnter = () => {

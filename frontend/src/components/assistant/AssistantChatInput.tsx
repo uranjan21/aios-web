@@ -1,17 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from "react"
 import styled, { keyframes, useTheme } from "styled-components"
-import { Plus, ChevronDown, ArrowUp, X, FileText, Loader2, Check, Archive, BrainCircuit, ChevronRight } from "lucide-react"
-
-const monospaceFont = ({ theme }: { theme: any }) => {
-  const font = theme.fontFamily?.mono || theme.typography?.fontFamily?.mono;
-  if (font && !font.includes('DM Sans')) return font;
-  return 'sfmono-regular, consolas, "liberation mono", menlo, courier, monospace';
-};
+import { Plus, ChevronDown, ArrowUp, X, FileText, Loader2, Check, Archive } from "lucide-react"
 
 /* --- ICONS --- */
 const Icons = {
   Plus,
-  Thinking: BrainCircuit,
   SelectArrow: ChevronDown,
   ArrowUp,
   X,
@@ -19,7 +12,6 @@ const Icons = {
   Loader2,
   Check,
   Archive,
-  ChevronRight,
 }
 
 const spin = keyframes`
@@ -169,15 +161,6 @@ const FileTextInfo = styled.div`
   }
 `
 
-const UploadOverlay = styled.div`
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`
-
 /* --- COMPONENTS --- */
 
 export interface AttachedFile {
@@ -185,7 +168,6 @@ export interface AttachedFile {
   file: File
   type: string
   preview: string | null
-  uploadStatus: string
   content?: string
 }
 
@@ -218,12 +200,6 @@ function FilePreviewCard({ file, onRemove }: { file: AttachedFile; onRemove: (id
       <button type="button" className="remove-btn" onClick={() => onRemove(file.id)}>
         <Icons.X size={12} />
       </button>
-
-      {file.uploadStatus === 'uploading' && (
-        <UploadOverlay>
-          <StyledSpinner size={20} color="white" />
-        </UploadOverlay>
-      )}
     </FileCard>
   )
 }
@@ -242,7 +218,6 @@ const PastedCard = styled(FileCard)`
     font-size: 10px;
     color: ${({ theme }) => theme.color.mutedForeground};
     line-height: 1.4;
-    font-family: ${monospaceFont};
     word-break: break-word;
     white-space: pre-wrap;
     display: -webkit-box;
@@ -273,7 +248,6 @@ const PastedCard = styled(FileCard)`
     color: ${({ theme }) => theme.color.foreground};
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    font-family: ${monospaceFont};
   }
 
   .remove-btn {
@@ -421,24 +395,9 @@ const DropdownItem = styled.button.attrs({ type: 'button' })`
     border-radius: ${({ theme }) => theme.radii.md};
     font-size: 10px;
     font-weight: 500;
-    border: 1px solid;
-    font-family: ${monospaceFont};
-    &.upgrade {
-      border-color: rgba(59, 130, 246, 0.3);
-      color: rgb(96, 165, 250);
-      background: rgba(59, 130, 246, 0.1);
-    }
-    &.normal {
-      border-color: ${({ theme }) => theme.color.border};
-      color: ${({ theme }) => theme.color.mutedForeground};
-    }
+    border: 1px solid ${({ theme }) => theme.color.border};
+    color: ${({ theme }) => theme.color.mutedForeground};
   }
-`
-
-const Divider = styled.div`
-  height: 1px;
-  background-color: ${({ theme }) => theme.color.border};
-  margin: 4px 8px;
 `
 
 interface Model {
@@ -506,11 +465,7 @@ function ModelSelector({ models, selectedModel, onSelect }: { models: Model[]; s
               <div className="info">
                 <div className="title-row">
                   <span className="title">{model.name}</span>
-                  {model.badge && (
-                    <span className={'badge ' + (model.badge === 'Upgrade' ? 'upgrade' : 'normal')}>
-                      {model.badge}
-                    </span>
-                  )}
+                  {model.badge && <span className="badge">{model.badge}</span>}
                 </div>
                 <span className="desc">{model.description}</span>
               </div>
@@ -519,11 +474,6 @@ function ModelSelector({ models, selectedModel, onSelect }: { models: Model[]; s
               )}
             </DropdownItem>
           ))}
-          <Divider />
-          <DropdownItem style={{ alignItems: 'center' }}>
-            <span className="title">More models</span>
-            <Icons.ChevronRight size={16} color={theme.color.mutedForeground} />
-          </DropdownItem>
         </DropdownMenu>
       )}
     </SelectorWrapper>
@@ -814,7 +764,6 @@ export interface AssistantChatInputProps {
     files: AttachedFile[]
     pastedContent: { id: string; content: string; timestamp: Date }[]
     model: string
-    isThinkingEnabled: boolean
   }) => void
   disabled?: boolean
   initialFiles?: File[]
@@ -842,7 +791,6 @@ export function AssistantChatInput({
   const [pastedContent, setPastedContent] = useState<{ id: string; content: string; timestamp: Date }[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [selectedModel, setSelectedModel] = useState(defaultModel)
-  const [isThinkingEnabled, setIsThinkingEnabled] = useState(false)
   const createdUrlsRef = useRef<Set<string>>(new Set())
   const dragCounter = useRef(0)
 
@@ -948,18 +896,12 @@ export function AssistantChatInput({
         file,
         type: isImage ? 'image/unknown' : (file.type || 'application/octet-stream'),
         preview,
-        uploadStatus: 'pending'
       }
     })
 
+    // No fake upload progress — files are only encoded when the message sends.
     setFiles(prev => [...prev, ...newFiles])
-
-    newFiles.forEach(f => {
-      setTimeout(() => {
-        setFiles(prev => prev.map(p => p.id === f.id ? { ...p, uploadStatus: 'complete' } : p))
-      }, 500 + Math.random() * 500)
-    })
-  }, [message, onChangeMessage])
+  }, [])
 
   const onDragEnter = (e: React.DragEvent) => {
     e.preventDefault()
@@ -1019,12 +961,11 @@ export function AssistantChatInput({
   const handleSend = () => {
     if (disabled || (!message.trim() && files.length === 0 && pastedContent.length === 0)) return
     
-    onSendMessage({ 
-      message, 
-      files, 
-      pastedContent, 
+    onSendMessage({
+      message,
+      files,
+      pastedContent,
       model: selectedModel,
-      isThinkingEnabled 
     })
     
     onChangeMessage("")
@@ -1060,11 +1001,6 @@ export function AssistantChatInput({
       }
     }
 
-    if (e.ctrlKey && e.shiftKey && (e.key === 'e' || e.key === 'E')) {
-      e.preventDefault()
-      setIsThinkingEnabled(prev => !prev)
-      return
-    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -1138,15 +1074,6 @@ export function AssistantChatInput({
               <ToolButton onClick={() => fileInputRef.current?.click()} aria-label="Attach files">
                 <Icons.Plus size={20} />
                 <div className="tooltip">Attach files</div>
-              </ToolButton>
-
-              <ToolButton 
-                onClick={() => setIsThinkingEnabled(!isThinkingEnabled)}
-                $active={isThinkingEnabled}
-                aria-label="Extended thinking"
-              >
-                <Icons.Thinking size={18} />
-                <div className="tooltip">Extended thinking (⇧+Ctrl+E)</div>
               </ToolButton>
             </LeftTools>
 

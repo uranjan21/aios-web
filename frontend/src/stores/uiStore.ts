@@ -20,6 +20,10 @@ interface UIState {
   cmdPaletteOpen: boolean
   setCmdPaletteOpen: (v: boolean) => void
 
+  assistantOpen: boolean
+  setAssistantOpen: (v: boolean) => void
+  toggleAssistant: () => void
+
   captureModalOpen: boolean
   setCaptureModalOpen: (v: boolean) => void
 
@@ -52,6 +56,10 @@ export const useUIStore = create<UIState>()(
 
       cmdPaletteOpen: false,
       setCmdPaletteOpen: (v) => set({ cmdPaletteOpen: v }),
+
+      assistantOpen: false,
+      setAssistantOpen: (v) => set({ assistantOpen: v }),
+      toggleAssistant: () => set((s) => ({ assistantOpen: !s.assistantOpen })),
 
       captureModalOpen: false,
       setCaptureModalOpen: (v) => set({ captureModalOpen: v }),
