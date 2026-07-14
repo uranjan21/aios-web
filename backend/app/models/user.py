@@ -29,5 +29,10 @@ class User(SQLModel, table=True):
     openai_api_key_encrypted: Optional[str] = Field(default=None, sa_column=Column(Text))
     anthropic_api_key_encrypted: Optional[str] = Field(default=None, sa_column=Column(Text))
 
+    # Email verification — False for new email-signup users until they click the link.
+    # Google OAuth users are auto-verified. Default True so existing rows are unaffected.
+    email_verified: bool = Field(default=True, nullable=False)
+    email_verification_token: Optional[str] = Field(default=None, index=True)
+
     created_at: datetime = Field(default_factory=_utcnow, nullable=False)
     updated_at: datetime = Field(default_factory=_utcnow, nullable=False)

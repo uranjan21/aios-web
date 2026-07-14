@@ -266,8 +266,28 @@ def tool_definitions_for(vault_enabled: bool) -> list[dict]:
     return TOOLS_WITH_VAULT if vault_enabled else TOOLS_BASE
 
 
-async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple[str, list[str]]:
-    """Returns (result_text, affected_paths)."""
+# Tools that mutate user data and require explicit user confirmation before
+# executing. The streaming agent yields a `tool_confirmation_required` event
+# for these; the WS handler stores the pending call and resumes execution
+# when the client sends `{"type": "tool_confirm", ...}`.
+CONFIRM_TOOLS: frozenset[str] = frozenset({
+    "log_transaction",
+    "log_finance_transaction",
+    "update_goal",
+})
+
+# Sentinel returned by execute_tool when a tool requires confirmation.
+CONFIRMATION_PENDING = "__CONFIRMATION_PENDING__"
+
+
+async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID, confirmed: bool = False) -> tuple[str, list[str]]:
+    """Returns (result_text, affected_paths).
+
+    For tools in CONFIRM_TOOLS, returns (CONFIRMATION_PENDING, []) unless
+    confirmed=True is passed (set by the WS handler after user approval).
+    """
+    if tool_name in CONFIRM_TOOLS and not confirmed:
+        return CONFIRMATION_PENDING, []
     settings = get_settings()
     guard = VaultWriteGuard(settings.vault_path)
     affected: list[str] = []
@@ -627,7 +647,7 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID) -> tuple
             settings,
             user_id,
             "finance",
-            f"{tx_type.title()} logged: {amount} INR for {description}"
+            f"{tx_type.title()} logged: {amount} {account.currency} for {description}"
             + (f" [{category}]" if category else "")
             + f" via {account.name}",
             affected,

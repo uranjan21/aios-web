@@ -1,5 +1,6 @@
 """Billing endpoints (Stripe). Inert until STRIPE_SECRET_KEY + price ids are set."""
 import logging
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
@@ -158,7 +159,22 @@ async def stripe_webhook(request: Request, db=Depends(get_db)):
 
     try:
         await billing.handle_webhook_event(db, event)
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to process Stripe webhook %s", event.get("type"))
-        # 200 anyway so Stripe doesn't infinitely retry a poisoned event; we've logged it.
+        # Persist to dead-letter queue for background retry; return 200 so Stripe
+        # doesn't re-deliver — the scheduler will retry up to 3 times.
+        from datetime import timedelta
+        from app.models.billing import FailedWebhook
+        import json as _json
+        try:
+            db.add(FailedWebhook(
+                event_id=str(event.get("id", "")),
+                event_type=str(event.get("type", "")),
+                payload=_json.dumps(dict(event)),
+                error=str(exc),
+                next_retry_at=datetime.utcnow() + timedelta(minutes=5),
+            ))
+            await db.commit()
+        except Exception:
+            logger.exception("Could not persist failed webhook to dead-letter queue")
     return Response(status_code=200)

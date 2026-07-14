@@ -17,6 +17,8 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useUIStore } from "@/stores/uiStore";
+import { useAuthStore } from "@/stores/authStore";
+import { EmailVerificationBanner } from "@/components/EmailVerificationBanner";
 
 const MobileBackdrop = styled.div<{ $show: boolean }>`
   position: fixed;
@@ -113,6 +115,7 @@ export function AppShell() {
   useSubscription();
 
   const location = useLocation();
+  const user = useAuthStore(s => s.user);
 
   const { pushRecentPage, sidebarOpen, setSidebarOpen } = useUIStore();
 
@@ -146,6 +149,7 @@ export function AppShell() {
       <Sidebar />
 
       <MainColumn>
+        {user && user.email_verified === false && <EmailVerificationBanner email={user.email} />}
         <TopBar />
 
         <ContentArea id="main-content" tabIndex={-1}>

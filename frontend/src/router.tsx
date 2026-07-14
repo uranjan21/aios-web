@@ -34,6 +34,7 @@ const TasksPage = lazy(() => import('@/pages/workspace/TasksPage').then(m => ({ 
 
 const ChatPage = lazy(() => import('@/pages/ChatPage').then(m => ({ default: m.ChatPage })))
 const LandingPage = lazy(() => import('@/pages/LandingPage').then(m => ({ default: m.LandingPage })))
+const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmailPage').then(m => ({ default: m.VerifyEmailPage })))
 const PricingPage = lazy(() => import('@/pages/PricingPage').then(m => ({ default: m.PricingPage })))
 const AdminPage = lazy(() => import('@/pages/AdminPage').then(m => ({ default: m.AdminPage })))
 
@@ -137,6 +138,7 @@ export const router = createBrowserRouter([
   { path: '/login', element: <Page><LoginPage /></Page>, errorElement: <RouteErrorBoundary /> },
 
   { path: '/signup', element: <Page><LoginPage initialMode="signup" /></Page>, errorElement: <RouteErrorBoundary /> },
+  { path: '/verify-email', element: <Page><VerifyEmailPage /></Page>, errorElement: <RouteErrorBoundary /> },
   { path: '/auth/google/callback', element: <Page><GoogleAuthCallbackPage /></Page>, errorElement: <RouteErrorBoundary /> },
   {
     element: <Page><LegalLayout /></Page>,

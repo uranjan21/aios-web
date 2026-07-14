@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
@@ -171,7 +171,7 @@ export function AnalyticsTab() {
           style={{ height: 380, display: 'flex', flexDirection: 'column' }}
         >
           {topCategories.length === 0 ? (
-            <EmptyState title="No expenses" style={{ padding: '16px 0' }} />
+            <EmptyState title="No expenses" />
           ) : (
             <div style={{ flex: 1, width: '100%', minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -205,7 +205,7 @@ export function AnalyticsTab() {
       <InsightsGrid>
         <FinancialInsights />
         <GlassCard title="Explain Month" subtitle="AI breakdown of this month's spending" icon={<Brain size={16} />} style={{ height: '100%' }}>
-          <AiInsightCard area="finance" style={{ height: '100%' }} />
+          <AiInsightCard area="finance" />
         </GlassCard>
       </InsightsGrid>
     </WorkspaceLayout>

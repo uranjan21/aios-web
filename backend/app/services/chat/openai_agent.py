@@ -17,7 +17,7 @@ from app.services.chat.memory import (
     record_usage,
     reserve_budget,
 )
-from app.services.chat.tools import tool_definitions_for, execute_tool
+from app.services.chat.tools import tool_definitions_for, execute_tool, CONFIRMATION_PENDING
 
 logger = logging.getLogger(__name__)
 
@@ -223,10 +223,22 @@ async def stream_openai_chat_response(
                     except json.JSONDecodeError:
                         pass
 
-                yield {"type": "tool_call", "tool": tc["name"], "input": tool_input}
+                yield {"type": "tool_call", "call_id": tc["id"], "tool": tc["name"], "input": tool_input}
 
                 try:
                     result_text, paths = await execute_tool(tc["name"], tool_input, user_id)
+                    if result_text == CONFIRMATION_PENDING:
+                        yield {
+                            "type": "tool_confirmation_required",
+                            "tool": tc["name"],
+                            "tool_call_id": tc["id"],
+                            "params": tool_input,
+                        }
+                        result_text = (
+                            "Action queued pending user confirmation. "
+                            "Tell the user the action is ready to confirm in the chat UI."
+                        )
+                        paths = []
                     tool_status = "ok"
                     affected_paths.extend(paths)
                 except Exception as e:
@@ -237,6 +249,7 @@ async def stream_openai_chat_response(
 
                 yield {
                     "type": "tool_result",
+                    "call_id": tc["id"],
                     "tool": tc["name"],
                     "status": tool_status,
                     "result": result_text,

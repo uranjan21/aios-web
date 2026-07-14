@@ -122,27 +122,152 @@ async def token_budget(current_user=Depends(get_current_user)):
     return await get_token_budget_status(current_user.id)
 
 
+async def _ws_rate_limit_check(user_id: str, per_min: int, settings) -> bool:
+    """Shared sliding-window rate limit keyed by user_id across all WS connections.
+
+    Uses Redis ZADD/ZCOUNT when REDIS_URL is configured so multi-tab sessions
+    share the same bucket. Falls back to always-allow in dev (per-connection
+    deque below is the fallback safety net).
+    """
+    if not settings.redis_url:
+        return True
+    try:
+        import redis.asyncio as aioredis
+        key = f"ws_rate:{user_id}"
+        now = time.time()
+        window_start = now - 60.0
+        async with aioredis.from_url(settings.redis_url, decode_responses=True) as r:
+            pipe = r.pipeline()
+            pipe.zremrangebyscore(key, 0, window_start)
+            pipe.zcard(key)
+            _, count = await pipe.execute()
+            if count >= per_min:
+                return False
+            await r.zadd(key, {str(now): now})
+            await r.expire(key, 90)
+        return True
+    except Exception:
+        logger.warning("Redis WS rate-limit check failed — allowing message", exc_info=True)
+        return True
+
+
+async def _pending_tool_set(
+    call_id: str, user_id: str, payload: dict, settings, local: dict
+) -> None:
+    """Store a pending tool call; Redis-backed in prod, in-process dict in dev."""
+    if settings.redis_url:
+        try:
+            import redis.asyncio as aioredis
+            key = f"pending_tool:{user_id}:{call_id}"
+            async with aioredis.from_url(settings.redis_url, decode_responses=True) as r:
+                await r.set(key, json.dumps(payload), ex=300)
+            return
+        except Exception:
+            logger.warning("Redis pending-tool set failed, falling back to local dict", exc_info=True)
+    local[call_id] = payload
+
+
+async def _pending_tool_pop(
+    call_id: str, user_id: str, settings, local: dict
+) -> dict | None:
+    """Retrieve and delete a pending tool call; Redis-backed in prod, in-process dict in dev."""
+    if settings.redis_url:
+        try:
+            import redis.asyncio as aioredis
+            key = f"pending_tool:{user_id}:{call_id}"
+            async with aioredis.from_url(settings.redis_url, decode_responses=True) as r:
+                raw = await r.getdel(key)
+            if raw is not None:
+                return json.loads(raw)
+            # Not in Redis — also check local (covers the fallback-write case)
+        except Exception:
+            logger.warning("Redis pending-tool pop failed, falling back to local dict", exc_info=True)
+    return local.pop(call_id, None)
+
+
 async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
     await websocket.accept()
 
-    # Per-connection sliding-window rate limit (a connection is per-user).
-    per_min = get_settings().rate_limit_chat_per_min
+    settings = get_settings()
+    per_min = settings.rate_limit_chat_per_min
+    # Per-connection fallback for dev (no Redis): sliding deque.
     message_times: deque[float] = deque()
+
+    # Pending tool calls awaiting user confirmation keyed by tool_call_id.
+    # Populated when the agent yields tool_confirmation_required; consumed when
+    # the client sends tool_confirm or tool_cancel.
+    pending_tool_calls: dict[str, dict] = {}
 
     try:
         while True:
             raw = await websocket.receive_text()
             data = json.loads(raw)
-            logger.info(f"WS Payload: {data}")
+            logger.debug("WS msg type=%s session=%s", data.get("type"), data.get("session_id"))
 
+            msg_type = data.get("type")
 
-            if data.get("type") != "message":
+            # ── Tool confirmation / cancellation ───────────────────────────
+            if msg_type == "tool_confirm":
+                call_id = data.get("tool_call_id")
+                pending = await _pending_tool_pop(call_id, str(user_id), settings, pending_tool_calls) if call_id else None
+                if pending is None:
+                    await websocket.send_text(json.dumps({
+                        "type": "error",
+                        "message": "No pending tool call with that ID.",
+                    }))
+                    continue
+                from app.services.chat.tools import execute_tool
+                from app.models.user import User as _User
+                from sqlalchemy.future import select as _select
+                try:
+                    result_text, paths = await execute_tool(
+                        pending["tool"], pending["params"], user_id, confirmed=True
+                    )
+                    await websocket.send_text(json.dumps({
+                        "type": "tool_confirmed_result",
+                        "tool": pending["tool"],
+                        "tool_call_id": call_id,
+                        "status": "ok",
+                        "result": result_text,
+                        "affected": paths,
+                    }))
+                except Exception as exc:
+                    logger.error("Confirmed tool %s failed: %s", pending["tool"], exc)
+                    await websocket.send_text(json.dumps({
+                        "type": "tool_confirmed_result",
+                        "tool": pending["tool"],
+                        "tool_call_id": call_id,
+                        "status": "error",
+                        "result": "Tool execution failed after confirmation.",
+                    }))
                 continue
 
+            if msg_type == "tool_cancel":
+                call_id = data.get("tool_call_id")
+                await _pending_tool_pop(call_id, str(user_id), settings, pending_tool_calls)
+                await websocket.send_text(json.dumps({
+                    "type": "tool_cancelled",
+                    "tool_call_id": call_id,
+                }))
+                continue
+
+            if msg_type != "message":
+                continue
+
+            # Per-user rate limit (Redis-backed in production, deque fallback in dev).
+            if not await _ws_rate_limit_check(user_id, per_min, settings):
+                await websocket.send_text(json.dumps({
+                    "type": "error",
+                    "code": "rate_limited",
+                    "message": "Too many messages — wait a moment and try again.",
+                }))
+                continue
+
+            # Dev/no-Redis fallback: per-connection sliding window.
             now = time.monotonic()
             while message_times and message_times[0] < now - 60:
                 message_times.popleft()
-            if len(message_times) >= per_min:
+            if not settings.redis_url and len(message_times) >= per_min:
                 await websocket.send_text(json.dumps({
                     "type": "error",
                     "code": "rate_limited",
@@ -212,11 +337,32 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
                 )
                 history_rows = list(reversed(history_result.scalars().all()))
 
-            history = [
-                {"role": m.role, "content": m.content}
-                for m in history_rows
-                if m.role in ("user", "assistant")
-            ]
+            history = []
+            for m in history_rows:
+                if m.role == "user":
+                    history.append({"role": "user", "content": m.content})
+                elif m.role == "assistant":
+                    entry: dict = {"role": "assistant", "content": m.content}
+                    if provider == "openai" and m.tool_calls:
+                        entry["tool_calls"] = [
+                            {
+                                "id": tc["id"],
+                                "type": "function",
+                                "function": {
+                                    "name": tc["name"],
+                                    "arguments": tc.get("arguments", "{}"),
+                                },
+                            }
+                            for tc in m.tool_calls
+                        ]
+                    history.append(entry)
+                    if provider == "openai" and m.tool_results:
+                        for tr in m.tool_results:
+                            history.append({
+                                "role": "tool",
+                                "tool_call_id": tr["call_id"],
+                                "content": tr["result"],
+                            })
 
             async with AsyncSessionLocal() as session:
                 session.add(ChatMessage(
@@ -229,6 +375,9 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
 
             # Always persist partial response — save in finally so disconnect doesn't lose it
             full_response = ""
+            # Accumulated tool call/result pairs for this turn (OpenAI-canonical format).
+            turn_tool_calls: list[dict] = []
+            turn_tool_results: list[dict] = []
             try:
                 async for event in stream_chat_response(
                     current_user.id,
@@ -242,6 +391,25 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
                     await websocket.send_text(json.dumps(event))
                     if event.get("type") == "chunk":
                         full_response += event.get("content", "")
+                    elif event.get("type") == "tool_call" and event.get("call_id"):
+                        turn_tool_calls.append({
+                            "id": event["call_id"],
+                            "name": event["tool"],
+                            "arguments": json.dumps(event.get("input", {})),
+                        })
+                    elif event.get("type") == "tool_result" and event.get("call_id"):
+                        turn_tool_results.append({
+                            "call_id": event["call_id"],
+                            "result": event.get("result", ""),
+                        })
+                    elif event.get("type") == "tool_confirmation_required":
+                        call_id = event.get("tool_call_id")
+                        if call_id:
+                            await _pending_tool_set(
+                                call_id, str(user_id),
+                                {"tool": event["tool"], "params": event["params"]},
+                                settings, pending_tool_calls,
+                            )
             finally:
                 if full_response:
                     async with AsyncSessionLocal() as session:
@@ -250,6 +418,8 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
                             session_id=session_id,
                             role="assistant",
                             content=full_response,
+                            tool_calls=turn_tool_calls or None,
+                            tool_results=turn_tool_results or None,
                         ))
                         await session.commit()
                     # Meter one AI action per completed response (Phase 2).

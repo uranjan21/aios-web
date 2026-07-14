@@ -36,11 +36,13 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 # ── Helpers ─────────────────────────────────────────────────────────────
 
+_COOKIE_DAYS = 7
+
 def _issue_cookie(response: Response, user_id: str, token_version: int = 1):
     settings = get_settings()
     token = create_access_token(
         {"sub": user_id, "ver": token_version},
-        expires_delta=timedelta(days=30),
+        expires_delta=timedelta(days=_COOKIE_DAYS),
     )
     response.set_cookie(
         key="aios_token",
@@ -48,7 +50,7 @@ def _issue_cookie(response: Response, user_id: str, token_version: int = 1):
         httponly=True,
         samesite="strict",
         secure=settings.environment == "production",
-        max_age=30 * 24 * 3600,
+        max_age=_COOKIE_DAYS * 24 * 3600,
     )
 
 
@@ -60,6 +62,7 @@ def _user_dict(user: User) -> dict:
         "picture_url": user.picture_url,
         "auth_provider": user.auth_provider,
         "is_admin": bool(user.is_admin),
+        "email_verified": bool(user.email_verified),
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "llm_provider": user.llm_provider,
         "openai_chat_model": user.openai_chat_model,
@@ -111,6 +114,7 @@ async def _get_or_create_legacy_user(db, settings) -> User:
         auth_provider="email",
         password_hash=hash_password(settings.app_password),
         is_admin=True,
+        email_verified=True,
     )
     db.add(user)
     await db.commit()
@@ -154,20 +158,40 @@ async def signup(request: Request, body: SignupRequest, response: Response, db=D
     if result.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="An account with this email already exists")
 
+    verification_token = secrets.token_urlsafe(32)
     user = User(
         email=email,
         name=body.name.strip(),
         auth_provider="email",
         password_hash=hash_password(body.password),
+        email_verified=False,
+        email_verification_token=verification_token,
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
 
     await _seed_new_user(user.id)
+    await _send_verification(email, verification_token)
 
     _issue_cookie(response, str(user.id), user.token_version)
     return {"status": "ok", "user": _user_dict(user)}
+
+
+async def _send_verification(email: str, token: str) -> None:
+    from app.services.email import send_verification_email
+    settings = get_settings()
+    try:
+        await send_verification_email(
+            to=email,
+            token=token,
+            origin=settings.allowed_origin,
+            from_addr=settings.email_from,
+            api_key=settings.resend_api_key,
+        )
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning("Failed to send verification email to %s", email, exc_info=True)
 
 
 async def _seed_new_user(user_id) -> None:
@@ -248,6 +272,24 @@ class ProfileUpdate(BaseModel):
             raise ValueError("picture_url must be a valid http/https URL")
         return v
 
+    @field_validator("llm_provider")
+    @classmethod
+    def _llm_provider(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("openai", "anthropic", "system"):
+            raise ValueError("llm_provider must be 'openai', 'anthropic', or 'system'")
+        return v
+
+    @field_validator("openai_chat_model", "claude_model")
+    @classmethod
+    def _model_allowlist(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        from app.core.llm_models import allowed_models
+        all_models = [m for models in allowed_models().values() for m in models]
+        if v not in all_models:
+            raise ValueError(f"Model '{v}' is not in the operator allowlist")
+        return v
+
 
 @router.patch("/profile")
 @limiter.limit("10/minute")
@@ -271,9 +313,11 @@ async def update_profile(request: Request, body: ProfileUpdate, current_user=Dep
     if body.claude_model is not None:
         user.claude_model = body.claude_model
     if body.openai_api_key is not None:
-        user.openai_api_key_encrypted = encrypt_token(body.openai_api_key) if body.openai_api_key else None
+        key = body.openai_api_key.strip()
+        user.openai_api_key_encrypted = encrypt_token(key) if key else None
     if body.anthropic_api_key is not None:
-        user.anthropic_api_key_encrypted = encrypt_token(body.anthropic_api_key) if body.anthropic_api_key else None
+        key = body.anthropic_api_key.strip()
+        user.anthropic_api_key_encrypted = encrypt_token(key) if key else None
         
     user.updated_at = datetime.utcnow()
     db.add(user)
@@ -468,6 +512,7 @@ async def google_login_callback(
             name=guser.get("name", google_email.split("@")[0]),
             picture_url=guser.get("picture"),
             auth_provider="google",
+            email_verified=True,  # Google verifies emails
             created_at=now,
             updated_at=now,
         )
@@ -489,3 +534,88 @@ async def google_login_callback(
 
     _issue_cookie(response, str(user.id), user.token_version)
     return {"status": "ok", "user": _user_dict(user)}
+
+
+# ── Email verification ──────────────────────────────────────────────────
+
+@router.get("/verify-email")
+async def verify_email(token: str, response: Response, db=Depends(get_db)):
+    """Consume a verification token and mark the user's email as verified."""
+    if not token:
+        raise HTTPException(status_code=400, detail="Missing verification token")
+
+    result = await db.execute(select(User).where(User.email_verification_token == token))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification token")
+
+    user.email_verified = True
+    user.email_verification_token = None
+    user.updated_at = datetime.utcnow()
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    _issue_cookie(response, str(user.id), user.token_version)
+    return {"status": "ok", "user": _user_dict(user)}
+
+
+@router.post("/refresh")
+@limiter.limit("30/minute")
+async def refresh_token(
+    request: Request,
+    response: Response,
+    aios_token: str | None = Cookie(default=None),
+    db=Depends(get_db),
+):
+    """Re-issue a fresh 7-day cookie for a valid (even near-expiry) token.
+
+    The frontend 401 interceptor calls this before logging the user out so
+    active sessions silently extend without forcing a re-login.
+    """
+    if not aios_token:
+        raise HTTPException(status_code=401, detail="No token")
+
+    payload = decode_access_token(aios_token)
+    if not payload or not payload.get("sub"):
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    try:
+        uid = uuid.UUID(payload["sub"])
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid token subject")
+
+    result = await db.execute(select(User).where(User.id == uid))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    # Revoked token check: token_version mismatch means the user logged out or
+    # changed their password — refuse the refresh.
+    if payload.get("ver", 1) != user.token_version:
+        raise HTTPException(status_code=401, detail="Session has been revoked")
+
+    _issue_cookie(response, str(user.id), user.token_version)
+    return {"status": "ok"}
+
+
+@router.post("/resend-verification")
+@limiter.limit("3/hour")
+async def resend_verification(request: Request, current_user=Depends(get_current_user), db=Depends(get_db)):
+    """Re-send the verification email for the authenticated user."""
+    result = await db.execute(select(User).where(User.id == current_user.id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    if user.email_verified:
+        return {"status": "already_verified"}
+
+    token = secrets.token_urlsafe(32)
+    user.email_verification_token = token
+    user.updated_at = datetime.utcnow()
+    db.add(user)
+    await db.commit()
+
+    await _send_verification(user.email, token)
+    return {"status": "sent"}

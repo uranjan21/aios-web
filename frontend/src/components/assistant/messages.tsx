@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@ledgr/ui'
 import type { LocalMessage } from '@/hooks/useChat'
+import { ToolConfirmationCard } from './ToolConfirmationCard'
 
 const codeFont = 'sfmono-regular, consolas, "liberation mono", menlo, courier, monospace'
 
@@ -630,10 +631,12 @@ function MessageActions({ message, onEdit }: { message: LocalMessage; onEdit?: (
   )
 }
 
-export function Message({ message, onEdit, onRetry }: {
+export function Message({ message, onEdit, onRetry, onConfirmTool, onCancelTool }: {
   message: LocalMessage
   onEdit?: (content: string) => void
   onRetry?: () => void
+  onConfirmTool?: (tool_call_id: string) => void
+  onCancelTool?: (tool_call_id: string) => void
 }) {
   const isUser = message.role === 'user'
   const theme = useTheme()
@@ -661,7 +664,7 @@ export function Message({ message, onEdit, onRetry }: {
 
   const hasContent = !!rawContent || !!thinkContent || !!artifactContent
   const hasToolCalls = message.toolCalls && message.toolCalls.length > 0
-  if (!isUser && !hasContent && !hasToolCalls && !message.streaming && !message.affectedPaths?.length) {
+  if (!isUser && !hasContent && !hasToolCalls && !message.pendingConfirmation && !message.streaming && !message.affectedPaths?.length) {
     return null
   }
 
@@ -688,6 +691,16 @@ export function Message({ message, onEdit, onRetry }: {
               />
             ))}
           </TimelineContainer>
+        )}
+
+        {!isUser && message.pendingConfirmation && onConfirmTool && onCancelTool && (
+          <ToolConfirmationCard
+            tool={message.pendingConfirmation.tool}
+            tool_call_id={message.pendingConfirmation.tool_call_id}
+            params={message.pendingConfirmation.params}
+            onConfirm={onConfirmTool}
+            onCancel={onCancelTool}
+          />
         )}
 
         {!isUser && thinkContent && (

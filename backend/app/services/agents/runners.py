@@ -360,7 +360,7 @@ async def _execute_actions(task_id: str, user_id: uuid.UUID, actions: list[dict]
         if not isinstance(tool_name, str) or not isinstance(tool_input, dict):
             continue
         try:
-            result_text, paths = await execute_tool(tool_name, tool_input, user_id)
+            result_text, paths = await execute_tool(tool_name, tool_input, user_id, confirmed=True)
             summaries.append(f"{tool_name}: {result_text}")
             for path in paths:
                 if path not in affected_paths:

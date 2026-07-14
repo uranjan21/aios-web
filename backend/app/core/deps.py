@@ -15,6 +15,7 @@ class CurrentUser:
     id: uuid.UUID | str
     token: str
     is_admin: bool = False
+    email_verified: bool = True
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -56,13 +57,29 @@ async def get_current_user(
             detail="Session expired — please log in again",
         )
 
-    return CurrentUser(id=user_id, token=aios_token, is_admin=bool(user.is_admin))
+    return CurrentUser(
+        id=user_id,
+        token=aios_token,
+        is_admin=bool(user.is_admin),
+        email_verified=bool(user.email_verified),
+    )
 
 
 def require_admin(current_user=Depends(get_current_user)):
     """Dependency that 403s for non-admin users."""
     if not current_user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return current_user
+
+
+def require_verified(current_user=Depends(get_current_user)):
+    """Dependency that 403s when the user hasn't verified their email yet."""
+    if not current_user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email not verified. Check your inbox or request a new verification link.",
+            headers={"X-Error-Code": "email_not_verified"},
+        )
     return current_user
 
 

@@ -11,7 +11,7 @@ import tiktoken
 from app.core.config import get_settings
 from app.services.chat.context_builder import build_prompt
 from app.services.chat.memory import reserve_budget, record_usage, get_token_budget_status, ESTIMATED_TOKENS
-from app.services.chat.tools import tool_definitions_for, execute_tool
+from app.services.chat.tools import tool_definitions_for, execute_tool, CONFIRMATION_PENDING
 
 logger = logging.getLogger(__name__)
 
@@ -246,6 +246,21 @@ async def stream_chat_response(
 
                 try:
                     result_text, paths = await execute_tool(tc["name"], tool_input, user_id)
+                    if result_text == CONFIRMATION_PENDING:
+                        # Destructive tool — emit a confirmation request to the client.
+                        # The WS handler will store the pending call; the LLM is told
+                        # the action is queued so it can acknowledge gracefully.
+                        yield {
+                            "type": "tool_confirmation_required",
+                            "tool": tc["name"],
+                            "tool_call_id": tc["id"],
+                            "params": tool_input,
+                        }
+                        result_text = (
+                            "Action queued pending user confirmation. "
+                            "Tell the user the action is ready to confirm in the chat UI."
+                        )
+                        paths = []
                     tool_status = "ok"
                     affected_paths.extend(paths)
                 except Exception as e:

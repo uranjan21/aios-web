@@ -1,5 +1,5 @@
 from functools import lru_cache
-
+from typing import Literal
 import secrets
 
 from pydantic import model_validator, Field, ConfigDict
@@ -33,10 +33,12 @@ class Settings(BaseSettings):
     # vault sync — guards against a forgotten env var leaking data on hosted SaaS.
     vault_single_tenant_ack: bool = False
     vault_path: str = "/tmp/vault"
+    # Pin the vault to a specific user by email instead of relying on creation order.
+    vault_owner_email: str = ""
     vault_watch_interval_seconds: int = 5
 
     # AI
-    llm_provider: str = "openai"  # "openai" | "anthropic"
+    llm_provider: Literal["openai", "anthropic"] = "openai"
     anthropic_api_key: str = ""
     claude_model: str = "claude-sonnet-4-5"
     openai_chat_model: str = "gpt-4o"
@@ -48,6 +50,11 @@ class Settings(BaseSettings):
     # the operator's key.
     allowed_openai_models: list[str] = ["gpt-4o", "gpt-4o-mini"]
     allowed_claude_models: list[str] = ["claude-sonnet-4-5", "claude-haiku-4-5"]
+
+    # Email (Resend API — https://resend.com). When unset, verification emails are
+    # logged to stdout instead of sent (useful for local dev / test).
+    resend_api_key: str = ""
+    email_from: str = "AIOS <noreply@aios.dev>"
 
     # Encryption
     token_encryption_key: str = ""
@@ -101,6 +108,23 @@ class Settings(BaseSettings):
                 )
             if self.app_password in _INSECURE_DEFAULTS:
                 raise ValueError("APP_PASSWORD must not be a default value in production")
+            if not self.redis_url:
+                raise ValueError(
+                    "REDIS_URL must be set in production for distributed rate limiting. "
+                    "Start a Redis instance and set REDIS_URL=redis://host:6379/0"
+                )
+            if not self.resend_api_key:
+                raise ValueError(
+                    "RESEND_API_KEY must be set in production so verification emails can be delivered"
+                )
+            if self.stripe_secret_key and not self.stripe_secret_key.startswith("sk_live_"):
+                raise ValueError(
+                    "STRIPE_SECRET_KEY must use a live key (sk_live_…) in production, not a test key"
+                )
+            if "localhost" in self.allowed_origin:
+                raise ValueError(
+                    "ALLOWED_ORIGIN must not contain 'localhost' in production — set it to your deployed domain"
+                )
         # TOKEN_ENCRYPTION_KEY is required whenever Google OAuth integrations are configured (H4).
         # An empty key causes Fernet to raise InvalidToken on first OAuth token save.
         if (self.gcal_client_id or self.gfit_client_id) and not self.token_encryption_key:

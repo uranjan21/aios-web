@@ -8,6 +8,7 @@ export interface LocalMessage {
   content: string
   toolCalls?: Array<{ tool: string; input: Record<string, unknown> }>
   toolResults?: Array<{ tool: string; status: string; result: string; affected: string[] }>
+  pendingConfirmation?: { tool: string; tool_call_id: string; params: Record<string, unknown> }
   affectedPaths?: string[]
   streaming?: boolean
   error?: boolean
@@ -32,6 +33,8 @@ interface UseChatResult {
   loadSession: (id: string) => void
   connected: boolean
   loadingMessages: boolean
+  confirmTool: (tool_call_id: string) => void
+  cancelTool: (tool_call_id: string) => void
 }
 
 let msgId = 0
@@ -126,6 +129,28 @@ export function useChat(initialSessionId?: string): UseChatResult {
         return prev
       })
       currentAssistantId.current = null
+    } else if (event.type === 'tool_confirmation_required') {
+      setMessages(prev => {
+        const last = prev[prev.length - 1]
+        if (last && last.id === currentAssistantId.current) {
+          return [...prev.slice(0, -1), {
+            ...last,
+            pendingConfirmation: {
+              tool: event.tool,
+              tool_call_id: event.tool_call_id,
+              params: event.params,
+            },
+          }]
+        }
+        return prev
+      })
+    } else if (event.type === 'tool_confirmed_result' || event.type === 'tool_cancelled') {
+      // Clear the pending confirmation badge once resolved.
+      setMessages(prev => prev.map(m =>
+        m.pendingConfirmation?.tool_call_id === event.tool_call_id
+          ? { ...m, pendingConfirmation: undefined }
+          : m
+      ))
     } else if (event.type === 'error') {
       setIsStreaming(false)
       setCanRetry(lastSentRef.current !== null)
@@ -256,6 +281,14 @@ export function useChat(initialSessionId?: string): UseChatResult {
     setCanRetry(false)
   }, [])
 
+  const confirmTool = useCallback((tool_call_id: string) => {
+    wsRef.current?.send(JSON.stringify({ type: 'tool_confirm', tool_call_id }))
+  }, [])
+
+  const cancelTool = useCallback((tool_call_id: string) => {
+    wsRef.current?.send(JSON.stringify({ type: 'tool_cancel', tool_call_id }))
+  }, [])
+
   const loadSession = useCallback((id: string) => {
     setSessionId(id)
     setLoadingMessages(true)
@@ -277,5 +310,5 @@ export function useChat(initialSessionId?: string): UseChatResult {
       .finally(() => setLoadingMessages(false))
   }, [])
 
-  return { messages, sessionId, isStreaming, tokenInfo, affectedPaths, sendMessage, retryLast, canRetry, newSession, loadSession, connected, loadingMessages }
+  return { messages, sessionId, isStreaming, tokenInfo, affectedPaths, sendMessage, retryLast, canRetry, newSession, loadSession, connected, loadingMessages, confirmTool, cancelTool }
 }

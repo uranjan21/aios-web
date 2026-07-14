@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -249,8 +249,8 @@ function ordinal(n: number) {
   return n + (s[(v - 20) % 10] || s[v] || s[0])
 }
 
-function urgencyColor(days: number): 'error' | 'warning' | 'success' {
-  if (days <= 3) return 'error'
+function urgencyColor(days: number): 'destructive' | 'warning' | 'success' {
+  if (days <= 3) return 'destructive'
   if (days <= 7) return 'warning'
   return 'success'
 }
@@ -319,7 +319,7 @@ function HealthScoreCard({ data, delay = 0 }: { data: import('@/types').FinanceH
             <ProgressBar
               size="sm"
               value={c.available ? (c.score ?? 0) : 0}
-              style={{ backgroundColor: c.available ? BAND_STYLES[scoreBand(c.score ?? 0)].barColor : theme.color.muted }}
+              color={c.available ? BAND_STYLES[scoreBand(c.score ?? 0)].barColor : theme.color.muted}
             />
             <ComponentDisplay>{c.display}</ComponentDisplay>
           </div>

@@ -113,7 +113,7 @@ export function ChatPage() {
   const theme = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
-  const { messages, sessionId, isStreaming, tokenInfo, sendMessage, retryLast, canRetry, connected, newSession, loadSession, loadingMessages } = useChat()
+  const { messages, sessionId, isStreaming, tokenInfo, sendMessage, retryLast, canRetry, connected, newSession, loadSession, loadingMessages, confirmTool, cancelTool } = useChat()
 
   const [input, setInput] = useState('')
   const [model, setModel] = useState('system')
@@ -247,6 +247,8 @@ export function ChatPage() {
                       textareaRef.current?.focus()
                     }}
                     onRetry={canRetry && idx === messages.length - 1 && message.error ? retryLast : undefined}
+                    onConfirmTool={confirmTool}
+                    onCancelTool={cancelTool}
                   />
                 ))
               )}

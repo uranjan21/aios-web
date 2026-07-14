@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Select, Badge, Button, Card as GlassCard, DataTable } from '@ledgr/ui'
@@ -156,7 +156,7 @@ export function HistoryTab({ onLogClick }: { onLogClick?: () => void }) {
               </Button>
               <Select
                 value={filterType}
-                onChange={setFilterType}
+                onChange={(val) => setFilterType(String(val))}
                 size="sm"
                 options={selectOptions}
                 fullWidth={false}

@@ -95,7 +95,7 @@ async def override_plan(
     request: Request,
     user_id: uuid.UUID,
     body: PlanOverride,
-    _=Depends(require_admin),
+    current_admin=Depends(require_admin),
     db=Depends(get_db),
 ):
     """Manually set a user's plan (bypass Stripe). Admin only."""
@@ -120,7 +120,7 @@ async def override_plan(
         db.add(sub)
 
     audit = AdminAuditLog(
-        admin_id=request.state.user.id if hasattr(request.state, "user") else None,
+        admin_id=current_admin.id,
         action="override_plan",
         target_user_id=user_id,
         details=json.dumps({"plan": body.plan, "status": body.status})

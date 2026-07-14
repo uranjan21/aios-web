@@ -11,7 +11,7 @@ A full-stack personal life-management OS — Finance, Health, Career, Business, 
 
 ## 📍 Progress Snapshot (auto-synced)
 
-**Last synced:** 2026-07-07
+**Last synced:** 2026-07-14
 
 **Shipped (durable state):**
 - Security: 3 rounds of multi-tenancy/IDOR audits + full 9-domain backend audit (2026-06-30, Opus-verified 07-01) + workspace audit (07-07) — all CRITICAL/HIGH fixed; isolation verified by live cross-tenant attack. Open backlog lives in memory `project_backend_audit.md`.
@@ -24,7 +24,6 @@ A full-stack personal life-management OS — Finance, Health, Career, Business, 
 **Key gotchas (memory `project_aios_web.md` has the full list):** SQLModel tables must use sqlmodel's `Field` (pydantic's silently drops `primary_key`); FastAPI literal routes before `/{id}` param routes; ledgr-ui rebuild needs full reinstall + Vite restart; `test_auth`/`test_api_mappings` host-only (`cd backend && uv run pytest`); signup agent-seeding swallows exceptions — check `api/agents.py` if new users lack the 8 default agents.
 
 **Next up** (see `docs/PRODUCT_ROADMAP.md` + memory index):
-- Saved-quotes collection UI (backend CRUD + frontend api/quotes.ts ready; no view yet).
 - Verify Stripe billing end-to-end with test-mode keys; drop legacy `plan`/`addons` columns once verified; decide `require_module` gating for goals/forecasts/insights/actions/automations routers.
 - Backend deferred items in priority order: BILL-2 (DB-backed webhook idempotency) → AUTH-1 (proxy IP at deploy layer) → ADMIN-2 (delete-user audit log) → BILL-3 → HLT-2 (user timezone) → SYNC-1/2 (async vault I/O).
 - Content CMS metrics are still manual-entry only.
@@ -237,6 +236,18 @@ alembic upgrade head
 ```
 
 ---
+
+## Recent Updates (2026-07-14 — Production audit follow-up: tool history, Redis confirmations, index migration)
+
+Continued from the production audit session (roadmap items from `aios-production-audit.html`):
+
+- **P1 — Tool call/result persistence:** `ChatMessage.tool_calls` + `tool_results` JSON columns (existed since initial schema) are now populated. `openai_agent.py` now includes `call_id` in both `tool_call` and `tool_result` events. The WS handler in `api/chat.py` accumulates `turn_tool_calls`/`turn_tool_results` during streaming and saves them on the assistant `ChatMessage`. History loader reconstructs OpenAI-format tool turns from stored data: assistant entry gets `tool_calls` array + each result emitted as `{"role":"tool","tool_call_id":...,"content":...}` when provider=="openai". Anthropic path gets plain text history (unchanged).
+- **P2 — Redis-backed pending_tool_calls:** `_pending_tool_set` / `_pending_tool_pop` helpers added to `api/chat.py`. When `REDIS_URL` is set, pending tool confirmations are stored in Redis at key `pending_tool:{user_id}:{call_id}` with 300s TTL. Falls back to the existing per-connection dict in dev. Confirmation flow now survives WS reconnects in production.
+- **Finance composite indexes applied:** migration `p001_finance_composite_indexes` applied via `alembic upgrade heads`. 6 new composite indexes on `(user_id, logged_at)`, `(user_id, category_id)`, `(user_id, account_id)` across the three transaction tables.
+- **UPI tracker vault log currency:** vault log entry in `services/chat/tools.py:650` now uses `account.currency` instead of hardcoded `"INR"`.
+- **`.env` LLM_PROVIDER=nvidia → openai:** was causing backend container to crash on startup (pydantic rejected the value). Fixed directly in `.env`. Note: `docker compose restart` does NOT re-read `.env` — use `docker compose up -d backend` after env changes.
+- **Confirmed stale notes cleaned up:** `SavedQuotesCard` was already built (prior session); CLAUDE.md note updated. `FitnessTab` workout goals already use the API (prior session).
+- **Test suite: 200 passing** (uv run pytest on host).
 
 ## Recent Updates (2026-07-13 — Agents audit + optimize + timezone-aware crons)
 

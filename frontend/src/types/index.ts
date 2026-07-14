@@ -34,6 +34,9 @@ export type ChatEvent =
   | { type: 'chunk'; content: string }
   | { type: 'tool_call'; tool: string; input: Record<string, unknown> }
   | { type: 'tool_result'; tool: string; status: string; result: string; affected: string[] }
+  | { type: 'tool_confirmation_required'; tool: string; tool_call_id: string; params: Record<string, unknown> }
+  | { type: 'tool_confirmed_result'; tool: string; tool_call_id: string; status: string; result: string; affected?: string[] }
+  | { type: 'tool_cancelled'; tool_call_id: string }
   | { type: 'session_created'; session_id: string }
   | { type: 'done'; tokens: { input: number; output: number; daily_remaining: number }; affected_paths: string[] }
   | { type: 'error'; code: string; message: string; retry_after?: number }

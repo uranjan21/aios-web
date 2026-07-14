@@ -30,7 +30,7 @@ export function GlobalAssistant() {
   const setIsOpen = useUIStore(s => s.setAssistantOpen)
 
   const theme = useTheme()
-  const { messages, sessionId, isStreaming, tokenInfo, sendMessage, retryLast, canRetry, connected, newSession, loadSession, loadingMessages } = useChat()
+  const { messages, sessionId, isStreaming, tokenInfo, sendMessage, retryLast, canRetry, connected, newSession, loadSession, loadingMessages, confirmTool, cancelTool } = useChat()
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const pinnedRef = useRef(true)
@@ -348,6 +348,8 @@ export function GlobalAssistant() {
                       textareaRef.current?.focus()
                     }}
                     onRetry={canRetry && idx === messages.length - 1 && message.error ? retryLast : undefined}
+                    onConfirmTool={confirmTool}
+                    onCancelTool={cancelTool}
                   />
                 ))
               )}

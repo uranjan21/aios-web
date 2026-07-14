@@ -388,66 +388,108 @@ async def search_transactions(
             query = query.where(model.logged_at < d_to)
         return query
 
-    items = []
-
-    # Category filter only applies to expenses; income/transfers have no category,
-    # so setting it narrows results to expenses (like Money Manager).
+    # Category filter only applies to expenses; income/transfers have no category.
     include_expense = kind in (None, "expense")
     include_income = kind in (None, "income") and not category
     include_transfer = kind in (None, "transfer") and not category and not tag
 
+    # Build UNION ALL via SQLAlchemy text() — all WHERE values are bound params
+    # so there is zero SQL injection risk despite the dynamic query assembly.
+    from sqlalchemy import text as sa_text
+
+    parts: list[str] = []
+    params: dict = {"uid": str(current_user.id), "lim": limit, "off": offset}
+    p = 0  # param counter for uniqueness
+
+    def _common_clauses(col_prefix: str, table_alias: str) -> str:
+        nonlocal p
+        clauses = [f"{table_alias}.user_id = :uid"]
+        if min_amount is not None:
+            params[f"min_a{p}"] = min_amount
+            clauses.append(f"{table_alias}.amount >= :min_a{p}"); p += 1
+        if max_amount is not None:
+            params[f"max_a{p}"] = max_amount
+            clauses.append(f"{table_alias}.amount <= :max_a{p}"); p += 1
+        if d_from:
+            params[f"dfrom{p}"] = d_from
+            clauses.append(f"{table_alias}.logged_at >= :dfrom{p}"); p += 1
+        if d_to:
+            params[f"dto{p}"] = d_to
+            clauses.append(f"{table_alias}.logged_at < :dto{p}"); p += 1
+        return " AND ".join(clauses)
+
     if include_expense:
-        query = apply_common(select(FinanceExpense), FinanceExpense)
+        w = _common_clauses("amount", "e")
         if like:
-            query = query.where(or_(FinanceExpense.description.ilike(like), FinanceExpense.category.ilike(like), FinanceExpense.tags.ilike(like)))
+            params[f"ql{p}"] = like
+            w += f" AND (e.description ILIKE :ql{p} OR e.category ILIKE :ql{p} OR e.tags ILIKE :ql{p})"; p += 1
         if tag_like:
-            query = query.where(FinanceExpense.tags.ilike(tag_like))
+            params[f"tl{p}"] = tag_like
+            w += f" AND e.tags ILIKE :tl{p}"; p += 1
         if account_id:
-            query = query.where(FinanceExpense.account_id == account_id)
+            params[f"aid{p}"] = str(account_id)
+            w += f" AND e.account_id = :aid{p}::uuid"; p += 1
         if category:
-            query = query.where(FinanceExpense.category == category)
-        for e in (await db.execute(query)).scalars().all():
-            items.append({
-                "id": str(e.id), "kind": "expense", "logged_at": e.logged_at.isoformat(),
-                "amount": float(e.amount), "category": e.category, "description": e.description,
-                "account_id": str(e.account_id) if e.account_id else None,
-                "tags": e.tags, "split_group_id": str(e.split_group_id) if e.split_group_id else None,
-            })
+            params[f"cat{p}"] = category
+            w += f" AND e.category = :cat{p}"; p += 1
+        parts.append(
+            f"SELECT id::text, 'expense' AS kind, logged_at, amount::float8, "
+            f"category, description, account_id::text, tags, split_group_id::text "
+            f"FROM finance_expenses e WHERE {w}"
+        )
 
     if include_income:
-        query = apply_common(select(FinanceIncome), FinanceIncome)
+        w = _common_clauses("amount", "i")
         if like:
-            query = query.where(or_(FinanceIncome.description.ilike(like), FinanceIncome.source.ilike(like), FinanceIncome.tags.ilike(like)))
+            params[f"ql{p}"] = like
+            w += f" AND (i.description ILIKE :ql{p} OR i.source ILIKE :ql{p} OR i.tags ILIKE :ql{p})"; p += 1
         if tag_like:
-            query = query.where(FinanceIncome.tags.ilike(tag_like))
+            params[f"tl{p}"] = tag_like
+            w += f" AND i.tags ILIKE :tl{p}"; p += 1
         if account_id:
-            query = query.where(FinanceIncome.account_id == account_id)
-        for i in (await db.execute(query)).scalars().all():
-            items.append({
-                "id": str(i.id), "kind": "income", "logged_at": i.logged_at.isoformat(),
-                "amount": float(i.amount), "category": i.source, "description": i.description,
-                "account_id": str(i.account_id) if i.account_id else None,
-                "tags": i.tags, "split_group_id": None,
-            })
+            params[f"aid{p}"] = str(account_id)
+            w += f" AND i.account_id = :aid{p}::uuid"; p += 1
+        parts.append(
+            f"SELECT id::text, 'income' AS kind, logged_at, amount::float8, "
+            f"source AS category, description, account_id::text, tags, NULL::text AS split_group_id "
+            f"FROM finance_income i WHERE {w}"
+        )
 
     if include_transfer:
-        query = apply_common(select(FinanceTransfer), FinanceTransfer)
+        w = _common_clauses("amount", "t")
         if like:
-            query = query.where(FinanceTransfer.description.ilike(like))
+            params[f"ql{p}"] = like
+            w += f" AND t.description ILIKE :ql{p}"; p += 1
         if account_id:
-            query = query.where(or_(FinanceTransfer.from_account_id == account_id, FinanceTransfer.to_account_id == account_id))
-        for t in (await db.execute(query)).scalars().all():
-            items.append({
-                "id": str(t.id), "kind": "transfer", "logged_at": t.logged_at.isoformat(),
-                "amount": float(t.amount), "category": "Transfer", "description": t.description,
-                "account_id": str(t.from_account_id),
-                "tags": None, "split_group_id": None,
-            })
+            params[f"aid{p}"] = str(account_id)
+            w += f" AND (t.from_account_id = :aid{p}::uuid OR t.to_account_id = :aid{p}::uuid)"; p += 1
+        parts.append(
+            f"SELECT id::text, 'transfer' AS kind, logged_at, amount::float8, "
+            f"'Transfer' AS category, description, from_account_id::text AS account_id, "
+            f"NULL::text AS tags, NULL::text AS split_group_id "
+            f"FROM finance_transfers t WHERE {w}"
+        )
 
-    items.sort(key=lambda x: x["logged_at"], reverse=True)
-    total = len(items)
-    page = items[offset:offset + limit]
-    return {"items": page, "total": total, "has_more": offset + limit < total}
+    if not parts:
+        return {"items": [], "total": 0, "has_more": False}
+
+    union_sql = " UNION ALL ".join(parts)
+    total_sql = f"SELECT COUNT(*) FROM ({union_sql}) AS _u"
+    page_sql = f"{union_sql} ORDER BY logged_at DESC LIMIT :lim OFFSET :off"
+
+    total_row = (await db.execute(sa_text(total_sql).bindparams(**params))).scalar_one()
+    rows = (await db.execute(sa_text(page_sql).bindparams(**params))).all()
+
+    items = [
+        {
+            "id": r[0], "kind": r[1],
+            "logged_at": r[2].isoformat() if r[2] else None,
+            "amount": r[3], "category": r[4], "description": r[5],
+            "account_id": r[6], "tags": r[7], "split_group_id": r[8],
+        }
+        for r in rows
+    ]
+    return {"items": items, "total": total_row, "has_more": offset + limit < total_row}
 
 
 @router.get("/expenses")

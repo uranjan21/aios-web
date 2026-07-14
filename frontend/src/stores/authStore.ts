@@ -8,6 +8,7 @@ export interface UserProfile {
   picture_url: string | null
   auth_provider: string
   is_admin?: boolean
+  email_verified?: boolean
   llm_provider?: string | null
   openai_chat_model?: string | null
   claude_model?: string | null
@@ -32,6 +33,9 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => set({ user }),
       logout: () => set({ isAuthenticated: false, user: null }),
     }),
-    { name: 'aios-auth' }
+    {
+      name: 'aios-auth',
+      partialize: (s) => ({ isAuthenticated: s.isAuthenticated }),
+    }
   )
 )

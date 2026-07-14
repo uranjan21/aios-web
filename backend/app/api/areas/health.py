@@ -21,15 +21,36 @@ router = APIRouter(prefix="/api/areas/health", tags=["health"])
 @router.get("/logs")
 async def list_logs(
     entry_type: Optional[str] = None,
+    before: Optional[datetime] = None,
+    limit: int = 50,
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    query = select(HealthLog).where(HealthLog.user_id == current_user.id).order_by(desc(HealthLog.logged_at))
+    """List health logs with cursor-based pagination.
+
+    Pass `before=<iso-datetime>` to fetch the next page of older entries.
+    Returns up to `limit` (max 100) items and a `next_cursor` for the next page.
+    """
+    limit = min(limit, 100)
+    query = (
+        select(HealthLog)
+        .where(HealthLog.user_id == current_user.id)
+        .order_by(desc(HealthLog.logged_at))
+        .limit(limit + 1)  # fetch one extra to detect next page
+    )
     if entry_type:
         query = query.where(HealthLog.entry_type == entry_type)
-    query = query.limit(200)
+    if before:
+        before_naive = before.astimezone(timezone.utc).replace(tzinfo=None) if before.tzinfo else before
+        query = query.where(HealthLog.logged_at < before_naive)
+
     result = await db.execute(query)
-    return result.scalars().all()
+    rows = result.scalars().all()
+
+    has_more = len(rows) > limit
+    page = rows[:limit]
+    next_cursor = page[-1].logged_at.isoformat() if has_more and page else None
+    return {"items": page, "next_cursor": next_cursor, "has_more": has_more}
 
 
 class HealthLogCreate(BaseModel):

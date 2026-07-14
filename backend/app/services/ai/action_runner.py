@@ -15,7 +15,7 @@ async def execute_action(action: AgentAction, db_session) -> None:
     logger.info(f"Executing action {action.id} of type {action.action_type}")
     
     try:
-        result_text, affected_paths = await execute_tool(action.action_type, action.payload, action.user_id)
+        result_text, affected_paths = await execute_tool(action.action_type, action.payload, action.user_id, confirmed=True)
         if action.ai_explanation:
             action.ai_explanation += f"\n\nExecuted: {result_text}"
         else:

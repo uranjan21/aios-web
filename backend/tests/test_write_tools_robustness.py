@@ -37,7 +37,7 @@ async def test_log_transaction_concurrency(app, user_a, db_session_factory):
             "category": "leisure",
             "account_id": str(account.id)
         }
-        tasks.append(execute_tool("log_transaction", tool_input, user_a.id))
+        tasks.append(execute_tool("log_transaction", tool_input, user_a.id, confirmed=True))
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -94,7 +94,7 @@ async def test_rollback_on_commit_failure(app, user_a, db_session_factory):
 
     # Apply the mock to the AsyncSession.commit method
     with patch("sqlalchemy.ext.asyncio.AsyncSession.commit", side_effect=RuntimeError("Simulated Database Commit Failure")):
-        result_msg, result_logs = await execute_tool("log_transaction", tool_input, user_a.id)
+        result_msg, result_logs = await execute_tool("log_transaction", tool_input, user_a.id, confirmed=True)
         assert "Error: Failed to log transaction in the database." in result_msg
 
     # Check that the balance is still exactly 1000.00 (not 900.00)
@@ -136,7 +136,7 @@ async def test_log_transaction_boundaries(app, user_a, db_session_factory):
         "category": "leisure",
         "account_id": str(account.id)
     }
-    result, affected = await execute_tool("log_transaction", tool_input_neg, user_a.id)
+    result, affected = await execute_tool("log_transaction", tool_input_neg, user_a.id, confirmed=True)
     assert "Error: Transaction amount must be positive." in result
 
     # 2. Zero amount input
@@ -147,7 +147,7 @@ async def test_log_transaction_boundaries(app, user_a, db_session_factory):
         "category": "leisure",
         "account_id": str(account.id)
     }
-    result, affected = await execute_tool("log_transaction", tool_input_zero, user_a.id)
+    result, affected = await execute_tool("log_transaction", tool_input_zero, user_a.id, confirmed=True)
     assert "Error: Transaction amount must be positive." in result
 
     # 3. Extremely long description
@@ -158,7 +158,7 @@ async def test_log_transaction_boundaries(app, user_a, db_session_factory):
         "category": "leisure",
         "account_id": str(account.id)
     }
-    result, affected = await execute_tool("log_transaction", tool_input_long_desc, user_a.id)
+    result, affected = await execute_tool("log_transaction", tool_input_long_desc, user_a.id, confirmed=True)
     assert "Logged finance expense" in result
 
     async with db_session_factory() as db:
@@ -242,7 +242,7 @@ async def test_invalid_uuid_handling(app, user_a):
         "goal_id": "not-a-uuid",
         "progress_score": 50
     }
-    result, affected = await execute_tool("update_goal", tool_input_goal, user_a.id)
+    result, affected = await execute_tool("update_goal", tool_input_goal, user_a.id, confirmed=True)
     assert "Error: Invalid goal_id UUID format." in result
 
     # 3. log_transaction invalid category_id
@@ -252,5 +252,5 @@ async def test_invalid_uuid_handling(app, user_a):
         "description": "Test",
         "category_id": "not-a-uuid"
     }
-    result, affected = await execute_tool("log_transaction", tool_input_tx, user_a.id)
+    result, affected = await execute_tool("log_transaction", tool_input_tx, user_a.id, confirmed=True)
     assert "Error: Invalid category_id UUID format." in result

@@ -12,7 +12,7 @@ from app.core.config import get_settings
 logger = logging.getLogger(__name__)
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_DAYS = 30
+ACCESS_TOKEN_EXPIRE_DAYS = 7
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

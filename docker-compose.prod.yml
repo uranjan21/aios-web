@@ -1,0 +1,86 @@
+# =============================================================================
+# AIOS Web — Production Docker Compose
+# =============================================================================
+# OPERATOR CHECKLIST — complete before first deploy:
+#
+#  [ ] Create .env.prod with ALL vars listed in .env.example
+#  [ ] Set ENVIRONMENT=production
+#  [ ] Set APP_SECRET_KEY to a 64-char random hex string
+#  [ ] Set DATABASE_URL to the managed Postgres connection string
+#  [ ] Set REDIS_URL (e.g. redis://redis:6379/0 or managed Redis URL)
+#  [ ] Set RESEND_API_KEY for email verification
+#  [ ] Set OPENAI_API_KEY and/or ANTHROPIC_API_KEY
+#  [ ] Set GCAL_CLIENT_ID / GCAL_CLIENT_SECRET for Google OAuth
+#  [ ] Set TOKEN_ENCRYPTION_KEY (generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+#  [ ] Set VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY for push notifications
+#  [ ] Set STRIPE_SECRET_KEY (sk_live_...) and STRIPE_WEBHOOK_SECRET
+#  [ ] Set ALLOWED_ORIGIN to your production domain (https://...)
+#  [ ] Set VAULT_SYNC_ENABLED=false (multi-tenant SaaS) or set VAULT_SINGLE_TENANT_ACK=true
+#  [x] Migrations run automatically via entrypoint.sh on every deploy (alembic upgrade head)
+#  [ ] Configure TLS termination at the reverse proxy / load balancer level
+#  [ ] Confirm DB backups are configured on your managed Postgres service
+# =============================================================================
+
+services:
+  db:
+    image: pgvector/pgvector:pg15
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD required}
+      POSTGRES_USER: ${DB_USER:-aios}
+      POSTGRES_DB: ${DB_NAME:-aios_web}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-aios}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # NO host port binding — DB is only reachable within the Docker network
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    env_file: .env.prod
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Override DATABASE_URL to use internal service name
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-aios}:${DB_PASSWORD}@db:5432/${DB_NAME:-aios_web}
+      REDIS_URL: redis://redis:6379/0
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  pgdata:
+  redisdata:

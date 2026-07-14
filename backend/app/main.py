@@ -9,7 +9,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.core.config import get_settings
-from app.core.deps import ws_auth
+from app.core.deps import ws_auth, require_verified
 from app.core.entitlements import require_module, ws_entitled
 from app.core.middleware import SecurityHeadersMiddleware, RequestLoggingMiddleware
 from app.core.rate_limit import limiter
@@ -43,7 +43,23 @@ from app.api.automations import router as automations_router
 from app.api.workspace import router as workspace_router
 from app.api.quotes import router as quotes_router
 from app.api.knowledge import router as knowledge_router
-logging.basicConfig(level=logging.INFO)
+def _configure_logging() -> None:
+    """JSON structured logging for production; plain text for local dev."""
+    import sys
+    try:
+        from pythonjsonlogger.json import JsonFormatter
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(
+            JsonFormatter("%(asctime)s %(name)s %(levelname)s %(message)s %(request_id)s")
+        )
+        root = logging.getLogger()
+        root.handlers = [handler]
+        root.setLevel(logging.INFO)
+    except ImportError:
+        logging.basicConfig(level=logging.INFO)
+
+
+_configure_logging()
 logger = logging.getLogger(__name__)
 
 _WEAK_SECRETS = {"change-me-in-production", "changeme", "secret", ""}
@@ -60,6 +76,11 @@ async def lifespan(app: FastAPI):
         logger.warning("APP_SECRET_KEY is using an insecure default — set it before production use")
     if settings.app_password in _WEAK_SECRETS:
         logger.warning("APP_PASSWORD is using an insecure default — set it before production use")
+    if settings.environment == "production" and not settings.redis_url:
+        raise RuntimeError(
+            "REDIS_URL must be set in production for distributed rate limiting across workers. "
+            "Start a Redis instance and set REDIS_URL=redis://host:6379/0"
+        )
 
     logger.info("AIOS Web backend starting — vault: %s", settings.vault_path)
 
@@ -109,9 +130,21 @@ async def lifespan(app: FastAPI):
         from sqlmodel import select as sql_select
 
         async def _get_vault_user_id():
-            """Return the first registered user's id for vault association."""
+            """Return the vault owner's id.
+
+            VAULT_OWNER_EMAIL pins the vault to a specific user and removes
+            the fragility of relying on creation order (e.g. when a secondary
+            admin account is created before the real owner).
+            """
             async with AsyncSessionLocal() as s:
-                result = await s.execute(sql_select(User).order_by(User.created_at).limit(1))
+                if settings.vault_owner_email:
+                    result = await s.execute(
+                        sql_select(User).where(User.email == settings.vault_owner_email)
+                    )
+                else:
+                    result = await s.execute(
+                        sql_select(User).order_by(User.created_at).limit(1)
+                    )
                 user = result.scalar_one_or_none()
                 return user.id if user else None
 
@@ -169,7 +202,7 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request, exc: Exception):
-        logger.error(f"Unhandled exception: {exc}", exc_info=True)
+        logger.error("Unhandled exception: %s", exc, exc_info=True)
         return JSONResponse(
             status_code=500,
             content={
@@ -261,27 +294,28 @@ def create_app() -> FastAPI:
     app.include_router(sync_router)
     # Module gating (Phase 0): every area + service router is entitlement-gated
     # server-side. Inert until billing is enabled, so dev/self-host is unchanged.
-    app.include_router(chat_router, dependencies=[Depends(require_module("chat"))])
-    app.include_router(agents_router, dependencies=[Depends(require_module("agents"))])
-    app.include_router(integrations_router, dependencies=[Depends(require_module("integrations"))])
-    app.include_router(knowledge_router, dependencies=[Depends(require_module("integrations"))])
-    app.include_router(finance_router, dependencies=[Depends(require_module("finance"))])
-    app.include_router(health_router, dependencies=[Depends(require_module("health"))])
-    app.include_router(career_router, dependencies=[Depends(require_module("career"))])
-    app.include_router(business_router, dependencies=[Depends(require_module("business"))])
-    app.include_router(content_router, dependencies=[Depends(require_module("content"))])
-    app.include_router(captures_router)
-    app.include_router(push_router)
-    app.include_router(ai_router)
-    app.include_router(billing_router)
-    app.include_router(admin_router)
-    app.include_router(goals_router)
-    app.include_router(forecasts_router)
-    app.include_router(actions_router)
-    app.include_router(insights_router)
-    app.include_router(automations_router)
-    app.include_router(workspace_router)
-    app.include_router(quotes_router)
+    _verified = Depends(require_verified)
+    app.include_router(chat_router, dependencies=[Depends(require_module("chat")), _verified])
+    app.include_router(agents_router, dependencies=[Depends(require_module("agents")), _verified])
+    app.include_router(integrations_router, dependencies=[Depends(require_module("integrations")), _verified])
+    app.include_router(knowledge_router, dependencies=[Depends(require_module("integrations")), _verified])
+    app.include_router(finance_router, dependencies=[Depends(require_module("finance")), _verified])
+    app.include_router(health_router, dependencies=[Depends(require_module("health")), _verified])
+    app.include_router(career_router, dependencies=[Depends(require_module("career")), _verified])
+    app.include_router(business_router, dependencies=[Depends(require_module("business")), _verified])
+    app.include_router(content_router, dependencies=[Depends(require_module("content")), _verified])
+    app.include_router(captures_router, dependencies=[_verified])
+    app.include_router(push_router)  # push subscriptions don't require verified email
+    app.include_router(ai_router, dependencies=[_verified])
+    app.include_router(billing_router)  # webhook endpoint has no auth
+    app.include_router(admin_router)    # admin already requires is_admin; admins are always verified
+    app.include_router(goals_router, dependencies=[_verified])
+    app.include_router(forecasts_router, dependencies=[_verified])
+    app.include_router(actions_router, dependencies=[_verified])
+    app.include_router(insights_router, dependencies=[_verified])
+    app.include_router(automations_router, dependencies=[_verified])
+    app.include_router(workspace_router, dependencies=[_verified])
+    app.include_router(quotes_router, dependencies=[_verified])
     return app
 
 

@@ -140,7 +140,7 @@ async def test_update_goal_tool(app, user_a, db_session_factory):
         "progress_score": 40,
         "ai_insight": "Good progress on cardio"
     }
-    result, affected = await execute_tool("update_goal", tool_input, user_a.id)
+    result, affected = await execute_tool("update_goal", tool_input, user_a.id, confirmed=True)
     assert "progress to 40%" in result
 
     async with db_session_factory() as db:
@@ -160,7 +160,7 @@ async def test_update_goal_tool(app, user_a, db_session_factory):
         "progress_score": 100,
         "ai_insight": "Goal fully achieved!"
     }
-    result, affected = await execute_tool("update_goal", tool_input, user_a.id)
+    result, affected = await execute_tool("update_goal", tool_input, user_a.id, confirmed=True)
     assert "progress to 100%" in result
 
     async with db_session_factory() as db:
@@ -176,7 +176,7 @@ async def test_update_goal_tool(app, user_a, db_session_factory):
         "title": "Maintain health",
         "description": "Updated goal desc"
     }
-    result, affected = await execute_tool("update_goal", tool_input, user_a.id)
+    result, affected = await execute_tool("update_goal", tool_input, user_a.id, confirmed=True)
     assert "Updated goal" in result
 
     async with db_session_factory() as db:
@@ -210,7 +210,7 @@ async def test_log_transaction_tool(app, user_a, db_session_factory):
         "account_id": str(account.id),
         "tags": "groceries,weekly"
     }
-    result, affected = await execute_tool("log_transaction", tool_input, user_a.id)
+    result, affected = await execute_tool("log_transaction", tool_input, user_a.id, confirmed=True)
     assert "Logged finance expense" in result
 
     async with db_session_factory() as db:
@@ -239,7 +239,7 @@ async def test_log_transaction_tool(app, user_a, db_session_factory):
         "category": "Salary",
         "account_id": str(account.id)
     }
-    result, affected = await execute_tool("log_transaction", tool_input, user_a.id)
+    result, affected = await execute_tool("log_transaction", tool_input, user_a.id, confirmed=True)
     assert "Logged finance income" in result
 
     async with db_session_factory() as db:
@@ -269,7 +269,7 @@ async def test_log_transaction_tool_auto_account(app, user_a, db_session_factory
         "category": "coffee"
     }
 
-    result, affected = await execute_tool("log_transaction", tool_input, user_a.id)
+    result, affected = await execute_tool("log_transaction", tool_input, user_a.id, confirmed=True)
     assert "Logged finance expense" in result
 
     async with db_session_factory() as db:

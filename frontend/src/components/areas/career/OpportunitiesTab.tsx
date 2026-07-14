@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -374,7 +374,6 @@ function PipelineCard({ opp }: { opp: JobOpportunity }) {
     <DragCard
       ref={setNodeRef}
       $dragging={isDragging}
-      tabIndex={0}
       {...attributes}
       {...listeners}
       style={transform ? { transform: `translate(${transform.x}px, ${transform.y}px)` } : undefined}

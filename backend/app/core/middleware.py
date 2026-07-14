@@ -1,4 +1,5 @@
 import logging
+import secrets
 import time
 
 from fastapi import Request
@@ -43,14 +44,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
+        request_id = request.headers.get("X-Request-ID") or secrets.token_hex(8)
+        request.state.request_id = request_id
+
         start = time.monotonic()
         response = await call_next(request)
         duration_ms = (time.monotonic() - start) * 1000
+
+        response.headers["X-Request-ID"] = request_id
         logger.info(
             "%s %s %d %.1fms",
             request.method,
             request.url.path,
             response.status_code,
             duration_ms,
+            extra={"request_id": request_id},
         )
         return response

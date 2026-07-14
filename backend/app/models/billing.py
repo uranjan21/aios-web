@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, List
 
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, JSON
+from sqlalchemy import Column, JSON, Text
 
 
 class Subscription(SQLModel, table=True):
@@ -42,3 +42,17 @@ class AIUsageRecord(SQLModel, table=True):
     units: int = Field(default=1, nullable=False)
     source: str = Field(default="chat", nullable=False)  # chat | agents | insights
     reported_to_stripe: bool = Field(default=False, nullable=False)
+
+
+class FailedWebhook(SQLModel, table=True):
+    """Stripe webhook events that failed processing — retried by the scheduler."""
+    __tablename__ = "failed_webhooks"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    event_id: str = Field(index=True)
+    event_type: str = Field()
+    payload: str = Field(sa_column=Column(Text))
+    error: str = Field(sa_column=Column(Text))
+    retry_count: int = Field(default=0)
+    next_retry_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)

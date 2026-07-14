@@ -88,3 +88,126 @@ async def test_signup_seeds_default_agents(client, db_session_factory):
         agents = (await s.execute(select(Agent).where(Agent.user_id == uid))).scalars().all()
     from app.api.agents import DEFAULT_AGENTS
     assert len(agents) == len(DEFAULT_AGENTS)
+
+
+# ── Profile update model allowlist validation (F3) ────────────────────────────
+
+@pytest.mark.asyncio
+async def test_profile_update_invalid_model_is_422(auth_client):
+    resp = await auth_client.patch(
+        "/api/auth/profile",
+        json={"openai_chat_model": "gpt-99-turbo"},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_profile_update_valid_model_succeeds(auth_client):
+    resp = await auth_client.patch(
+        "/api/auth/profile",
+        json={"openai_chat_model": "gpt-4o"},
+    )
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_profile_update_invalid_provider_is_422(auth_client):
+    resp = await auth_client.patch(
+        "/api/auth/profile",
+        json={"llm_provider": "nvidia"},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_profile_update_valid_provider_succeeds(auth_client):
+    resp = await auth_client.patch(
+        "/api/auth/profile",
+        json={"llm_provider": "openai"},
+    )
+    assert resp.status_code == 200
+
+
+# ── Email verification flow (F4) ──────────────────────────────────────────────
+# Users are seeded directly in the DB (bypassing the rate-limited /signup route)
+# so these tests don't compete with the signup rate-limit bucket.
+
+async def _seed_unverified_user(db_session_factory, email: str):
+    """Create a user row with email_verified=False and a verification token."""
+    import secrets as _secrets
+    from app.models.user import User
+    from app.core.security import hash_password
+    token = _secrets.token_urlsafe(32)
+    user = User(
+        email=email,
+        name="unverifyme",
+        auth_provider="email",
+        password_hash=hash_password("supersecret123"),
+        email_verified=False,
+        email_verification_token=token,
+    )
+    async with db_session_factory() as s:
+        s.add(user)
+        await s.commit()
+        await s.refresh(user)
+    return user, token
+
+
+@pytest.mark.asyncio
+async def test_unverified_user_cannot_access_finance(app, db_session_factory):
+    """require_verified blocks unverified users from area endpoints."""
+    import uuid
+    from httpx import AsyncClient, ASGITransport
+    from app.core.security import create_access_token
+
+    email = f"unverified-{uuid.uuid4().hex[:8]}@test.dev"
+    user, _token = await _seed_unverified_user(db_session_factory, email)
+
+    jwt = create_access_token({"sub": str(user.id)})
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        ac.cookies.set("aios_token", jwt)
+        resp = await ac.get("/api/areas/finance/expenses")
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_verify_email_token_grants_access(app, db_session_factory):
+    """Valid token → email_verified=True; subsequent requests with reissued cookie succeed."""
+    import uuid
+    from httpx import AsyncClient, ASGITransport
+
+    email = f"tokenv-{uuid.uuid4().hex[:8]}@test.dev"
+    _user, token = await _seed_unverified_user(db_session_factory, email)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        verify_resp = await ac.get(f"/api/auth/verify-email?token={token}")
+        assert verify_resp.status_code == 200
+        assert "aios_token" in verify_resp.headers.get("set-cookie", "")
+
+        # Finance should now succeed with the reissued cookie.
+        finance_resp = await ac.get("/api/areas/finance/expenses")
+        assert finance_resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_verify_email_reusing_token_fails(app, db_session_factory):
+    """Consuming the token clears it; a second use of the same token is 400."""
+    import uuid
+    from httpx import AsyncClient, ASGITransport
+
+    email = f"reuse-{uuid.uuid4().hex[:8]}@test.dev"
+    _user, token = await _seed_unverified_user(db_session_factory, email)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r1 = await ac.get(f"/api/auth/verify-email?token={token}")
+        assert r1.status_code == 200
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        r2 = await ac.get(f"/api/auth/verify-email?token={token}")
+        assert r2.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_verify_email_with_invalid_token_is_400(client):
+    resp = await client.get("/api/auth/verify-email?token=totallybogustoken")
+    assert resp.status_code == 400

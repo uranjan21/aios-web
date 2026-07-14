@@ -157,7 +157,11 @@ def _isolation_tables():
     from app.models.integration import IntegrationCredential
     from app.models.agent import Agent
     from app.models.push import PushSubscription
-    from app.models.billing import Subscription, AIUsageRecord
+    from app.models.billing import Subscription, AIUsageRecord, FailedWebhook
+    from app.models.action import AgentAction
+    from app.models.forecast import Forecast
+    from app.models.automations import AutomationRule
+    from app.models.admin_audit import AdminAuditLog
     from app.models.workspace import Project, Sprint, Task
     from app.models.goal import MacroGoal, GoalProgress
     from app.models.content import ContentItem, ContentCampaign
@@ -170,6 +174,7 @@ def _isolation_tables():
     from app.models.vault import VaultFile, VaultConflict
     return [m.__table__ for m in (
         User, ChatSession, ChatMessage, Capture, IntegrationCredential, Agent, PushSubscription, Subscription, AIUsageRecord,
+        FailedWebhook, AgentAction, Forecast, AutomationRule, AdminAuditLog,
         Project, Sprint, Task, MacroGoal, GoalProgress, ContentItem, ContentCampaign,
         HealthLog, HealthGoal, Habit, HabitCheck, WorkoutSession, WorkoutSet, FoodItem,
         FinanceExpense, FinanceIncome, FinanceTransfer, Account, FinancePendingTransaction, CareerEvent, JobOpportunity, BusinessEvent,
