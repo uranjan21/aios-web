@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import styled from "styled-components";
 import { Card } from "@ledgr/ui";
 import { LayoutDashboard } from "lucide-react";
+import { SIDEBAR_WIDTH, TOPBAR_HEIGHT } from "@/theme/layout";
 
 interface WorkspaceLayoutProps {
   children: ReactNode;
@@ -31,10 +32,10 @@ const StyledRail = styled(Card)`
   align-self: flex-start;
 
   @media (min-width: 1024px) {
-    width: 280px;
+    width: ${SIDEBAR_WIDTH};
     position: sticky;
     top: 24px;
-    max-height: calc(100dvh - 48px);
+    max-height: calc(100dvh - ${TOPBAR_HEIGHT});
     overflow-y: auto;
   }
 `;
@@ -46,7 +47,7 @@ const Main = styled.main`
 
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
 `;
 
 export function WorkspaceLayout({ children, rail }: WorkspaceLayoutProps) {

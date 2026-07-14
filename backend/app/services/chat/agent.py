@@ -102,8 +102,19 @@ async def stream_chat_response(
             if user.openai_api_key_encrypted:
                 openai_api_key = decrypt_token(user.openai_api_key_encrypted)
 
+    # Fall back to whichever provider actually has a key — a stored per-user
+    # preference or a legacy LLM_PROVIDER value (e.g. "nvidia") must not crash
+    # the turn.
+    if effective_provider not in ("openai", "anthropic"):
+        effective_provider = "openai" if openai_api_key else "anthropic"
     if effective_provider == "openai" and not openai_api_key and anthropic_api_key:
         effective_provider = "anthropic"
+    elif effective_provider == "anthropic" and not anthropic_api_key and openai_api_key:
+        effective_provider = "openai"
+
+    if effective_provider == "anthropic" and not anthropic_api_key:
+        yield {"type": "error", "code": "no_api_key", "message": "No AI provider key is configured."}
+        return
 
     if effective_provider == "openai":
         from app.services.chat.openai_agent import stream_openai_chat_response

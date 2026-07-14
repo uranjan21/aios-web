@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import styled from "styled-components";
+import { BOTTOM_NAV_HEIGHT } from "@/theme/layout";
 
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
@@ -40,7 +41,7 @@ const MobileBackdrop = styled.div<{ $show: boolean }>`
 
 const Root = styled.div`
   display: flex;
-  min-height: 100dvh;
+  height: 100dvh;
   overflow: hidden;
   position: relative;
 
@@ -80,7 +81,7 @@ const ContentArea = styled.main`
   overscroll-behavior: contain;
 
   @media (max-width: 768px) {
-    padding-bottom: 72px;
+    padding-bottom: ${BOTTOM_NAV_HEIGHT};
   }
 `;
 

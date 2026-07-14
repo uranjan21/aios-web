@@ -10,10 +10,11 @@ import {
   DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
 } from '@ledgr/ui'
 import styled from 'styled-components'
+import { TOPBAR_HEIGHT } from '@/theme/layout'
 
 const HeaderRoot = styled.header`
   position: relative;
-  height: 48px;
+  height: ${TOPBAR_HEIGHT};
   flex-shrink: 0;
   z-index: 30;
   border-bottom: 1px solid ${({ theme }) => theme.color.border};

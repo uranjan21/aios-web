@@ -18,7 +18,7 @@ dependencies = [
     "PyJWT==2.8.0",
     "passlib[bcrypt]==1.7.4",
     "anthropic>=0.40,<1",
-    "openai==1.47.0",
+    "openai>=1.55,<2",
     "watchdog==5.0.2",
     "slowapi==0.1.9",
     "cryptography==43.0.1",

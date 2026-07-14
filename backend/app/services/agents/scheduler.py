@@ -65,6 +65,19 @@ def _job_id(task_id: str, user_id) -> str:
     return f"{task_id}:{user_id}"
 
 
+def _safe_tz(tz: str | None) -> str:
+    """Validate an IANA tz string, falling back to UTC on anything unknown."""
+    if not tz:
+        return "UTC"
+    try:
+        from zoneinfo import ZoneInfo
+        ZoneInfo(tz)
+        return tz
+    except Exception:
+        logger.warning("Unknown agent timezone %r — using UTC", tz)
+        return "UTC"
+
+
 async def _run_global_job(module_name: str, func_name: str) -> None:
     from app.models.user import User
     from sqlmodel import select
@@ -151,7 +164,7 @@ async def start_scheduler() -> None:
             try:
                 scheduler.add_job(
                     _dispatch,
-                    trigger=CronTrigger.from_crontab(agent.cron_expression, timezone="UTC"),
+                    trigger=CronTrigger.from_crontab(agent.cron_expression, timezone=_safe_tz(agent.tz)),
                     args=[agent.task_id, agent.user_id],
                     id=_job_id(agent.task_id, agent.user_id),
                     replace_existing=True,
@@ -287,7 +300,7 @@ async def start_scheduler() -> None:
         logger.error("APScheduler startup failed (non-fatal): %s", e)
 
 
-def reschedule_agent(task_id: str, cron_expression: str, is_active: bool, user_id: uuid.UUID = None) -> None:
+def reschedule_agent(task_id: str, cron_expression: str, is_active: bool, user_id: uuid.UUID = None, tz: str | None = None) -> None:
     """Call after PATCH /agents/:id to keep scheduler in sync."""
     scheduler = get_scheduler()
     if not scheduler.running:
@@ -297,7 +310,7 @@ def reschedule_agent(task_id: str, cron_expression: str, is_active: bool, user_i
         try:
             scheduler.add_job(
                 _dispatch,
-                trigger=CronTrigger.from_crontab(cron_expression, timezone="UTC"),
+                trigger=CronTrigger.from_crontab(cron_expression, timezone=_safe_tz(tz)),
                 args=[task_id, user_id],
                 id=job_id,
                 replace_existing=True,

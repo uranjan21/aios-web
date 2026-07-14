@@ -15,6 +15,7 @@ import { DiscoveriesFeed } from "@/components/dashboard/DiscoveriesFeed";
 import { LifeHeatmap } from "@/components/dashboard/LifeHeatmap";
 import { BriefingCard } from "@/components/dashboard/BriefingCard";
 import { PulseRow } from "@/components/dashboard/PulseRow";
+import { SavedQuotesCard } from "@/components/dashboard/SavedQuotesCard";
 import { PageContainer, PageContent } from "@/components/layout/PageLayout";
 const DashboardGrid = styled.div`
   display: grid;
@@ -195,6 +196,13 @@ export function DashboardPage() {
           <RowOnly>
             <CardFill>
               <LifeHeatmap />
+            </CardFill>
+          </RowOnly>
+
+          {/* Row 7 — Saved Quotes */}
+          <RowOnly>
+            <CardFill>
+              <SavedQuotesCard />
             </CardFill>
           </RowOnly>
         </LeftColumn>

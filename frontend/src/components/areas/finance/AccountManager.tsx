@@ -1,11 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import React, { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Popconfirm } from '@/components/ui/Popconfirm'
-import { Button, EmptyState, DataTable, Select, Card, Input } from '@ledgr/ui'
-import { Trash2, Wallet, X, PencilLine, ArrowLeftRight, TrendingUp, TrendingDown, Plus } from 'lucide-react'
+import { Button, EmptyState, DataTable, Select, Card, Input, Sheet } from '@ledgr/ui'
+import { Trash2, Wallet, PencilLine, ArrowLeftRight, TrendingUp, TrendingDown, Plus } from 'lucide-react'
 import { toast } from 'sonner'
-import styled, { keyframes } from 'styled-components'
+import styled from 'styled-components'
 import dayjs from 'dayjs'
 import { financeApi } from '@/api/areas'
 import { formatCurrency } from '@/lib/utils'
@@ -36,90 +35,6 @@ type EditState = { name: string; type: string; balance: string; currency: string
 const EMPTY_EDIT: EditState = { name: '', type: 'checking', balance: '0', currency: 'INR' }
 
 // ── Styled ───────────────────────────────────────────────────────────────────
-
-const slideIn = keyframes`
-  from { transform: translateX(100%); }
-  to   { transform: translateX(0); }
-`
-
-const Overlay = styled.div<{ $visible: boolean }>`
-  position: fixed;
-  inset: 0;
-  z-index: ${({ theme }) => theme.zIndex.modal - 1};
-  background: rgba(0, 0, 0, 0.3);
-  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
-  pointer-events: ${({ $visible }) => ($visible ? 'all' : 'none')};
-  transition: opacity 200ms ease;
-`
-
-const Panel = styled.aside<{ $visible: boolean }>`
-  position: fixed;
-  top: 0;
-  right: 0;
-  height: 100%;
-  width: 420px;
-  max-width: 100vw;
-  z-index: ${({ theme }) => theme.zIndex.modal};
-  background: ${({ theme }) => theme.color.background};
-  border-left: 1px solid ${({ theme }) => theme.color.border};
-  display: flex;
-  flex-direction: column;
-  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.12);
-  transform: ${({ $visible }) => ($visible ? 'translateX(0)' : 'translateX(100%)')};
-  transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
-  overflow: hidden;
-
-  @media (max-width: 480px) { width: 100vw; }
-`
-
-const PanelHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid ${({ theme }) => theme.color.border};
-  flex-shrink: 0;
-`
-
-const PanelTitle = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-`
-
-const PanelName = styled.h3`
-  font-size: 15px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.color.foreground};
-  margin: 0;
-`
-
-const PanelBalance = styled.span`
-  font-size: 12px;
-  color: ${({ theme }) => theme.color.mutedForeground};
-`
-
-const CloseBtn = styled.button`
-  width: 32px;
-  height: 32px;
-  border-radius: ${({ theme }) => theme.radii.md};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  flex-shrink: 0;
-  &:hover { background: ${({ theme }) => theme.color.muted}; }
-`
-
-const PanelBody = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-`
 
 const Section = styled.div`
   padding: 16px 20px;
@@ -309,8 +224,6 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
   const [form, setForm] = useState<EditState>(EMPTY_EDIT)
   const [editingTxn, setEditingTxn] = useState<Txn | null>(null)
   const [txnModalOpen, setTxnModalOpen] = useState(false)
-  const panelRef = useRef<HTMLDivElement>(null)
-  const visible = !!account
 
   // Hydrate form when account changes
   useEffect(() => {
@@ -323,14 +236,6 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
       })
     }
   }, [account])
-
-  // Close on Escape
-  useEffect(() => {
-    if (!visible) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [visible, onClose])
 
   const { data: ledger, isLoading: ledgerLoading } = useQuery({
     queryKey: ['finance', 'accounts', account?.id, 'ledger'],
@@ -382,23 +287,16 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
 
   const entries: LedgerEntry[] = ledger?.entries ?? []
 
-  return createPortal(
+  return (
     <>
-      <Overlay $visible={visible} onClick={onClose} />
-      <Panel $visible={visible} ref={panelRef} role="dialog" aria-modal="true" aria-label="Edit account">
-        <PanelHeader>
-          <PanelTitle>
-            <PanelName>{account?.name ?? 'Account'}</PanelName>
-            <PanelBalance>
-              {account?.currency} {account ? Number(account.balance).toFixed(2) : ''}
-            </PanelBalance>
-          </PanelTitle>
-          <CloseBtn onClick={onClose} aria-label="Close panel">
-            <X size={15} />
-          </CloseBtn>
-        </PanelHeader>
-
-        <PanelBody>
+      <Sheet
+        open={!!account}
+        onOpenChange={v => { if (!v) onClose() }}
+        side="right"
+        size="420px"
+        title={account?.name ?? 'Account'}
+        description={account ? `${account.currency} ${Number(account.balance).toFixed(2)}` : undefined}
+      >
           {/* ── Edit form ── */}
           <Section>
             <SectionLabel>Account details</SectionLabel>
@@ -535,8 +433,7 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
               )}
             </TxnList>
           </TxnSection>
-        </PanelBody>
-      </Panel>
+      </Sheet>
 
       {/* Reuse the full TransactionModal for editing individual transactions */}
       <TransactionModal
@@ -545,8 +442,7 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
         editing={editingTxn}
         initialKind={(editingTxn?.type === 'income' ? 'Income' : editingTxn?.type === 'transfer' ? 'Transfer' : 'Expense') as Kind}
       />
-    </>,
-    document.body,
+    </>
   )
 }
 

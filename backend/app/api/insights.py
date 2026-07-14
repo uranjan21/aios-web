@@ -1,4 +1,5 @@
 import datetime as dt
+import logging
 import uuid
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -13,6 +14,7 @@ from app.models.user import User
 from app.models.insights import BriefingPreference, Briefing, Insight
 
 router = APIRouter(prefix="/api/insights", tags=["insights"])
+logger = logging.getLogger(__name__)
 
 class BriefingPrefUpdate(BaseModel):
     enabled: bool
@@ -68,6 +70,26 @@ async def update_briefing_preferences(
         
     await db.commit()
     await db.refresh(pref)
+
+    # Timezone is the user's single source of truth — propagate it to their
+    # agents so scheduled crons fire in the same local time, and live-reschedule
+    # the active ones.
+    try:
+        from app.models.agent import Agent
+        from app.services.agents.scheduler import reschedule_agent
+        agents = (await db.execute(
+            select(Agent).where(Agent.user_id == current_user.id)
+        )).scalars().all()
+        for agent in agents:
+            if agent.tz != prefs.tz:
+                agent.tz = prefs.tz
+                db.add(agent)
+        await db.commit()
+        for agent in agents:
+            reschedule_agent(agent.task_id, agent.cron_expression, agent.is_active, agent.user_id, agent.tz)
+    except Exception as e:
+        logger.warning("Failed to propagate tz to agents: %s", e)
+
     return pref
 
 @router.get("/briefing/preferences")

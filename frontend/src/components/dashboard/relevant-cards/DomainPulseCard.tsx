@@ -106,7 +106,7 @@ export function DomainPulseCard() {
   ]
 
   return (
-    <Card title="Domain Pulse" subtitle="At-a-glance across all 5 life areas" icon={<Layers size={14} style={{ color: '#1C1917' }} />}>
+    <Card title="Domain Pulse" subtitle="At-a-glance across all 5 life areas" icon={<Layers size={14} style={{ color: 'var(--foreground)' }} />}>
       <PulseGrid>
         {tiles.map((t) => (
           <PulseTile key={t.label} $accent={t.color} onClick={() => navigate(t.path)} aria-label={`${t.label}: ${t.value}`}>

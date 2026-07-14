@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import time
 import uuid
 from collections import deque
@@ -169,9 +170,11 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
                     continue
 
             if not session_id_str:
+                # Title from the first message — free, keeps history scannable.
+                # Strip the frontend's hidden [System: ...] context lines first.
+                visible = re.sub(r"^(\s*\[System:[^\]]*\]\s*)+", "", user_content).strip()
                 async with AsyncSessionLocal() as session:
-                    # Title from the first message — free, keeps history scannable.
-                    new_session = ChatSession(user_id=user_id, title=user_content.strip()[:60] or None)
+                    new_session = ChatSession(user_id=user_id, title=visible[:60] or None)
                     session.add(new_session)
                     await session.commit()
                     await session.refresh(new_session)

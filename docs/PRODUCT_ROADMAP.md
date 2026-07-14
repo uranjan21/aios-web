@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-21 · **Owner:** Utsav · **Horizon:** 6 months to credible paid launch
 
-This document defines *what AIOS becomes* and *how it gets there*. It assumes the ship-blockers in [`SHIP_READINESS_AUDIT.md`](./SHIP_READINESS_AUDIT.md) are fixed first — none of the growth work below matters while the app leaks tenant data and can't take a payment.
+This document defines *what AIOS becomes* and *how it gets there*. It assumes the ship-blockers documented in `CLAUDE.md` § "ship-readiness audit" are fixed first — none of the growth work below matters while the app leaks tenant data and can't take a payment.
 
 ---
 

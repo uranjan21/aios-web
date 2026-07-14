@@ -2,7 +2,6 @@ import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Rocket, Plus, Briefcase } from 'lucide-react'
 import { PageContainer, PageContent } from '@/components/layout/PageLayout'
-import { PageDivider } from '@/components/layout/PageDivider'
 import { PageHeader, Button, Card as GlassCard, Badge } from '@ledgr/ui'
 import { EmptyState } from '@ledgr/ui'
 import styled from 'styled-components'
@@ -72,7 +71,6 @@ export function BusinessPage() {
               </Button>
             }
           />
-        <PageDivider />
         <WorkspaceStatsWidget domain="business" />
         {isLoading ? (
           <Grid>

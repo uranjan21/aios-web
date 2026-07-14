@@ -14,12 +14,13 @@ import {
   FolderKanban, ListTodo, Zap, ChevronsUpDown
 } from 'lucide-react'
 import styled, { css } from 'styled-components'
+import { SIDEBAR_NAV_WIDTH, SIDEBAR_NAV_COLLAPSED_WIDTH } from '@/theme/layout'
 
 const SidebarRoot = styled.aside<{ $collapsed: boolean; $mobileOpen?: boolean }>`
   position: relative;
   display: flex;
   flex-direction: column;
-  width: ${({ $collapsed }) => ($collapsed ? '64px' : '224px')};
+  width: ${({ $collapsed }) => ($collapsed ? SIDEBAR_NAV_COLLAPSED_WIDTH : SIDEBAR_NAV_WIDTH)};
   height: 100vh;
   flex-shrink: 0;
   background: ${({ theme }) => theme.chrome.bg};
@@ -43,7 +44,7 @@ const SidebarRoot = styled.aside<{ $collapsed: boolean; $mobileOpen?: boolean }>
     top: 0;
     left: 0;
     height: 100dvh;
-    width: 224px !important;
+    width: ${SIDEBAR_NAV_WIDTH} !important;
     z-index: 200;
     transform: ${({ $mobileOpen }) => $mobileOpen ? 'translateX(0)' : 'translateX(-100%)'};
     transition: transform 220ms cubic-bezier(0.2, 0, 0, 1), width 0ms;

@@ -22,6 +22,9 @@ class Agent(SQLModel, table=True):
     name: str = Field(nullable=False)
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     cron_expression: str = Field(nullable=False)
+    # IANA timezone the cron is interpreted in (e.g. "Asia/Kolkata"). The scheduler
+    # registers CronTrigger with this, so "0 6 * * *" fires at the user's local 6am.
+    tz: str = Field(default="UTC", sa_column=Column(Text, nullable=False, server_default="UTC"))
     is_active: bool = Field(default=True, nullable=False)
     last_run_at: Optional[datetime] = None
     last_run_status: Optional[str] = None

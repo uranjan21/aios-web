@@ -135,7 +135,7 @@ const StyledCard = styled.div<{
 
 export const CardHeader = styled.div<{ $inset?: boolean }>`
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   padding-bottom: 8px;
@@ -148,7 +148,7 @@ export const CardHeader = styled.div<{ $inset?: boolean }>`
     padding-bottom: 12px;
     margin-bottom: 16px;
     gap: 12px;
-    align-items: flex-start;
+    align-items: center;
     flex-wrap: nowrap;
   }
 

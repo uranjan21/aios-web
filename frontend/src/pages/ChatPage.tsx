@@ -17,7 +17,7 @@ import { PageDivider } from '@/components/layout/PageDivider'
 import { useChat } from '@/hooks/useChat'
 import { chatApi } from '@/api/chat'
 import { AssistantChatInput, AttachedFile } from '@/components/assistant/AssistantChatInput'
-import { buildHiddenContext } from '@/components/assistant/GlobalAssistant'
+import { buildHiddenContext } from '@/components/assistant/chatUtils'
 import { Message } from '@/components/assistant/messages'
 import { SessionList } from '@/components/assistant/SessionList'
 
@@ -117,10 +117,8 @@ export function ChatPage() {
 
   const [input, setInput] = useState('')
   const [model, setModel] = useState('system')
-  const [pendingPrefill, setPendingPrefill] = useState<string | null>(
-    () => (location.state as { prefill?: string } | null)?.prefill ?? null
-  )
-  const prefillSentRef = useRef(false)
+  const [pendingPrefill, setPendingPrefill] = useState<string | null>(null)
+  const sentPrefillRef = useRef<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const pinnedRef = useRef(true)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -136,18 +134,21 @@ export function ChatPage() {
     staleTime: 60_000,
   })
 
-  // Clear the prefill from history so a refresh doesn't re-send it.
+  // Capture the ⌘K question from router state — must also fire when already
+  // on /app/chat (navigation only swaps state, no remount) — then clear it
+  // from history so a refresh doesn't re-send.
   useEffect(() => {
-    if ((location.state as { prefill?: string } | null)?.prefill) {
+    const prefill = (location.state as { prefill?: string } | null)?.prefill
+    if (prefill) {
+      setPendingPrefill(prefill)
       navigate(location.pathname, { replace: true })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [location.state, location.pathname, navigate])
 
-  // Auto-send the ⌘K question once the socket is up.
+  // Auto-send once the socket is up (ref guard: StrictMode runs effects twice).
   useEffect(() => {
-    if (connected && pendingPrefill && !prefillSentRef.current) {
-      prefillSentRef.current = true
+    if (connected && pendingPrefill && sentPrefillRef.current !== pendingPrefill) {
+      sentPrefillRef.current = pendingPrefill
       sendMessage(pendingPrefill, buildHiddenContext(pendingPrefill, location.pathname))
       setPendingPrefill(null)
     }

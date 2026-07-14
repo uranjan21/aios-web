@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@ledgr/ui'
 import styled from 'styled-components'

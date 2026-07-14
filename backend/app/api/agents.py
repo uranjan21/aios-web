@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlmodel import select
 
 from app.core.deps import get_current_user, get_db
-from app.core.entitlements import require_plan
+from app.core.entitlements import require_module
 from app.core.rate_limit import limiter
 from app.db.session import AsyncSessionLocal
 from app.models.agent import Agent
@@ -25,7 +25,10 @@ DEFAULT_AGENTS = [
     {"task_id": "aios-professional-pulse", "name": "Professional Pulse", "cron_expression": "0 7 * * 1", "description": "Weekly career and business review, identifying blockers and highest leverage actions"},
     {"task_id": "aios-content-strategist", "name": "Content Strategist", "cron_expression": "0 19 * * 0", "description": "Weekly content performance review and 7-day calendar planning"},
     {"task_id": "aios-monthly-finance", "name": "Monthly Finance", "cron_expression": "0 9 1 * *", "description": "Monthly finance snapshot generation"},
-    {"task_id": "aios-weekly-refresh", "name": "Weekly Refresh", "cron_expression": "0 20 * * 0", "description": "Weekly goals and context refresh"},
+    # aios-weekly-refresh retired from the default roster (2026-07-12): it
+    # overlapped Professional Pulse + the Weekly Review page + Morning Brief and
+    # was already off by default. Existing users keep their row; runners.py still
+    # handles it so those can be triggered/deleted at will. Just no longer seeded.
     {"task_id": "aios-health-coach", "name": "Health Coach", "cron_expression": "0 6 * * 1", "description": "Weekly health check-in from fitness metrics, logs and habits"},
     {"task_id": "aios-upi-tracker", "name": "UPI Tracker", "cron_expression": "0 6 * * *", "description": "Fetches and categorizes UPI transactions from your emails."},
     {"task_id": "aios-vault-extractor", "name": "Vault Extractor", "cron_expression": "0 23 * * *", "description": "Daily bulk vault extraction sweep"},
@@ -40,10 +43,16 @@ _ACTIVE_BY_DEFAULT = {
 
 async def seed_default_agents_for_user(user_id) -> None:
     """Idempotently create the default agent set for one user."""
+    from app.models.insights import BriefingPreference
     async with AsyncSessionLocal() as session:
         have = set((await session.execute(
             select(Agent.task_id).where(Agent.user_id == user_id)
         )).scalars().all())
+        # Seed crons in the user's own timezone so "06:00" means their local 6am.
+        pref = (await session.execute(
+            select(BriefingPreference).where(BriefingPreference.user_id == user_id)
+        )).scalar_one_or_none()
+        user_tz = pref.tz if pref and pref.tz else "UTC"
         added = False
         for agent_data in DEFAULT_AGENTS:
             if agent_data["task_id"] in have:
@@ -51,6 +60,7 @@ async def seed_default_agents_for_user(user_id) -> None:
             session.add(Agent(
                 **agent_data,
                 user_id=user_id,
+                tz=user_tz,
                 is_active=agent_data["task_id"] in _ACTIVE_BY_DEFAULT,
             ))
             added = True
@@ -91,6 +101,7 @@ async def get_agent(agent_id: str, current_user=Depends(get_current_user), db=De
 class AgentPatch(BaseModel):
     is_active: bool | None = None
     cron_expression: str | None = None
+    tz: str | None = None
     llm_provider: str | None = None
     openai_chat_model: str | None = None
     claude_model: str | None = None
@@ -107,6 +118,13 @@ async def patch_agent(agent_id: str, body: AgentPatch, current_user=Depends(get_
         agent.is_active = body.is_active
     if body.cron_expression is not None:
         agent.cron_expression = body.cron_expression
+    if body.tz is not None:
+        try:
+            from zoneinfo import ZoneInfo
+            ZoneInfo(body.tz)
+        except Exception:
+            raise HTTPException(status_code=422, detail="Unknown timezone")
+        agent.tz = body.tz
     if body.llm_provider is not None:
         if validate_provider(body.llm_provider) is None:
             raise HTTPException(status_code=422, detail="Unknown provider")
@@ -125,13 +143,13 @@ async def patch_agent(agent_id: str, body: AgentPatch, current_user=Depends(get_
     await db.refresh(agent)
     try:
         from app.services.agents.scheduler import reschedule_agent
-        reschedule_agent(agent.task_id, agent.cron_expression, agent.is_active, agent.user_id)
+        reschedule_agent(agent.task_id, agent.cron_expression, agent.is_active, agent.user_id, agent.tz)
     except Exception as e:
         logger.warning("Scheduler sync failed for agent %s: %s", agent_id, e)
     return agent
 
 
-@router.post("/{agent_id}/trigger", dependencies=[Depends(require_plan("pro"))])
+@router.post("/{agent_id}/trigger", dependencies=[Depends(require_module("agents"))])
 @limiter.limit("5/minute")
 async def trigger_agent(request: Request, agent_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(select(Agent).where(Agent.task_id == agent_id, Agent.user_id == current_user.id))

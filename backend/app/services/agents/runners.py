@@ -12,6 +12,8 @@ import uuid
 from datetime import date, datetime, timedelta
 import json
 
+from sqlmodel import select
+
 from app.db.session import AsyncSessionLocal
 from app.services.ai.insights import generate_text
 from app.services.notifications.push import send_push_to_all
@@ -118,6 +120,15 @@ _WRITEBACK_INSTRUCTIONS = (
     "Use the block only when the action is clearly justified by the data. Keep the human summary above the block."
 )
 
+# Deep-link the push notification to the relevant surface (was hardcoded to
+# /app/finance for every agent).
+_PUSH_LINKS: dict[str, str] = {
+    "aios-morning-brief": "/app",
+    "aios-health-coach": "/app/areas/health",
+    "aios-monthly-finance": "/app/areas/finance",
+    "aios-upi-tracker": "/app/areas/finance",
+}
+
 # Which extra context each agent gets beyond the base week-facts.
 _CONTEXT_KINDS: dict[str, set[str]] = {
     "aios-morning-brief": {"calendar", "gmail", "knowledge"},
@@ -192,6 +203,75 @@ async def _knowledge_section(user_id: uuid.UUID, query: str) -> str:
     return "## From your knowledge base\n" + "\n".join(lines)
 
 
+async def _morning_facts(session, user_id: uuid.UUID) -> str:
+    """Day-scoped facts for the morning brief: yesterday's activity + today's
+    obligations + open priorities. A *daily* brief doesn't need a 7-day recap —
+    this is both cheaper and fresher than the cross-domain week-facts.
+
+    Each pull is best-effort: one failing data source degrades that line rather
+    than crashing the whole agent run (mirrors the integration-section pattern).
+    """
+    from app.models.finance import FinanceExpense, FinanceBill
+    from app.models.health import HealthLog
+    from app.models.captures import Capture
+    from app.models.workspace import Task
+
+    now = datetime.utcnow()
+    yesterday = now - timedelta(days=1)
+    today = now.date()
+
+    async def _rows(stmt) -> list:
+        try:
+            return list((await session.execute(stmt)).scalars().all())
+        except Exception as e:
+            logger.warning("morning_facts query failed: %s", e)
+            return []
+
+    expenses = await _rows(select(FinanceExpense).where(
+        FinanceExpense.user_id == user_id,
+        FinanceExpense.logged_at >= yesterday, FinanceExpense.logged_at < now))
+    spent = sum(float(e.amount) for e in expenses)
+
+    logs = await _rows(select(HealthLog).where(
+        HealthLog.user_id == user_id,
+        HealthLog.logged_at >= yesterday, HealthLog.logged_at < now))
+    gym = len([l for l in logs if l.entry_type == "gym"])
+    sleep_vals = [float(l.value or 0) for l in logs if l.entry_type == "sleep"]
+    avg_sleep = (sum(sleep_vals) / len(sleep_vals)) if sleep_vals else None
+
+    captures = await _rows(select(Capture).where(
+        Capture.user_id == user_id,
+        Capture.created_at >= yesterday, Capture.created_at < now))
+
+    bills = await _rows(select(FinanceBill).where(
+        FinanceBill.user_id == user_id,
+        FinanceBill.is_active == True,  # noqa: E712
+        FinanceBill.due_day == today.day))
+
+    open_tasks = await _rows(select(Task).where(
+        Task.user_id == user_id,
+        Task.status != "done",
+        Task.priority.in_(["high", "urgent"])).limit(5))
+
+    lines = [
+        "## Yesterday",
+        f"• Spent ₹{spent:.0f} across {len(expenses)} transaction(s)",
+        f"• Workouts: {gym}" + (f", avg sleep {avg_sleep:.1f}h" if avg_sleep else ""),
+        f"• {len(captures)} quick-capture entries",
+        "## Today",
+        f"• {len(bills)} bill(s) due today",
+    ]
+    if open_tasks:
+        lines.append("## Open high-priority tasks")
+        lines += [
+            f"• [{t.priority}] {t.title}" + (f" (due {t.due_date})" if t.due_date else "")
+            for t in open_tasks
+        ]
+    else:
+        lines.append("• No high-priority tasks open")
+    return "\n".join(lines)
+
+
 async def _build_context(task_id: str, user_id: uuid.UUID) -> str:
     """Builds a domain-scoped context containing only relevant facts and integrations."""
     domain = _AGENT_DOMAINS.get(task_id, "general")
@@ -199,7 +279,10 @@ async def _build_context(task_id: str, user_id: uuid.UUID) -> str:
     week_start = now - timedelta(days=7)
 
     async with AsyncSessionLocal() as session:
-        if domain == "finance":
+        if task_id == "aios-morning-brief":
+            # Daily brief → day-scoped facts (not the 7-day cross-domain recap).
+            facts = await _morning_facts(session, user_id)
+        elif domain == "finance":
             from app.services.insights.digest import _week_facts_finance
             facts = await _week_facts_finance(session, user_id, week_start)
         elif domain == "health":
@@ -292,6 +375,19 @@ async def run_agent_task(task_id: str, user_id: uuid.UUID) -> str:
     """Execute one agent and return its text output. Raises only on unexpected errors."""
     system, push_title = _SPECS.get(task_id, _DEFAULT_SPEC)
 
+    # Vault extractor is a pure DB sweep, not an LLM call — it must run regardless
+    # of AI quota and must NOT burn an AI credit. (Previously it was gated behind
+    # ai_allowed, so over-quota users silently stopped syncing, and it metered a
+    # credit every day for no LLM use.)
+    if task_id == "aios-vault-extractor":
+        from app.services.vault_sync.extractor import run_daily_vault_extraction
+        try:
+            await run_daily_vault_extraction(user_id)
+            return "Daily vault extraction sweep completed successfully."
+        except Exception as e:
+            logger.warning("Vault extraction failed for %s: %s", user_id, e)
+            return "Vault extraction sweep failed — see server logs."
+
     facts = await _build_context(task_id, user_id)
 
     # Respect the AI quota — same hard-cap rule as chat: a user over the free
@@ -311,23 +407,17 @@ async def run_agent_task(task_id: str, user_id: uuid.UUID) -> str:
         text = f"{FALLBACK_WARNING_PREFIX}{facts}"
     else:
         try:
-            # Special handling for internal vault extraction sweep
-            if task_id == "aios-vault-extractor":
-                from app.services.vault_sync.extractor import run_daily_vault_extraction
-                await run_daily_vault_extraction(user_id)
-                text = "Daily vault extraction sweep completed successfully."
-            else:
-                effective_system = system + (_WRITEBACK_INSTRUCTIONS if task_id in _WRITEBACK_ENABLED_TASKS else "")
-                text = await generate_text(
-                    effective_system, 
-                    facts, 
-                    max_tokens=900 if task_id != "aios-upi-tracker" else 1500, 
-                    user_id=str(user_id),
-                    override_provider=agent.llm_provider if agent else None,
-                    override_openai_model=agent.openai_chat_model if agent else None,
-                    override_claude_model=agent.claude_model if agent else None,
-                )
-            
+            effective_system = system + (_WRITEBACK_INSTRUCTIONS if task_id in _WRITEBACK_ENABLED_TASKS else "")
+            text = await generate_text(
+                effective_system,
+                facts,
+                max_tokens=900 if task_id != "aios-upi-tracker" else 1500,
+                user_id=str(user_id),
+                override_provider=agent.llm_provider if agent else None,
+                override_openai_model=agent.openai_chat_model if agent else None,
+                override_claude_model=agent.claude_model if agent else None,
+            )
+
             # Special handling for UPI tracker to extract JSON and save to DB
             if task_id == "aios-upi-tracker":
                 import json
@@ -385,7 +475,7 @@ async def run_agent_task(task_id: str, user_id: uuid.UUID) -> str:
                 except Exception as json_e:
                     logger.warning("Failed to parse UPI tracker JSON: %s. Raw: %s", json_e, text)
                     text = f"{FALLBACK_WARNING_PREFIX}Failed to parse transactions. Please try again. Raw input was:\n{facts}"
-            elif task_id != "aios-vault-extractor":
+            else:
                 narrative, actions = _extract_actions(text)
                 action_summaries, affected_paths = await _execute_actions(task_id, user_id, actions)
                 text = narrative or "(no output)"
@@ -404,7 +494,7 @@ async def run_agent_task(task_id: str, user_id: uuid.UUID) -> str:
     if push_title:
         try:
             preview = text.strip().split("\n", 1)[0][:120]
-            await send_push_to_all(user_id, push_title, preview, "/app/finance")
+            await send_push_to_all(user_id, push_title, preview, _PUSH_LINKS.get(task_id, "/app"))
         except Exception as e:
             logger.warning("Agent %s push failed: %s", task_id, e)
 

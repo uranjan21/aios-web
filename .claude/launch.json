@@ -1,11 +1,14 @@
 {
   "version": "0.0.1",
+  "autoPort": true,
   "configurations": [
     {
-      "name": "frontend",
+      "name": "aios-frontend",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--dir", "frontend", "dev"],
-      "port": 5173
+      "runtimeArgs": ["dev", "--port", "5205", "--strictPort"],
+      "cwd": "frontend",
+      "port": 5205,
+      "autoPort": true
     }
   ]
 }

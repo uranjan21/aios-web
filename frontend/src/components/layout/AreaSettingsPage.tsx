@@ -6,6 +6,7 @@ import { ArrowLeft, Plus } from "lucide-react";
 
 import { PageContainer, PageContent } from "./PageLayout";
 import { PageDivider } from "./PageDivider";
+import { SETTINGS_RAIL_WIDTH, TOPBAR_HEIGHT } from "@/theme/layout";
 
 export interface SettingsItem {
   key: string;
@@ -42,7 +43,7 @@ export const Shell = styled.div`
 `;
 
 export const NavRail = styled.nav`
-  width: 260px;
+  width: ${SETTINGS_RAIL_WIDTH};
   flex-shrink: 0;
 
   display: flex;
@@ -58,7 +59,7 @@ export const NavRail = styled.nav`
   @media (min-width: 1024px) {
     position: sticky;
     top: 24px;
-    max-height: calc(100dvh - 48px);
+    max-height: calc(100dvh - ${TOPBAR_HEIGHT});
     overflow-y: auto;
   }
 

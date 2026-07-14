@@ -85,10 +85,12 @@ async def test_build_context_scoped(user_a, db_session_factory):
     assert "HEALTH" in context_health
     assert "FINANCE" not in context_health
 
-    # For general task, both should be present
+    # Morning brief now uses DAY-scoped facts (yesterday + today), not the 7-day
+    # cross-domain recap — but it still surfaces both finance and health activity.
     context_general = await _build_context("aios-morning-brief", user_a.id)
-    assert "FINANCE" in context_general
-    assert "HEALTH" in context_general
+    assert "Yesterday" in context_general           # day-scoped structure
+    assert "Spent" in context_general               # finance activity present
+    assert "Workouts" in context_general            # health activity present
 
 
 @pytest.mark.asyncio

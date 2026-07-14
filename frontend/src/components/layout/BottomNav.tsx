@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { LayoutDashboard, MessageSquare, Bot, Grid3X3, MoreHorizontal } from 'lucide-react'
 import styled from 'styled-components'
+import { BOTTOM_NAV_HEIGHT } from '@/theme/layout'
 
 const Nav = styled.nav`
   display: flex;
@@ -8,7 +9,7 @@ const Nav = styled.nav`
   bottom: 0;
   left: 0;
   right: 0;
-  height: 64px;
+  height: ${BOTTOM_NAV_HEIGHT};
   background: color-mix(in srgb, ${({ theme }) => theme.color.card} 80%, transparent);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
