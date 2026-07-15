@@ -19,14 +19,8 @@ const CATEGORIES: Array<{ label: string; value: EventCategory }> = [
   { label: "Learning", value: "learning" },
 ];
 
-const CATEGORY_COLOR: Record<EventCategory, string> = {
-  work: "#0EA5E9",
-  personal: "#A855F7",
-  health: "#16A34A",
-  finance: "#CA8A04",
-  business: "#DC2626",
-  learning: "#0891B2",
-};
+// Category -> colour now lives in theme/domains.ts (categoryColor) so it
+// resolves through theme.domain and stays correct in dark mode.
 
 const MONTH_NAMES = [
   "January",
@@ -500,4 +494,3 @@ export function MonthlyCalendar({
   );
 }
 
-export { CATEGORY_COLOR };

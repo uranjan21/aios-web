@@ -1,4 +1,4 @@
-import styled from 'styled-components'
+import styled, { useTheme } from 'styled-components'
 import { useQuery } from '@tanstack/react-query'
 import { Layers, IndianRupee, Heart, Briefcase, Rocket, PenLine } from 'lucide-react'
 import { Card } from '@ledgr/ui'
@@ -76,6 +76,7 @@ const PulseValue = styled.span`
 
 export function DomainPulseCard() {
   const navigate = useNavigate()
+  const theme = useTheme()
   const { data: netWorth } = useQuery({ queryKey: ['finance', 'net-worth'], queryFn: financeApi.netWorth, staleTime: 60_000 })
   const { data: streak } = useQuery({ queryKey: ['health', 'streak'], queryFn: healthApi.streak, staleTime: 60_000 })
   const { data: career } = useQuery({ queryKey: ['career', 'summary'], queryFn: careerApi.summary, staleTime: 60_000 })
@@ -97,12 +98,15 @@ export function DomainPulseCard() {
     return Number.isFinite(n) && n > 0 ? formatCurrency(n) : '—'
   })()
 
+  // Colours come from theme.domain — the single source of truth for domain
+  // identity — so they stay correct in dark mode and can never drift from the
+  // sidebar, calendar or KPIs again.
   const tiles = [
-    { label: 'Finance', value: netWorth ? formatCurrency(netWorth.net_worth) : '—', color: '#CA8A04', icon: <IndianRupee size={14} />, path: '/app/areas/finance' },
-    { label: 'Health',  value: streak ? `${streak.current_streak}d` : '—', color: '#16A34A', icon: <Heart size={14} />, path: '/app/areas/health' },
-    { label: 'Career',  value: career?.total_skills != null ? `${career.total_skills} skills` : '—', color: '#0EA5E9', icon: <Briefcase size={14} />, path: '/app/areas/career' },
-    { label: 'Business',value: mrrValue, color: '#DC2626', icon: <Rocket size={14} />, path: '/app/areas/business' },
-    { label: 'Content', value: thisMonth !== null ? `${thisMonth}/mo` : '—', color: '#A855F7', icon: <PenLine size={14} />, path: '/app/areas/content' },
+    { label: 'Finance', value: netWorth ? formatCurrency(netWorth.net_worth) : '—', color: theme.domain.finance, icon: <IndianRupee size={14} />, path: '/app/areas/finance' },
+    { label: 'Health',  value: streak ? `${streak.current_streak}d` : '—', color: theme.domain.health, icon: <Heart size={14} />, path: '/app/areas/health' },
+    { label: 'Career',  value: career?.total_skills != null ? `${career.total_skills} skills` : '—', color: theme.domain.career, icon: <Briefcase size={14} />, path: '/app/areas/career' },
+    { label: 'Business',value: mrrValue, color: theme.domain.business, icon: <Rocket size={14} />, path: '/app/areas/business' },
+    { label: 'Content', value: thisMonth !== null ? `${thisMonth}/mo` : '—', color: theme.domain.content, icon: <PenLine size={14} />, path: '/app/areas/content' },
   ]
 
   return (

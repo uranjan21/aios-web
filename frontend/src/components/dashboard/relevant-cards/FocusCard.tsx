@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
-import styled from 'styled-components'
+import styled, { useTheme } from 'styled-components'
 import { Target, Clock } from 'lucide-react'
 import { Card } from '@ledgr/ui'
 import { useDayEventsStore, fmtDateKey, parseLocalDate } from '@/stores/dayEventsStore'
-import { CATEGORY_COLOR } from '../MonthlyCalendar'
+import { categoryColor } from '@/theme/domains'
 import { Empty } from './shared'
 
 /* ─────────────────── 3. FocusCard ─────────────────── */
@@ -56,6 +56,7 @@ const FocusMeta = styled.div`
 `
 
 export function FocusCard() {
+  const theme = useTheme()
   const todayKey = fmtDateKey(new Date())
   const events = useDayEventsStore((s) => s.events)
 
@@ -73,13 +74,13 @@ export function FocusCard() {
   }, [events, todayKey])
 
   return (
-    <Card title="Focus" subtitle="Next 3 things on deck" icon={<Target size={14} style={{ color: '#DC2626' }} />}>
+    <Card title="Focus" subtitle="Next 3 things on deck" icon={<Target size={14} style={{ color: theme.color.destructive }} />}>
       {top3.length === 0 ? (
         <Empty>Nothing scheduled yet. Add an event on the calendar to set your focus.</Empty>
       ) : (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           {top3.map((e, i) => {
-            const color = CATEGORY_COLOR[e.category] ?? '#6B7280'
+            const color = categoryColor(e.category, theme)
             const dateLabel = e.date === todayKey
               ? 'Today'
               : parseLocalDate(e.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' })

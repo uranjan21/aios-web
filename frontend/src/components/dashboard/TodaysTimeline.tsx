@@ -6,8 +6,8 @@ import {
 } from "@/stores/dayEventsStore";
 import { CalendarDays, Check, Clock, Trash2 } from "lucide-react";
 import { useMemo } from "react";
-import styled, { css } from "styled-components";
-import { CATEGORY_COLOR } from "./MonthlyCalendar";
+import styled, { css, useTheme } from "styled-components";
+import { categoryColor } from "@/theme/domains";
 
 interface TodaysTimelineProps {
   date: Date;
@@ -196,6 +196,7 @@ function endTime(e: DayEvent): string | null {
 }
 
 export function TodaysTimeline({ date }: TodaysTimelineProps) {
+  const theme = useTheme();
   const key = fmtDateKey(date);
   const today = fmtDateKey(new Date());
   const isToday = key === today;
@@ -245,7 +246,7 @@ export function TodaysTimeline({ date }: TodaysTimelineProps) {
       ) : (
         <Track>
           {events.map((e) => {
-            const color = CATEGORY_COLOR[e.category];
+            const color = categoryColor(e.category, theme);
             const end = endTime(e);
             return (
               <Item key={e.id} $done={!!e.done}>

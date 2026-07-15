@@ -76,27 +76,38 @@ function rgbChannels(hex: string): string {
 }
 
 /**
- * Domain identity colours. Deliberately CONSTANT across palettes — a domain
- * is an identity, like success/destructive, not a decorative accent. Light
- * variants are darkened for contrast on a stone ground; dark variants are the
- * exact values used by the login constellation.
+ * Domain identity colours — the single source of truth.
+ *
+ * Deliberately CONSTANT across palettes: a domain is an identity, like
+ * success/destructive, not a decorative accent. Only light/dark varies.
+ *
+ * Values are the convention the app already used consistently across
+ * DomainPulseCard, MonthlyCalendar, OverviewInsightCard and HabitsCard —
+ * NOT the set from the login mockup, which had Finance and Business inverted
+ * (decided 2026-07-15: the app wins, Finance stays gold for money=gold).
+ *
+ * Note the deliberate collision: `finance` IS the brand gold, which is also
+ * the HUD's chrome colour. Anywhere a Finance node sits on gold chrome it
+ * needs weight/brightness to separate it, not a different hue.
+ *
+ * Dark variants are lightened for contrast on a near-black ground.
  */
 const domainLight = {
-  finance: "#DC2626",
-  health: "#E11D48",
-  career: "#2563EB",
-  business: "#059669",
-  content: "#7C3AED",
+  finance: "#CA8A04",
+  health: "#16A34A",
+  career: "#0EA5E9",
+  business: "#DC2626",
+  content: "#A855F7",
   vault: "#0891B2",
   general: "#57534E",
 } as const;
 
 const domainDark = {
-  finance: "#EF4444",
-  health: "#F43F5E",
-  career: "#3B82F6",
-  business: "#10B981",
-  content: "#8B5CF6",
+  finance: "#CA8A04",
+  health: "#4ADE80",
+  career: "#38BDF8",
+  business: "#EF4444",
+  content: "#C084FC",
   vault: "#06B6D4",
   general: "#A8A29E",
 } as const;
