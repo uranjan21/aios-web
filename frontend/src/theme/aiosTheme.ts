@@ -55,6 +55,88 @@ const sharedFontFamily = {
   mono: '"DM Sans", monospace',
 } as const;
 
+/* ── HUD layer ──────────────────────────────────────────────────────────
+ * The visual language proven on the login page, expressed as tokens.
+ *
+ * Everything here is DERIVED from the active palette's own accent rather
+ * than hand-authored per palette. Consequence: all 6 palettes x 2 modes get
+ * a coherent HUD for free, and a 7th palette needs no HUD work at all.
+ *
+ * Rule of thumb for consumers: these are *chrome*. Ambient/animated HUD
+ * (the constellation) is a component, not a token, and never renders on a
+ * surface that shows data.
+ * ------------------------------------------------------------------- */
+
+/** "#CA8A04" → "202, 138, 4". Falls back to the brand gold. */
+function rgbChannels(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return "202, 138, 4";
+  const n = parseInt(m[1], 16);
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
+}
+
+/**
+ * Domain identity colours. Deliberately CONSTANT across palettes — a domain
+ * is an identity, like success/destructive, not a decorative accent. Light
+ * variants are darkened for contrast on a stone ground; dark variants are the
+ * exact values used by the login constellation.
+ */
+const domainLight = {
+  finance: "#DC2626",
+  health: "#E11D48",
+  career: "#2563EB",
+  business: "#059669",
+  content: "#7C3AED",
+  vault: "#0891B2",
+  general: "#57534E",
+} as const;
+
+const domainDark = {
+  finance: "#EF4444",
+  health: "#F43F5E",
+  career: "#3B82F6",
+  business: "#10B981",
+  content: "#8B5CF6",
+  vault: "#06B6D4",
+  general: "#A8A29E",
+} as const;
+
+export type DomainKey = keyof typeof domainLight;
+
+function buildHud(colors: PaletteColors, mode: "light" | "dark") {
+  const a = rgbChannels(colors.accent);
+  const dark = mode === "dark";
+  return {
+    /** 1px rule that fades at both ends — section dividers, card top edges. */
+    hairline: `linear-gradient(90deg, transparent, rgba(${a}, ${dark ? 0.3 : 0.24}), transparent)`,
+    /** Vertical variant, for left-edge accents. */
+    hairlineV: `linear-gradient(180deg, transparent, rgba(${a}, ${dark ? 0.3 : 0.24}), transparent)`,
+    /** Corner L-brackets on Card variant="hud". */
+    cornerTick: `rgba(${a}, ${dark ? 0.5 : 0.4})`,
+    /** Halo behind a status/domain node dot. */
+    nodeGlow: `0 0 8px rgba(${a}, ${dark ? 0.55 : 0.35})`,
+    /** Dot-grid page texture — chrome only (sidebar, empty states, marketing). */
+    gridDot: `rgba(${a}, ${dark ? 0.07 : 0.05})`,
+    gridPitch: "28px",
+    /** Translucent surfaces: Dialog, Sheet, Popover, Toast, palette. */
+    glass: dark ? "rgba(14, 16, 14, 0.72)" : "rgba(255, 255, 255, 0.72)",
+    glassBorder: dark ? "rgba(255, 255, 255, 0.09)" : "rgba(12, 10, 9, 0.08)",
+    glassBlur: "blur(28px)",
+    /** Focus treatment, lifted verbatim from the login inputs. */
+    focusRing: `0 0 0 3px rgba(${a}, ${dark ? 0.16 : 0.14})`,
+    /** The single primary action per view. Never two. */
+    accentGrad: `linear-gradient(135deg, color-mix(in srgb, ${colors.accent} 78%, #FFFFFF) 0%, ${colors.accent} 100%)`,
+    accentGradFg: dark ? "#100C02" : colors.accentForeground,
+    /** Tracked uppercase micro-label (the login's EMAIL/PASSWORD scale). */
+    microLabel: {
+      fontSize: "10px",
+      fontWeight: 700,
+      letterSpacing: "0.12em",
+      textTransform: "uppercase" as const,
+    },
+  };
+}
+
 function buildTheme(base: AnyTheme, colors: PaletteColors, chrome: PaletteColors, mode: 'light' | 'dark'): AnyTheme {
   return {
     ...base,
@@ -70,6 +152,11 @@ function buildTheme(base: AnyTheme, colors: PaletteColors, chrome: PaletteColors
       border: chrome.muted,
       fg: chrome.foreground,
     },
+    hud: buildHud(colors, mode),
+    domain: mode === 'dark' ? domainDark : domainLight,
+    // The sidebar is always-dark, so anything domain-coloured inside it must
+    // use the dark variants regardless of the active mode.
+    chromeDomain: domainDark,
   };
 }
 
@@ -80,6 +167,7 @@ export function getTheme(paletteId: string, mode: 'light' | 'dark'): AnyTheme {
   return buildTheme(base, mode === 'dark' ? palette.dark : palette.light, palette.dark, mode);
 }
 
-// Back-compat named exports (default "monochrome" palette) for any stray imports.
+// Back-compat named export (default "monochrome" palette) for any stray imports.
+// `aiosDarkTheme` was removed — it had zero importers; live theming goes through
+// getTheme(palette, mode) via ThemeProvider, driven by uiStore.
 export const aiosLightTheme: AnyTheme = getTheme('monochrome', 'light');
-export const aiosDarkTheme: AnyTheme = getTheme('monochrome', 'dark');

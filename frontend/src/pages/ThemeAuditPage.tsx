@@ -72,8 +72,8 @@ export function ThemeAuditPage() {
         <Card title="Badges">
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Badge>Default</Badge>
-            <StatusBadge status="success">Active</StatusBadge>
-            <StatusBadge status="warning">Pending</StatusBadge>
+            <StatusBadge status="success" label="Active" />
+            <StatusBadge status="warning" label="Pending" />
           </div>
         </Card>
         <Card title="SegmentedControl">

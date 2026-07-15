@@ -66,6 +66,41 @@ const ThemeVars = createGlobalStyle`
 
     /* Shadow alias */
     --shadow-premium-sm: ${({ theme }) => theme.shadow.sm};
+
+    /* HUD layer — derived per palette+mode in aiosTheme.buildHud() */
+    --hud-hairline: ${({ theme }) => theme.hud.hairline};
+    --hud-hairline-v: ${({ theme }) => theme.hud.hairlineV};
+    --hud-corner-tick: ${({ theme }) => theme.hud.cornerTick};
+    --hud-node-glow: ${({ theme }) => theme.hud.nodeGlow};
+    --hud-grid-dot: ${({ theme }) => theme.hud.gridDot};
+    --hud-grid-pitch: ${({ theme }) => theme.hud.gridPitch};
+    --hud-glass: ${({ theme }) => theme.hud.glass};
+    --hud-glass-border: ${({ theme }) => theme.hud.glassBorder};
+    --hud-glass-blur: ${({ theme }) => theme.hud.glassBlur};
+    --hud-focus-ring: ${({ theme }) => theme.hud.focusRing};
+    --hud-accent-grad: ${({ theme }) => theme.hud.accentGrad};
+    --hud-accent-grad-fg: ${({ theme }) => theme.hud.accentGradFg};
+
+    /* Domain identity — constant across palettes, flips with light/dark */
+    --domain-finance: ${({ theme }) => theme.domain.finance};
+    --domain-health: ${({ theme }) => theme.domain.health};
+    --domain-career: ${({ theme }) => theme.domain.career};
+    --domain-business: ${({ theme }) => theme.domain.business};
+    --domain-content: ${({ theme }) => theme.domain.content};
+    --domain-vault: ${({ theme }) => theme.domain.vault};
+    --domain-general: ${({ theme }) => theme.domain.general};
+  }
+
+  /*
+   * @ledgr/ui GlobalStyles sets h1-h6 to theme.typography.fontFamily.serif,
+   * which is correct for Ledgr (Fraunces headings) but violates the AIOS rule
+   * that UI is never serif. ThemeVars renders after GlobalStyles, so this wins
+   * at equal specificity — while any call site that sets font-family
+   * explicitly (Sidebar brand, Pricing/Landing display, KPI numerals) still
+   * wins over it on specificity and keeps Playfair deliberately.
+   */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   }
 `
 
