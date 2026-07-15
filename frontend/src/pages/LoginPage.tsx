@@ -44,17 +44,20 @@ const fadeUp = keyframes`
      · sparklines        → PulseRow's 30-day domain trends
    ═══════════════════════════════════════════════════════════════════════ */
 
-const CORE = { x: 520, y: 450 }
+/* The core lives in the gutter between the two columns; every node sits out
+   in a page margin. Only the hairline spokes cross behind copy — so the
+   composition frames the page instead of colliding with it. */
+const CORE = { x: 800, y: 452 }
 
 const NODES = [
-  { key: 'finance',  x: 520, y: 240, color: C_FINANCE,  r: 3.4, begin: '0s'   },
-  { key: 'health',   x: 720, y: 385, color: C_HEALTH,   r: 3.0, begin: '1.8s' },
-  { key: 'career',   x: 643, y: 620, color: C_CAREER,   r: 3.2, begin: '3.6s' },
-  { key: 'business', x: 397, y: 620, color: C_BUSINESS, r: 3.0, begin: '5.4s' },
-  { key: 'content',  x: 320, y: 385, color: C_CONTENT,  r: 3.2, begin: '7.2s' },
+  { key: 'finance',  x: 660,  y: 86,  color: C_FINANCE,  r: 3.4, begin: '0s'   },
+  { key: 'health',   x: 1180, y: 96,  color: C_HEALTH,   r: 3.0, begin: '1.8s' },
+  { key: 'career',   x: 1046, y: 858, color: C_CAREER,   r: 3.2, begin: '3.6s' },
+  { key: 'business', x: 300,  y: 862, color: C_BUSINESS, r: 3.0, begin: '5.4s' },
+  { key: 'content',  x: 104,  y: 322, color: C_CONTENT,  r: 3.2, begin: '7.2s' },
 ]
 
-const VAULT = { x: 830, y: 545 }
+const VAULT = { x: 150, y: 648 }
 
 /** 7 evenly-spaced ticks on the outer ring — one per default agent. */
 const AGENT_TICKS = Array.from({ length: 7 }, (_, i) => {
@@ -96,7 +99,7 @@ const AmbientHUD = () => (
       <path id="sp-vault" d={`M ${VAULT.x} ${VAULT.y} L ${CORE.x} ${CORE.y}`} />
 
       <radialGradient id="halo">
-        <stop offset="0%" stopColor={GOLD} stopOpacity="0.3" />
+        <stop offset="0%" stopColor={GOLD} stopOpacity="0.17" />
         <stop offset="100%" stopColor={GOLD} stopOpacity="0" />
       </radialGradient>
 
@@ -130,15 +133,15 @@ const AmbientHUD = () => (
       `}</style>
     </defs>
 
-    {/* ── Texture: PulseRow-style 30-day sparklines ── */}
+    {/* ── Texture: PulseRow-style 30-day sparklines, in the margins ── */}
     <g fill="none" stroke={GOLD} strokeOpacity="0.1" strokeWidth="1">
-      <path d={spark(3, 60, 120, 260, 40)} />
-      <path d={spark(31, 1120, 780, 260, 40)} />
-      <path d={spark(67, 60, 800, 220, 34)} />
+      <path d={spark(3, 856, 54, 230, 34)} />
+      <path d={spark(31, 470, 828, 250, 36)} />
+      <path d={spark(67, 34, 464, 148, 30)} />
     </g>
 
-    {/* ── Texture: LifeHeatmap ghost ── */}
-    <g transform="translate(1108 96)">
+    {/* ── Texture: LifeHeatmap ghost, bottom-right corner ── */}
+    <g transform="translate(1168 790)">
       {HEAT.map((c, i) => (
         <rect
           key={i}
@@ -154,10 +157,11 @@ const AmbientHUD = () => (
 
     {/* ── Ambient threads drifting off-frame ── */}
     <g fill="none" stroke="url(#thread)" strokeWidth="1">
-      <path d="M -60 700 Q 160 610 320 560 Q 380 540 397 620" />
-      <path d="M 520 240 Q 600 120 760 60 Q 900 8 1060 30" />
-      <path d="M 320 385 Q 170 330 -60 350" />
-      <path d="M 643 620 Q 720 790 900 870" />
+      <path d="M 104 322 Q 60 180 120 -40" />
+      <path d="M 660 86 Q 460 30 240 -40" />
+      <path d="M 1180 96 Q 1330 40 1480 60" />
+      <path d="M 300 862 Q 140 900 -40 940" />
+      <path d="M 1046 858 Q 1240 930 1480 900" />
     </g>
 
     {/* ── Agent ring: 7 ticks = the 7 scheduled agents ── */}
@@ -334,7 +338,9 @@ const Eyebrow = styled.p`
   }
 `
 
+/* GlobalStyles sets h1/h2 to Playfair Display — pin sans, UI is never serif. */
 const Title = styled.h1`
+  font-family: 'DM Sans', sans-serif;
   font-size: 46px;
   line-height: 1.06;
   font-weight: 700;
@@ -475,6 +481,7 @@ const MobileLogo = styled.div`
 `
 
 const CardTitle = styled.h2`
+  font-family: 'DM Sans', sans-serif;
   font-size: 25px;
   font-weight: 700;
   color: ${TXT};
