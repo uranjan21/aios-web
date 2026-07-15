@@ -5,662 +5,104 @@ import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/authStore'
 import {
   IndianRupee, Heart, Briefcase, Rocket, PenLine,
-  Eye, EyeOff, Sparkles, Shield, Zap, ChevronRight,
+  Eye, EyeOff, Sparkles, Shield, Zap,
   Mail, Lock, ArrowRight, Check,
 } from 'lucide-react'
 
-/* ── Dark panel constants ───────────────────────────────────────────── */
-const DARK_BG = '#080A08'
-const DARK_CARD = 'rgba(255,255,255,0.04)'
-const DARK_BORDER = 'rgba(255,255,255,0.08)'
-const DARK_MUTED = 'rgba(255,255,255,0.45)'
+/* ── Palette — Premium Black + Gold, constant across the page ───────── */
+const BG = '#080A08'
 const GOLD = '#CA8A04'
+const GOLD_LIT = '#FDE68A'
+const TXT = '#FFFFFF'
+const MUTED = 'rgba(255,255,255,0.45)'
+const FAINT = 'rgba(255,255,255,0.28)'
+const LINE = 'rgba(255,255,255,0.09)'
+const GLASS = 'rgba(255,255,255,0.035)'
 
-/* ── Animations ────────────────────────────────────────────────────── */
+/* Domain colours — identical to the icon colours on the domain chips */
+const C_FINANCE = '#EF4444'
+const C_HEALTH = '#F43F5E'
+const C_CAREER = '#3B82F6'
+const C_BUSINESS = '#10B981'
+const C_CONTENT = '#8B5CF6'
+const C_VAULT = '#06B6D4'
+
+/* ── Animations ─────────────────────────────────────────────────────── */
 const fadeUp = keyframes`
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 `
 
-const glowPulse = keyframes`
-  0%, 100% { opacity: 0.12; }
-  50% { opacity: 0.22; }
-`
+/* ═══════════════════════════════════════════════════════════════════════
+   AMBIENT HUD
+   A ghosted picture of the product itself. Every layer maps to something
+   that actually exists in AIOS — nothing is decorative sci-fi:
+     · core + 5 spokes   → the five life domains feeding one interface
+     · vault node        → the Obsidian knowledge layer
+     · outer ring, 7 ticks → the 7 scheduled agents
+     · heatmap grid      → the LifeHeatmap on the dashboard
+     · sparklines        → PulseRow's 30-day domain trends
+   ═══════════════════════════════════════════════════════════════════════ */
 
-/* ── Root ───────────────────────────────────────────────────────────── */
-const Root = styled.div`
-  min-height: 100dvh;
-  display: flex;
-  background: ${DARK_BG};
-`
+const CORE = { x: 520, y: 450 }
 
-/* ── Dark hero panel ─────────────────────────────────────────────────── */
-const HeroPanel = styled.aside`
-  display: none;
-  @media (min-width: 1024px) {
-    display: flex;
-    width: 58%;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    padding: 56px 56px 56px 60px;
-    position: relative;
-    overflow: hidden;
-    background-color: ${DARK_BG};
-    background-image: radial-gradient(rgba(202, 138, 4, 0.07) 1px, transparent 1px);
-    background-size: 28px 28px;
-  }
-`
-
-const GlowOrb = styled.div<{
-  $top: string
-  $right?: string
-  $left?: string
-  $bottom?: string
-  $size: number
-  $gold?: boolean
-}>`
-  position: absolute;
-  width: ${({ $size }) => $size}px;
-  height: ${({ $size }) => $size}px;
-  border-radius: 50%;
-  background: ${({ $gold }) =>
-    $gold
-      ? `radial-gradient(circle, ${GOLD}2a 0%, transparent 70%)`
-      : 'radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%)'};
-  top: ${({ $top }) => $top};
-  right: ${({ $right }) => $right ?? 'auto'};
-  left: ${({ $left }) => $left ?? 'auto'};
-  bottom: ${({ $bottom }) => $bottom ?? 'auto'};
-  animation: ${glowPulse} 5s ease-in-out infinite;
-  pointer-events: none;
-`
-
-const WaveOverlay = styled.div`
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-`
-
-const HeroContent = styled.div`
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  max-width: 500px;
-  animation: ${fadeUp} 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-`
-
-/* ── Logo ────────────────────────────────────────────────────────────── */
-const LogoRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 32px;
-`
-
-const LogoBadge = styled.div<{ $size?: number }>`
-  width: ${({ $size }) => $size ?? 44}px;
-  height: ${({ $size }) => $size ?? 44}px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, ${GOLD} 0%, #7a5208 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-`
-
-const LogoBadgeText = styled.span<{ $size?: number }>`
-  font-size: ${({ $size }) => $size ?? 14}px;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: -0.02em;
-`
-
-const BrandName = styled.span<{ $dark?: boolean; $size?: number }>`
-  font-size: ${({ $size }) => $size ?? 22}px;
-  font-weight: 700;
-  color: ${({ $dark }) => ($dark ? '#0C0A09' : '#ffffff')};
-  letter-spacing: -0.03em;
-`
-
-/* ── Hero text ───────────────────────────────────────────────────────── */
-const HeroTitle = styled.h1`
-  font-size: 44px;
-  line-height: 1.08;
-  font-weight: 700;
-  color: #ffffff;
-  letter-spacing: -0.03em;
-  margin: 0 0 14px;
-
-  span { color: ${GOLD}; }
-`
-
-const HeroSub = styled.p`
-  font-size: 14px;
-  color: ${DARK_MUTED};
-  line-height: 1.65;
-  max-width: 380px;
-  margin: 0 0 32px;
-`
-
-/* ── Domain cards ────────────────────────────────────────────────────── */
-const DomainGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-bottom: 20px;
-`
-
-const DomainCard = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding: 14px;
-  border-radius: 10px;
-  background: rgba(10, 12, 10, 0.55);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid ${DARK_BORDER};
-`
-
-const DomainIconWrap = styled.div<{ $bg: string }>`
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: ${({ $bg }) => $bg};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`
-
-const DomainName = styled.span`
-  font-size: 13px;
-  font-weight: 600;
-  color: #ffffff;
-`
-
-const DomainTagline = styled.span`
-  font-size: 11px;
-  color: ${DARK_MUTED};
-`
-
-/* ── Feature list ────────────────────────────────────────────────────── */
-const FeatureList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-`
-
-const FeatureRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px;
-  border-radius: 10px;
-  background: rgba(10, 12, 10, 0.55);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid ${DARK_BORDER};
-`
-
-const FeatureIconCircle = styled.div<{ $gradient: string }>`
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: ${({ $gradient }) => $gradient};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: #ffffff;
-`
-
-const FeatureText = styled.div`
-  flex: 1;
-`
-
-const FeatureTitle = styled.p`
-  font-size: 13px;
-  font-weight: 600;
-  color: #ffffff;
-  margin: 0 0 2px;
-`
-
-const FeatureDesc = styled.p`
-  font-size: 12px;
-  color: ${DARK_MUTED};
-  margin: 0;
-  line-height: 1.4;
-`
-
-const FeatureArrow = styled.div`
-  color: ${DARK_MUTED};
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-`
-
-/* ── Right white form panel ──────────────────────────────────────────── */
-const FormPanel = styled.div`
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #ffffff;
-  padding: 32px 24px;
-
-  @media (min-width: 640px) {
-    padding: 40px 32px;
-  }
-
-  @media (min-width: 1024px) {
-    border-radius: 24px 0 0 24px;
-    padding: 56px 48px;
-    box-shadow: -12px 0 48px rgba(0, 0, 0, 0.18);
-  }
-`
-
-const FormInner = styled.div`
-  width: 100%;
-  max-width: 400px;
-  animation: ${fadeUp} 0.5s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
-`
-
-const MobileLogoRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  justify-content: center;
-  margin-bottom: 32px;
-
-  @media (min-width: 1024px) {
-    display: none;
-  }
-`
-
-const FormHeading = styled.h2`
-  font-size: 28px;
-  font-weight: 700;
-  color: #0c0a09;
-  letter-spacing: -0.02em;
-  margin: 0 0 6px;
-`
-
-const FormSubtitle = styled.p`
-  font-size: 14px;
-  color: #6b7280;
-  margin: 0 0 28px;
-`
-
-/* ── Form fields ─────────────────────────────────────────────────────── */
-const FieldGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 18px;
-`
-
-const FieldLabel = styled.label`
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  color: #6b7280;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-`
-
-const InputWrap = styled.div`
-  position: relative;
-  display: flex;
-  align-items: center;
-`
-
-const InputIconLeft = styled.div`
-  position: absolute;
-  left: 14px;
-  color: #9ca3af;
-  display: flex;
-  align-items: center;
-  pointer-events: none;
-  z-index: 1;
-`
-
-const InputIconRight = styled.div`
-  position: absolute;
-  right: 14px;
-  display: flex;
-  align-items: center;
-`
-
-const StyledInput = styled.input`
-  width: 100%;
-  padding: 13px 46px;
-  font-size: 14px;
-  font-family: 'DM Sans', sans-serif;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 10px;
-  background: #ffffff;
-  color: #0c0a09;
-  outline: none;
-  transition: border-color 150ms, box-shadow 150ms;
-  box-sizing: border-box;
-
-  &::placeholder {
-    color: #9ca3af;
-  }
-  &:focus {
-    border-color: #1c1917;
-    box-shadow: 0 0 0 3px rgba(28, 25, 23, 0.07);
-  }
-`
-
-const StyledInputSimple = styled(StyledInput)`
-  padding: 13px 14px;
-`
-
-const EyeBtn = styled.button`
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  color: #9ca3af;
-  display: flex;
-  align-items: center;
-  transition: color 120ms;
-  &:hover {
-    color: #374151;
-  }
-  &:focus-visible {
-    outline: 2px solid #1c1917;
-    border-radius: 4px;
-    outline-offset: 2px;
-  }
-`
-
-const ValidCheck = styled.div`
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #10b981;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  flex-shrink: 0;
-`
-
-const RememberRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24px;
-`
-
-const RememberLabel = styled.label`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #374151;
-  cursor: pointer;
-  user-select: none;
-
-  input[type='checkbox'] {
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    accent-color: #1c1917;
-    cursor: pointer;
-  }
-`
-
-const ForgotLink = styled(Link)`
-  font-size: 13px;
-  color: #7c3aed;
-  text-decoration: none;
-  font-weight: 500;
-  &:hover {
-    text-decoration: underline;
-  }
-`
-
-const ErrorBox = styled.div`
-  font-size: 13px;
-  color: #dc2626;
-  padding: 10px 14px;
-  border-radius: 8px;
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
-  margin-bottom: 16px;
-`
-
-const SignInBtn = styled.button`
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 14px;
-  font-size: 15px;
-  font-weight: 600;
-  font-family: 'DM Sans', sans-serif;
-  background: #111827;
-  color: #ffffff;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 150ms, transform 100ms;
-  margin-bottom: 20px;
-
-  &:hover:not(:disabled) {
-    background: #1f2937;
-  }
-  &:active:not(:disabled) {
-    transform: scale(0.99);
-  }
-  &:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-  &:focus-visible {
-    outline: 2px solid #111827;
-    outline-offset: 2px;
-  }
-`
-
-const Divider = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-
-  span {
-    font-size: 11px;
-    color: #9ca3af;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    flex-shrink: 0;
-  }
-
-  &::before,
-  &::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: #e5e7eb;
-  }
-`
-
-const GoogleBtn = styled.button`
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 13px 16px;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 10px;
-  background: #ffffff;
-  color: #374151;
-  font-size: 14px;
-  font-weight: 500;
-  font-family: 'DM Sans', sans-serif;
-  cursor: pointer;
-  transition: background 150ms, border-color 150ms;
-  margin-bottom: 20px;
-
-  &:hover:not(:disabled) {
-    background: #f9fafb;
-    border-color: #d1d5db;
-  }
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-  &:focus-visible {
-    outline: 2px solid #374151;
-    outline-offset: 2px;
-  }
-`
-
-const ToggleNote = styled.p`
-  text-align: center;
-  font-size: 13px;
-  color: #6b7280;
-  margin: 0 0 24px;
-
-  button {
-    background: none;
-    border: none;
-    color: #7c3aed;
-    font-size: 13px;
-    font-weight: 600;
-    font-family: 'DM Sans', sans-serif;
-    cursor: pointer;
-    padding: 0;
-    margin-left: 4px;
-    &:hover {
-      text-decoration: underline;
-    }
-    &:focus-visible {
-      outline: 2px solid #7c3aed;
-      border-radius: 2px;
-    }
-  }
-`
-
-const FooterNote = styled.p`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  font-size: 12px;
-  color: #9ca3af;
-  margin: 0 0 8px;
-`
-
-const LegalLinks = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-
-  a {
-    font-size: 12px;
-    color: #9ca3af;
-    text-decoration: none;
-    transition: color 120ms;
-    &:hover {
-      color: #374151;
-    }
-  }
-
-  span {
-    color: #d1d5db;
-    font-size: 12px;
-  }
-`
-
-/* ── Static data ─────────────────────────────────────────────────────── */
-const DOMAINS = [
-  { icon: IndianRupee, label: 'Finance',  tagline: 'Track • Plan • Grow',  color: '#EF4444', bg: 'rgba(239,68,68,0.15)' },
-  { icon: Heart,       label: 'Health',   tagline: 'Monitor • Improve',    color: '#F43F5E', bg: 'rgba(244,63,94,0.15)' },
-  { icon: Briefcase,   label: 'Career',   tagline: 'Learn • Advance',      color: '#3B82F6', bg: 'rgba(59,130,246,0.15)' },
-  { icon: Rocket,      label: 'Business', tagline: 'Build • Scale',        color: '#10B981', bg: 'rgba(16,185,129,0.15)' },
-  { icon: PenLine,     label: 'Content',  tagline: 'Create • Publish',     color: '#8B5CF6', bg: 'rgba(139,92,246,0.15)' },
+const NODES = [
+  { key: 'finance',  x: 520, y: 240, color: C_FINANCE,  r: 3.4, begin: '0s'   },
+  { key: 'health',   x: 720, y: 385, color: C_HEALTH,   r: 3.0, begin: '1.8s' },
+  { key: 'career',   x: 643, y: 620, color: C_CAREER,   r: 3.2, begin: '3.6s' },
+  { key: 'business', x: 397, y: 620, color: C_BUSINESS, r: 3.0, begin: '5.4s' },
+  { key: 'content',  x: 320, y: 385, color: C_CONTENT,  r: 3.2, begin: '7.2s' },
 ]
 
-const FEATURES = [
-  {
-    icon: Sparkles,
-    label: 'AI-Powered',
-    desc: 'Chat with Claude about any life domain',
-    gradient: 'linear-gradient(135deg, #7C3AED, #A855F7)',
-  },
-  {
-    icon: Shield,
-    label: 'Vault Synced',
-    desc: 'Obsidian vault as your knowledge layer',
-    gradient: 'linear-gradient(135deg, #0284C7, #06B6D4)',
-  },
-  {
-    icon: Zap,
-    label: 'Agents',
-    desc: 'Automated workflows that run on schedule',
-    gradient: 'linear-gradient(135deg, #059669, #10B981)',
-  },
-]
+const VAULT = { x: 830, y: 545 }
 
-/* ── Google icon ─────────────────────────────────────────────────────── */
-const GoogleIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
-    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-  </svg>
-)
+/** 7 evenly-spaced ticks on the outer ring — one per default agent. */
+const AGENT_TICKS = Array.from({ length: 7 }, (_, i) => {
+  const a = ((i * (360 / 7) - 90) * Math.PI) / 180
+  return {
+    x1: CORE.x + Math.cos(a) * 292,
+    y1: CORE.y + Math.sin(a) * 292,
+    x2: CORE.x + Math.cos(a) * 308,
+    y2: CORE.y + Math.sin(a) * 308,
+  }
+})
 
-/* ── Domain constellation ────────────────────────────────────────────
-   The five life domains, each in its own colour, wired into one gold
-   core — a literal picture of the hero copy: "Five life domains. One
-   intelligent interface. All your data, connected and AI-powered."
-   Ambient by design: it sits behind the content and never competes.  */
-const CORE = { x: 628, y: 336 }
+/** Deterministic pseudo-random — stable across renders, no Math.random. */
+const noise = (i: number) => Math.abs(Math.sin(i * 12.9898) * 43758.5453) % 1
 
-const CONSTELLATION = [
-  { key: 'finance',  x: 640, y: 168, color: '#EF4444', r: 3.2, delay: '0s'   },
-  { key: 'health',   x: 728, y: 292, color: '#F43F5E', r: 2.8, delay: '1.1s' },
-  { key: 'career',   x: 702, y: 474, color: '#3B82F6', r: 3.0, delay: '2.3s' },
-  { key: 'business', x: 546, y: 452, color: '#10B981', r: 2.8, delay: '3.1s' },
-  { key: 'content',  x: 534, y: 246, color: '#8B5CF6', r: 3.0, delay: '4.2s' },
-]
+/** 22 weeks × 7 days, exactly like the dashboard LifeHeatmap. */
+const HEAT = Array.from({ length: 22 * 7 }, (_, i) => ({
+  col: Math.floor(i / 7),
+  row: i % 7,
+  v: noise(i),
+}))
 
-const WaveSVG = () => (
-  <svg
-    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-    viewBox="0 0 800 900"
-    preserveAspectRatio="xMidYMid slice"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden="true"
-  >
+/** Builds a smooth-ish sparkline path from a deterministic series. */
+const spark = (seed: number, x: number, y: number, w: number, h: number, n = 26) => {
+  const pts = Array.from({ length: n }, (_, i) => {
+    const px = x + (i / (n - 1)) * w
+    const py = y + h - noise(i + seed) * h
+    return `${px.toFixed(1)} ${py.toFixed(1)}`
+  })
+  return `M ${pts.join(' L ')}`
+}
+
+const AmbientHUD = () => (
+  <HudSvg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
     <defs>
-      {/* One spoke path per domain — shared by the hairline and its travelling pulse */}
-      {CONSTELLATION.map(d => (
-        <path key={d.key} id={`spoke-${d.key}`} d={`M ${d.x} ${d.y} L ${CORE.x} ${CORE.y}`} />
+      {NODES.map(n => (
+        <path key={n.key} id={`sp-${n.key}`} d={`M ${n.x} ${n.y} L ${CORE.x} ${CORE.y}`} />
       ))}
+      <path id="sp-vault" d={`M ${VAULT.x} ${VAULT.y} L ${CORE.x} ${CORE.y}`} />
 
-      <radialGradient id="coreHalo">
-        <stop offset="0%" stopColor={GOLD} stopOpacity="0.28" />
+      <radialGradient id="halo">
+        <stop offset="0%" stopColor={GOLD} stopOpacity="0.3" />
         <stop offset="100%" stopColor={GOLD} stopOpacity="0" />
       </radialGradient>
 
-      <linearGradient id="threadFade" x1="0%" y1="0%" x2="100%" y2="0%">
+      <linearGradient id="thread" x1="0%" y1="0%" x2="100%" y2="0%">
         <stop offset="0%" stopColor={GOLD} stopOpacity="0" />
-        <stop offset="50%" stopColor={GOLD} stopOpacity="0.14" />
+        <stop offset="50%" stopColor={GOLD} stopOpacity="0.16" />
         <stop offset="100%" stopColor={GOLD} stopOpacity="0" />
       </linearGradient>
 
@@ -670,66 +112,656 @@ const WaveSVG = () => (
       </filter>
 
       <style>{`
-        @keyframes coreBreathe { 0%,100% { opacity:.55 } 50% { opacity:.95 } }
-        @keyframes haloBreathe { 0%,100% { opacity:.5 } 50% { opacity:.9 } }
-        @keyframes nodeBreathe { 0%,100% { opacity:.45 } 50% { opacity:.8 } }
+        @keyframes breathe { 0%,100% { opacity:.5 } 50% { opacity:.95 } }
+        @keyframes nodeB   { 0%,100% { opacity:.5 } 50% { opacity:.85 } }
+        @keyframes ringSpin{ to { transform: rotate(360deg) } }
+        @keyframes heatB   { 0%,100% { opacity:.35 } 50% { opacity:.75 } }
 
-        .coreDot  { animation: coreBreathe 5s ease-in-out infinite }
-        .coreHalo { animation: haloBreathe 5s ease-in-out infinite }
-        .node     { animation: nodeBreathe 6s ease-in-out infinite }
+        .coreDot, .halo { animation: breathe 5s ease-in-out infinite }
+        .nd    { animation: nodeB 6s ease-in-out infinite }
+        .agents{ transform-box: view-box; transform-origin: ${CORE.x}px ${CORE.y}px;
+                 animation: ringSpin 90s linear infinite }
+        .hcell { animation: heatB 4s ease-in-out infinite }
 
         @media (prefers-reduced-motion: reduce) {
-          .coreDot, .coreHalo, .node { animation: none }
+          .coreDot,.halo,.nd,.agents,.hcell { animation: none }
           .pulse { display: none }
         }
       `}</style>
     </defs>
 
-    {/* Ambient threads drifting off-frame — suggests the network continues */}
-    <g fill="none" stroke="url(#threadFade)" strokeWidth="1">
-      <path d="M -40 596 Q 180 520 360 470 Q 500 430 546 452" />
-      <path d="M 640 168 Q 700 90 800 44" />
-      <path d="M 534 246 Q 380 200 200 232 Q 80 254 -40 226" />
-      <path d="M 702 474 Q 740 610 840 690" />
+    {/* ── Texture: PulseRow-style 30-day sparklines ── */}
+    <g fill="none" stroke={GOLD} strokeOpacity="0.1" strokeWidth="1">
+      <path d={spark(3, 60, 120, 260, 40)} />
+      <path d={spark(31, 1120, 780, 260, 40)} />
+      <path d={spark(67, 60, 800, 220, 34)} />
     </g>
 
-    {/* Spokes: each domain wired to the core */}
-    {CONSTELLATION.map(d => (
-      <use key={d.key} href={`#spoke-${d.key}`} stroke={GOLD} strokeOpacity="0.13" strokeWidth="1" />
-    ))}
+    {/* ── Texture: LifeHeatmap ghost ── */}
+    <g transform="translate(1108 96)">
+      {HEAT.map((c, i) => (
+        <rect
+          key={i}
+          className={c.v > 0.72 ? 'hcell' : undefined}
+          x={c.col * 11} y={c.row * 11}
+          width="7" height="7" rx="1.5"
+          fill={GOLD}
+          fillOpacity={c.v > 0.72 ? 0.34 : c.v > 0.45 ? 0.16 : 0.06}
+          style={{ animationDelay: `${(i % 9) * 0.35}s` }}
+        />
+      ))}
+    </g>
 
-    {/* Data flowing inward, domain-coloured, one slow pulse per spoke */}
-    {CONSTELLATION.map(d => (
-      <circle key={d.key} className="pulse" r="1.8" fill={d.color} opacity="0.85">
-        <animateMotion dur="9s" begin={d.delay} repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear">
-          <mpath href={`#spoke-${d.key}`} />
+    {/* ── Ambient threads drifting off-frame ── */}
+    <g fill="none" stroke="url(#thread)" strokeWidth="1">
+      <path d="M -60 700 Q 160 610 320 560 Q 380 540 397 620" />
+      <path d="M 520 240 Q 600 120 760 60 Q 900 8 1060 30" />
+      <path d="M 320 385 Q 170 330 -60 350" />
+      <path d="M 643 620 Q 720 790 900 870" />
+    </g>
+
+    {/* ── Agent ring: 7 ticks = the 7 scheduled agents ── */}
+    <g className="agents">
+      <circle
+        cx={CORE.x} cy={CORE.y} r="300"
+        fill="none" stroke={GOLD} strokeOpacity="0.09"
+        strokeWidth="1" strokeDasharray="2 10"
+      />
+      {AGENT_TICKS.map((t, i) => (
+        <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
+          stroke={GOLD} strokeOpacity="0.26" strokeWidth="1.4" />
+      ))}
+    </g>
+
+    {/* ── Spokes ── */}
+    {NODES.map(n => (
+      <use key={n.key} href={`#sp-${n.key}`} stroke={GOLD} strokeOpacity="0.14" strokeWidth="1" />
+    ))}
+    <use href="#sp-vault" stroke={C_VAULT} strokeOpacity="0.12" strokeWidth="1" strokeDasharray="3 6" />
+
+    {/* ── Data flowing inward, one slow pulse per domain ── */}
+    {NODES.map(n => (
+      <circle key={n.key} className="pulse" r="2" fill={n.color}>
+        <animateMotion dur="9s" begin={n.begin} repeatCount="indefinite" calcMode="linear">
+          <mpath href={`#sp-${n.key}`} />
         </animateMotion>
-        <animate attributeName="opacity" values="0;0.85;0.85;0" keyTimes="0;0.15;0.7;1" dur="9s" begin={d.delay} repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0;0.9;0.9;0"
+          keyTimes="0;0.15;0.7;1" dur="9s" begin={n.begin} repeatCount="indefinite" />
       </circle>
     ))}
+    <circle className="pulse" r="1.8" fill={C_VAULT}>
+      <animateMotion dur="11s" begin="2.5s" repeatCount="indefinite" calcMode="linear">
+        <mpath href="#sp-vault" />
+      </animateMotion>
+      <animate attributeName="opacity" values="0;0.8;0.8;0"
+        keyTimes="0;0.15;0.7;1" dur="11s" begin="2.5s" repeatCount="indefinite" />
+    </circle>
 
-    {/* Domain nodes */}
-    {CONSTELLATION.map(d => (
-      <g key={d.key}>
-        <circle
-          className="node"
-          cx={d.x} cy={d.y} r={d.r}
-          fill={d.color}
-          filter="url(#soft)"
-          style={{ animationDelay: d.delay }}
-        />
-        <circle cx={d.x} cy={d.y} r={d.r + 6} fill="none" stroke={d.color} strokeOpacity="0.16" strokeWidth="1" />
+    {/* ── Domain nodes ── */}
+    {NODES.map(n => (
+      <g key={n.key}>
+        <circle className="nd" cx={n.x} cy={n.y} r={n.r} fill={n.color}
+          filter="url(#soft)" style={{ animationDelay: n.begin }} />
+        <circle cx={n.x} cy={n.y} r={n.r + 7} fill="none"
+          stroke={n.color} strokeOpacity="0.18" strokeWidth="1" />
       </g>
     ))}
 
-    {/* The intelligent core */}
-    <circle className="coreHalo" cx={CORE.x} cy={CORE.y} r="72" fill="url(#coreHalo)" />
-    <circle cx={CORE.x} cy={CORE.y} r="18" fill="none" stroke={GOLD} strokeOpacity="0.2" strokeWidth="1" />
-    <circle className="coreDot" cx={CORE.x} cy={CORE.y} r="4.5" fill="#FDE68A" filter="url(#soft)" />
+    {/* ── Vault node ── */}
+    <g>
+      <circle className="nd" cx={VAULT.x} cy={VAULT.y} r="2.6" fill={C_VAULT} filter="url(#soft)" />
+      <rect x={VAULT.x - 8} y={VAULT.y - 8} width="16" height="16" rx="3"
+        fill="none" stroke={C_VAULT} strokeOpacity="0.2" strokeWidth="1"
+        transform={`rotate(45 ${VAULT.x} ${VAULT.y})`} />
+    </g>
+
+    {/* ── The intelligent core ── */}
+    <circle className="halo" cx={CORE.x} cy={CORE.y} r="88" fill="url(#halo)" />
+    <circle cx={CORE.x} cy={CORE.y} r="22" fill="none" stroke={GOLD} strokeOpacity="0.22" strokeWidth="1" />
+    <circle cx={CORE.x} cy={CORE.y} r="38" fill="none" stroke={GOLD} strokeOpacity="0.1" strokeWidth="1" />
+    <circle className="coreDot" cx={CORE.x} cy={CORE.y} r="5" fill={GOLD_LIT} filter="url(#soft)" />
+  </HudSvg>
+)
+
+/* ── Layout ─────────────────────────────────────────────────────────── */
+const Root = styled.div`
+  position: relative;
+  min-height: 100dvh;
+  background-color: ${BG};
+  background-image: radial-gradient(rgba(202, 138, 4, 0.06) 1px, transparent 1px);
+  background-size: 30px 30px;
+  overflow: hidden;
+`
+
+const HudSvg = styled.svg`
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.5;
+  @media (min-width: 1024px) {
+    opacity: 1;
+  }
+`
+
+/* Warm vignette so the core glow reads and the edges settle */
+const Vignette = styled.div`
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 55% at 36% 50%, rgba(202, 138, 4, 0.07), transparent 70%),
+    radial-gradient(120% 90% at 50% 50%, transparent 40%, ${BG} 100%);
+`
+
+const Shell = styled.div`
+  position: relative;
+  z-index: 1;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+
+  @media (min-width: 1024px) {
+    grid-template-columns: 1fr 420px;
+    align-items: center;
+    gap: 72px;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 48px 40px;
+  }
+`
+
+/* ── Left column ────────────────────────────────────────────────────── */
+const Hero = styled.div`
+  display: none;
+  @media (min-width: 1024px) {
+    display: block;
+    animation: ${fadeUp} 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+`
+
+const LogoRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 40px;
+`
+
+const LogoBadge = styled.div<{ $size?: number }>`
+  width: ${({ $size }) => $size ?? 42}px;
+  height: ${({ $size }) => $size ?? 42}px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, ${GOLD} 0%, #7a5208 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+`
+
+const LogoBadgeText = styled.span<{ $size?: number }>`
+  font-size: ${({ $size }) => $size ?? 13}px;
+  font-weight: 800;
+  color: ${TXT};
+  letter-spacing: -0.02em;
+`
+
+const BrandName = styled.span<{ $size?: number }>`
+  font-size: ${({ $size }) => $size ?? 21}px;
+  font-weight: 700;
+  color: ${TXT};
+  letter-spacing: -0.03em;
+`
+
+const Eyebrow = styled.p`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: ${GOLD};
+  margin: 0 0 18px;
+
+  &::after {
+    content: '';
+    flex: 1;
+    max-width: 72px;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(202, 138, 4, 0.5), transparent);
+  }
+`
+
+const Title = styled.h1`
+  font-size: 46px;
+  line-height: 1.06;
+  font-weight: 700;
+  color: ${TXT};
+  letter-spacing: -0.035em;
+  margin: 0 0 16px;
+
+  span { color: ${GOLD}; }
+`
+
+const Sub = styled.p`
+  font-size: 14px;
+  color: ${MUTED};
+  line-height: 1.7;
+  max-width: 400px;
+  margin: 0 0 36px;
+`
+
+/* Domain chips — the five life domains, one row */
+const ChipRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 36px;
+`
+
+const Chip = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border-radius: 10px;
+  background: ${GLASS};
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid ${LINE};
+`
+
+const ChipLabel = styled.span`
+  font-size: 12px;
+  font-weight: 600;
+  color: ${TXT};
+`
+
+/* Feature list — editorial hairline rows, not cards */
+const Features = styled.div`
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid ${LINE};
+  margin-bottom: 32px;
+`
+
+const FeatureRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 2px;
+  border-bottom: 1px solid ${LINE};
+`
+
+const FeatureIcon = styled.div<{ $c: string }>`
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: ${({ $c }) => $c};
+  background: ${({ $c }) => `${$c}1f`};
+`
+
+const FeatureTitle = styled.span`
+  font-size: 13px;
+  font-weight: 600;
+  color: ${TXT};
+  width: 106px;
+  flex-shrink: 0;
+`
+
+const FeatureDesc = styled.span`
+  font-size: 12.5px;
+  color: ${MUTED};
+`
+
+/* Status ticker — real product facts */
+const Ticker = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 11px;
+  color: ${FAINT};
+  letter-spacing: 0.04em;
+`
+
+const Dot = styled.span`
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: ${C_BUSINESS};
+  box-shadow: 0 0 8px ${C_BUSINESS};
+  flex-shrink: 0;
+`
+
+const TickerSep = styled.span`
+  color: rgba(255, 255, 255, 0.15);
+`
+
+/* ── Right column — auth card ───────────────────────────────────────── */
+const Card = styled.div`
+  width: 100%;
+  max-width: 420px;
+  padding: 32px 28px;
+  border-radius: 14px;
+  background: rgba(14, 16, 14, 0.72);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid ${LINE};
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(202, 138, 4, 0.06);
+  animation: ${fadeUp} 0.5s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  @media (min-width: 640px) {
+    padding: 36px 34px;
+  }
+`
+
+const MobileLogo = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 26px;
+  @media (min-width: 1024px) {
+    display: none;
+  }
+`
+
+const CardTitle = styled.h2`
+  font-size: 25px;
+  font-weight: 700;
+  color: ${TXT};
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+`
+
+const CardSub = styled.p`
+  font-size: 13.5px;
+  color: ${MUTED};
+  margin: 0 0 26px;
+`
+
+const Fields = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 16px;
+`
+
+const Label = styled.label`
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: ${FAINT};
+  margin-bottom: 7px;
+`
+
+const InputWrap = styled.div`
+  position: relative;
+  display: flex;
+  align-items: center;
+`
+
+const IconL = styled.div`
+  position: absolute;
+  left: 13px;
+  display: flex;
+  color: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+  z-index: 1;
+`
+
+const IconR = styled.div`
+  position: absolute;
+  right: 13px;
+  display: flex;
+  align-items: center;
+`
+
+const Input = styled.input`
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 42px;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  color: ${TXT};
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid ${LINE};
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 150ms, box-shadow 150ms, background 150ms;
+
+  &::placeholder { color: rgba(255, 255, 255, 0.26); }
+  &:hover { border-color: rgba(255, 255, 255, 0.16); }
+  &:focus {
+    border-color: ${GOLD};
+    background: rgba(255, 255, 255, 0.055);
+    box-shadow: 0 0 0 3px rgba(202, 138, 4, 0.16);
+  }
+`
+
+const InputPlain = styled(Input)`
+  padding: 12px 14px;
+`
+
+const EyeBtn = styled.button`
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  color: rgba(255, 255, 255, 0.32);
+  transition: color 120ms;
+  &:hover { color: ${TXT}; }
+  &:focus-visible { outline: 2px solid ${GOLD}; outline-offset: 2px; border-radius: 4px; }
+`
+
+const Valid = styled.div`
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: ${C_BUSINESS};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #04140d;
+`
+
+const Row = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+`
+
+const Remember = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: ${MUTED};
+  cursor: pointer;
+  user-select: none;
+
+  input {
+    width: 15px;
+    height: 15px;
+    border-radius: 4px;
+    accent-color: ${GOLD};
+    cursor: pointer;
+  }
+`
+
+const Forgot = styled(Link)`
+  font-size: 12.5px;
+  font-weight: 500;
+  color: ${GOLD};
+  text-decoration: none;
+  &:hover { color: ${GOLD_LIT}; }
+`
+
+const ErrorBox = styled.div`
+  font-size: 12.5px;
+  color: #fca5a5;
+  padding: 10px 13px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  margin-bottom: 16px;
+`
+
+const Primary = styled.button`
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px;
+  font-size: 14.5px;
+  font-weight: 700;
+  font-family: 'DM Sans', sans-serif;
+  color: #100c02;
+  background: linear-gradient(135deg, #e3ac1a 0%, ${GOLD} 100%);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: filter 150ms, transform 100ms;
+  margin-bottom: 20px;
+
+  &:hover:not(:disabled) { filter: brightness(1.1); }
+  &:active:not(:disabled) { transform: scale(0.99); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+  &:focus-visible { outline: 2px solid ${GOLD_LIT}; outline-offset: 2px; }
+`
+
+const Divider = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+
+  span {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.22);
+    flex-shrink: 0;
+  }
+  &::before, &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: ${LINE};
+  }
+`
+
+const Ghost = styled.button`
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+  font-size: 13.5px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  color: ${TXT};
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid ${LINE};
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 150ms, border-color 150ms;
+  margin-bottom: 20px;
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  &:focus-visible { outline: 2px solid ${GOLD}; outline-offset: 2px; }
+`
+
+const Toggle = styled.p`
+  text-align: center;
+  font-size: 12.5px;
+  color: ${MUTED};
+  margin: 0 0 22px;
+
+  button {
+    background: none;
+    border: none;
+    color: ${GOLD};
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 5px;
+    &:hover { color: ${GOLD_LIT}; }
+    &:focus-visible { outline: 2px solid ${GOLD}; border-radius: 2px; }
+  }
+`
+
+const Foot = styled.p`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.22);
+  margin: 0 0 9px;
+`
+
+const Legal = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+
+  a {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.28);
+    text-decoration: none;
+    transition: color 120ms;
+    &:hover { color: ${TXT}; }
+  }
+  span { color: rgba(255, 255, 255, 0.14); font-size: 11px; }
+`
+
+/* ── Static data ────────────────────────────────────────────────────── */
+const DOMAINS = [
+  { icon: IndianRupee, label: 'Finance',  color: C_FINANCE },
+  { icon: Heart,       label: 'Health',   color: C_HEALTH },
+  { icon: Briefcase,   label: 'Career',   color: C_CAREER },
+  { icon: Rocket,      label: 'Business', color: C_BUSINESS },
+  { icon: PenLine,     label: 'Content',  color: C_CONTENT },
+]
+
+const FEATURES = [
+  { icon: Sparkles, label: 'AI-Powered',   desc: 'Chat with Claude about any life domain', color: C_CONTENT },
+  { icon: Shield,   label: 'Vault Synced', desc: 'Obsidian vault as your knowledge layer', color: C_VAULT },
+  { icon: Zap,      label: 'Agents',       desc: 'Automated workflows that run on schedule', color: C_BUSINESS },
+]
+
+const GoogleIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
   </svg>
 )
 
-/* ── Error helper ────────────────────────────────────────────────────── */
+/** Pull a human-readable message out of a FastAPI error response. */
 function errorMessage(err: any, fallback: string): string {
   const detail = err?.response?.data?.detail
   if (typeof detail === 'string') return detail
@@ -737,9 +769,9 @@ function errorMessage(err: any, fallback: string): string {
   return fallback
 }
 
-/* ── Component ───────────────────────────────────────────────────────── */
 type AuthMode = 'login' | 'signup'
 
+/* ── Component ──────────────────────────────────────────────────────── */
 export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode }) {
   const [mode, setMode] = useState<AuthMode>(initialMode)
   const [name, setName] = useState('')
@@ -755,7 +787,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
   const setUser = useAuthStore(s => s.setUser)
 
   const isSignup = mode === 'signup'
-  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
   const toggleMode = () => {
     setError('')
@@ -798,15 +830,12 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
 
   return (
     <Root>
-      {/* ── Left dark hero panel ── */}
-      <HeroPanel>
-        <GlowOrb $top="-120px" $right="-100px" $size={480} $gold />
-        <GlowOrb $top="65%" $left="-100px" $size={320} />
-        <WaveOverlay>
-          <WaveSVG />
-        </WaveOverlay>
+      <AmbientHUD />
+      <Vignette />
 
-        <HeroContent>
+      <Shell>
+        {/* ── Left: the pitch ── */}
+        <Hero>
           <LogoRow>
             <LogoBadge>
               <LogoBadgeText>AI</LogoBadgeText>
@@ -814,72 +843,63 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
             <BrandName>aios</BrandName>
           </LogoRow>
 
-          <HeroTitle>
+          <Eyebrow>AI Life Operating System</Eyebrow>
+          <Title>
             Your personal<br />
             <span>command</span> center.
-          </HeroTitle>
-          <HeroSub>
-            Five life domains. One intelligent interface.<br />
+          </Title>
+          <Sub>
+            Five life domains. One intelligent interface.
             All your data, connected and AI-powered.
-          </HeroSub>
+          </Sub>
 
-          <DomainGrid>
+          <ChipRow>
             {DOMAINS.map(d => (
-              <DomainCard key={d.label}>
-                <DomainIconWrap $bg={d.bg}>
-                  <d.icon size={16} color={d.color} />
-                </DomainIconWrap>
-                <DomainName>{d.label}</DomainName>
-                <DomainTagline>{d.tagline}</DomainTagline>
-              </DomainCard>
+              <Chip key={d.label}>
+                <d.icon size={14} color={d.color} />
+                <ChipLabel>{d.label}</ChipLabel>
+              </Chip>
             ))}
-          </DomainGrid>
+          </ChipRow>
 
-          <FeatureList>
+          <Features>
             {FEATURES.map(f => (
               <FeatureRow key={f.label}>
-                <FeatureIconCircle $gradient={f.gradient}>
-                  <f.icon size={16} />
-                </FeatureIconCircle>
-                <FeatureText>
-                  <FeatureTitle>{f.label}</FeatureTitle>
-                  <FeatureDesc>{f.desc}</FeatureDesc>
-                </FeatureText>
-                <FeatureArrow>
-                  <ChevronRight size={16} />
-                </FeatureArrow>
+                <FeatureIcon $c={f.color}><f.icon size={15} /></FeatureIcon>
+                <FeatureTitle>{f.label}</FeatureTitle>
+                <FeatureDesc>{f.desc}</FeatureDesc>
               </FeatureRow>
             ))}
-          </FeatureList>
-        </HeroContent>
-      </HeroPanel>
+          </Features>
 
-      {/* ── Right white form panel ── */}
-      <FormPanel>
-        <FormInner>
-          {/* Mobile-only logo */}
-          <MobileLogoRow>
-            <LogoBadge $size={36}>
-              <LogoBadgeText $size={12}>AI</LogoBadgeText>
-            </LogoBadge>
-            <BrandName $dark $size={18}>aios</BrandName>
-          </MobileLogoRow>
+          <Ticker>
+            <Dot />
+            <span>5 domains</span>
+            <TickerSep>·</TickerSep>
+            <span>7 agents on schedule</span>
+            <TickerSep>·</TickerSep>
+            <span>vault synced</span>
+          </Ticker>
+        </Hero>
 
-          <FormHeading>
-            {isSignup ? 'Create your account' : 'Welcome back 👋'}
-          </FormHeading>
-          <FormSubtitle>
-            {isSignup
-              ? 'Start running your life on AIOS'
-              : 'Sign in to continue to AIOS'}
-          </FormSubtitle>
+        {/* ── Right: auth ── */}
+        <Card>
+          <MobileLogo>
+            <LogoBadge $size={34}><LogoBadgeText $size={11}>AI</LogoBadgeText></LogoBadge>
+            <BrandName $size={18}>aios</BrandName>
+          </MobileLogo>
+
+          <CardTitle>{isSignup ? 'Create your account' : 'Welcome back'}</CardTitle>
+          <CardSub>
+            {isSignup ? 'Start running your life on AIOS' : 'Sign in to continue to AIOS'}
+          </CardSub>
 
           <form onSubmit={handleSubmit}>
-            <FieldGroup>
+            <Fields>
               {isSignup && (
                 <div>
-                  <FieldLabel htmlFor="signup-name">Name</FieldLabel>
-                  <StyledInputSimple
+                  <Label htmlFor="signup-name">Name</Label>
+                  <InputPlain
                     id="signup-name"
                     type="text"
                     placeholder="Your name"
@@ -892,12 +912,10 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
               )}
 
               <div>
-                <FieldLabel htmlFor="login-email">Email</FieldLabel>
+                <Label htmlFor="login-email">Email</Label>
                 <InputWrap>
-                  <InputIconLeft>
-                    <Mail size={16} />
-                  </InputIconLeft>
-                  <StyledInput
+                  <IconL><Mail size={15} /></IconL>
+                  <Input
                     id="login-email"
                     type="email"
                     placeholder="you@example.com"
@@ -906,23 +924,17 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
                     autoFocus={!isSignup}
                     required
                   />
-                  {email && isEmailValid && (
-                    <InputIconRight>
-                      <ValidCheck>
-                        <Check size={11} />
-                      </ValidCheck>
-                    </InputIconRight>
+                  {email && emailValid && (
+                    <IconR><Valid><Check size={11} strokeWidth={3} /></Valid></IconR>
                   )}
                 </InputWrap>
               </div>
 
               <div>
-                <FieldLabel htmlFor="login-password">Password</FieldLabel>
+                <Label htmlFor="login-password">Password</Label>
                 <InputWrap>
-                  <InputIconLeft>
-                    <Lock size={16} />
-                  </InputIconLeft>
-                  <StyledInput
+                  <IconL><Lock size={15} /></IconL>
+                  <Input
                     id="login-password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder={isSignup ? 'At least 8 characters' : '••••••••••'}
@@ -930,71 +942,66 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
                     onChange={e => setPassword(e.target.value)}
                     required
                   />
-                  <InputIconRight>
+                  <IconR>
                     <EyeBtn
                       type="button"
                       onClick={() => setShowPassword(v => !v)}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                     </EyeBtn>
-                  </InputIconRight>
+                  </IconR>
                 </InputWrap>
               </div>
-            </FieldGroup>
+            </Fields>
 
             {!isSignup && (
-              <RememberRow>
-                <RememberLabel>
+              <Row>
+                <Remember>
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={e => setRememberMe(e.target.checked)}
                   />
                   Remember me
-                </RememberLabel>
-                <ForgotLink to="/forgot-password">Forgot password?</ForgotLink>
-              </RememberRow>
+                </Remember>
+                <Forgot to="/forgot-password">Forgot password?</Forgot>
+              </Row>
             )}
 
             {error && <ErrorBox>{error}</ErrorBox>}
 
-            <SignInBtn
-              type="submit"
-              disabled={loading || !email || !password || (isSignup && !name)}
-            >
+            <Primary type="submit" disabled={loading || !email || !password || (isSignup && !name)}>
               {loading
                 ? (isSignup ? 'Creating account…' : 'Signing in…')
                 : <>{isSignup ? 'Create account' : 'Sign in'} <ArrowRight size={16} /></>}
-            </SignInBtn>
+            </Primary>
           </form>
 
           <Divider><span>or</span></Divider>
 
-          <GoogleBtn type="button" onClick={handleGoogleLogin} disabled={googleLoading}>
+          <Ghost type="button" onClick={handleGoogleLogin} disabled={googleLoading}>
             <GoogleIcon />
             {googleLoading ? 'Redirecting…' : 'Continue with Google'}
-          </GoogleBtn>
+          </Ghost>
 
-          <ToggleNote>
+          <Toggle>
             {isSignup ? 'Already have an account?' : 'New to AIOS?'}
             <button type="button" onClick={toggleMode}>
               {isSignup ? 'Sign in' : 'Create an account'}
             </button>
-          </ToggleNote>
+          </Toggle>
 
-          <FooterNote>
-            <Lock size={11} /> Your data, encrypted · Private by design
-          </FooterNote>
-          <LegalLinks>
+          <Foot><Lock size={10} /> Your data, encrypted · Private by design</Foot>
+          <Legal>
             <Link to="/privacy-policy">Privacy</Link>
             <span>·</span>
             <Link to="/terms-of-service">Terms</Link>
             <span>·</span>
             <Link to="/support">Support</Link>
-          </LegalLinks>
-        </FormInner>
-      </FormPanel>
+          </Legal>
+        </Card>
+      </Shell>
     </Root>
   )
 }
