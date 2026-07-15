@@ -140,6 +140,8 @@ function buildHud(colors: PaletteColors, mode: "light" | "dark") {
 function buildTheme(base: AnyTheme, colors: PaletteColors, chrome: PaletteColors, mode: 'light' | 'dark'): AnyTheme {
   return {
     ...base,
+    /** Active mode, so components can branch without reading uiStore. */
+    mode,
     shadow: mode === 'dark' ? flatShadowDark : flatShadowLight,
     radii: sharedRadii,
     typography: { ...base.typography, fontFamily: sharedFontFamily },

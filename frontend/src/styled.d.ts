@@ -9,6 +9,9 @@ import type { DomainKey } from '@/theme/aiosTheme';
  */
 declare module 'styled-components' {
   export interface DefaultTheme extends Theme {
+    /** Active light/dark mode, so components can branch without reading uiStore. */
+    mode: 'light' | 'dark';
+
     /** Always-dark sidebar chrome colors, sourced from the active palette's dark set. */
     chrome: { bg: string; border: string; fg: string };
 

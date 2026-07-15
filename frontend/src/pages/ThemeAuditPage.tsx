@@ -9,7 +9,8 @@ import {
   Button, Card, Input, Badge, Separator, Textarea,
   KpiCard, EmptyState, StatusBadge, SegmentedControl, PageHeader,
 } from '@ledgr/ui'
-import { Wallet, Inbox, Activity } from 'lucide-react'
+import { Wallet, Inbox, Activity, CheckCircle, AlertCircle, XCircle } from 'lucide-react'
+import { StatusPill, IconBadge } from '@/components/lumina'
 
 const Root = styled.div`
   min-height: 100dvh;
@@ -74,6 +75,23 @@ export function ThemeAuditPage() {
             <Badge>Default</Badge>
             <StatusBadge status="success" label="Active" />
             <StatusBadge status="warning" label="Pending" />
+          </div>
+        </Card>
+        <Card title="lumina · StatusPill (retokenized)">
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {(['neutral', 'primary', 'emerald', 'blue', 'amber', 'red', 'accent', 'purple', 'indigo'] as const).map(t => (
+              <StatusPill key={t} label={t} tone={t} />
+            ))}
+          </div>
+        </Card>
+        <Card title="lumina · IconBadge (retokenized)">
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <IconBadge icon={CheckCircle} color="primary" size="md" />
+            <IconBadge icon={AlertCircle} color="accent" size="md" />
+            <IconBadge icon={XCircle} color="muted" size="md" />
+            <IconBadge icon={Activity} color="emerald" size="md" />
+            <IconBadge icon={Activity} color="blue" size="md" />
+            <IconBadge icon={Activity} color="red" size="md" />
           </div>
         </Card>
         <Card title="SegmentedControl">
