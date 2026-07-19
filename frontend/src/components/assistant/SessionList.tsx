@@ -5,6 +5,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import styled, { useTheme } from 'styled-components'
+import { toast } from 'sonner'
 import { Plus, MoreHorizontal, MessageSquare } from 'lucide-react'
 import { Button, ConfirmDialog, Dialog, DialogFooter, Input } from '@ledgr/ui'
 import { chatApi } from '@/api/chat'
@@ -162,18 +163,26 @@ export function SessionList({ activeSessionId, onSelect, onNew }: {
     if (!renaming) return
     const title = renameValue.trim()
     if (title && title !== renaming.title) {
-      await chatApi.updateSession(renaming.id, { title })
-      fetchSessions()
+      try {
+        await chatApi.updateSession(renaming.id, { title })
+        fetchSessions()
+      } catch {
+        toast.error('Could not rename chat')
+      }
     }
     setRenaming(null)
   }
 
   const handleDelete = async () => {
     if (!deleting) return
-    await chatApi.deleteSession(deleting.id)
-    if (activeSessionId === deleting.id) onNew()
+    try {
+      await chatApi.deleteSession(deleting.id)
+      if (activeSessionId === deleting.id) onNew()
+      fetchSessions()
+    } catch {
+      toast.error('Could not delete chat')
+    }
     setDeleting(null)
-    fetchSessions()
   }
 
   return (
@@ -212,9 +221,13 @@ export function SessionList({ activeSessionId, onSelect, onNew }: {
                   <MenuItem onClick={async (e) => {
                     e.stopPropagation()
                     setMenuId(null)
-                    await chatApi.updateSession(session.id, { is_archived: true })
-                    if (activeSessionId === session.id) onNew()
-                    fetchSessions()
+                    try {
+                      await chatApi.updateSession(session.id, { is_archived: true })
+                      if (activeSessionId === session.id) onNew()
+                      fetchSessions()
+                    } catch {
+                      toast.error('Could not archive chat')
+                    }
                   }}>Archive</MenuItem>
                   <MenuItem
                     onClick={(e) => {

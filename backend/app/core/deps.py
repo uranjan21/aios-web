@@ -105,6 +105,8 @@ async def ws_auth(websocket: WebSocket) -> Optional[dict]:
         token_ver = payload.get("ver")
         if token_ver is not None and user.token_version != token_ver:
             return None
+        # Surface verification status so WS endpoints can mirror require_verified.
+        payload["email_verified"] = bool(user.email_verified)
     except Exception:
         return None
 

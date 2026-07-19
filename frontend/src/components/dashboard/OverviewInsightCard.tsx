@@ -58,10 +58,10 @@ type DomainKey = "finance" | "health";
 
 const DOMAINS: Record<
   DomainKey,
-  { label: string; tag: string; icon: LucideIcon; accent: string }
+  { label: string; tag: string; icon: LucideIcon }
 > = {
-  finance: { label: "Money",  tag: "Finance",  icon: IndianRupee, accent: "#CA8A04" },
-  health:  { label: "Health", tag: "Wellness", icon: Heart,       accent: "#16A34A" },
+  finance: { label: "Money",  tag: "Finance",  icon: IndianRupee },
+  health:  { label: "Health", tag: "Wellness", icon: Heart },
 };
 
 // ─────────────────────────── Animation ───────────────────────────
@@ -160,14 +160,16 @@ const DomainErrorText = styled.span`
 `;
 
 function DomainRowView({ domain, text }: { domain: DomainKey; text: string | null }) {
+  const theme = useTheme();
   const cfg = DOMAINS[domain];
   const Icon = cfg.icon;
   const bullets = splitIntoBullets(text);
+  const accent = theme.domain[domain];
 
   return (
     <DomainRow>
       <DomainHeader>
-        <DomainIconBox $accent={cfg.accent}>
+        <DomainIconBox $accent={accent}>
           <Icon size={11} />
         </DomainIconBox>
         <DomainLabel>{cfg.label}</DomainLabel>
@@ -176,12 +178,12 @@ function DomainRowView({ domain, text }: { domain: DomainKey; text: string | nul
       <BulletList>
         {bullets.length > 0 ? (
           bullets.map((b, i) => (
-            <BulletItem key={i} $accent={cfg.accent}>
+            <BulletItem key={i} $accent={accent}>
               {b}
             </BulletItem>
           ))
         ) : text ? (
-          <BulletItem $accent={cfg.accent}>{text}</BulletItem>
+          <BulletItem $accent={accent}>{text}</BulletItem>
         ) : (
           <DomainErrorText>Analysis unavailable.</DomainErrorText>
         )}

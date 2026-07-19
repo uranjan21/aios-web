@@ -1,13 +1,14 @@
 import React from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@ledgr/ui'
 import styled from 'styled-components'
+import { spacing } from '@/theme/layout'
 
 const StyledTabsWrapper = styled.div`
   /* Ensure the tabs list matches the exact spacing requested */
   [role="tablist"] {
     margin-bottom: ${({ theme }) => theme.spacing[6]};
   }
-  
+
   [role="tab"] {
     /* Icon inside tab label */
     svg {
@@ -15,6 +16,12 @@ const StyledTabsWrapper = styled.div`
       vertical-align: -2px;
     }
   }
+`
+
+const StyledTabsContent = styled(TabsContent)`
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing[2]};
 `
 
 export interface AreaTabsProps {
@@ -85,9 +92,9 @@ export function AreaTabs({
         </StyledTabsList>
         {toolbar}
         {items.map(item => (
-          <TabsContent key={item.key} value={item.key}>
+          <StyledTabsContent key={item.key} value={item.key}>
             {item.children}
-          </TabsContent>
+          </StyledTabsContent>
         ))}
       </Tabs>
     </StyledTabsWrapper>

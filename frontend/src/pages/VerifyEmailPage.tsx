@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import styled from 'styled-components'
 import { api } from '@/api/client'
-import { useAuthStore } from '@/stores/authStore'
 
 const Wrap = styled.div`
   min-height: 100vh;
@@ -47,8 +46,6 @@ const Btn = styled.button`
 export function VerifyEmailPage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
-  const setUser = useAuthStore(s => s.setUser)
-  const setAuthenticated = useAuthStore(s => s.setAuthenticated)
 
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying')
 
@@ -56,16 +53,12 @@ export function VerifyEmailPage() {
     const token = params.get('token')
     if (!token) { setStatus('error'); return }
 
+    // The endpoint no longer issues a session cookie (link-prefetch safety) —
+    // the user's existing signup session simply clears the verified gate now.
     api.get('/auth/verify-email', { params: { token } })
-      .then(({ data }) => {
-        if (data.user) {
-          setUser(data.user)
-          setAuthenticated(true)
-        }
-        setStatus('success')
-      })
+      .then(() => setStatus('success'))
       .catch(() => setStatus('error'))
-  }, [params, setUser, setAuthenticated])
+  }, [params])
 
   if (status === 'verifying') return <Wrap><Card><Message>Verifying your email…</Message></Card></Wrap>
 

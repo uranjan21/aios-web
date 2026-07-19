@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import styled, { keyframes } from 'styled-components'
+import styled, { keyframes, useTheme } from 'styled-components'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/authStore'
 import {
@@ -19,13 +19,18 @@ const FAINT = 'rgba(255,255,255,0.28)'
 const LINE = 'rgba(255,255,255,0.09)'
 const GLASS = 'rgba(255,255,255,0.035)'
 
-/* Domain colours — identical to the icon colours on the domain chips */
-const C_FINANCE = '#EF4444'
-const C_HEALTH = '#F43F5E'
-const C_CAREER = '#3B82F6'
-const C_BUSINESS = '#10B981'
-const C_CONTENT = '#8B5CF6'
-const C_VAULT = '#06B6D4'
+/* Domain identity comes from theme.chromeDomain — the dark-mode variants of
+ * the single source of truth in aiosTheme. This page is always dark whatever
+ * the user's mode, which is exactly what chromeDomain exists for.
+ *
+ * The colours here previously DISAGREED with the rest of the app: Finance was
+ * red here and gold everywhere else; Business was green here and red
+ * everywhere else. The app's convention won (2026-07-15).
+ *
+ * Consequence: Finance is now the brand gold, which is also this page's chrome
+ * colour. The Finance node separates from the chrome by weight, not hue — a
+ * solid glowing dot against 14%-opacity hairlines, with the paler #FDE68A core
+ * above it. */
 
 /* ── Animations ─────────────────────────────────────────────────────── */
 const fadeUp = keyframes`
@@ -49,13 +54,15 @@ const fadeUp = keyframes`
    composition frames the page instead of colliding with it. */
 const CORE = { x: 800, y: 452 }
 
+/** `domain` keys into theme.chromeDomain; `r` is bumped for Finance so the
+ *  gold node still reads against the gold chrome. */
 const NODES = [
-  { key: 'finance',  x: 660,  y: 86,  color: C_FINANCE,  r: 3.4, begin: '0s'   },
-  { key: 'health',   x: 1180, y: 96,  color: C_HEALTH,   r: 3.0, begin: '1.8s' },
-  { key: 'career',   x: 1046, y: 858, color: C_CAREER,   r: 3.2, begin: '3.6s' },
-  { key: 'business', x: 300,  y: 862, color: C_BUSINESS, r: 3.0, begin: '5.4s' },
-  { key: 'content',  x: 104,  y: 322, color: C_CONTENT,  r: 3.2, begin: '7.2s' },
-]
+  { key: 'finance',  domain: 'finance',  x: 660,  y: 86,  r: 4.2, begin: '0s'   },
+  { key: 'health',   domain: 'health',   x: 1180, y: 96,  r: 3.0, begin: '1.8s' },
+  { key: 'career',   domain: 'career',   x: 1046, y: 858, r: 3.2, begin: '3.6s' },
+  { key: 'business', domain: 'business', x: 300,  y: 862, r: 3.0, begin: '5.4s' },
+  { key: 'content',  domain: 'content',  x: 104,  y: 322, r: 3.2, begin: '7.2s' },
+] as const
 
 const VAULT = { x: 150, y: 648 }
 
@@ -90,7 +97,12 @@ const spark = (seed: number, x: number, y: number, w: number, h: number, n = 26)
   return `M ${pts.join(' L ')}`
 }
 
-const AmbientHUD = () => (
+const AmbientHUD = () => {
+  const theme = useTheme()
+  // Always-dark surface → dark domain variants regardless of the user's mode.
+  const dc = theme.chromeDomain
+
+  return (
   <HudSvg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
     <defs>
       {NODES.map(n => (
@@ -181,11 +193,11 @@ const AmbientHUD = () => (
     {NODES.map(n => (
       <use key={n.key} href={`#sp-${n.key}`} stroke={GOLD} strokeOpacity="0.14" strokeWidth="1" />
     ))}
-    <use href="#sp-vault" stroke={C_VAULT} strokeOpacity="0.12" strokeWidth="1" strokeDasharray="3 6" />
+    <use href="#sp-vault" stroke={dc.vault} strokeOpacity="0.12" strokeWidth="1" strokeDasharray="3 6" />
 
     {/* ── Data flowing inward, one slow pulse per domain ── */}
     {NODES.map(n => (
-      <circle key={n.key} className="pulse" r="2" fill={n.color}>
+      <circle key={n.key} className="pulse" r="2" fill={dc[n.domain]}>
         <animateMotion dur="9s" begin={n.begin} repeatCount="indefinite" calcMode="linear">
           <mpath href={`#sp-${n.key}`} />
         </animateMotion>
@@ -193,7 +205,7 @@ const AmbientHUD = () => (
           keyTimes="0;0.15;0.7;1" dur="9s" begin={n.begin} repeatCount="indefinite" />
       </circle>
     ))}
-    <circle className="pulse" r="1.8" fill={C_VAULT}>
+    <circle className="pulse" r="1.8" fill={dc.vault}>
       <animateMotion dur="11s" begin="2.5s" repeatCount="indefinite" calcMode="linear">
         <mpath href="#sp-vault" />
       </animateMotion>
@@ -204,18 +216,18 @@ const AmbientHUD = () => (
     {/* ── Domain nodes ── */}
     {NODES.map(n => (
       <g key={n.key}>
-        <circle className="nd" cx={n.x} cy={n.y} r={n.r} fill={n.color}
+        <circle className="nd" cx={n.x} cy={n.y} r={n.r} fill={dc[n.domain]}
           filter="url(#soft)" style={{ animationDelay: n.begin }} />
         <circle cx={n.x} cy={n.y} r={n.r + 7} fill="none"
-          stroke={n.color} strokeOpacity="0.18" strokeWidth="1" />
+          stroke={dc[n.domain]} strokeOpacity="0.18" strokeWidth="1" />
       </g>
     ))}
 
     {/* ── Vault node ── */}
     <g>
-      <circle className="nd" cx={VAULT.x} cy={VAULT.y} r="2.6" fill={C_VAULT} filter="url(#soft)" />
+      <circle className="nd" cx={VAULT.x} cy={VAULT.y} r="2.6" fill={dc.vault} filter="url(#soft)" />
       <rect x={VAULT.x - 8} y={VAULT.y - 8} width="16" height="16" rx="3"
-        fill="none" stroke={C_VAULT} strokeOpacity="0.2" strokeWidth="1"
+        fill="none" stroke={dc.vault} strokeOpacity="0.2" strokeWidth="1"
         transform={`rotate(45 ${VAULT.x} ${VAULT.y})`} />
     </g>
 
@@ -225,7 +237,8 @@ const AmbientHUD = () => (
     <circle cx={CORE.x} cy={CORE.y} r="38" fill="none" stroke={GOLD} strokeOpacity="0.1" strokeWidth="1" />
     <circle className="coreDot" cx={CORE.x} cy={CORE.y} r="5" fill={GOLD_LIT} filter="url(#soft)" />
   </HudSvg>
-)
+  )
+}
 
 /* ── Layout ─────────────────────────────────────────────────────────── */
 const Root = styled.div`
@@ -436,12 +449,14 @@ const Ticker = styled.div`
   letter-spacing: 0.04em;
 `
 
+/* Live-status dot. Uses success, not a domain colour — it means "running",
+   not "Business". */
 const Dot = styled.span`
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: ${C_BUSINESS};
-  box-shadow: 0 0 8px ${C_BUSINESS};
+  background: ${({ theme }) => theme.color.success};
+  box-shadow: 0 0 8px ${({ theme }) => theme.color.success};
   flex-shrink: 0;
 `
 
@@ -572,11 +587,12 @@ const EyeBtn = styled.button`
   &:focus-visible { outline: 2px solid ${GOLD}; outline-offset: 2px; border-radius: 4px; }
 `
 
+/* Valid-email check. Success, not a domain colour. */
 const Valid = styled.div`
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: ${C_BUSINESS};
+  background: ${({ theme }) => theme.color.success};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -746,18 +762,18 @@ const Legal = styled.div`
 
 /* ── Static data ────────────────────────────────────────────────────── */
 const DOMAINS = [
-  { icon: IndianRupee, label: 'Finance',  color: C_FINANCE },
-  { icon: Heart,       label: 'Health',   color: C_HEALTH },
-  { icon: Briefcase,   label: 'Career',   color: C_CAREER },
-  { icon: Rocket,      label: 'Business', color: C_BUSINESS },
-  { icon: PenLine,     label: 'Content',  color: C_CONTENT },
-]
+  { icon: IndianRupee, label: 'Finance',  domain: 'finance'  },
+  { icon: Heart,       label: 'Health',   domain: 'health'   },
+  { icon: Briefcase,   label: 'Career',   domain: 'career'   },
+  { icon: Rocket,      label: 'Business', domain: 'business' },
+  { icon: PenLine,     label: 'Content',  domain: 'content'  },
+] as const
 
 const FEATURES = [
-  { icon: Sparkles, label: 'AI-Powered',   desc: 'Chat with Claude about any life domain', color: C_CONTENT },
-  { icon: Shield,   label: 'Vault Synced', desc: 'Obsidian vault as your knowledge layer', color: C_VAULT },
-  { icon: Zap,      label: 'Agents',       desc: 'Automated workflows that run on schedule', color: C_BUSINESS },
-]
+  { icon: Sparkles, label: 'AI-Powered',   desc: 'Chat with Claude about any life domain', domain: 'content' },
+  { icon: Shield,   label: 'Vault Synced', desc: 'Obsidian vault as your knowledge layer', domain: 'vault' },
+  { icon: Zap,      label: 'Agents',       desc: 'Automated workflows that run on schedule', domain: 'business' },
+] as const
 
 const GoogleIcon = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -780,6 +796,7 @@ type AuthMode = 'login' | 'signup'
 
 /* ── Component ──────────────────────────────────────────────────────── */
 export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode }) {
+  const theme = useTheme()
   const [mode, setMode] = useState<AuthMode>(initialMode)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -863,7 +880,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
           <ChipRow>
             {DOMAINS.map(d => (
               <Chip key={d.label}>
-                <d.icon size={14} color={d.color} />
+                <d.icon size={14} color={theme.chromeDomain[d.domain]} />
                 <ChipLabel>{d.label}</ChipLabel>
               </Chip>
             ))}
@@ -872,7 +889,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
           <Features>
             {FEATURES.map(f => (
               <FeatureRow key={f.label}>
-                <FeatureIcon $c={f.color}><f.icon size={15} /></FeatureIcon>
+                <FeatureIcon $c={theme.chromeDomain[f.domain]}><f.icon size={15} /></FeatureIcon>
                 <FeatureTitle>{f.label}</FeatureTitle>
                 <FeatureDesc>{f.desc}</FeatureDesc>
               </FeatureRow>

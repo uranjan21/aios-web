@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react"
 import { useTheme } from "styled-components"
+import { toast } from "sonner"
 import { Plus, ArrowUp } from "lucide-react"
 import { AttachedFile, FilePreviewCard, PastedContentCard } from "./FilePreviewCard"
 import { Model, ModelSelector } from "./ModelSelector"
@@ -139,17 +140,20 @@ export function AssistantChatInput({
   }, [message])
 
   const handleFiles = useCallback((newFilesList: FileList | File[]) => {
-    const newFiles = Array.from(newFilesList).map(file => {
-      const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file.name)
-      let preview: string | null = null
-      if (isImage) {
-        preview = URL.createObjectURL(file)
-        createdUrlsRef.current.add(preview)
-      }
+    // Only images reach the model — both LLM adapters forward image/* attachments
+    // exclusively, so accepting other types would silently drop them.
+    const all = Array.from(newFilesList)
+    const images = all.filter(file => file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file.name))
+    if (images.length < all.length) {
+      toast.error('Only image attachments are supported right now')
+    }
+    const newFiles = images.map(file => {
+      const preview = URL.createObjectURL(file)
+      createdUrlsRef.current.add(preview)
       return {
         id: Math.random().toString(36).slice(2, 11),
         file,
-        type: isImage ? 'image/unknown' : (file.type || 'application/octet-stream'),
+        type: file.type || 'image/unknown',
         preview,
       }
     })
@@ -366,6 +370,7 @@ export function AssistantChatInput({
       <input
         ref={fileInputRef}
         type="file"
+        accept="image/*"
         multiple
         style={{ display: 'none' }}
         onChange={(e) => {

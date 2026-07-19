@@ -274,6 +274,10 @@ def create_app() -> FastAPI:
         if not user:
             await websocket.close(code=1008)
             return
+        # Mirror require_verified — the HTTP gate must not be bypassable over WS.
+        if not user.get("email_verified", True):
+            await websocket.close(code=1008)
+            return
         if not await ws_entitled(user["sub"], "chat"):
             await websocket.close(code=1008)
             return
@@ -283,6 +287,9 @@ def create_app() -> FastAPI:
     async def ws_agents(websocket: WebSocket):
         user = await ws_auth(websocket)
         if not user:
+            await websocket.close(code=1008)
+            return
+        if not user.get("email_verified", True):
             await websocket.close(code=1008)
             return
         if not await ws_entitled(user["sub"], "agents"):

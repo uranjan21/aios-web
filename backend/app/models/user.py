@@ -31,8 +31,11 @@ class User(SQLModel, table=True):
 
     # Email verification — False for new email-signup users until they click the link.
     # Google OAuth users are auto-verified. Default True so existing rows are unaffected.
+    # The token column stores a sha256 hash of the emailed token, never the raw value;
+    # sent_at drives the 24h expiry window.
     email_verified: bool = Field(default=True, nullable=False)
     email_verification_token: Optional[str] = Field(default=None, index=True)
+    email_verification_sent_at: Optional[datetime] = Field(default=None)
 
     created_at: datetime = Field(default_factory=_utcnow, nullable=False)
     updated_at: datetime = Field(default_factory=_utcnow, nullable=False)

@@ -1,3 +1,4 @@
+import hashlib
 import secrets
 import uuid
 from datetime import datetime, timedelta
@@ -6,7 +7,7 @@ from urllib.parse import urlencode
 import re
 
 import httpx
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, field_validator
 from sqlmodel import select
 
@@ -152,7 +153,13 @@ class SignupRequest(BaseModel):
 
 @router.post("/signup")
 @limiter.limit("5/minute")
-async def signup(request: Request, body: SignupRequest, response: Response, db=Depends(get_db)):
+async def signup(
+    request: Request,
+    body: SignupRequest,
+    response: Response,
+    background_tasks: BackgroundTasks,
+    db=Depends(get_db),
+):
     email = body.email.strip().lower()
     result = await db.execute(select(User).where(User.email == email))
     if result.scalar_one_or_none():
@@ -165,17 +172,24 @@ async def signup(request: Request, body: SignupRequest, response: Response, db=D
         auth_provider="email",
         password_hash=hash_password(body.password),
         email_verified=False,
-        email_verification_token=verification_token,
+        email_verification_token=_hash_verification_token(verification_token),
+        email_verification_sent_at=datetime.utcnow(),
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
 
     await _seed_new_user(user.id)
-    await _send_verification(email, verification_token)
+    # After the response — a slow mail provider must not delay signup.
+    background_tasks.add_task(_send_verification, email, verification_token)
 
     _issue_cookie(response, str(user.id), user.token_version)
     return {"status": "ok", "user": _user_dict(user)}
+
+
+def _hash_verification_token(token: str) -> str:
+    """Only the sha256 of the emailed token is persisted, so a DB read can't mint valid links."""
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 async def _send_verification(email: str, token: str) -> None:
@@ -538,26 +552,37 @@ async def google_login_callback(
 
 # ── Email verification ──────────────────────────────────────────────────
 
+_VERIFICATION_TOKEN_TTL = timedelta(hours=24)
+
+
 @router.get("/verify-email")
-async def verify_email(token: str, response: Response, db=Depends(get_db)):
-    """Consume a verification token and mark the user's email as verified."""
+async def verify_email(token: str, db=Depends(get_db)):
+    """Consume a verification token and mark the user's email as verified.
+
+    Deliberately does NOT issue an auth cookie: mail scanners prefetch links, and
+    a leaked/forwarded link must not grant a session. The user's existing signup
+    session keeps working; otherwise they log in normally.
+    """
     if not token:
         raise HTTPException(status_code=400, detail="Missing verification token")
 
-    result = await db.execute(select(User).where(User.email_verification_token == token))
+    hashed = _hash_verification_token(token)
+    result = await db.execute(select(User).where(User.email_verification_token == hashed))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=400, detail="Invalid or expired verification token")
 
+    if user.email_verification_sent_at and datetime.utcnow() - user.email_verification_sent_at > _VERIFICATION_TOKEN_TTL:
+        raise HTTPException(status_code=400, detail="Verification link has expired — request a new one")
+
     user.email_verified = True
     user.email_verification_token = None
+    user.email_verification_sent_at = None
     user.updated_at = datetime.utcnow()
     db.add(user)
     await db.commit()
-    await db.refresh(user)
 
-    _issue_cookie(response, str(user.id), user.token_version)
-    return {"status": "ok", "user": _user_dict(user)}
+    return {"status": "ok"}
 
 
 @router.post("/refresh")
@@ -612,7 +637,8 @@ async def resend_verification(request: Request, current_user=Depends(get_current
         return {"status": "already_verified"}
 
     token = secrets.token_urlsafe(32)
-    user.email_verification_token = token
+    user.email_verification_token = _hash_verification_token(token)
+    user.email_verification_sent_at = datetime.utcnow()
     user.updated_at = datetime.utcnow()
     db.add(user)
     await db.commit()

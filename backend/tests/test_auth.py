@@ -132,11 +132,13 @@ async def test_profile_update_valid_provider_succeeds(auth_client):
 # Users are seeded directly in the DB (bypassing the rate-limited /signup route)
 # so these tests don't compete with the signup rate-limit bucket.
 
-async def _seed_unverified_user(db_session_factory, email: str):
-    """Create a user row with email_verified=False and a verification token."""
+async def _seed_unverified_user(db_session_factory, email: str, sent_at=None):
+    """Create a user row with email_verified=False and a (hashed) verification token."""
     import secrets as _secrets
+    from datetime import datetime
     from app.models.user import User
     from app.core.security import hash_password
+    from app.api.auth import _hash_verification_token
     token = _secrets.token_urlsafe(32)
     user = User(
         email=email,
@@ -144,7 +146,8 @@ async def _seed_unverified_user(db_session_factory, email: str):
         auth_provider="email",
         password_hash=hash_password("supersecret123"),
         email_verified=False,
-        email_verification_token=token,
+        email_verification_token=_hash_verification_token(token),
+        email_verification_sent_at=sent_at or datetime.utcnow(),
     )
     async with db_session_factory() as s:
         s.add(user)
@@ -172,21 +175,41 @@ async def test_unverified_user_cannot_access_finance(app, db_session_factory):
 
 @pytest.mark.asyncio
 async def test_verify_email_token_grants_access(app, db_session_factory):
-    """Valid token → email_verified=True; subsequent requests with reissued cookie succeed."""
+    """Valid token → email_verified=True; NO cookie is issued (link-prefetch safety),
+    but an existing session for that user now clears the verified gate."""
     import uuid
     from httpx import AsyncClient, ASGITransport
+    from app.core.security import create_access_token
 
     email = f"tokenv-{uuid.uuid4().hex[:8]}@test.dev"
-    _user, token = await _seed_unverified_user(db_session_factory, email)
+    user, token = await _seed_unverified_user(db_session_factory, email)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         verify_resp = await ac.get(f"/api/auth/verify-email?token={token}")
         assert verify_resp.status_code == 200
-        assert "aios_token" in verify_resp.headers.get("set-cookie", "")
+        assert "aios_token" not in verify_resp.headers.get("set-cookie", "")
 
-        # Finance should now succeed with the reissued cookie.
+        # The user's own (signup-time) session should now pass require_verified.
+        ac.cookies.set("aios_token", create_access_token({"sub": str(user.id)}))
         finance_resp = await ac.get("/api/areas/finance/expenses")
         assert finance_resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_verify_email_expired_token_is_400(app, db_session_factory):
+    """A token older than 24h is rejected even though the hash matches."""
+    import uuid
+    from datetime import datetime, timedelta
+    from httpx import AsyncClient, ASGITransport
+
+    email = f"expired-{uuid.uuid4().hex[:8]}@test.dev"
+    _user, token = await _seed_unverified_user(
+        db_session_factory, email, sent_at=datetime.utcnow() - timedelta(hours=25)
+    )
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get(f"/api/auth/verify-email?token={token}")
+    assert resp.status_code == 400
 
 
 @pytest.mark.asyncio

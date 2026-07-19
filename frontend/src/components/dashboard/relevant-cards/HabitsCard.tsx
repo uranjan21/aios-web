@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import styled from 'styled-components'
+import styled, { useTheme } from 'styled-components'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Flame, Check } from 'lucide-react'
 import { Card, Stack } from '@ledgr/ui'
@@ -88,6 +88,7 @@ const CheckIcon = styled.span<{ $on: boolean }>`
 `
 
 export function HabitsCard() {
+  const theme = useTheme()
   const qc = useQueryClient()
   const { data: habits, isLoading } = useQuery({ queryKey: ['health', 'habits'], queryFn: healthApi.habits })
   const { data: streak } = useQuery({ queryKey: ['health', 'streak'], queryFn: healthApi.streak })
@@ -120,7 +121,7 @@ export function HabitsCard() {
   })
 
   return (
-    <Card title="Habits & Streaks" subtitle="Daily check-ins" icon={<Flame size={14} style={{ color: '#CA8A04' }} />}>
+    <Card title="Habits & Streaks" subtitle="Daily check-ins" icon={<Flame size={14} style={{ color: theme.domain.finance }} />}>
       {isLoading ? (
         <Stack direction="column" gap={2}>
           <Skeleton style={{ height: 34, width: '100%' }} />

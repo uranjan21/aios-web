@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import styled from 'styled-components'
+import styled, { useTheme } from 'styled-components'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, AlertCircle } from 'lucide-react'
 import { Card } from '@ledgr/ui'
@@ -66,6 +66,7 @@ const TotalLabel = styled.span`
 `
 
 export function WeekActivityCard() {
+  const theme = useTheme()
   const { data: captures, isLoading, isError } = useQuery({
     queryKey: ['captures', 'list'],
     queryFn: () => capturesApi.list(),
@@ -96,7 +97,7 @@ export function WeekActivityCard() {
   const todayKey = fmtDateKey(new Date())
 
   return (
-    <Card title="This Week" subtitle="Captures per day" icon={<Activity size={14} style={{ color: '#0EA5E9' }} />}>
+    <Card title="This Week" subtitle="Captures per day" icon={<Activity size={14} style={{ color: theme.domain.career }} />}>
       {isError ? (
         <Empty style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <AlertCircle size={13} /> Failed to load captures.

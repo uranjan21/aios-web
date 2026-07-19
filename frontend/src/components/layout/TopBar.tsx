@@ -274,6 +274,60 @@ const PAGE_NAMES: Record<string, string> = {
   '/app/areas/content': 'Content',
 }
 
+const AccountMenuContent = styled(DropdownMenuContent)`
+  min-width: 260px;
+`
+
+const PopoverHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, ${({ theme }) => theme.color.muted}, transparent);
+  
+  .avatar-large {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: ${({ theme }) => theme.color.primary};
+    color: ${({ theme }) => theme.color.primaryForeground};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 600;
+    flex-shrink: 0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  }
+  
+  .user-details {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    
+    .name {
+      font-size: 15px;
+      font-weight: 600;
+      color: ${({ theme }) => theme.color.foreground};
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      letter-spacing: -0.01em;
+      margin-bottom: 2px;
+    }
+    
+    .email {
+      font-size: 13px;
+      color: ${({ theme }) => theme.color.mutedForeground};
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+  }
+`
+
 export function TopBar() {
   const { theme, toggleTheme, setCmdPaletteOpen, toggleSidebar } = useUIStore()
   const user = useAuthStore(s => s.user)
@@ -368,17 +422,27 @@ export function TopBar() {
               </div>
             </UserMenuTrigger>
           </DropdownMenuTrigger>
-          <DropdownMenuContent side="bottom" align="end">
-            <DropdownMenuLabel>{user?.email || user?.name || 'Account'}</DropdownMenuLabel>
+          <AccountMenuContent side="bottom" align="end">
+            <PopoverHeader>
+              {user?.picture_url ? (
+                <img className="avatar-large" src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ objectFit: 'cover' }} />
+              ) : (
+                <div className="avatar-large">{(user?.name || 'U')[0].toUpperCase()}</div>
+              )}
+              <div className="user-details">
+                <span className="name">{user?.name || 'User'}</span>
+                <span className="email">{user?.email || 'user@example.com'}</span>
+              </div>
+            </PopoverHeader>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => navigate('/app/settings')}>
-              <Settings /> Profile &amp; settings
+              <Settings size={16} style={{ marginRight: '8px' }} /> Profile & settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem destructive onSelect={() => logoutAndRedirect(navigate)}>
-              <LogOut /> Log out
+              <LogOut size={16} style={{ marginRight: '8px' }} /> Log out
             </DropdownMenuItem>
-          </DropdownMenuContent>
+          </AccountMenuContent>
         </DropdownMenu>
       </RightCluster>
     </HeaderRoot>

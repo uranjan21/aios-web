@@ -1,4 +1,4 @@
-import styled from 'styled-components'
+import styled, { useTheme } from 'styled-components'
 import { useQuery } from '@tanstack/react-query'
 import { History } from 'lucide-react'
 import { Card, Stack } from '@ledgr/ui'
@@ -54,6 +54,7 @@ const ActivityTime = styled.span`
 `
 
 export function RecentActivityCard() {
+  const theme = useTheme()
   const { data: captures, isLoading } = useQuery({
     queryKey: ['captures', 'list'],
     queryFn: () => capturesApi.list(),
@@ -72,7 +73,7 @@ export function RecentActivityCard() {
     <Card
       title="Recent Activity"
       subtitle="Latest captures across your inbox"
-      icon={<History size={14} style={{ color: '#0891B2' }} />}
+      icon={<History size={14} style={{ color: theme.domain.vault }} />}
     >
       {isLoading ? (
         <Stack direction="column" gap={2}>

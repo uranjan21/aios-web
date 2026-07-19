@@ -87,7 +87,7 @@ const AccountChip = styled.span`
   display: inline-flex;
   align-items: center;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: ${({ theme }) => theme.radii.xs};
   background: ${({ theme }) => theme.color.muted};
   color: ${({ theme }) => theme.color.mutedForeground};
   font-size: 10px;
@@ -113,7 +113,7 @@ const TxnActions = styled.div`
 
 const TxnActionBtn = styled.button<{ $danger?: boolean }>`
   padding: 5px;
-  border-radius: 4px;
+  border-radius: ${({ theme }) => theme.radii.xs};
   border: none;
   background: none;
   cursor: pointer;
