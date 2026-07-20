@@ -1,0 +1,21 @@
+{
+  "name": "@aios/shell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p ../../tsconfig.json && vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext ts,tsx"
+  },
+  "dependencies": {
+    "@aios/business": "workspace:*",
+    "@aios/career": "workspace:*",
+    "@aios/content": "workspace:*",
+    "@aios/finance": "workspace:*",
+    "@aios/health": "workspace:*",
+    "@aios/shared": "workspace:*",
+    "@ledgr/ui": "workspace:*"
+  }
+}

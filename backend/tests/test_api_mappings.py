@@ -201,19 +201,23 @@ def strip_comments(text: str) -> str:
 
 
 def get_frontend_endpoints():
-    base_dir = Path(__file__).parent.parent.parent / "frontend/src"
+    # Monorepo layout: frontend source lives in the shell/domain apps + shared package.
+    repo_root = Path(__file__).parent.parent.parent
+    src_dirs = [p / "src" for p in (repo_root / "apps").iterdir() if (p / "src").is_dir()]
+    src_dirs.append(repo_root / "packages/shared/src")
     endpoints = []
-    for root, _, files in os.walk(base_dir):
-        for file in files:
-            if file.endswith(('.ts', '.tsx')):
-                file_path = Path(root) / file
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                clean_content = strip_comments(content)
-                file_endpoints = parse_frontend_file(clean_content)
-                for ep in file_endpoints:
-                    ep['file'] = str(file_path.relative_to(base_dir.parent.parent))
-                    endpoints.append(ep)
+    for base_dir in src_dirs:
+        for root, _, files in os.walk(base_dir):
+            for file in files:
+                if file.endswith(('.ts', '.tsx')):
+                    file_path = Path(root) / file
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    clean_content = strip_comments(content)
+                    file_endpoints = parse_frontend_file(clean_content)
+                    for ep in file_endpoints:
+                        ep['file'] = str(file_path.relative_to(repo_root))
+                        endpoints.append(ep)
     return endpoints
 
 def test_api_mappings():

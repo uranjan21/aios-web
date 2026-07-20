@@ -48,8 +48,8 @@ echo -e "${YELLOW}[3/3] Starting services${NC}"
 (cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000) &
 BACKEND_PID=$!
 
-# 4. Start frontend
-(cd frontend && pnpm dev --port 5173) &
+# 4. Start frontend (shell app — composes all domain apps)
+(cd apps/shell && pnpm dev --port 5173) &
 FRONTEND_PID=$!
 
 sleep 2

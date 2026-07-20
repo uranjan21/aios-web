@@ -7,6 +7,8 @@
 
 A full-stack personal life-management OS — Finance, Health, Career, Business, Content — with AI agents, vault sync, and multi-LLM integration. **Transitioning from single-user to multi-tenant SaaS (decided 2026-06-21).** All new DB/backend work must be multi-user aware: `users` table, `user_id` FK on every user-data table, row-level isolation.
 
+**The frontend is a pnpm-workspace MONOREPO (converted 2026-07-20).** Each life domain is its own app package (`apps/finance`, `apps/health`, `apps/career`, `apps/business`, `apps/content`); `apps/shell` is the central app that owns the router, AppShell navigation (Sidebar/TopBar/BottomNav), and all cross-domain surfaces; `packages/shared` (`@aios/shared`) holds api/stores/hooks/lib/theme/types + shared components; `packages/ui` is `@ledgr/ui`. The shell composes the domain apps into ONE deployed SPA (they are workspace packages consumed from source via Vite aliases, not separately deployed micro-frontends).
+
 ---
 
 ## 📍 Progress Snapshot (auto-synced)
@@ -32,14 +34,14 @@ A full-stack personal life-management OS — Finance, Health, Career, Business, 
 
 ## Stack
 
-- **Frontend**: React 18 + TypeScript + Vite + **@ledgr/ui** (component library at `ledgr-ui/`) + styled-components + Ant Design (complex widgets only — Tabs, DatePicker, Segmented)
+- **Frontend**: React 18 + TypeScript + Vite + **@ledgr/ui** (component library at `packages/ui/`) + styled-components + Ant Design (complex widgets only — Tabs, DatePicker, Segmented)
 - **Backend**: Python 3.11+ + FastAPI + SQLModel (async SQLAlchemy) + asyncpg
 - **Database**: PostgreSQL 15 + pgvector
 - **AI/LLMs**: Anthropic Claude SDK, OpenAI SDK (default provider, `settings.openai_chat_model`)
 - **Real-time**: FastAPI native WebSockets (`/ws/sync`, `/ws/chat`, `/ws/agents`)
 - **State**: Zustand (global) + React Query / TanStack (server state)
 - **Auth**: JWT in httpOnly SameSite=Strict cookie (`aios_token`). Google OAuth added 2026-06-21.
-- **Package managers**: pnpm (frontend), uv (backend)
+- **Package managers**: pnpm workspaces (frontend monorepo — install from repo root), uv (backend)
 - **Container**: Docker + docker-compose
 
 ---
@@ -72,11 +74,14 @@ A full-stack personal life-management OS — Finance, Health, Career, Business, 
 
 ## Architecture
 
-### Frontend
+### Frontend (monorepo)
 
-- SPA via React Router v6; `RequireAuth` guard on all area routes
-- Feature areas: Finance / Health / Career / Business / Content — each has dedicated page + `<AreaTabs>` sub-nav (never nest Tabs)
-- API: functions in `frontend/src/api/` — no raw fetch or axios in components
+- **Package graph:** `apps/shell` (`@aios/shell`) → depends on the 5 domain apps + `@aios/shared` + `@ledgr/ui`; each domain app (`@aios/finance|health|career|business|content`) → depends only on `@aios/shared` + `@ledgr/ui`. Domain apps NEVER import each other or the shell. Shell may deep-import a domain component (e.g. GoalsPage uses `@aios/finance/components/GoalsTab`).
+- **Import specifiers:** `@/` = shell-internal only (`apps/shell/src`); `@aios/shared/...`, `@aios/<domain>/...` everywhere else. Aliases live in `apps/shell/vite.config.ts` + root `tsconfig.json` paths + root `vitest.config.ts` — keep the three in sync when adding a package.
+- **Dependency policy:** all third-party deps are declared ONCE in the root `package.json` (single-version policy — guarantees one React/styled-components instance). Per-package manifests only declare the workspace graph (`workspace:*`).
+- SPA via React Router v6 (in `apps/shell/src/router.tsx`); `RequireAuth` guard on all area routes
+- Feature areas: Finance / Health / Career / Business / Content — each is an app package with `src/pages` + `src/components`, each page has `<AreaTabs>` sub-nav (never nest Tabs)
+- API: functions in `packages/shared/src/api/` — no raw fetch or axios in components
 - Styling: `styled.div` / `styled(Component)` everywhere; `className` in SC = CSS selector hook, NOT utility
 - `WorkspaceLayout` + `RailHeading` pattern: analytics/lists → center; inputs/forms → right 300px sticky rail
 - **Settings Layout**: Any settings page (global or domain-specific) MUST use the standard two-panel layout (`AreaSettingsPage`). Do not build inline settings tabs or custom settings layouts.
@@ -101,24 +106,34 @@ A full-stack personal life-management OS — Finance, Health, Career, Business, 
 ## Project Structure
 
 ```text
-aios-web/
-├── frontend/
-│   ├── src/
-│   │   ├── api/               # All HTTP calls — never call fetch/axios directly in components
-│   │   ├── components/
-│   │   │   ├── layout/        # AppShell, Sidebar, TopBar, BottomNav, WorkspaceLayout
-│   │   │   ├── ui/            # Shared primitives (AreaTabs, Skeleton, TextTabs…)
-│   │   │   ├── dashboard/     # Dashboard card components
-│   │   │   └── areas/         # Domain-specific components (finance/, health/, content/…)
-│   │   ├── hooks/             # useChat, useNotifications, useVaultSync, useKeyboardShortcuts…
-│   │   ├── lib/               # Utility fns (formatCurrency, parseLocalDate, fmtDateKey…)
-│   │   ├── pages/             # Page-level components
-│   │   ├── stores/            # Zustand stores (authStore, uiStore, notificationStore, dayEventsStore)
-│   │   ├── theme/             # aiosTheme.ts — all design tokens
-│   │   └── router.tsx         # All routes + RequireAuth guard
-│   ├── index.html
-│   ├── vite.config.ts
-│   └── package.json
+aios-web/                      # pnpm workspace root (package.json = ALL third-party deps, tsconfig.json, vitest.config.ts)
+├── apps/
+│   ├── shell/                 # @aios/shell — THE deployable Vite app (central top layer)
+│   │   ├── src/
+│   │   │   ├── router.tsx     # All routes + RequireAuth/RequireModule guards
+│   │   │   ├── components/
+│   │   │   │   ├── layout/    # AppShell, Sidebar, TopBar, BottomNav (all navigation/menus)
+│   │   │   │   ├── dashboard/ # Dashboard card components
+│   │   │   │   └── assistant/, onboarding/, CommandPalette, NotificationBell…
+│   │   │   ├── features/agents/
+│   │   │   └── pages/         # Dashboard, Chat, Agents, Goals, workspace/, settings/, guide/, legal/, landing…
+│   │   ├── index.html · public/ · vite.config.ts (workspace aliases) · Dockerfile
+│   ├── finance/               # @aios/finance — src/pages (FinancePage, FinanceSettingsPage) + src/components
+│   ├── health/                # @aios/health — same shape
+│   ├── career/                # @aios/career — same shape
+│   ├── business/              # @aios/business — same shape
+│   └── content/               # @aios/content — same shape
+│
+├── packages/
+│   ├── ui/                    # @ledgr/ui component library (tsup build → dist/)
+│   └── shared/                # @aios/shared — code any app may use
+│       └── src/
+│           ├── api/           # All HTTP calls — never call fetch/axios directly in components
+│           ├── stores/        # Zustand stores (authStore, uiStore, notificationStore, dayEventsStore)
+│           ├── hooks/ · lib/ · types/ · styled.d.ts
+│           ├── theme/         # aiosTheme.ts + layout.ts — all design tokens
+│           └── components/    # ui/ (AreaTabs…), layout/ (WorkspaceLayout, AreaSettingsPage, PageLayout, PageDivider),
+│                              # lumina/, widgets/, workspace/, UpgradeWall, AiInsightCard, CareerRadar
 │
 ├── backend/
 │   ├── app/
@@ -135,11 +150,9 @@ aios-web/
 │   │   ├── core/              # Config, deps, middleware, rate limiting
 │   │   └── main.py            # FastAPI factory + lifespan
 │   ├── alembic/               # Migrations
-│   ├── seed_dummy_data.py     # Dev DB seeding
-│   ├── seed_finance_real_data.py
-│   └── data_finance_2026.json
+│   └── seed_dummy_data.py     # Dev DB seeding
 │
-├── ledgr-ui/                  # @ledgr/ui component library (local package)
+├── pnpm-workspace.yaml        # workspace: apps/* + packages/*
 ├── docker-compose.yml
 ├── CLAUDE.md                  # This file — source of truth for architecture + conventions
 ├── .env                       # Secrets (never commit)
@@ -172,7 +185,7 @@ aios-web/
 ### UI/UX rules (always apply)
 
 - **Sidebar**: top-level links only — no accordions, no sub-menus
-- **AreaTabs**: always `<AreaTabs>` from `@/components/ui/AreaTabs`; never nest `<Tabs>`
+- **AreaTabs**: always `<AreaTabs>` from `@aios/shared/components/ui/AreaTabs`; never nest `<Tabs>`
 - **No page-level titles** rendered inside content — breadcrumbs only in TopBar
 - **Dashboard layout**: two-column shell, right column 300px fixed, left `1fr`
 - **Density**: compact text (13–14px body), tight padding (16–20px on cards), no oversized bold values
@@ -185,7 +198,7 @@ aios-web/
 - **`@ledgr/ui` `Dialog` icon renders inline, no background box** — `IconWrap` in `Dialog.tsx` has no `width`/`height`/`background`. The icon SVG renders bare alongside the eyebrow+title+description, exactly like the Card header icon. Never add a muted-bg container to the dialog icon.
 - **Toolbar/action-row controls share a 32px height contract** — every interactive control that sits in a `Card` action row or `AreaToolbar` must render at exactly **32px** so they align on one baseline. Fixed at the ledgr-ui source (all `border-box`): `Button size="sm"` = 32px, `SegmentedControl size="sm"` = 32px (explicit `height` on `Root`), `DateNavBtn` = 32×32px, `ToolbarIconBtn` = `height:32px; padding:0 16px` (do NOT use vertical padding — it made it 37.5px and pushed it above the others). Never paper over a height mismatch with an inline `style={{ height: 32 }}` on the call site — fix the primitive. When adding a new toolbar control, measure it against 32px.
 - **`PageHeader` standard** — Finance (`FinancePage.tsx`) + Settings are the canonical references. Settings button is always `variant="outline" size="sm"` with `<Settings size={14} style={{ marginRight: 6 }} /> Settings` (NOT ghost, NOT icon-only). **PageDivider rule:** area pages (Finance/Health/Career/Business/Content/Goals) → NO PageDivider after PageHeader; workspace/tool pages (Projects/Sprints/Tasks/Agents/Settings/Discoveries/Review/Integrations) → ALWAYS `<PageDivider />` immediately after `<PageHeader />`.
-- **Always use `@ledgr/ui` `Card` directly — never build custom card wrapper components.** `Card` has `icon`/`title`/`subtitle`/`action` props that provide the full header layout. **Canonical reference: `components/areas/finance/BudgetsTab.tsx`.** Action items go in `<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>` passed as `action`. Always add `fullWidth={false}` to any `Select` inside `action` (without it Select fills the container and pushes buttons to a second line). Icon size = `16`. Never use `flex-wrap: wrap` on the inner action div.
+- **Always use `@ledgr/ui` `Card` directly — never build custom card wrapper components.** `Card` has `icon`/`title`/`subtitle`/`action` props that provide the full header layout. **Canonical reference: `apps/finance/src/components/BudgetsTab.tsx`.** Action items go in `<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>` passed as `action`. Always add `fullWidth={false}` to any `Select` inside `action` (without it Select fills the container and pushes buttons to a second line). Icon size = `16`. Never use `flex-wrap: wrap` on the inner action div.
 - **WorkspaceLayout's `Main` is a flex column with `gap: 24px`** — direct children (grids, sections) must NOT also set their own `margin-top`, or spacing doubles (gap + margin-top stack additively). Let the parent `gap` handle inter-section spacing.
 
 ---
@@ -200,7 +213,7 @@ aios-web/
 - **Push notifications gotcha**: `docker compose restart` does NOT re-read `env_file` — use `docker compose up -d backend` after `.env` changes
 - **health_logs entry_type CHECK**: allowed values are `gym,weight,food,meal,water,steps,body_fat,sleep,note` — adding a new type needs a migration to update the Postgres CHECK constraint
 - **CSS vars are HEX**: never `hsl(var(--x))` — use `var(--x)` or `color-mix()`
-- **ledgr-ui edit → browser: reliable deploy + MANDATORY verify.** `grep`ing the rebuilt `dist` is NOT proof the change reached the browser — the Vite dev server pre-bundles `@ledgr/ui` into `node_modules/.vite/deps` and keeps serving that until it's invalidated. Reliable sequence after editing ledgr-ui source: (1) `cd ledgr-ui && rm -rf dist && npm run build`; (2) copy the fresh `dist` into the pnpm virtual store the top-level symlink resolves to — `cp -r dist "frontend/node_modules/.pnpm/@ledgr+ui@file+..*/node_modules/@ledgr/ui/"` (a plain `cp` into the store is the most robust; a full `pnpm install` can drop the top-level `node_modules/@ledgr/ui` symlink and needs manual recreation); (3) `rm -rf frontend/node_modules/.vite`; (4) **restart the dev server** (clearing `.vite` alone doesn't re-optimize a running server); (5) **verify in the browser by measuring** — `getBoundingClientRect()` via `preview_eval`, not by trusting the source. If you can't log in to reach the real page, add a throwaway public route rendering the components, measure, then delete it.
+- **ledgr-ui edit → browser: rebuild + restart + MANDATORY verify.** Since the monorepo conversion (2026-07-20), `@ledgr/ui` is a `workspace:*` symlink — the old "copy dist into the pnpm store" dance is GONE. Sequence after editing `packages/ui` source: (1) `pnpm --filter @ledgr/ui build`; (2) `rm -rf apps/shell/node_modules/.vite` (Vite pre-bundles `@ledgr/ui` into its deps cache and keeps serving the stale copy); (3) **restart the dev server** (clearing `.vite` alone doesn't re-optimize a running server); (4) **verify in the browser by measuring** — `getBoundingClientRect()` via `preview_eval`, not by trusting the source. If you can't log in to reach the real page, add a throwaway public route rendering the components, measure, then delete it.
 - **`@ledgr/ui` Dialog fires `onOpenChange` on CLOSE only** (Esc/overlay/close-button → `onOpenChange(false)`); it never calls `onOpenChange(true)`. So modal **reset/prefill must be driven by a `useEffect` on `[open, editing]`**, not an `onOpenChange(true)` branch (that branch never runs → stale/empty forms on reopen/edit). Same for any controlled Dialog.
 - **Number `<Input>` needs `step`**: `min="0.01"` (or any non-integer min) with the default `step="1"` makes whole numbers *invalid* ("nearest valid values are 19.01 and 20.01"). Always pair a decimal `min` with `step="0.01"` (or `step="any"`) on currency/amount inputs.
 - **Finance categories are a 2-level DB tree, separated by `kind` (income vs expense)** — no hardcoded category lists. Query key `['finance', 'categories']`; `GET /categories?kind=` filters; the tree auto-seeds defaults per kind on first fetch (`_DEFAULT_CATEGORIES`). The txn form uses `CategoryPicker` (a cascading flyout on desktop / drill-down on mobile, with inline create). **Transactions store `category_id`** (FK to the exact node) **plus a denormalized `category`/`source` = the TOP-LEVEL ancestor name** (so existing by-category reports roll up for free; resolve `category_id` for the subcategory). Resolve via `_resolve_category()` in `api/areas/finance.py`. Deleting a category uncategorizes its transactions. **Account is required** on manual expense/income (422 without it).
@@ -213,11 +226,13 @@ aios-web/
 ## Commands
 
 ```bash
-# Frontend
-cd frontend
-pnpm dev              # Vite dev server :5173
-pnpm build            # Production build
-pnpm lint
+# Frontend (run from repo root — pnpm workspace)
+pnpm install                     # installs ALL workspace packages (root, apps/*, packages/*)
+pnpm dev                         # shell dev server :5173 (= pnpm --filter @aios/shell dev)
+pnpm build                       # builds @ledgr/ui then the shell app
+pnpm test                        # vitest across apps/* + packages/*
+pnpm --filter @ledgr/ui build    # rebuild the component library after editing packages/ui
+./node_modules/.bin/tsc -p tsconfig.json   # typecheck the whole frontend monorepo
 
 # Backend (local, not Docker)
 cd backend
@@ -236,6 +251,17 @@ alembic upgrade head
 ```
 
 ---
+
+## Recent Updates (2026-07-20 — MONOREPO CONVERSION)
+
+The frontend was converted from a single `frontend/` package into a pnpm-workspace monorepo (branch `monorepo`). **Zero logic changes — every file was `git mv`'d and only import specifiers were rewritten.**
+
+- **Layout:** `apps/shell` (central app: router, AppShell nav, dashboard, chat, agents, workspace, goals, settings, guide, legal, landing, admin) + one app package per domain (`apps/finance|health|career|business|content`, each `src/pages` + `src/components`) + `packages/shared` (`@aios/shared`: api, stores, hooks, lib, theme, types, shared components) + `packages/ui` (`@ledgr/ui`, moved from `ledgr-ui/`).
+- **Composition model:** ONE deployed SPA. The shell consumes domain apps + shared from **source** via Vite aliases (`apps/shell/vite.config.ts`), mirrored in root `tsconfig.json` `paths` and root `vitest.config.ts`. `@/` = shell-internal only; everything else imports `@aios/shared/...` / `@aios/<domain>/...`. Domain apps never import each other (verified — zero cross-domain imports existed).
+- **Dependency policy:** all third-party deps live in the ROOT `package.json` only (single-version, one React/styled-components instance guaranteed); per-package manifests declare `workspace:*` graph edges only. `@ledgr/ui` went from `file:../ledgr-ui` (copy semantics) to `workspace:*` (symlink) — the old copy-dist-into-pnpm-store gotcha is obsolete; rebuild + clear `apps/shell/node_modules/.vite` + restart dev server is now enough.
+- **Build/tooling:** root scripts `pnpm dev|build|test|lint`; shell build = `tsc -p ../../tsconfig.json && vite build` (one tsconfig typechecks the whole graph); vitest config at root covers `apps/*` + `packages/*`; frontend Dockerfile now at `apps/shell/Dockerfile` with repo-root build context (fixes the old "can't rebuild: ledgr-ui outside context" problem); `docker-compose.yml` frontend service + `run.sh` updated.
+- **Backend touch:** `tests/test_api_mappings.py` `get_frontend_endpoints()` now scans `apps/*/src` + `packages/shared/src` (was `frontend/src`).
+- **Verified:** `tsc -p tsconfig.json` clean, `pnpm build` clean, vitest 2/2, backend **201 passing** on host, dev server boots, landing + login pages render with zero console errors, all 5 domain page modules + shared api + AppShell + router dynamically imported in the live browser OK.
 
 ## Recent Updates (2026-07-14 — Production audit follow-up: tool history, Redis confirmations, index migration)
 

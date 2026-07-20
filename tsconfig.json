@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["apps/shell/src/*"],
+      "@aios/shared/*": ["packages/shared/src/*"],
+      "@aios/finance/*": ["apps/finance/src/*"],
+      "@aios/health/*": ["apps/health/src/*"],
+      "@aios/career/*": ["apps/career/src/*"],
+      "@aios/business/*": ["apps/business/src/*"],
+      "@aios/content/*": ["apps/content/src/*"]
+    }
+  },
+  "include": [
+    "apps/shell/src",
+    "apps/finance/src",
+    "apps/health/src",
+    "apps/career/src",
+    "apps/business/src",
+    "apps/content/src",
+    "packages/shared/src"
+  ],
+  "references": [{ "path": "./apps/shell/tsconfig.node.json" }]
+}
