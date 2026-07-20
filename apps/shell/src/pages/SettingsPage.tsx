@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Settings, Palette, Activity, Sparkles, Keyboard, User, CreditCard, Lock, Zap, Sunrise, BookOpen, Shield } from 'lucide-react'
+import { Settings, Palette, Activity, Sparkles, Keyboard, User, CreditCard, Lock, Zap, Sunrise, BookOpen, Shield, Link2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@aios/shared/stores/authStore'
 import { useFeatures } from '@aios/shared/hooks/useFeatures'
@@ -18,6 +18,7 @@ import { BriefingSection } from './settings/sections/BriefingSection'
 import { AutomationsSection } from './settings/sections/AutomationsSection'
 import { KnowledgeSection } from './settings/sections/KnowledgeSection'
 import { AiConfigSection } from './settings/sections/AiConfigSection'
+import { ConnectionsSection } from './settings/sections/ConnectionsSection'
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ export function SettingsPage() {
       items: [
         { key: 'appearance', label: 'Appearance', icon: <Palette size={15} />, content: <AppearanceSection /> },
         { key: 'briefing', label: 'Briefing', icon: <Sunrise size={15} />, content: <BriefingSection /> },
+        { key: 'connections', label: 'Connections', icon: <Link2 size={15} />, content: <ConnectionsSection /> },
         { key: 'knowledge', label: 'Knowledge Base', icon: <BookOpen size={15} />, content: <KnowledgeSection /> },
         { key: 'ai-config', label: 'AI Config', icon: <Sparkles size={15} />, content: <AiConfigSection /> },
         { key: 'automations', label: 'Automations', icon: <Zap size={15} />, content: <AutomationsSection /> },

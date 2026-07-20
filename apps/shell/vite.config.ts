@@ -30,6 +30,7 @@ export default defineConfig({
     ],
   },
   server: {
+    port: process.env.PORT ? Number(process.env.PORT) : 5173,
     proxy: {
       // 127.0.0.1 (not "localhost") — Node resolves localhost to IPv6 ::1 first,
       // but the backend binds IPv4, so localhost proxying intermittently ECONNREFUSEDs.

@@ -9,14 +9,18 @@ import sqlalchemy as sa
 
 class IntegrationCredential(SQLModel, table=True):
     __tablename__ = "integration_credentials"
-    # One credential per (user, provider) — NOT one per provider globally.
+    # One credential per (user, provider, account). Singleton providers (gcal,
+    # gfit, notion, github) always use account_email="" — behavior unchanged.
+    # Gmail may have N rows per user (one per linked Google account), since the
+    # inbox receiving bank alerts is often NOT the sign-in account.
     __table_args__ = (
-        UniqueConstraint("user_id", "provider", name="uq_integration_user_provider"),
+        UniqueConstraint("user_id", "provider", "account_email", name="uq_integration_user_provider_account"),
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     provider: str = Field(nullable=False)
+    account_email: str = Field(default="", nullable=False)
     access_token_encrypted: Optional[str] = Field(default=None, sa_column=Column(Text))
     refresh_token_encrypted: Optional[str] = Field(default=None, sa_column=Column(Text))
     token_expires_at: Optional[datetime] = None

@@ -76,7 +76,10 @@ async def build_auth_url(provider: str, db, user_id: Optional[uuid.UUID] = None)
         "response_type": "code",
         "scope": " ".join(SCOPES_BY_PROVIDER[provider]),
         "access_type": "offline",
-        "prompt": "consent",
+        # Gmail: let the user pick ANY Google account (bank alerts often arrive
+        # in a different inbox than the sign-in account) and allow linking more
+        # than one. Other providers keep the plain consent flow.
+        "prompt": "select_account consent" if provider == "gmail" else "consent",
         "state": state,
     }
     return f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
@@ -166,8 +169,14 @@ async def refresh_access_token(provider: str, refresh_token_encrypted: str) -> d
 
 
 async def save_tokens(user_id: uuid.UUID, db, provider: str, token_data: dict) -> IntegrationCredential:
+    # Gmail credentials are scoped per linked account (the connected address);
+    # every other provider stays a singleton keyed on "".
+    account_email = (token_data.get("email") or "") if provider == "gmail" else ""
     result = await db.execute(
-        select(IntegrationCredential).where(IntegrationCredential.user_id == user_id).where(IntegrationCredential.provider == provider)
+        select(IntegrationCredential)
+        .where(IntegrationCredential.user_id == user_id)
+        .where(IntegrationCredential.provider == provider)
+        .where(IntegrationCredential.account_email == account_email)
     )
     cred = result.scalar_one_or_none()
 
@@ -178,6 +187,7 @@ async def save_tokens(user_id: uuid.UUID, db, provider: str, token_data: dict) -
         cred = IntegrationCredential(
             user_id=user_id,
             provider=provider,
+            account_email=account_email,
             access_token_encrypted=encrypt_token(token_data["access_token"]),
             refresh_token_encrypted=(
                 encrypt_token(token_data["refresh_token"]) if token_data.get("refresh_token") else None
@@ -205,11 +215,29 @@ async def save_tokens(user_id: uuid.UUID, db, provider: str, token_data: dict) -
     return cred
 
 
-async def get_valid_access_token(user_id: uuid.UUID, db, provider: str) -> Optional[str]:
+async def list_provider_credentials(user_id: uuid.UUID, db, provider: str) -> list[IntegrationCredential]:
+    """All credential rows for one provider (gmail may have several accounts)."""
     result = await db.execute(
-        select(IntegrationCredential).where(IntegrationCredential.user_id == user_id).where(IntegrationCredential.provider == provider)
+        select(IntegrationCredential)
+        .where(IntegrationCredential.user_id == user_id)
+        .where(IntegrationCredential.provider == provider)
+        .order_by(IntegrationCredential.created_at)
     )
-    cred = result.scalar_one_or_none()
+    return list(result.scalars().all())
+
+
+async def get_valid_access_token(
+    user_id: uuid.UUID, db, provider: str, account_email: Optional[str] = None
+) -> Optional[str]:
+    query = (
+        select(IntegrationCredential)
+        .where(IntegrationCredential.user_id == user_id)
+        .where(IntegrationCredential.provider == provider)
+    )
+    if account_email is not None:
+        query = query.where(IntegrationCredential.account_email == account_email)
+    result = await db.execute(query.order_by(IntegrationCredential.created_at))
+    cred = result.scalars().first()
     if not cred or cred.status != "connected" or not cred.access_token_encrypted:
         return None
 

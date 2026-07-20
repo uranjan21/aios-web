@@ -211,11 +211,20 @@ export interface ContentStats {
   }>
 }
 
+export interface GmailAccount {
+  email: string
+  status: 'connected' | 'disconnected' | 'expired' | 'error'
+  connected_at: string | null
+  last_sync: string | null
+}
+
 export interface Integration {
-  provider: 'notion' | 'gcal' | 'gfit' | 'github'
+  provider: 'notion' | 'gcal' | 'gfit' | 'gmail' | 'github'
   status: 'connected' | 'disconnected' | 'expired' | 'error'
   metadata: Record<string, unknown> | null
   token_expires_at: string | null
+  /** gmail only — every linked account (may be several) */
+  accounts?: GmailAccount[]
 }
 
 export type OpportunityStatus = 'prospect' | 'applied' | 'screening' | 'interview' | 'offer' | 'rejected' | 'closed'

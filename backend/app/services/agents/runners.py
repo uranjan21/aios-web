@@ -32,7 +32,9 @@ FALLBACK_WARNING_PREFIX = (
     "Displaying raw facts relevant to this agent's purpose:\n\n"
 )
 
-# Domain mapping for each agent task
+# Domain mapping for each agent task. aios-upi-tracker (Transaction Tracker)
+# and aios-statement-reconciler are absent on purpose: they run through
+# services/finance/email_extraction.py, not the generic context+prompt path.
 _AGENT_DOMAINS: dict[str, str] = {
     "aios-morning-brief": "general",
     "aios-professional-pulse": "career_business",
@@ -40,7 +42,6 @@ _AGENT_DOMAINS: dict[str, str] = {
     "aios-monthly-finance": "finance",
     "aios-weekly-refresh": "general",
     "aios-health-coach": "health",
-    "aios-upi-tracker": "finance",
     "aios-vault-extractor": "general",
 }
 
@@ -85,13 +86,6 @@ _SPECS: dict[str, tuple[str, str | None]] = {
         "not generic advice. Proactively use write tools to log workouts (log_health_metric) and create health actions (create_action)." + _BASE_RULES,
         "Health Check-in",
     ),
-    "aios-upi-tracker": (
-        "You are the user's finance tracker. Parse the email highlights to extract all financial transactions (like UPI receipts, credit card spends, or incoming transfers). "
-        "Output ONLY a valid JSON array of objects. Do not include markdown formatting or backticks. "
-        "Each object must have exactly these keys: 'amount' (float), 'transaction_type' ('expense' or 'income'), 'payee_name' (string, the merchant or person), and 'suggested_category' (string). "
-        "If no transactions are found, output an empty JSON array: [].",
-        "UPI Tracker",
-    ),
     "aios-vault-extractor": (
         "Internal agent to sweep vault diffs into the PostgreSQL database. Does not use standard prompts.",
         None,
@@ -126,7 +120,6 @@ _PUSH_LINKS: dict[str, str] = {
     "aios-morning-brief": "/app",
     "aios-health-coach": "/app/areas/health",
     "aios-monthly-finance": "/app/areas/finance",
-    "aios-upi-tracker": "/app/areas/finance",
 }
 
 # Which extra context each agent gets beyond the base week-facts.
@@ -137,7 +130,6 @@ _CONTEXT_KINDS: dict[str, set[str]] = {
     "aios-monthly-finance": set(),
     "aios-weekly-refresh": {"knowledge"},
     "aios-health-coach": {"fitness", "knowledge"},
-    "aios-upi-tracker": {"gmail"},
 }
 
 _KNOWLEDGE_QUERIES: dict[str, str] = {
@@ -388,6 +380,14 @@ async def run_agent_task(task_id: str, user_id: uuid.UUID) -> str:
             logger.warning("Vault extraction failed for %s: %s", user_id, e)
             return "Vault extraction sweep failed — see server logs."
 
+    # Transaction Tracker + Statement Reconciler have a dedicated engine:
+    # unprocessed financial emails → LLM extraction → dedupe → pending review
+    # queue. It gates/meters AI usage itself and skips the LLM entirely when
+    # there is nothing new to parse.
+    from app.services.finance.email_extraction import EMAIL_EXTRACTION_TASKS, run_email_extraction_agent
+    if task_id in EMAIL_EXTRACTION_TASKS:
+        return await run_email_extraction_agent(task_id, user_id)
+
     facts = await _build_context(task_id, user_id)
 
     # Respect the AI quota — same hard-cap rule as chat: a user over the free
@@ -411,78 +411,20 @@ async def run_agent_task(task_id: str, user_id: uuid.UUID) -> str:
             text = await generate_text(
                 effective_system,
                 facts,
-                max_tokens=900 if task_id != "aios-upi-tracker" else 1500,
+                max_tokens=900,
                 user_id=str(user_id),
                 override_provider=agent.llm_provider if agent else None,
                 override_openai_model=agent.openai_chat_model if agent else None,
                 override_claude_model=agent.claude_model if agent else None,
             )
 
-            # Special handling for UPI tracker to extract JSON and save to DB
-            if task_id == "aios-upi-tracker":
-                import json
-                from datetime import datetime, timedelta
-                from app.models.finance import FinancePendingTransaction
-                
-                try:
-                    # Basic cleanup in case LLM added markdown
-                    clean_text = text.strip()
-                    if clean_text.startswith("```json"):
-                        clean_text = clean_text[7:]
-                    if clean_text.startswith("```"):
-                        clean_text = clean_text[3:]
-                    if clean_text.endswith("```"):
-                        clean_text = clean_text[:-3]
-                    
-                    transactions = json.loads(clean_text.strip())
-                    if isinstance(transactions, list) and len(transactions) > 0:
-                        queued_count = 0
-                        async with AsyncSessionLocal() as session:
-                            from decimal import Decimal
-                            for tx in transactions:
-                                amount = Decimal(str(tx.get("amount", 0)))
-                                if amount <= 0:
-                                    continue
-                                pending = FinancePendingTransaction(
-                                    user_id=user_id,
-                                    amount=amount,
-                                    transaction_type=tx.get("transaction_type", "expense"),
-                                    payee_name=tx.get("payee_name"),
-                                    suggested_category=tx.get("suggested_category"),
-                                    logged_at=datetime.utcnow(),
-                                    raw_email_snippet=str(tx), # Store the raw object as snippet for now
-                                    auto_commit_at=datetime.utcnow() + timedelta(hours=24),
-                                    status="pending"
-                                )
-                                session.add(pending)
-                                queued_count += 1
-                            await session.commit()
-                        if queued_count:
-                            from app.services.chat.tools import execute_tool
-                            await execute_tool(
-                                "append_log",
-                                {
-                                    "area": "finance",
-                                    "entry": f"UPI tracker queued {queued_count} pending transaction(s) for review.",
-                                },
-                                user_id,
-                            )
-                            text = f"Found and queued {queued_count} transactions for review."
-                        else:
-                            text = "No valid transactions found in recent emails."
-                    else:
-                        text = "No new transactions found in recent emails."
-                except Exception as json_e:
-                    logger.warning("Failed to parse UPI tracker JSON: %s. Raw: %s", json_e, text)
-                    text = f"{FALLBACK_WARNING_PREFIX}Failed to parse transactions. Please try again. Raw input was:\n{facts}"
-            else:
-                narrative, actions = _extract_actions(text)
-                action_summaries, affected_paths = await _execute_actions(task_id, user_id, actions)
-                text = narrative or "(no output)"
-                if action_summaries:
-                    text += "\n\nActions executed:\n" + "\n".join(f"- {summary}" for summary in action_summaries)
-                if affected_paths:
-                    text += "\n\nVault files updated:\n" + "\n".join(f"- {path}" for path in affected_paths)
+            narrative, actions = _extract_actions(text)
+            action_summaries, affected_paths = await _execute_actions(task_id, user_id, actions)
+            text = narrative or "(no output)"
+            if action_summaries:
+                text += "\n\nActions executed:\n" + "\n".join(f"- {summary}" for summary in action_summaries)
+            if affected_paths:
+                text += "\n\nVault files updated:\n" + "\n".join(f"- {path}" for path in affected_paths)
 
             # Meter the agent run (owners get overage billing; see services/billing/usage).
             async with AsyncSessionLocal() as session:

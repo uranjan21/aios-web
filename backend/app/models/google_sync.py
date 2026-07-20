@@ -25,15 +25,25 @@ class CalendarEvent(SQLModel, table=True):
 
 class GmailMessage(SQLModel, table=True):
     __tablename__ = "gmail_messages"
-    __table_args__ = (UniqueConstraint("user_id", "gmail_id", name="uq_gmail_user_message"),)
+    # gmail_id is only unique within one mailbox, so the key includes the
+    # source account ("" for rows synced before multi-account support).
+    __table_args__ = (UniqueConstraint("user_id", "account_email", "gmail_id", name="uq_gmail_user_account_message"),)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    account_email: str = Field(default="", nullable=False)
     gmail_id: str = Field(nullable=False)
     thread_id: Optional[str] = None
     subject: Optional[str] = Field(default=None, sa_column=Column(Text))
     sender: Optional[str] = None
     snippet: Optional[str] = Field(default=None, sa_column=Column(Text))
+    # Full body text, fetched only for financial-matched messages (bank/UPI
+    # alerts, statements) — the general sweep stays metadata-only.
+    body_text: Optional[str] = Field(default=None, sa_column=Column(Text))
+    is_financial: bool = Field(default=False, nullable=False)
+    # Set once the extraction agent has parsed this message (even if it yielded
+    # zero transactions) — each email is LLM-processed exactly once.
+    extracted_at: Optional[datetime] = None
     received_at: Optional[datetime] = None
     is_unread: bool = Field(default=False, nullable=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Wallet, Tags, Target, Briefcase, Receipt, IndianRupee } from 'lucide-react'
+import { Wallet, Tags, Target, Briefcase, Receipt, IndianRupee, Inbox } from 'lucide-react'
 import { AreaSettingsPage } from '@aios/shared/components/layout/AreaSettingsPage'
 import { AccountManager } from '@aios/finance/components/AccountManager'
 import { CategoryManager } from '@aios/finance/components/CategoryManager'
@@ -8,6 +8,7 @@ import { LoansTab } from '@aios/finance/components/LoansTab'
 import { BillsTab } from '@aios/finance/components/BillsTab'
 import { AccountsTabModal } from '@aios/finance/components/QuickAddAccounts'
 import { BudgetTabModal } from '@aios/finance/components/QuickAddBudget'
+import { InboxSettingsTab } from '@aios/finance/components/InboxSettingsTab'
 
 export function FinanceSettingsPage() {
   const [accountsModal, setAccountsModal] = useState<{ open: boolean; tab: 'Account' | 'Loan' }>({ open: false, tab: 'Account' })
@@ -53,6 +54,12 @@ export function FinanceSettingsPage() {
                 key: 'bills', label: 'Bills', icon: <Receipt size={15} />,
                 content: <BillsTab onAdd={() => setBudgetModal({ open: true, tab: 'Bill' })} />,
               },
+            ],
+          },
+          {
+            label: 'Automation',
+            items: [
+              { key: 'inbox', label: 'Inbox Review', icon: <Inbox size={15} />, content: <InboxSettingsTab /> },
             ],
           },
         ]}

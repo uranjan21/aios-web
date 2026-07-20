@@ -30,7 +30,8 @@ DEFAULT_AGENTS = [
     # was already off by default. Existing users keep their row; runners.py still
     # handles it so those can be triggered/deleted at will. Just no longer seeded.
     {"task_id": "aios-health-coach", "name": "Health Coach", "cron_expression": "0 6 * * 1", "description": "Weekly health check-in from fitness metrics, logs and habits"},
-    {"task_id": "aios-upi-tracker", "name": "UPI Tracker", "cron_expression": "0 6 * * *", "description": "Fetches and categorizes UPI transactions from your emails."},
+    {"task_id": "aios-upi-tracker", "name": "Transaction Tracker", "cron_expression": "0 */6 * * *", "description": "Reads transaction emails from your linked Gmail accounts and queues them for review."},
+    {"task_id": "aios-statement-reconciler", "name": "Statement Reconciler", "cron_expression": "30 8 * * *", "description": "Parses card/bank statement emails and queues line items not already tracked."},
     {"task_id": "aios-vault-extractor", "name": "Vault Extractor", "cron_expression": "0 23 * * *", "description": "Daily bulk vault extraction sweep"},
 ]
 

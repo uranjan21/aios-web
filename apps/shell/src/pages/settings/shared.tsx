@@ -1,5 +1,5 @@
 import styled from 'styled-components'
-import { Palette, Activity, Sparkles, Keyboard, User, CreditCard, Lock, Zap, BookOpen } from 'lucide-react'
+import { Palette, Activity, Sparkles, Keyboard, User, CreditCard, Lock, Zap, BookOpen, Link2 } from 'lucide-react'
 import { Card as GlassCard } from '@ledgr/ui'
 
 // ── Row ───────────────────────────────────────────────────────────────────────
@@ -44,6 +44,7 @@ const SECTION_META: Record<string, { icon: React.ReactNode; subtitle: string }> 
   Account: { icon: <User size={16} />, subtitle: 'Sign-out and account-level controls' },
   Automations: { icon: <Zap size={16} />, subtitle: 'Curated automation rules' },
   'Knowledge Base': { icon: <BookOpen size={16} />, subtitle: 'Your external notes, pulled in for chat and agents' },
+  Connections: { icon: <Link2 size={16} />, subtitle: 'Gmail accounts the Transaction Tracker reads (read-only)' },
 }
 
 export function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {

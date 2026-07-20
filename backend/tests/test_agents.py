@@ -75,8 +75,10 @@ async def test_build_context_scoped(user_a, db_session_factory):
         db.add(HealthLog(user_id=user_a.id, entry_type="gym", logged_at=now))
         await db.commit()
 
-    # For finance task, health facts should not be in the context
-    context_finance = await _build_context("aios-upi-tracker", user_a.id)
+    # For finance task, health facts should not be in the context.
+    # (aios-upi-tracker no longer uses _build_context — it has a dedicated
+    # email-extraction engine — so the finance-scoped case uses monthly-finance.)
+    context_finance = await _build_context("aios-monthly-finance", user_a.id)
     assert "FINANCE" in context_finance
     assert "HEALTH" not in context_finance
 

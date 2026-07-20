@@ -166,7 +166,8 @@ def _isolation_tables():
     from app.models.goal import MacroGoal, GoalProgress
     from app.models.content import ContentItem, ContentCampaign
     from app.models.health import HealthLog, HealthGoal, Habit, HabitCheck, WorkoutSession, WorkoutSet, FoodItem
-    from app.models.finance import FinanceExpense, FinanceIncome, FinanceTransfer, Account, FinancePendingTransaction
+    from app.models.finance import FinanceExpense, FinanceIncome, FinanceTransfer, Account, Category, FinancePendingTransaction, FinanceSettings
+    from app.models.google_sync import GmailMessage
     from app.models.career import CareerEvent, JobOpportunity
     from app.models.business import BusinessEvent
     from app.models.insights import BriefingPreference, Briefing, Insight
@@ -177,7 +178,7 @@ def _isolation_tables():
         FailedWebhook, AgentAction, Forecast, AutomationRule, AdminAuditLog,
         Project, Sprint, Task, MacroGoal, GoalProgress, ContentItem, ContentCampaign,
         HealthLog, HealthGoal, Habit, HabitCheck, WorkoutSession, WorkoutSet, FoodItem,
-        FinanceExpense, FinanceIncome, FinanceTransfer, Account, FinancePendingTransaction, CareerEvent, JobOpportunity, BusinessEvent,
+        FinanceExpense, FinanceIncome, FinanceTransfer, Account, Category, FinancePendingTransaction, FinanceSettings, GmailMessage, CareerEvent, JobOpportunity, BusinessEvent,
         BriefingPreference, Briefing, Insight, SavedQuote, VaultFile, VaultConflict
     )]
 

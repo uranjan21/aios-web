@@ -208,6 +208,7 @@ export function HealthPage() {
         items={[
         { key: '1', label: <StyledTabLabel><LayoutDashboard size={14} /> Dashboard</StyledTabLabel>, children: (
           <>
+            <WorkspaceStatsWidget domain="health" />
             <StyledKpiGrid>
               <StyledGridItemKpi>
                 <KpiCard label="Current Weight" icon={Scale} sub="Latest logged body weight" loading={loadingSummary} value={`${summary?.weight ?? '—'} kg`} />
@@ -225,7 +226,6 @@ export function HealthPage() {
 
             <StyledDashboardGrid>
             <StyledGridItemMain>
-              <WorkspaceStatsWidget domain="health" />
               <SectionCard
                 title="Weight Progression"
                 subtitle="Body weight logs over the selected window"
@@ -252,7 +252,7 @@ export function HealthPage() {
               >
                 {loadingWeight ? <Skeleton style={{ height: '180px' }} /> : !weightDataProcessed.length ? (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 180, gap: 8 }}>
-                    <Scale size={24} style={{ color: 'var(--muted-foreground)' }} />
+                    <LineChartIcon size={24} style={{ color: 'var(--muted-foreground)' }} />
                     <span style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>No weight logs yet — log your first weight entry to see progression.</span>
                   </div>
                 ) : (

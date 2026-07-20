@@ -196,19 +196,44 @@ class FinancePendingTransaction(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
-    
+
     amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     transaction_type: str = Field(default="expense", nullable=False) # "expense" or "income"
-    
+
     payee_name: Optional[str] = Field(default=None)
     suggested_category: Optional[str] = Field(default=None)
+    # suggested_category resolved to a real node at insert time, so the review
+    # UI's category picker arrives pre-filled.
+    category_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_categories.id")
     account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
-    
+
     logged_at: datetime = Field(nullable=False)
     raw_email_snippet: str = Field(sa_column=Column(Text, nullable=False))
-    
-    auto_commit_at: datetime = Field(nullable=False)
+
+    # Idempotency: bank txn ref when the email carries one, else a hash of
+    # kind|date|amount|payee. Re-runs and statement lines matching an
+    # already-queued transaction are skipped.
+    dedupe_key: Optional[str] = Field(default=None, index=True)
+    txn_ref: Optional[str] = Field(default=None)
+    # Provenance: which email (and which linked Gmail account) produced this.
+    gmail_message_id: Optional[str] = Field(default=None)
+    source_account_email: Optional[str] = Field(default=None)
+
+    # NULL = never auto-commit (review required — the default). Set only when
+    # the user opts into timed auto-commit via finance_settings.
+    auto_commit_at: Optional[datetime] = Field(default=None, nullable=True)
     status: str = Field(default="pending", nullable=False) # pending / approved / dismissed
-    
+
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
+
+
+class FinanceSettings(SQLModel, table=True):
+    """Per-user finance preferences. One row per user, created lazily."""
+    __tablename__ = "finance_settings"
+
+    user_id: uuid.UUID = Field(foreign_key="users.id", primary_key=True, nullable=False)
+    # NULL = auto-commit off (pending transactions wait for explicit review).
+    auto_commit_hours: Optional[int] = Field(default=None)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
+    updated_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)

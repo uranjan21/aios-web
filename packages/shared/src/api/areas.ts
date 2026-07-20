@@ -32,11 +32,17 @@ export interface FinancePendingTransaction {
   transaction_type: string
   payee_name: string | null
   suggested_category: string | null
+  category_id: string | null
   account_id: string | null
   description: string | null
   logged_at: string
   raw_email_snippet: string
-  auto_commit_at: string
+  txn_ref: string | null
+  source_account_email: string | null
+  /** Account last used for this source inbox — pre-fills the account picker. */
+  suggested_account_id: string | null
+  /** null = auto-commit off (review required) */
+  auto_commit_at: string | null
   status: string
 }
 
@@ -58,10 +64,17 @@ export const financeApi = {
   importCommit: (items: { logged_at: string; amount: number; kind: string; category?: string; description?: string }[], account_id?: string) =>
     api.post<{ imported_expenses: number; imported_income: number; skipped: number }>('/areas/finance/import/commit', { items, account_id }).then(r => r.data),
   
-  // Pending Transactions (UPI Tracker)
+  // Pending Transactions (Transaction Tracker)
   pending: () => api.get<FinancePendingTransaction[]>('/areas/finance/pending/').then(r => r.data),
   approvePending: (id: string, data: any) => api.post<FinancePendingTransaction>(`/areas/finance/pending/${id}/approve`, data).then(r => r.data),
   dismissPending: (id: string) => api.post<FinancePendingTransaction>(`/areas/finance/pending/${id}/dismiss`).then(r => r.data),
+  bulkApprovePending: (ids: string[], account_id?: string) =>
+    api.post<{ approved: number; skipped: { id: string; reason: string }[] }>('/areas/finance/pending/bulk-approve', { ids, account_id }).then(r => r.data),
+  bulkDismissPending: (ids: string[]) =>
+    api.post<{ dismissed: number }>('/areas/finance/pending/bulk-dismiss', { ids }).then(r => r.data),
+  settings: () => api.get<{ auto_commit_hours: number | null }>('/areas/finance/settings').then(r => r.data),
+  updateSettings: (d: { auto_commit_hours: number | null }) =>
+    api.patch<{ auto_commit_hours: number | null }>('/areas/finance/settings', d).then(r => r.data),
   searchTransactions: (p: { q?: string; kind?: string; account_id?: string; category?: string; tag?: string; min_amount?: number; max_amount?: number; date_from?: string; date_to?: string; limit?: number; offset?: number }) =>
     api.get<TxnSearchResult>('/areas/finance/transactions/search', { params: p }).then(r => r.data),
   snapshots: () => api.get<FinanceSnapshot[]>('/areas/finance/snapshots').then(r => r.data),
@@ -142,7 +155,7 @@ export const financeApi = {
 // Health
 export const healthApi = {
   logs: (entry_type?: string) =>
-    api.get<HealthLog[]>('/areas/health/logs', { params: { entry_type } }).then(r => r.data),
+    api.get<{ items: HealthLog[]; next_cursor: string | null; has_more: boolean }>('/areas/health/logs', { params: { entry_type } }).then(r => r.data.items),
   createLog: (data: { entry_type: string; value?: number; unit?: string; notes?: string; logged_at?: string }) =>
     api.post<HealthLog>('/areas/health/logs', data).then(r => r.data),
   streak: () => api.get<HealthStreak>('/areas/health/streak').then(r => r.data),

@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 async def run_google_sync(user_id: uuid.UUID) -> None:
     async with AsyncSessionLocal() as db:
         result = await db.execute(select(IntegrationCredential).where(IntegrationCredential.user_id == user_id))
-        creds = {c.provider: c for c in result.scalars().all()}
+        rows = result.scalars().all()
+        creds = {c.provider: c for c in rows}
 
         gcal = creds.get("gcal")
         if gcal and gcal.status == "connected":
@@ -32,8 +33,9 @@ async def run_google_sync(user_id: uuid.UUID) -> None:
             except Exception:
                 logger.exception("Background gfit sync failed")
 
-        gmail = creds.get("gmail")
-        if gmail and gmail.status == "connected":
+        # Gmail may have several rows (one per linked account) — sync if ANY is
+        # connected; sync_messages iterates the accounts itself.
+        if any(c.provider == "gmail" and c.status == "connected" for c in rows):
             try:
                 from app.services.integrations.gmail import sync_messages
                 count = await sync_messages(user_id, db)

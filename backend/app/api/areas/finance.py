@@ -6,7 +6,7 @@ from pydantic import BaseModel, AfterValidator, Field
 from sqlmodel import select, desc
 
 from app.core.deps import get_current_user, get_db
-from app.models.finance import FinanceSnapshot, FinanceExpense, BudgetLimit, Account, Category, AccountType, FinancialGoal, FinanceBill, FinanceIncome, FinanceInvestment, FinanceLoan, FinanceTransfer
+from app.models.finance import FinanceSnapshot, FinanceExpense, BudgetLimit, Account, Category, AccountType, FinancialGoal, FinanceBill, FinanceIncome, FinanceInvestment, FinanceLoan, FinanceTransfer, FinancePendingTransaction, FinanceSettings
 import uuid
 
 router = APIRouter(prefix="/api/areas/finance", tags=["finance"])
@@ -80,6 +80,53 @@ async def net_worth(current_user=Depends(get_current_user), db=Depends(get_db)):
         "investments_total": investments_total,
         "loans_outstanding": loans_outstanding,
     }
+
+
+@router.get("/settings")
+async def get_finance_settings(current_user=Depends(get_current_user), db=Depends(get_db)):
+    row = (await db.execute(
+        select(FinanceSettings).where(FinanceSettings.user_id == current_user.id)
+    )).scalar_one_or_none()
+    return {"auto_commit_hours": row.auto_commit_hours if row else None}
+
+
+class FinanceSettingsPatch(BaseModel):
+    # None = auto-commit off (review required). 1–168h when enabled.
+    auto_commit_hours: Optional[int] = Field(default=None, ge=1, le=168)
+
+
+@router.patch("/settings")
+async def patch_finance_settings(
+    body: FinanceSettingsPatch, current_user=Depends(get_current_user), db=Depends(get_db)
+):
+    row = (await db.execute(
+        select(FinanceSettings).where(FinanceSettings.user_id == current_user.id)
+    )).scalar_one_or_none()
+    if not row:
+        row = FinanceSettings(user_id=current_user.id)
+
+    if "auto_commit_hours" in body.model_fields_set:
+        row.auto_commit_hours = body.auto_commit_hours
+        row.updated_at = datetime.utcnow()
+        db.add(row)
+        # Re-clock the existing review queue to match the new setting: enabling
+        # starts the timer from now; disabling stops it entirely.
+        pending = (await db.execute(
+            select(FinancePendingTransaction).where(
+                FinancePendingTransaction.user_id == current_user.id,
+                FinancePendingTransaction.status == "pending",
+            )
+        )).scalars().all()
+        new_commit_at = (
+            datetime.utcnow() + timedelta(hours=body.auto_commit_hours)
+            if body.auto_commit_hours else None
+        )
+        for p in pending:
+            p.auto_commit_at = new_commit_at
+            db.add(p)
+        await db.commit()
+
+    return {"auto_commit_hours": row.auto_commit_hours}
 
 
 class ImportItem(BaseModel):

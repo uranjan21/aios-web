@@ -362,36 +362,74 @@ async def test_log_health_metric_general(app, user_a, db_session_factory):
 async def test_upi_transaction_parsing_path(app, user_a, db_session_factory):
     from app.services.agents.runners import run_agent_task
     from app.models.finance import FinancePendingTransaction
+    from app.models.google_sync import GmailMessage
+    from app.models.billing import AIUsageRecord
     from unittest.mock import patch
-    
+    from datetime import datetime
+
+    # The engine reads unextracted financial gmail rows (bodies), not snippets.
+    async with db_session_factory() as db:
+        db.add(GmailMessage(
+            user_id=user_a.id, account_email="bank.alerts@gmail.com", gmail_id="msg-1",
+            subject="Transaction alert", sender="alerts@hdfcbank.net",
+            snippet="You spent...", body_text="INR 1250.50 spent at Utsav Store. UPI Ref 555123.",
+            is_financial=True, received_at=datetime(2026, 7, 18),
+        ))
+        await db.commit()
+
     mock_json = """
     [
-        {"amount": 1250.50, "transaction_type": "expense", "payee_name": "Utsav Store", "suggested_category": "shopping"},
-        {"amount": "500.00", "transaction_type": "income", "payee_name": "Refund", "suggested_category": "misc"}
+        {"amount": 1250.50, "transaction_type": "expense", "payee_name": "Utsav Store", "suggested_category": "shopping", "txn_ref": "555123", "logged_at": "2026-07-18", "email_index": 0},
+        {"amount": "500.00", "transaction_type": "income", "payee_name": "Refund", "suggested_category": "misc", "txn_ref": "", "logged_at": "2026-07-18", "email_index": 0}
     ]
     """
-    
-    with patch("app.services.agents.runners.generate_text", return_value=mock_json):
-        # We also need to mock `ai_allowed` to return True so it doesn't skip LLM
+
+    with patch("app.services.finance.email_extraction.generate_text", return_value=mock_json):
         with patch("app.services.billing.usage.ai_allowed", return_value=True):
             result = await run_agent_task("aios-upi-tracker", user_a.id)
-            assert "queued 2 transactions" in result or "Found and queued 2 transactions" in result
+            assert "queued 2 transaction" in result
 
     # Verify the pending transactions were correctly written with Decimal precision
     async with db_session_factory() as db:
         query = select(FinancePendingTransaction).where(FinancePendingTransaction.user_id == user_a.id)
         txs = (await db.execute(query)).scalars().all()
         assert len(txs) == 2
-        
-        # Check first transaction
+
         tx1 = next(t for t in txs if t.payee_name == "Utsav Store")
         assert tx1.amount == Decimal("1250.50")
         assert tx1.transaction_type == "expense"
         assert tx1.suggested_category == "shopping"
         assert tx1.status == "pending"
+        assert tx1.dedupe_key == "ref:555123"
+        assert tx1.gmail_message_id == "msg-1"
+        assert tx1.source_account_email == "bank.alerts@gmail.com"
+        assert tx1.auto_commit_at is None  # review-required default (no opt-in)
 
-        # Check second transaction (amount was string in JSON, parsed correctly)
         tx2 = next(t for t in txs if t.payee_name == "Refund")
         assert tx2.amount == Decimal("500.00")
         assert tx2.transaction_type == "income"
-        assert tx2.suggested_category == "misc"
+        assert tx2.dedupe_key is not None and tx2.dedupe_key.startswith("h:")
+
+        # Source email is marked extracted so it is parsed exactly once.
+        msg = (await db.execute(
+            select(GmailMessage).where(GmailMessage.user_id == user_a.id)
+        )).scalars().one()
+        assert msg.extracted_at is not None
+
+    # Second run: nothing unextracted → skip-if-empty (no LLM call, no metering,
+    # no duplicate pending rows).
+    with patch("app.services.finance.email_extraction.generate_text", return_value=mock_json) as gen:
+        with patch("app.services.billing.usage.ai_allowed", return_value=True):
+            result2 = await run_agent_task("aios-upi-tracker", user_a.id)
+    assert "No new transaction emails" in result2
+    assert gen.call_count == 0
+
+    async with db_session_factory() as db:
+        txs = (await db.execute(
+            select(FinancePendingTransaction).where(FinancePendingTransaction.user_id == user_a.id)
+        )).scalars().all()
+        assert len(txs) == 2
+        usage = (await db.execute(
+            select(AIUsageRecord).where(AIUsageRecord.user_id == user_a.id, AIUsageRecord.source == "agents")
+        )).scalars().all()
+        assert len(usage) == 1

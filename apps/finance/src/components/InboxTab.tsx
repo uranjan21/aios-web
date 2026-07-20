@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Card, Button, Input, Select } from '@ledgr/ui'
-import { Check, X, Inbox as InboxIcon, Receipt } from 'lucide-react'
+import { Check, X, Inbox as InboxIcon, Receipt, Mail, RefreshCw } from 'lucide-react'
 import { financeApi, type FinancePendingTransaction } from '@aios/shared/api/areas'
+import { agentsApi } from '@aios/shared/api/agents'
 import type { Account, Category } from '@aios/shared/types'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
@@ -48,6 +50,26 @@ const MetaText = styled.span`
   font-size: 0.875rem;
   color: var(--ui-text-tertiary);
   font-weight: 500;
+`
+
+const SourceChip = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--ui-bg-subtle);
+  border: 1px solid var(--ui-border);
+  color: var(--ui-text-secondary);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+`
+
+const BulkBar = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 `
 
 const ActionGroup = styled.div`
@@ -190,8 +212,10 @@ export function InboxTab() {
       txs.forEach(t => {
         initEdits[t.id] = {
           amount: t.amount,
-          account_id: t.account_id,
-          category_id: null,
+          // Pre-fill: stored account, else the account last used for this inbox.
+          account_id: t.account_id ?? t.suggested_account_id ?? null,
+          // Pre-fill the server-matched category so approving is one click.
+          category_id: t.category_id ?? null,
           description: t.description
         }
       })
@@ -219,10 +243,44 @@ export function InboxTab() {
       await financeApi.approvePending(tx.id, edit)
       toast.success('Transaction approved')
       setTransactions(prev => prev.filter(t => t.id !== tx.id))
-    } catch (e) {
-      toast.error('Failed to approve transaction')
+    } catch (e: any) {
+      // 409 = already in the ledger (dedupe guard) — surface the server reason.
+      toast.error(e?.response?.data?.detail || 'Failed to approve transaction')
     } finally {
       setSubmitting(prev => ({ ...prev, [tx.id]: false }))
+    }
+  }
+
+  const onApproveAll = async () => {
+    try {
+      const result = await financeApi.bulkApprovePending(transactions.map(t => t.id))
+      const msg = result.skipped.length
+        ? `Approved ${result.approved} — skipped ${result.skipped.length} (duplicates or missing data)`
+        : `Approved ${result.approved} transaction(s)`
+      toast.success(msg)
+      await loadData()
+    } catch (e) {
+      toast.error('Bulk approve failed')
+    }
+  }
+
+  const onDismissAll = async () => {
+    try {
+      const result = await financeApi.bulkDismissPending(transactions.map(t => t.id))
+      toast.success(`Dismissed ${result.dismissed} transaction(s)`)
+      await loadData()
+    } catch (e) {
+      toast.error('Bulk dismiss failed')
+    }
+  }
+
+  const onFetchNow = async () => {
+    try {
+      await agentsApi.trigger('aios-upi-tracker')
+      toast.success('Transaction Tracker is running — new items appear here shortly')
+      setTimeout(loadData, 6000)
+    } catch (e) {
+      toast.error('Could not trigger the tracker')
     }
   }
 
@@ -247,7 +305,17 @@ export function InboxTab() {
         <EmptyStateContainer>
           <InboxIcon size={56} style={{ opacity: 0.3 }} />
           <EmptyStateTitle>Inbox is empty</EmptyStateTitle>
-          <EmptyStateDesc>No pending UPI transactions from your emails.</EmptyStateDesc>
+          <EmptyStateDesc>No pending transactions from your emails.</EmptyStateDesc>
+          <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+            <Button variant="outline" size="sm" onClick={onFetchNow}>
+              <RefreshCw size={14} style={{ marginRight: 6 }} /> Fetch now
+            </Button>
+            <Link to="/app/settings">
+              <Button variant="outline" size="sm">
+                <Mail size={14} style={{ marginRight: 6 }} /> Connect Gmail
+              </Button>
+            </Link>
+          </div>
         </EmptyStateContainer>
       </Card>
     )
@@ -280,11 +348,23 @@ export function InboxTab() {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24 }}>
+      {transactions.length > 1 && (
+        <BulkBar>
+          <MetaText>{transactions.length} transactions waiting for review</MetaText>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button variant="outline" size="sm" onClick={onDismissAll}>
+              <X size={14} style={{ marginRight: 6 }} /> Dismiss all
+            </Button>
+            <Button variant="primary" size="sm" onClick={onApproveAll}>
+              <Check size={14} style={{ marginRight: 6 }} /> Approve all
+            </Button>
+          </div>
+        </BulkBar>
+      )}
       {transactions.map(tx => {
         const edit = edits[tx.id]
         if (!edit) return null
         const isSubmitting = submitting[tx.id]
-        const timeLeft = dayjs(tx.auto_commit_at).fromNow()
 
         return (
           <TransactionCard key={tx.id}>
@@ -293,7 +373,14 @@ export function InboxTab() {
                 <TypeBadge $type={tx.transaction_type}>
                   {tx.transaction_type.toUpperCase()}
                 </TypeBadge>
-                <MetaText>Found in email • Auto-commits {timeLeft}</MetaText>
+                {tx.source_account_email && (
+                  <SourceChip><Mail size={12} /> {tx.source_account_email}</SourceChip>
+                )}
+                <MetaText>
+                  {tx.auto_commit_at
+                    ? `Auto-commits ${dayjs(tx.auto_commit_at).fromNow()}`
+                    : 'Waiting for your review'}
+                </MetaText>
               </HeaderLeft>
               <ActionGroup>
                 <Button variant="outline" onClick={() => onDismiss(tx)} disabled={isSubmitting}>

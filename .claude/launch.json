@@ -3,11 +3,11 @@
   "autoPort": true,
   "configurations": [
     {
-      "name": "aios-frontend",
+      "name": "aios-shell",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev", "--port", "5205", "--strictPort"],
-      "cwd": "frontend",
-      "port": 5205,
+      "runtimeArgs": ["dev"],
+      "cwd": "apps/shell",
+      "port": 5173,
       "autoPort": true
     }
   ]
