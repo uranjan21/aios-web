@@ -190,7 +190,8 @@ export const TitleGroup = styled.div`
   gap: ${({ theme }) => theme.spacing[2]};
   min-width: 0;
 
-  & > svg {
+  & > svg,
+  & > [data-card-icon] > svg {
     width: 16px;
     height: 16px;
     flex-shrink: 0;
@@ -290,7 +291,13 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
       {(title || subtitle || icon || action) && (
         <CardHeader $inset={effectiveSize === 'none'}>
           <TitleGroup>
-            {icon}
+            {/*
+              Card icons are decorative — the title beside them carries the
+              meaning — so they are hidden from assistive tech. PageHeader and
+              EmptyState already did this; Card did not, which is why a live
+              a11y scan found 15 unhidden SVGs on the dashboard alone.
+            */}
+            {icon && <span data-card-icon aria-hidden="true">{icon}</span>}
             <div style={{ minWidth: 0 }}>
               {title && <CardTitle>{title}</CardTitle>}
               {subtitle && <CardSubtitle>{subtitle}</CardSubtitle>}

@@ -66,7 +66,12 @@ export function WorkspaceLayout({ children, rail, railTitle, railSubtitle }: Wor
           title={railTitle ?? 'Workspace'}
           subtitle={railSubtitle ?? 'Workspace tools & quick actions'}
           icon={<LayoutDashboard size={16} />}
-          variant="glass"
+          // NOT glass: this rail holds data and lives inside the scrolling
+          // content area, so a backdrop-filter would composite everything
+          // behind it on every scroll frame. Measured at blur(24px) over a
+          // 297x385 box inside MAIN#main-content. Glass is for overlay chrome
+          // sitting above a static backdrop — dialogs, popovers, the top bar.
+          variant="raised"
         >
           {rail}
         </StyledRail>
