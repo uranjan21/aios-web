@@ -2,9 +2,8 @@ import { useState } from 'react'
 import styled from 'styled-components'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@ledgr/ui'
-import { Rocket, Shield, TrendingUp, Activity, CheckCircle, ChevronRight, X } from 'lucide-react'
+import { Rocket, Shield, TrendingUp, CheckCircle, ChevronRight, X } from 'lucide-react'
 import { useAuthStore } from '@aios/shared/stores/authStore'
-import { api } from '@aios/shared/api/client'
 
 const Overlay = styled(motion.div)`
   position: fixed;
@@ -94,22 +93,6 @@ const CloseBtn = styled.button`
   }
 `
 
-const Input = styled.input`
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  border: 1px solid ${({ theme }) => theme.color.border};
-  background: ${({ theme }) => theme.color.background};
-  color: ${({ theme }) => theme.color.foreground};
-  font-size: 1rem;
-  margin-bottom: 1rem;
-
-  &:focus {
-    outline: none;
-    border-color: ${({ theme }) => theme.color.accent};
-    box-shadow: 0 0 0 2px ${({ theme }) => theme.color.accent}33;
-  }
-`
 
 const STEPS = [
   { id: 'welcome', title: 'Welcome to AiOs', icon: Rocket, desc: 'Your personal AI-powered operating system for wealth, health, and business. Let’s get you set up in less than a minute.' },

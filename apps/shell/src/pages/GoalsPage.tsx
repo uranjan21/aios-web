@@ -21,7 +21,6 @@ import { toast } from "sonner";
 import styled from "styled-components";
 
 import { GoalsTab as FinanceGoalsTab } from "@aios/finance/components/GoalsTab";
-import { ActionCenterStrip } from "@/components/dashboard/ActionCenterStrip";
 import { AreaTabs } from "@aios/shared/components/ui/AreaTabs";
 import { DomainGoalsCard } from "@aios/shared/components/workspace/DomainGoalsCard";
 import {
@@ -34,9 +33,9 @@ import {
   Heart,
   IndianRupee,
   LayoutDashboard,
-  PenLine,
-  Rocket,
-} from "lucide-react";
+  } from "lucide-react";
+
+
 
 const TwoCol = styled.div`
   display: grid;
@@ -224,7 +223,6 @@ export function GoalsPage() {
               ),
               children: (
                 <>
-                  <ActionCenterStrip />
                   {(() => {
                     const visibleGoals =
                       goalStatusFilter === "all"

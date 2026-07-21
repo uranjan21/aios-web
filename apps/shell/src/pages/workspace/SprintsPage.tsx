@@ -1,16 +1,15 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Zap, Trash2, PencilLine, CalendarRange, Target, LayoutDashboard, IndianRupee, Heart, Briefcase, Rocket, PenLine, Settings } from 'lucide-react'
+import { Plus, Zap, Trash2, PencilLine, CalendarRange, Target, LayoutDashboard, IndianRupee, Heart, Briefcase, Settings } from 'lucide-react'
 import { Button, Card, EmptyState, Input, Dialog, DialogFooter, Select, Label } from '@ledgr/ui'
 import { workspaceApi, Sprint, SprintPayload } from '@aios/shared/api/workspace'
 import { PageContainer, PageContent } from '@aios/shared/components/layout/PageLayout'
-import { PageDivider } from '@aios/shared/components/layout/PageDivider'
 import { PageHeader } from '@ledgr/ui'
 import styled from 'styled-components'
 import { toast } from 'sonner'
 import { AreaTabs } from '@aios/shared/components/ui/AreaTabs'
-import { DOMAIN_OPTIONS, domainLabel } from '@aios/shared/config/domains'
+import { domainLabel } from '@aios/shared/config/domains'
 import { CollapsibleSection } from '@aios/shared/components/workspace/CollapsibleSection'
 
 const Grid = styled.div`

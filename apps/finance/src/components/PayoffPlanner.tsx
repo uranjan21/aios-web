@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Badge, SegmentedControl, Input, Card, Select } from '@ledgr/ui'
+import { Badge, Input, Card, Select } from '@ledgr/ui'
 import dayjs from 'dayjs'
 import { Landmark } from 'lucide-react'
 import { formatCurrency } from '@aios/shared/lib/utils'

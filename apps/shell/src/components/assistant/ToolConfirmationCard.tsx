@@ -80,7 +80,6 @@ const Actions = styled.div`
 
 export function ToolConfirmationCard({ tool, tool_call_id, params, onConfirm, onCancel }: Props) {
   const meta = TOOL_LABELS[tool] ?? { label: tool, icon: AlertTriangle }
-  const Icon = meta.icon
   const detail = humaniseParams(tool, params)
 
   return (

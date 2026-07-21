@@ -8,24 +8,8 @@ import type { WorkoutSessionItem } from '@aios/shared/types'
 import { Card as GlassCard } from '@ledgr/ui'
 import styled from 'styled-components'
 
-const StyledSessionCardHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-`;
 
-const StyledSessionCardTitle = styled.span`
-  font-size: 13px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
-`;
 
-const StyledSessionCardDate = styled.span`
-  font-size: 11px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  margin-left: 0.5rem;
-`;
 
 const StyledDeleteButton = styled.button`
   padding: 0.25rem;

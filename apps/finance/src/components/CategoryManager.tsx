@@ -101,17 +101,6 @@ const ActionsContainer = styled.div`
   justify-content: flex-end;
 `
 
-const KindTag = styled.span<{ $kind: string }>`
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 1px 5px;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  background: ${({ $kind, theme }) => $kind === 'income' ? `${theme.color.success}18` : `${theme.color.accent}15`};
-  color: ${({ $kind, theme }) => $kind === 'income' ? theme.color.success : theme.color.accent};
-  margin-left: 4px;
-`
 
 // ── Tree node ─────────────────────────────────────────────────────────────────
 

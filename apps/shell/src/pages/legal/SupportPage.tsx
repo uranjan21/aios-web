@@ -1,5 +1,5 @@
 import styled from 'styled-components'
-import { Mail, MessageCircle, FileText, Clock } from 'lucide-react'
+import { Mail, Clock } from 'lucide-react'
 
 const Title = styled.h1`
   font-family: ${({ theme }) => theme.typography.fontFamily.serif};

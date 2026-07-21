@@ -12,7 +12,7 @@ import { formatRelativeTime } from "@aios/shared/lib/utils";
 import type { Agent } from "@aios/shared/types";
 import { formatScheduleLabel } from "../lib/cron";
 import { getAgentDomain } from "../constants/domains";
-import { Stack, Value, SubValue } from "./agents.styles";
+import { Stack, SubValue } from "./agents.styles";
 import { NextRunCountdown } from "./NextRunCountdown";
 
 const DetailGrid = styled.div`

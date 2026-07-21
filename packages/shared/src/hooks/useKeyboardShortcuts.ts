@@ -44,7 +44,6 @@ export function useKeyboardShortcuts() {
             case 'f': navigate('/app/areas/finance'); break
             case 'h': navigate('/app/areas/health'); break
             case 'r': navigate('/app/areas/career'); break
-            case 'i': navigate('/app/integrations'); break
             case 's': navigate('/app/settings'); break
           }
         }

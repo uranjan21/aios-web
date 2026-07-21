@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@aios/shared/components/ui/Popconfirm'
-import { Button, Input, Select, SelectItem, Dialog, SegmentedControl } from '@ledgr/ui'
+import { Button, Input, Select, Dialog, SegmentedControl } from '@ledgr/ui'
 import { financeApi } from '@aios/shared/api/areas'
 import styled from 'styled-components'
 

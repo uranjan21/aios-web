@@ -6,12 +6,12 @@ import { format } from 'date-fns'
 import { financeApi } from '@aios/shared/api/areas'
 import { formatCurrency } from '@aios/shared/lib/utils'
 import { WorkspaceLayout } from '@aios/shared/components/layout/WorkspaceLayout'
-import { Card as GlassCard, SegmentedControl, EmptyState, Select } from '@ledgr/ui'
+import { Card as GlassCard, EmptyState, Select } from '@ledgr/ui'
 import { AiInsightCard } from '@aios/shared/components/AiInsightCard'
 import { ChartTooltip } from '@aios/shared/components/ui/ChartTooltip'
 import { FinancialInsights, CashflowForecasting, SubscriptionManagement } from './AdvancedWidgets'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { Target, PieChart as PieChartIcon, Brain } from 'lucide-react'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
+import { PieChart as PieChartIcon, Brain } from 'lucide-react'
 import styled from 'styled-components'
 
 const AnalyticsGrid = styled.div`
@@ -34,20 +34,6 @@ const InsightsGrid = styled.div`
 
 const COLORS = ['var(--primary)', 'var(--accent)', '#F4A261', '#E76F51', '#2A9D8F', '#E9C46A']
 
-function renderBudgetLegend() {
-  return (
-    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--primary)' }} />
-        <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>Budget</span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--accent)' }} />
-        <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>Actual</span>
-      </div>
-    </div>
-  )
-}
 
 function renderCustomizedLabel(props: any) {
   const { cx, cy, midAngle, outerRadius, value, name, fill } = props
@@ -79,14 +65,8 @@ function renderCustomizedLabel(props: any) {
 
 export function AnalyticsTab() {
   const [period, setPeriod] = useState<'This Week' | 'This Month' | 'This Year'>('This Month')
-  const [chartFilter, setChartFilter] = useState<'Daily' | 'Weekly' | 'Monthly' | 'Yearly' | 'All Time'>('Monthly')
 
   const month = format(new Date(), 'yyyy-MM')
-
-  const { data: budgetStatus } = useQuery({
-    queryKey: ['finance', 'budgets', 'status', month],
-    queryFn: () => financeApi.budgetStatus(month),
-  })
 
   const { data: expenses } = useQuery({
     queryKey: ['finance', 'expenses', month],
@@ -125,19 +105,6 @@ export function AnalyticsTab() {
     return top
   }, [filteredExpenseItems])
 
-  const budgetChartData = useMemo(() => {
-    const base = budgetStatus?.items?.length
-      ? budgetStatus.items
-      : topCategories.map(([name, value]) => ({ category: name, monthly_limit: value * 1.2, spent: value }))
-    return base.map(b => {
-      const mult = chartFilter === 'Daily' ? 1 / 30 : chartFilter === 'Weekly' ? 1 / 4 : chartFilter === 'Yearly' ? 12 : chartFilter === 'All Time' ? 24 : 1
-      return {
-        category: b.category,
-        Budget: Math.round((b.monthly_limit || 0) * mult),
-        Actual: Math.round((b.spent || 0) * mult),
-      }
-    })
-  }, [budgetStatus, topCategories, chartFilter])
 
   return (
     <WorkspaceLayout rail={undefined}>

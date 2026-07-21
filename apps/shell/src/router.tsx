@@ -11,7 +11,6 @@ import { api } from '@aios/shared/api/client'
 const LoginPage = lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
 const AgentsPage = lazy(() => import('@/pages/AgentsPage').then(m => ({ default: m.AgentsPage })))
-const IntegrationsPage = lazy(() => import('@/pages/IntegrationsPage').then(m => ({ default: m.IntegrationsPage })))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const OAuthCallbackPage = lazy(() => import('@/pages/OAuthCallbackPage').then(m => ({ default: m.OAuthCallbackPage })))
 const GoogleAuthCallbackPage = lazy(() => import('@/pages/GoogleAuthCallbackPage').then(m => ({ default: m.GoogleAuthCallbackPage })))
@@ -23,7 +22,6 @@ const CareerPage = lazy(() => import('@aios/career/pages/CareerPage').then(m => 
 const CareerSettingsPage = lazy(() => import('@aios/career/pages/CareerSettingsPage').then(m => ({ default: m.CareerSettingsPage })))
 const GoalsPage = lazy(() => import('@/pages/GoalsPage').then(m => ({ default: m.GoalsPage })))
 const ReviewPage = lazy(() => import('@/pages/ReviewPage').then(m => ({ default: m.ReviewPage })))
-const DiscoveriesPage = lazy(() => import('@/pages/DiscoveriesPage').then(m => ({ default: m.DiscoveriesPage })))
 
 const ProjectsPage = lazy(() => import('@/pages/workspace/ProjectsPage').then(m => ({ default: m.ProjectsPage })))
 const SprintsPage = lazy(() => import('@/pages/workspace/SprintsPage').then(m => ({ default: m.SprintsPage })))
@@ -34,14 +32,6 @@ const LandingPage = lazy(() => import('@/pages/LandingPage').then(m => ({ defaul
 const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmailPage').then(m => ({ default: m.VerifyEmailPage })))
 const PricingPage = lazy(() => import('@/pages/PricingPage').then(m => ({ default: m.PricingPage })))
 const AdminPage = lazy(() => import('@/pages/AdminPage').then(m => ({ default: m.AdminPage })))
-
-// Guide Pages
-const GuideLayout = lazy(() => import('@/pages/guide/GuideLayout').then(m => ({ default: m.GuideLayout })))
-const GuideOverview = lazy(() => import('@/pages/guide/GuideOverview').then(m => ({ default: m.GuideOverview })))
-const AgentsGuide = lazy(() => import('@/pages/guide/AgentsGuide').then(m => ({ default: m.AgentsGuide })))
-const FinanceGuide = lazy(() => import('@/pages/guide/FinanceGuide').then(m => ({ default: m.FinanceGuide })))
-const HealthGuide = lazy(() => import('@/pages/guide/HealthGuide').then(m => ({ default: m.HealthGuide })))
-const CareerGuide = lazy(() => import('@/pages/guide/CareerGuide').then(m => ({ default: m.CareerGuide })))
 
 // Legal Pages
 const LegalLayout = lazy(() => import('@/pages/legal/LegalLayout').then(m => ({ default: m.LegalLayout })))
@@ -163,7 +153,6 @@ export const router = createBrowserRouter([
       { path: 'sprints/:id', element: <Page><SprintsPage /></Page> },
       { path: 'tasks', element: <Page><TasksPage /></Page> },
       { path: 'review', element: <Page><ReviewPage /></Page> },
-      { path: 'discoveries', element: <Page><DiscoveriesPage /></Page> },
 
       // Finance Area
       { path: 'areas/finance', element: <Page><RequireModule module="finance"><FinancePage /></RequireModule></Page> },
@@ -178,24 +167,10 @@ export const router = createBrowserRouter([
       { path: 'areas/career/settings', element: <Page><RequireModule module="career"><CareerSettingsPage /></RequireModule></Page> },
 
       // System
-      { path: 'integrations', element: <Page><RequireModule module="integrations"><IntegrationsPage /></RequireModule></Page> },
       { path: 'integrations/:provider/callback', element: <Page><OAuthCallbackPage /></Page> },
       { path: 'settings', element: <Page><SettingsPage /></Page> },
       { path: 'admin', element: <Page><RequireAdmin><AdminPage /></RequireAdmin></Page> },
       
-      // Guide
-      { 
-        path: 'guide', 
-        element: <Page><GuideLayout /></Page>,
-        children: [
-          { index: true, element: <GuideOverview /> },
-          { path: 'agents', element: <AgentsGuide /> },
-          { path: 'areas/finance', element: <FinanceGuide /> },
-          { path: 'areas/health', element: <HealthGuide /> },
-          { path: 'areas/career', element: <CareerGuide /> },
-        ]
-      },
-
       { path: 'areas', element: <Navigate to="/app/areas/finance" replace /> },
     ],
   },

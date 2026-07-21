@@ -6,8 +6,8 @@ import { toast } from 'sonner'
 import styled, { createGlobalStyle, useTheme } from 'styled-components'
 import {
   LayoutDashboard, MessageSquare, Bot, IndianRupee, Heart,
-  Briefcase, Rocket, PenLine, Plug, Settings, Sun, Moon,
-  Clock, Play, Send, Sparkles, Check, Loader2, ArrowRight
+  Briefcase, PenLine, Settings, Sun, Moon,
+  Clock, Play, Sparkles, Check, Loader2, ArrowRight
 } from 'lucide-react'
 import { useUIStore } from '@aios/shared/stores/uiStore'
 import { agentsApi } from '@aios/shared/api/agents'
@@ -21,7 +21,6 @@ const NAV_COMMANDS = [
   { label: 'Finance', icon: IndianRupee, to: '/app/areas/finance', section: 'Areas' },
   { label: 'Health', icon: Heart, to: '/app/areas/health', section: 'Areas' },
   { label: 'Career', icon: Briefcase, to: '/app/areas/career', section: 'Areas' },
-  { label: 'Integrations', icon: Plug, to: '/app/integrations', section: 'System' },
   { label: 'Settings', icon: Settings, to: '/app/settings', section: 'System' },
 ]
 

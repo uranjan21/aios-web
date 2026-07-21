@@ -48,7 +48,7 @@ const InsightText = styled.p`
 
 export function ForecastWidget({ domain }: Props) {
   const queryClient = useQueryClient()
-  const { data: forecasts = [], isLoading } = useQuery({
+  const { data: forecasts = [] } = useQuery({
     queryKey: ['forecasts', domain],
     queryFn: () => forecastsApi.list(domain),
     staleTime: 10 * 60_000,

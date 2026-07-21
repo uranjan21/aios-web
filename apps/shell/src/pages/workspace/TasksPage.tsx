@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Plus, ListTodo, LayoutGrid, List, LayoutDashboard, IndianRupee, Heart, Briefcase, Rocket, PenLine, Settings
+  Plus, ListTodo, LayoutGrid, List, LayoutDashboard, IndianRupee, Heart, Briefcase, Settings
 } from 'lucide-react'
 import {
   Button, Card, EmptyState, Input, Dialog, DialogFooter,

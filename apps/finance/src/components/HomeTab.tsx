@@ -2,23 +2,19 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import dayjs from 'dayjs'
 import { format } from 'date-fns'
-import { Select, Badge, EmptyState, Button, HeaderActionPortal, KpiCard } from '@ledgr/ui'
+import { Select, Badge, EmptyState, KpiCard } from '@ledgr/ui'
 import { financeApi } from '@aios/shared/api/areas'
-import { formatCurrency, cn } from '@aios/shared/lib/utils'
+import { formatCurrency } from '@aios/shared/lib/utils'
 import { Skeleton } from '@aios/shared/components/ui/skeleton'
 import { ErrorState } from '@ledgr/ui'
 import { ProgressBar } from '@aios/shared/components/lumina';
 import { Card as GlassCard } from '@ledgr/ui';
-import { WorkspaceLayout, RailHeading } from '@aios/shared/components/layout/WorkspaceLayout'
-import { AiInsightCard } from '@aios/shared/components/AiInsightCard'
+import { WorkspaceLayout } from '@aios/shared/components/layout/WorkspaceLayout'
 import { ForecastWidget } from '@aios/shared/components/widgets/ForecastWidget'
 import { WorkspaceStatsWidget } from '@aios/shared/components/workspace/WorkspaceStatsWidget'
 import styled, { useTheme } from 'styled-components'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
-import { SegmentedControl } from '@ledgr/ui'
-import { TrendingDown, TrendingUp, Wallet, PiggyBank, CalendarClock, HeartPulse, Target, PieChart as PieChartIcon } from 'lucide-react'
+import { TrendingDown, TrendingUp, Wallet, PiggyBank, CalendarClock, HeartPulse } from 'lucide-react'
 
 const StyledSkeleton = styled(Skeleton)<{ $height: string }>`
   height: ${({ $height }) => $height};
@@ -88,16 +84,6 @@ const KpiGrid = styled.div`
 
 
 
-const StatSub = styled.span`
-  font-size: 11px;
-  color: ${({ theme }) => theme.color.mutedForeground};
-`
-
-const ChartContainer = styled.div`
-  height: auto;
-  min-height: 0;
-  margin-top: 1.5rem;
-`
 
 const AnalyticsGrid = styled.div`
   display: grid;
@@ -134,12 +120,6 @@ const ListItem = styled.div`
   &:last-child {
     border-bottom: 0;
   }
-`
-
-const ItemContent = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
 `
 
 const ItemTitle = styled.div`
@@ -280,7 +260,6 @@ function HealthScoreCard({ data, delay = 0 }: { data: import('@aios/shared/types
     )
   }
   const currentData = (healthPeriod === 'prev' && data.prev) ? data.prev : data
-  const band = BAND_STYLES[currentData.band] ?? BAND_STYLES.fair
   return (
     <GlassCard
       title="Financial Health"
@@ -340,7 +319,6 @@ function NavButton({ onClick }: { onClick: () => void }) {
 
 export function HomeTab() {
   const navigate = useNavigate()
-  const [period] = useState<'This Month'>('This Month')
 
   const [upcomingFilter, setUpcomingFilter] = useState('all')
 
@@ -349,11 +327,6 @@ export function HomeTab() {
   const { data: netWorth, isLoading: loadingSnapshot, isError: errorSnapshot } = useQuery({
     queryKey: ['finance', 'net-worth'],
     queryFn: financeApi.netWorth,
-  })
-
-  const { data: snapshots } = useQuery({
-    queryKey: ['finance', 'snapshots'],
-    queryFn: financeApi.snapshots,
   })
 
   const { data: bills } = useQuery({

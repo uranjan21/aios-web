@@ -1,21 +1,17 @@
 import { GreetingHero } from "@/components/dashboard/GreetingHero";
 import { OverviewInsightCard } from "@/components/dashboard/OverviewInsightCard";
 import {
-  DomainPulseCard,
   FocusCard,
   HabitsCard,
-  RecentActivityCard,
   WeekActivityCard,
 } from "@/components/dashboard/RelevantCards";
 import { UnifiedSchedulePanel } from "@/components/dashboard/UnifiedSchedulePanel";
 import { useState } from "react";
 import styled, { keyframes } from "styled-components";
-import { ActionCenterStrip } from "@/components/dashboard/ActionCenterStrip";
 import { DiscoveriesFeed } from "@/components/dashboard/DiscoveriesFeed";
 import { LifeHeatmap } from "@/components/dashboard/LifeHeatmap";
 import { BriefingCard } from "@/components/dashboard/BriefingCard";
 import { PulseRow } from "@/components/dashboard/PulseRow";
-import { SavedQuotesCard } from "@/components/dashboard/SavedQuotesCard";
 import { PageContainer, PageContent } from "@aios/shared/components/layout/PageLayout";
 const DashboardGrid = styled.div`
   display: grid;
@@ -67,15 +63,6 @@ const ThreeRow = styled.div`
   }
 `;
 
-const TwoRow = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
-  align-items: stretch;
-  @media (min-width: 768px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-`;
 
 const RowOnly = styled.div`
   display: grid;
@@ -163,9 +150,7 @@ export function DashboardPage() {
 
           <PulseRow />
           <DiscoveriesFeed />
-          <ActionCenterStrip />
 
-          {/* Row 3 — 3 relevant cards */}
           <ThreeRow>
             <CardFill>
               <HabitsCard />
@@ -178,31 +163,9 @@ export function DashboardPage() {
             </CardFill>
           </ThreeRow>
 
-          {/* Row 4 */}
-          <RowOnly>
-            <CardFill>
-              <DomainPulseCard />
-            </CardFill>
-          </RowOnly>
-
-          {/* Row 5 */}
-          <RowOnly>
-            <CardFill>
-              <RecentActivityCard />
-            </CardFill>
-          </RowOnly>
-
-          {/* Row 6 — Life Heatmap (full-width in left column) */}
           <RowOnly>
             <CardFill>
               <LifeHeatmap />
-            </CardFill>
-          </RowOnly>
-
-          {/* Row 7 — Saved Quotes */}
-          <RowOnly>
-            <CardFill>
-              <SavedQuotesCard />
             </CardFill>
           </RowOnly>
         </LeftColumn>

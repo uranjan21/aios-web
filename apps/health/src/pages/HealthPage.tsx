@@ -1,20 +1,16 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
-import { toast } from 'sonner'
-import { Scale, Flame, Trophy, Activity, Target, Zap, Heart, LayoutDashboard, Moon, Apple, Dumbbell, History, Bot, Search, Bell, PlusCircle, LineChart as LineChartIcon, Settings, Brain } from 'lucide-react'
-import { SegmentedControl, Button, Select } from '@ledgr/ui'
+import { Scale, Flame, Activity, Target, Heart, LayoutDashboard, Moon, Apple, Dumbbell, History, LineChart as LineChartIcon, Settings, Brain } from 'lucide-react'
+import { Button, Select } from '@ledgr/ui'
 import { useNavigate } from 'react-router-dom'
-import { useUIStore } from '@aios/shared/stores/uiStore'
 import { healthApi } from '@aios/shared/api/areas'
-import { formatRelativeTime, exportToCsv } from '@aios/shared/lib/utils'
+import { formatRelativeTime } from '@aios/shared/lib/utils'
 import { Skeleton } from '@aios/shared/components/ui/skeleton'
 import { ErrorState } from '@ledgr/ui'
 import { useCountUp } from '@aios/shared/hooks/useCountUp'
-import { StatusPill } from '@aios/shared/components/lumina';
 import { KpiCard } from '@ledgr/ui';
 import { Card as GlassCard } from '@ledgr/ui';
 import { Card as SectionCard } from '@ledgr/ui'
-import { Badge } from '@ledgr/ui'
 import { AreaTabs } from '@aios/shared/components/ui/AreaTabs'
 import { HistoryTab } from '@aios/health/components/HistoryTab'
 import { NutritionTab } from '@aios/health/components/NutritionTab'
@@ -83,56 +79,12 @@ const StyledGridItemSide = styled.div`
   }
 `;
 
-const StyledGridItemPr = styled.div`
-  grid-column: span 12 / span 12;
-  
-  @media (min-width: 1024px) {
-    grid-column: span 7 / span 7;
-  }
-`;
 
-const StyledPrContent = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.25rem;
-`;
 
-const StyledPrTitle = styled.span`
-  font-size: 11px;
-  font-weight: 500;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-`;
 
-const StyledPrHeading = styled.h3`
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
-  margin: 0;
-`;
 
-const StyledPrDescription = styled.p`
-  font-size: 12px;
-  color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  margin: 0;
-`;
 
-const StyledFastingWrapper = styled.div`
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.75rem;
-  background-color: ${({ theme }) => theme.color.accent}0d;
-  border: 1px solid ${({ theme }) => theme.color.accent}1a;
-`;
 
-const StyledFastingLabel = styled.span`
-  font-size: 11px;
-  font-weight: 500;
-  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
-  opacity: 0.8;
-`;
 
 const StyledTabLabel = styled.span`
   display: flex;
@@ -140,12 +92,6 @@ const StyledTabLabel = styled.span`
   gap: 0.375rem;
 `;
 
-const StyledPrIconWrapper = styled.div`
-  display: none;
-  @media (min-width: 640px) {
-    display: block;
-  }
-`;
 
 export function HealthPage() {
   const theme = useTheme()
@@ -165,13 +111,11 @@ export function HealthPage() {
     queryKey: ['health', 'logs', 'gym'],
     queryFn: () => healthApi.logs('gym'),
   })
-  const queryClient = useQueryClient()
 
   const [activeKey, setActiveKey] = useState('1')
   const [isLogModalOpen, setIsLogModalOpen] = useState(false)
   const [weightRange, setWeightRange] = useState<'7d' | '30d' | '90d'>('30d')
   const navigate = useNavigate()
-  const { setCmdPaletteOpen, setCaptureModalOpen } = useUIStore()
 
   const animatedStreak = useCountUp(streak?.current_streak ?? null)
   const animatedSessions = useCountUp(gymLogs?.length ?? null)

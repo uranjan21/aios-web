@@ -7,8 +7,8 @@ import { useAuthStore } from '@aios/shared/stores/authStore'
 import { logoutAndRedirect } from '@aios/shared/lib/logout'
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
-  DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
-} from '@ledgr/ui'
+  DropdownMenuItem, DropdownMenuSeparator, } from '@ledgr/ui'
+
 import styled from 'styled-components'
 import { TOPBAR_HEIGHT } from '@aios/shared/theme/layout'
 
@@ -263,9 +263,7 @@ const PAGE_NAMES: Record<string, string> = {
   '/app': 'Dashboard',
   '/app/chat': 'Chat',
   '/app/agents': 'Agents',
-  '/app/integrations': 'Integrations',
   '/app/settings': 'Settings',
-  '/app/guide': 'Guide',
   '/app/admin': 'Admin',
   '/app/areas/finance': 'Finance',
   '/app/areas/health': 'Health',

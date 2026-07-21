@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { ReactNode } from 'react'
 import { DEFAULT_PALETTE_ID } from '@aios/shared/theme/palettes'
 
 type Theme = 'dark' | 'light'

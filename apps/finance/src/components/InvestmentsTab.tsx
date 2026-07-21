@@ -150,7 +150,7 @@ export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void }) {
     queryFn: financeApi.investments,
   })
 
-  const { data: summary, isLoading: loadingSummary } = useQuery({
+  const { data: summary } = useQuery({
     queryKey: ['finance', 'investments', 'summary'],
     queryFn: financeApi.investmentsSummary,
   })

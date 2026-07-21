@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useUIStore } from '@aios/shared/stores/uiStore'
 import { useAuthStore } from '@aios/shared/stores/authStore'
 import { logoutAndRedirect } from '@aios/shared/lib/logout'
@@ -9,8 +9,8 @@ import {
 } from '@ledgr/ui'
 import {
   LayoutDashboard, MessageSquare, Bot, IndianRupee,
-  Heart, Briefcase, Rocket, PenLine, Plug, Settings,
-  ChevronLeft, BookOpen, LogOut, Target, CalendarCheck,
+  Heart, Briefcase, Settings,
+  ChevronLeft, LogOut, Target, CalendarCheck,
   FolderKanban, ListTodo, Zap, ChevronsUpDown
 } from 'lucide-react'
 import styled, { css } from 'styled-components'
@@ -411,8 +411,6 @@ const NAV_GROUPS = [
   {
     category: 'System',
     items: [
-      { to: '/app/guide', icon: BookOpen, label: 'Guide' },
-      { to: '/app/integrations', icon: Plug, label: 'Integrations' },
       { to: '/app/settings', icon: Settings, label: 'Settings' },
     ]
   }
@@ -420,7 +418,7 @@ const NAV_GROUPS = [
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
-  const { sidebarOpen, setSidebarOpen } = useUIStore()
+  const { sidebarOpen } = useUIStore()
   const user = useAuthStore(s => s.user)
   const navigate = useNavigate()
 

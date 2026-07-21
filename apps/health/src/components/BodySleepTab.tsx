@@ -7,24 +7,16 @@ import { healthApi } from '@aios/shared/api/areas'
 import { Skeleton } from '@aios/shared/components/ui/skeleton'
 import { format } from 'date-fns'
 import {
-  ComposedChart, Area, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
+  ComposedChart, Area, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
   ResponsiveContainer,
 } from 'recharts'
 import { KpiCard, KpiGrid } from '@ledgr/ui';
-import { Card as GlassCard } from '@ledgr/ui';
 import { Card as SectionCard } from '@ledgr/ui'
 import { WorkspaceLayout } from '@aios/shared/components/layout/WorkspaceLayout'
 
 import styled, { useTheme } from 'styled-components'
 
 const QUALITY_OPTIONS = ['poor', 'fair', 'good', 'excellent']
-
-function bmiCategory(bmi: number) {
-  if (bmi < 18.5) return { label: 'Underweight', color: 'text-kpi-amber' }
-  if (bmi < 25) return { label: 'Normal', color: 'text-kpi-emerald' }
-  if (bmi < 30) return { label: 'Overweight', color: 'text-kpi-amber' }
-  return { label: 'Obese', color: 'text-kpi-red' }
-}
 
 const StyledContainer = styled.div`
   display: flex;
@@ -146,24 +138,6 @@ const StyledFormActions = styled.div`
   border-top: 1px solid rgba(45, 49, 58, 0.15);
 `;
 
-const StyledButtonContent = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-`;
-
-const StyledDivider = styled.div`
-  width: 1px;
-  height: 1rem;
-  background-color: ${({ theme }) => theme.color?.border || 'var(--border)'};
-  margin: 0 0.25rem;
-  opacity: 0.6;
-  
-  @media (max-width: 768px) {
-    display: none;
-  }
-`;
-
 export function BodySleepTab() {
   const theme = useTheme()
   const queryClient = useQueryClient()
@@ -251,7 +225,6 @@ export function BodySleepTab() {
   const target = sleep?.target ?? 8
   const lastNight = sleep?.last_night
   const weeklyAvg = sleep?.weekly_avg ?? 0
-  const avgVsTarget = weeklyAvg - target
   const sleepChartData = sleep?.daily ?? []
 
   const filteredSleepChartData = useMemo(() => {

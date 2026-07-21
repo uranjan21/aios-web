@@ -1,6 +1,5 @@
 import styled, { useTheme } from 'styled-components'
 import { InsightCard } from '@ledgr/ui'
-import { useNavigate } from 'react-router-dom'
 import { Sparkles, Activity } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { insightsApi } from '@aios/shared/api/insights'
@@ -27,24 +26,11 @@ const Title = styled.h3`
   gap: 6px;
 `
 
-const SeeAllBtn = styled.button`
-  background: none;
-  border: none;
-  font-size: 12px;
-  font-weight: 600;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  transition: background 120ms, color 120ms;
-  &:hover {
-    background: ${({ theme }) => theme.color.muted};
-    color: ${({ theme }) => theme.color.foreground};
-  }
-`
 
-export function DiscoveriesFeed({ limit = 3, showSeeAll = true }: { limit?: number; showSeeAll?: boolean }) {
-  const navigate = useNavigate()
+// The standalone /app/discoveries page was a 39-line wrapper that re-queried
+// this same endpoint just to decide empty-vs-not. This is now the only
+// discoveries surface, so it shows the full set rather than a teaser + link.
+export function DiscoveriesFeed({ limit = 8 }: { limit?: number }) {
   const theme = useTheme()
   const queryClient = useQueryClient()
 
@@ -66,7 +52,6 @@ export function DiscoveriesFeed({ limit = 3, showSeeAll = true }: { limit?: numb
     <FeedWrapper>
       <Header>
         <Title><Sparkles size={14} style={{ color: theme.color.accent }} /> Discoveries</Title>
-        {showSeeAll && <SeeAllBtn onClick={() => navigate('/app/discoveries')}>See all</SeeAllBtn>}
       </Header>
       {visible.map(i => (
         <InsightCard

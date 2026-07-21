@@ -12,13 +12,13 @@ import {
   AgentSkeleton,
   Stack,
   RosterCard,
-  Cell,
-} from "@/features/agents/components/agents.styles";
+  } from "@/features/agents/components/agents.styles";
+
 import { getAgentDomain } from "@/features/agents/constants/domains";
 import { useAgentFilters } from "@/features/agents/hooks/useAgentFilters";
 import { getNextCronRun, getScheduleSortValue } from "@/features/agents/lib/cron";
 import type { Agent } from "@aios/shared/types";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Activity,
   Bot,

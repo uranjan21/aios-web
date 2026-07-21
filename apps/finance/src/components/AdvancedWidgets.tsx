@@ -2,7 +2,7 @@ import React from 'react';
 import styled, { useTheme } from 'styled-components';
 import { Popconfirm } from '@aios/shared/components/ui/Popconfirm';
 import { useState } from 'react';
-import { Button, Badge, EmptyState, DataTable, SegmentedControl, Select } from '@ledgr/ui';
+import { Button, Badge, EmptyState, DataTable, Select } from '@ledgr/ui';
 import { Sparkles, TrendingUp, AlertCircle, CheckCircle, Repeat } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip as ReTooltip, ResponsiveContainer } from 'recharts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';

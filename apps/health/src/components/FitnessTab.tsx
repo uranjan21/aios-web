@@ -105,8 +105,6 @@ export function FitnessTab() {
   const validSets = rows.filter(r => r.exercise.trim() && r.reps).length
   const updateRow = (i: number, patch: Partial<SetRow>) =>
     setRows(rs => rs.map((r, idx) => idx === i ? { ...r, ...patch } : r))
-  const duplicateRow = (i: number) =>
-    setRows(rs => [...rs.slice(0, i + 1), { ...rs[i] }, ...rs.slice(i + 1)])
 
   const bestStreak = Math.max(0, ...(habits ?? []).map(h => h.streak))
   const doneToday = (habits ?? []).filter(h => h.checks.includes(dayjs().format('YYYY-MM-DD'))).length

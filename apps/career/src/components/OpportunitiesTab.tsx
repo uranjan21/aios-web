@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@aios/shared/components/ui/Popconfirm'
-import { Input, Select, Button, Badge, SegmentedControl, HeaderActionPortal } from '@ledgr/ui'
+import { Select, Button, Badge, SegmentedControl, HeaderActionPortal } from '@ledgr/ui'
 import { Plus, ExternalLink, Trash2, Briefcase, XCircle } from 'lucide-react'
 import {
   DndContext, DragOverlay, PointerSensor, KeyboardSensor,
@@ -58,35 +58,9 @@ const AddFormRoot = styled.div`
   padding: 12px;
 `
 
-const FormLabel = styled.label`
-  display: block;
-  font-size: 11px;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  margin-bottom: 4px;
-`
 
-const FormField = styled.div`
-  display: flex;
-  flex-direction: column;
-`
 
-const FormGrid2 = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  margin-bottom: 12px;
 
-  @media (min-width: 640px) {
-    grid-template-columns: 1fr 1fr;
-  }
-`
-
-const FormFooter = styled.div`
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  width: 100%;
-`
 
 // ── Pipeline ──────────────────────────────────────────────────────────────────
 
@@ -192,18 +166,7 @@ const RejectZoneRoot = styled.div<{ $over: boolean }>`
 
 import { Card } from '@ledgr/ui'
 
-const ListSectionHead = styled.div`
-  padding: 10px 12px;
-  border-bottom: 1px solid ${({ theme }) => `${theme.color.border}66`};
-`
 
-const ListSectionLabel = styled.span`
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: ${({ theme }) => theme.color.mutedForeground};
-`
 
 const ListPad = styled.div`
   padding: 6px;
