@@ -7,7 +7,7 @@
 
 A full-stack personal life-management OS — Finance, Health, Career, Business, Content — with AI agents, vault sync, and multi-LLM integration. **Transitioning from single-user to multi-tenant SaaS (decided 2026-06-21).** All new DB/backend work must be multi-user aware: `users` table, `user_id` FK on every user-data table, row-level isolation.
 
-**The frontend is a pnpm-workspace MONOREPO (converted 2026-07-20).** Each life domain is its own app package (`apps/finance`, `apps/health`, `apps/career`, `apps/business`, `apps/content`); `apps/shell` is the central app that owns the router, AppShell navigation (Sidebar/TopBar/BottomNav), and all cross-domain surfaces; `packages/shared` (`@aios/shared`) holds api/stores/hooks/lib/theme/types + shared components; `packages/ui` is `@ledgr/ui`. The shell composes the domain apps into ONE deployed SPA (they are workspace packages consumed from source via Vite aliases, not separately deployed micro-frontends).
+**The frontend is a pnpm-workspace MONOREPO (converted 2026-07-20).** Each life domain is its own app package (`apps/finance`, `apps/health`, `apps/career` — **Business and Content were deleted 2026-07-21**, their tables deliberately kept; see `packages/shared/src/config/domains.ts` for ACTIVE vs RETIRED domain keys); `apps/shell` is the central app that owns the router, AppShell navigation (Sidebar/TopBar/BottomNav), and all cross-domain surfaces; `packages/shared` (`@aios/shared`) holds api/stores/hooks/lib/theme/types + shared components; `packages/ui` is `@ledgr/ui`. The shell composes the domain apps into ONE deployed SPA (they are workspace packages consumed from source via Vite aliases, not separately deployed micro-frontends).
 
 ---
 
@@ -34,7 +34,7 @@ A full-stack personal life-management OS — Finance, Health, Career, Business, 
 
 ## Stack
 
-- **Frontend**: React 18 + TypeScript + Vite + **@ledgr/ui** (component library at `packages/ui/`) + styled-components + Ant Design (complex widgets only — Tabs, DatePicker, Segmented)
+- **Frontend**: React 18 + TypeScript + Vite + **@ledgr/ui** (component library at `packages/ui/`) + styled-components. **No Ant Design** (removed 2026-07-21 — the whole package was bundled at 226 kB to render one `Timeline`). **No Highcharts** — Recharts only.
 - **Backend**: Python 3.11+ + FastAPI + SQLModel (async SQLAlchemy) + asyncpg
 - **Database**: PostgreSQL 15 + pgvector
 - **AI/LLMs**: Anthropic Claude SDK, OpenAI SDK (default provider, `settings.openai_chat_model`)
@@ -46,28 +46,43 @@ A full-stack personal life-management OS — Finance, Health, Career, Business, 
 
 ---
 
-## Design System — "Premium Black + Gold" (locked since 2026-06-20)
+## Design System — "Expressive" (direction set 2026-07-21)
 
-**Tailwind is fully removed.** All styling is styled-components + @ledgr/ui theme tokens.
+**Tailwind is fully removed.** All styling is styled-components + `@ledgr/ui` theme tokens.
+
+**`packages/ui/src/theme/tokens.ts` is THE authoritative token layer.** Until
+2026-07-21 it was shadowed by a second layer in `aiosTheme.ts` that overwrote
+the palette, radii, shadows and fonts at runtime, so most of what the file
+declared never rendered. `aiosTheme.ts` now only picks a palette + mode and
+calls `buildTheme()`.
 
 | Token | Value |
 |---|---|
-| Background | `#FAFAF9` (warm stone off-white) |
-| Foreground | `#0C0A09` |
-| Card | `#FFFFFF` |
+| Background | `#FAFAF9` light / `#0C0A09` dark |
+| Card | `#FFFFFF` light / `#1C1917` dark |
 | Primary | `#1C1917` (near-black) |
-| Primary hover | `#292524` |
-| Accent / Gold | `#CA8A04` (amber gold) |
-| Font (UI/body) | `DM Sans` |
-| Font (display) | `Playfair Display` (numbers, hero values only) |
-| Shadows | Flat/clean — no claymorphism |
+| Accent / Gold | `#CA8A04` |
+| Font (UI/body) | `DM Sans`, **16px body baseline** |
+| Font (display) | `Playfair Display` — hero numerals + wordmark ONLY |
+| Depth | 6-step `theme.elevation` + gradient + glass layers |
+| Motion | duration/easing scales + 3 spring presets |
 
 **HARD RULES:**
-- Never use `hsl(var(--x))` — CSS vars are HEX, use `var()` or `color-mix()` directly
-- No serif fonts in body/UI (Playfair Display = display numbers only)
-- No white/highlight inset shadows on buttons
-- `ThemeProvider` with `aiosLightTheme` wraps the whole app (`src/theme/aiosTheme.ts`)
-- `src/index.css` = minimal pre-render reset only; no utility classes
+- Never use `hsl(var(--x))` — CSS vars are HEX; use `var()` or `color-mix()`.
+- **No serif in body/UI.** `fontFamily.display` is for hero numerals and the wordmark.
+- **There is no `mono` font.** The old token resolved to DM Sans (a proportional
+  face wearing a mono name). Monospace display type is banned by standing user
+  rule — use `tabularNums` from `@ledgr/ui` for figure alignment.
+- **No pill / `9999px` radii.** True circles (avatar, status dot, Switch) exempt.
+- No white/highlight shadows on **buttons or inputs**. ONE exception: the 1px
+  top inner hairline inside `theme.elevation` on dark-mode raised surfaces —
+  without it dark mode has no depth cue at all.
+- Consume scales through the mixins (`textRole`, `focusRing`, `surface`,
+  `glass`, `tabularNums`), not by hand — that is what stops the drift.
+- Media queries use `theme.media.*`. Raw px breakpoints are a lint failure.
+- **Run `node scripts/token-lint.mjs` before committing.** It ratchets against
+  `scripts/token-lint.baseline.json` and fails when a violation count rises.
+  `--report` lists locations; `--update` re-locks after a genuine reduction.
 - **MOBILE STRICT**: In mobile/tab this app should feel like it's made natively for mobile/tab, not some app built for web and responsive to mobile. Design elements (especially KPIs) must compactly fit in single rows on small viewports rather than stacking loosely.
 
 ---
@@ -179,16 +194,17 @@ aios-web/                      # pnpm workspace root (package.json = ALL third-p
 - **No Tailwind classes**: Tailwind is removed — any `className` on SC components is a CSS selector hook
 - **No `any` types**: TypeScript strict — use proper interfaces
 - **Modals**: always use `@ledgr/ui Dialog`; never roll custom overlay/backdrop/portal
-- **Forms**: React Hook Form + Zod; validate at submit
+- **Forms**: plain controlled components + local state. (React Hook Form and Zod were listed here for a long time but had **zero import sites**; the packages were removed 2026-07-21. Reintroduce them deliberately if a form gets complex enough to need them.)
 - **React Query**: always set `staleTime` on queries that don't need to refetch on every render
 
 ### UI/UX rules (always apply)
 
-- **Sidebar**: top-level links only — no accordions, no sub-menus
-- **AreaTabs**: always `<AreaTabs>` from `@aios/shared/components/ui/AreaTabs`; never nest `<Tabs>`
+- **Navigation**: `apps/shell/src/config/navigation.ts` is the single source of truth. Sidebar, BottomNav, CommandPalette, breadcrumb labels and the `g`-goto shortcuts all read from it — never hand-write a nav list in a component. Sidebar is top-level links only: no accordions, no sub-menus.
+- **Routes have no `/areas/` prefix** — `/app/finance`, not `/app/areas/finance`. Goals/Projects/Sprints/Tasks live at `/app/plan?view=…&domain=…`; the old paths redirect.
+- **AreaTabs**: use `<AreaTabs>` from `@aios/shared/components/ui/AreaTabs`; never nest `<Tabs>`. Do NOT add a tab per life domain — that pattern produced 24 tabs across four workspace pages that were really one filter. Use a `Select` domain filter (see `PlanPage`).
 - **No page-level titles** rendered inside content — breadcrumbs only in TopBar
 - **Dashboard layout**: two-column shell, right column 300px fixed, left `1fr`
-- **Density**: compact text (13–14px body), tight padding (16–20px on cards), no oversized bold values
+- **Density**: body baseline is **16px** and cards breathe (`spacing[5]`–`spacing[6]`). The old "13–14px, tight padding" rule was retired on 2026-07-21 — it was the main reason the UI read as an admin panel rather than a product.
 - **Agents page**: dense table pattern — status, schedule, last-run, actions columns
 - **Action-Rail**: inputs/forms always in right WorkspaceLayout rail; data/analytics in center
 - **No pill/capsule shapes anywhere** — buttons, inputs, toggles, badges, progress bars all use `theme.radii.sm`/`md` (flat, ~8–10px corners), never `9999px`/`theme.radii.full`. Exception: true circles (avatars, status dots, the `Switch` track/thumb) where the shape is structural, not a corner-rounding choice. When adding any new rounded element, reference a `theme.radii.*` token — never hardcode a radius value.
@@ -251,6 +267,36 @@ alembic upgrade head
 ```
 
 ---
+
+## Recent Updates (2026-07-21 — UI/UX audit + Expressive redesign, phases 0–5a)
+
+Full audit of UI/UX, theme, CSS and features, then execution on branch
+`redesign/expressive`. **-8,500 lines net.** Each phase is its own commit and
+each is independently green (tsc / build / vitest / pytest).
+
+- **Deleted:** Business and Content areas (Business's entire Dashboard tab was
+  five files of hardcoded `EmptyState` with no API calls); Career demoted from
+  3 tabs to one page; the guide section (whose sidebar linked
+  `/app/guide/chat`, a route that never existed, dropping users out of `/app`);
+  the duplicate Integrations page; the Discoveries wrapper; `ActionCenterStrip`
+  (its only data producer is vault sync, force-disabled in prod); 114 unused
+  declarations; **14 dead dependencies** including `react-hook-form`, `zod` and
+  `is-odd`; 33 orphaned backend routes (212 → 179). **No DB tables dropped** —
+  `config/domains.ts` separates ACTIVE from RETIRED domain keys so legacy rows
+  still render.
+- **Design system:** the two stacked token layers collapsed into one. See the
+  Design System section above for what was broken and what replaced it.
+- **Navigation:** `apps/shell/src/config/navigation.ts` is now the only nav
+  list. 16 items → 10, and the 24 domain tabs across Goals/Projects/Sprints/
+  Tasks became one `/app/plan` page with one filter, both in the URL.
+- **Guardrail:** `scripts/token-lint.mjs` ratchets design-system drift.
+  `pnpm lint` was dead the whole time (eslint isn't installed), which is why
+  the drift accumulated; `noUnusedLocals` is now on instead.
+
+**Open items:** `BUNDLE_PRICE` in `packages/shared/src/lib/pricing.ts` moved
+$29 → $22 and needs product sign-off (6 modules × $5 = $30 made the old bundle
+save $1). Phases 5b–7 — Finance/Health/Plan/Chat/Settings/Login surface
+redesign, app-wide motion, and a11y/perf hardening — are not started.
 
 ## Recent Updates (2026-07-20 — Transaction tracker overhaul: Gmail → review → ledger)
 
