@@ -31,7 +31,7 @@ const Header = styled.header`
 `
 
 const Logo = styled.div`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+  font-family: ${({ theme }) => theme.typography.fontFamily.display};
   font-size: 1.5rem;
   font-weight: 700;
   display: flex;
@@ -53,7 +53,7 @@ const TitleSection = styled.div`
   margin-bottom: 3rem;
 
   h1 {
-    font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+    font-family: ${({ theme }) => theme.typography.fontFamily.display};
     font-size: clamp(2.25rem, 5vw, 3.5rem);
     margin-bottom: 1rem;
   }
@@ -177,7 +177,7 @@ const TotalRow = styled.div`
   gap: 0.4rem;
   margin-bottom: 0.25rem;
   .amount {
-    font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+    font-family: ${({ theme }) => theme.typography.fontFamily.display};
     font-size: 3rem;
     font-weight: 700;
     line-height: 1;

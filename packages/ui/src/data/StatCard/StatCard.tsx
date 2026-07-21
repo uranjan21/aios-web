@@ -75,8 +75,8 @@ const IconWrap = styled.div<{ $tone: NonNullable<StatCardProps['tone']> }>`
 `;
 
 const Value = styled.div<{ $tone: NonNullable<StatCardProps['tone']> }>`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
-  font-size: ${({ theme }) => theme.typography.fontSize['2xl']};
+  font-family: ${({ theme }) => theme.typography.fontFamily.display};
+  font-size: ${({ theme }) => theme.typography.fontSize['3xl']};
   font-weight: ${({ theme }) => theme.typography.fontWeight.bold};
   line-height: ${({ theme }) => theme.typography.lineHeight.tight};
   font-variant-numeric: tabular-nums;

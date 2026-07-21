@@ -11,7 +11,8 @@ const KbdEl = styled.kbd`
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: 4px;
   padding: 2px 8px;
-  font-family: ${({ theme }) => theme.typography.fontFamily.mono ?? 'ui-monospace, monospace'};
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
+  font-variant-numeric: tabular-nums;
 `
 
 // ── Keyboard shortcuts section ────────────────────────────────────────────────

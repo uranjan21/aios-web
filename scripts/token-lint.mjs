@@ -41,6 +41,10 @@ const SCAN_ROOTS = [
 const THEME_FILES = [
   'packages/ui/src/theme/tokens.ts',
   'packages/ui/src/theme/theme.ts',
+  // Carries the package's standalone fallback palette.
+  'packages/ui/src/theme/ThemeProvider.tsx',
+  // Style recipes (visually-hidden clip values, focus offsets) are definitions.
+  'packages/ui/src/theme/mixins.ts',
   'packages/shared/src/theme/aiosTheme.ts',
   'packages/shared/src/theme/palettes.ts',
   'packages/shared/src/theme/layout.ts',
@@ -90,6 +94,7 @@ const RULES = [
     label: 'padding/margin/gap in raw px (use theme.spacing / layout.spacing)',
     pattern:
       /(?:padding|margin|gap|row-gap|column-gap)(?:-(?:top|right|bottom|left))?:\s*[^;\n]*?\d+px/g,
+    skip: (rel) => isThemeFile(rel),
   },
   {
     id: 'rgba-in-shadow',

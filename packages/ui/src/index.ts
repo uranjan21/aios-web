@@ -9,23 +9,37 @@
 export {
   ThemeProvider,
   GlobalStyles,
-  lightTheme,
-  darkTheme,
+  buildTheme,
+  rgbChannels,
   tokens,
-  palette,
   typography,
   spacing,
   radii,
-  shadow,
+  elevationLight,
+  elevationDark,
   border,
   motion,
   zIndex,
   breakpoint,
+  media,
+  blur,
+  // Style mixins — the intended way to consume the scales.
+  textRole,
+  tabularNums,
+  focusRing,
+  insetFocusRing,
+  visuallyHidden,
+  surface,
+  glass,
+  truncate,
 } from './theme';
 export type {
   Theme,
+  BuildThemeInput,
   SemanticColor,
   ThemeProviderProps,
+  TextRole,
+  ElevationLevel,
 } from './theme';
 
 /* ── Primitives ─────────────────────────────────────────────────────── */

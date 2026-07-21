@@ -6,7 +6,8 @@ const Container = styled.div`
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  font-family: ${({ theme }) => theme.typography?.fontFamily?.mono || 'monospace'};
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
+  font-variant-numeric: tabular-nums;
   color: ${({ theme }) => theme.color?.foreground || '#000'};
 `;
 

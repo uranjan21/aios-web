@@ -4,7 +4,7 @@ import styled, { keyframes, useTheme } from 'styled-components'
 import { api } from '@aios/shared/api/client'
 import { useAuthStore } from '@aios/shared/stores/authStore'
 import {
-  IndianRupee, Heart, Briefcase, Rocket, PenLine,
+  IndianRupee, Heart, Briefcase,
   Eye, EyeOff, Sparkles, Shield, Zap,
   Mail, Lock, ArrowRight, Check,
 } from 'lucide-react'
@@ -765,8 +765,6 @@ const DOMAINS = [
   { icon: IndianRupee, label: 'Finance',  domain: 'finance'  },
   { icon: Heart,       label: 'Health',   domain: 'health'   },
   { icon: Briefcase,   label: 'Career',   domain: 'career'   },
-  { icon: Rocket,      label: 'Business', domain: 'business' },
-  { icon: PenLine,     label: 'Content',  domain: 'content'  },
 ] as const
 
 const FEATURES = [
@@ -873,7 +871,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
             <span>command</span> center.
           </Title>
           <Sub>
-            Five life domains. One intelligent interface.
+            Money, health and career in one intelligent interface.
             All your data, connected and AI-powered.
           </Sub>
 
@@ -898,9 +896,9 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
 
           <Ticker>
             <Dot />
-            <span>5 domains</span>
+            <span>3 domains</span>
             <TickerSep>·</TickerSep>
-            <span>7 agents on schedule</span>
+            <span>8 agents on schedule</span>
             <TickerSep>·</TickerSep>
             <span>vault synced</span>
           </Ticker>

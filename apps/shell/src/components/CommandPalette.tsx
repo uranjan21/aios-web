@@ -167,7 +167,8 @@ const Footer = styled.div`
   color: ${({ theme }) => theme.color.mutedForeground};
 
   kbd {
-    font-family: ${({ theme }) => theme.typography.fontFamily.mono};
+    font-family: ${({ theme }) => theme.typography.fontFamily.sans};
+  font-variant-numeric: tabular-nums;
     background: ${({ theme }) => theme.color.muted};
     border-radius: 4px;
     padding: 1px 4px;

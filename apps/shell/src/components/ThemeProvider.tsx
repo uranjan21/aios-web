@@ -67,40 +67,51 @@ const ThemeVars = createGlobalStyle`
     /* Shadow alias */
     --shadow-premium-sm: ${({ theme }) => theme.shadow.sm};
 
-    /* HUD layer — derived per palette+mode in aiosTheme.buildHud() */
-    --hud-hairline: ${({ theme }) => theme.hud.hairline};
-    --hud-hairline-v: ${({ theme }) => theme.hud.hairlineV};
-    --hud-corner-tick: ${({ theme }) => theme.hud.cornerTick};
-    --hud-node-glow: ${({ theme }) => theme.hud.nodeGlow};
-    --hud-grid-dot: ${({ theme }) => theme.hud.gridDot};
-    --hud-grid-pitch: ${({ theme }) => theme.hud.gridPitch};
-    --hud-glass: ${({ theme }) => theme.hud.glass};
-    --hud-glass-border: ${({ theme }) => theme.hud.glassBorder};
-    --hud-glass-blur: ${({ theme }) => theme.hud.glassBlur};
-    --hud-focus-ring: ${({ theme }) => theme.hud.focusRing};
-    --hud-accent-grad: ${({ theme }) => theme.hud.accentGrad};
-    --hud-accent-grad-fg: ${({ theme }) => theme.hud.accentGradFg};
+    /* Expressive layers */
+    --gradient-accent: ${({ theme }) => theme.gradient.accent};
+    --gradient-hairline: ${({ theme }) => theme.gradient.hairline};
+    --glass-bg: ${({ theme }) => theme.glass.background};
+    --glass-border: ${({ theme }) => theme.glass.border};
+    --focus-ring: ${({ theme }) => theme.focusRing};
+
+    /*
+     * Aliases for variables that components referenced but nothing ever
+     * defined. The 2026-07-21 audit found 36 such references — InboxTab was
+     * styled almost entirely against a phantom --ui-* set with no fallbacks,
+     * so its text colours resolved to inherit and its surfaces to nothing.
+     * Defining them here makes those components render correctly
+     * today; they still owe a migration onto theme tokens directly.
+     */
+    --ui-text-primary: ${({ theme }) => theme.color.foreground};
+    --ui-text-secondary: ${({ theme }) => theme.color.mutedForeground};
+    --ui-text-tertiary: ${({ theme }) => theme.color.mutedForeground};
+    --ui-bg-base: ${({ theme }) => theme.color.card};
+    --ui-bg-subtle: ${({ theme }) => theme.color.muted};
+    --ui-border: ${({ theme }) => theme.color.border};
+    --ui-primary: ${({ theme }) => theme.color.primary};
+    --ui-primary-subtle: ${({ theme }) => theme.color.muted};
+    --ui-danger: ${({ theme }) => theme.color.destructive};
+    --ui-danger-subtle: ${({ theme }) => 'color-mix(in srgb, ' + theme.color.destructive + ' 12%, transparent)'};
+    --ui-success: ${({ theme }) => theme.color.success};
+    --ui-success-subtle: ${({ theme }) => 'color-mix(in srgb, ' + theme.color.success + ' 12%, transparent)'};
+    --ui-shadow-sm: ${({ theme }) => theme.elevation[1]};
+    --ui-shadow-md: ${({ theme }) => theme.elevation[2]};
+
+    --color-surface: ${({ theme }) => theme.color.background};
+    --color-surface-raised: ${({ theme }) => theme.color.card};
+    --color-text: ${({ theme }) => theme.color.foreground};
+    --color-border: ${({ theme }) => theme.color.border};
+    --color-warning: ${({ theme }) => theme.color.warning};
 
     /* Domain identity — constant across palettes, flips with light/dark */
     --domain-finance: ${({ theme }) => theme.domain.finance};
     --domain-health: ${({ theme }) => theme.domain.health};
     --domain-career: ${({ theme }) => theme.domain.career};
-    --domain-business: ${({ theme }) => theme.domain.business};
-    --domain-content: ${({ theme }) => theme.domain.content};
     --domain-vault: ${({ theme }) => theme.domain.vault};
     --domain-general: ${({ theme }) => theme.domain.general};
-  }
-
-  /*
-   * @ledgr/ui GlobalStyles sets h1-h6 to theme.typography.fontFamily.serif,
-   * which is correct for Ledgr (Fraunces headings) but violates the AIOS rule
-   * that UI is never serif. ThemeVars renders after GlobalStyles, so this wins
-   * at equal specificity — while any call site that sets font-family
-   * explicitly (Sidebar brand, Pricing/Landing display, KPI numerals) still
-   * wins over it on specificity and keeps Playfair deliberately.
-   */
-  h1, h2, h3, h4, h5, h6 {
-    font-family: ${({ theme }) => theme.typography.fontFamily.sans};
+    /* Retired areas: rows tagged with these still need a colour. */
+    --domain-business: ${({ theme }) => theme.domain.business};
+    --domain-content: ${({ theme }) => theme.domain.content};
   }
 `
 

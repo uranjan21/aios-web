@@ -112,7 +112,7 @@ const LogoBadge = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+  font-family: ${({ theme }) => theme.typography.fontFamily.display};
   font-size: 1rem;
   font-weight: 700;
   box-shadow: ${({ theme }) => theme.shadow.lg};
@@ -129,7 +129,7 @@ const BrandText = styled.div<{ $collapsed: boolean }>`
   width: ${({ $collapsed }) => $collapsed ? 0 : 'auto'};
 
   .name {
-    font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+    font-family: ${({ theme }) => theme.typography.fontFamily.display};
     font-size: 1rem;
     font-weight: 700;
     color: ${({ theme }) => theme.chrome.fg};

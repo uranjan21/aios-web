@@ -1,6 +1,7 @@
 import { useId, useRef } from 'react';
 import type { ReactNode } from 'react';
 import styled, { css, keyframes } from 'styled-components';
+import { textRole } from '../../theme/mixins';
 import { Portal } from '../../utils/Portal';
 import { useFocusTrap, useScrollLock, useEscapeKey } from '../../utils/hooks';
 
@@ -70,10 +71,10 @@ const Body = styled.div`
   flex: 1;
 `;
 
+// Was serif — a design-system-level violation of the "no serif in UI" rule,
+// which meant every Sheet title rendered in Playfair.
 const Title = styled.h2`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
-  font-size: ${({ theme }) => theme.typography.fontSize.lg};
-  font-weight: ${({ theme }) => theme.typography.fontWeight.semibold};
+  ${textRole('title-s')}
   margin: 0;
 `;
 

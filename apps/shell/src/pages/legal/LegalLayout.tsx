@@ -36,7 +36,7 @@ const LogoBadge = styled.div`
 `
 
 const LogoBadgeText = styled.span`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-size: 14px;
   font-weight: 700;
   color: ${({ theme }) => theme.color.primaryForeground};
@@ -44,7 +44,7 @@ const LogoBadgeText = styled.span`
 `
 
 const BrandText = styled.span`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-size: 24px;
   font-weight: 700;
   color: ${({ theme }) => theme.color.foreground};

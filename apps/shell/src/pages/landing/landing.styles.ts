@@ -41,7 +41,7 @@ export const Header = styled.header`
 `
 
 export const Logo = styled(Link)`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+  font-family: ${({ theme }) => theme.typography.fontFamily.display};
   font-size: 1.5rem;
   font-weight: 700;
   display: flex;
@@ -106,7 +106,7 @@ export const HeroEyebrow = styled(motion.div)`
 `
 
 export const HeroTitle = styled(motion.h1)`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+  font-family: ${({ theme }) => theme.typography.fontFamily.display};
   font-size: clamp(2.5rem, 6vw, 4.5rem);
   font-weight: 700;
   line-height: 1.1;
@@ -178,7 +178,7 @@ export const StatItem = styled.div`
 `
 
 export const StatNum = styled.div`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+  font-family: ${({ theme }) => theme.typography.fontFamily.display};
   font-size: 2rem;
   font-weight: 700;
   color: ${({ theme }) => theme.color.foreground};
@@ -209,7 +209,7 @@ export const SectionLabel = styled.div`
 `
 
 export const SectionTitle = styled.h2`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+  font-family: ${({ theme }) => theme.typography.fontFamily.display};
   font-size: clamp(1.75rem, 4vw, 2.75rem);
   font-weight: 700;
   margin-bottom: 1rem;
@@ -308,7 +308,7 @@ export const AiSection = styled.section`
 `
 
 export const AiTitle = styled.h2`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+  font-family: ${({ theme }) => theme.typography.fontFamily.display};
   font-size: clamp(1.75rem, 4vw, 2.75rem);
   font-weight: 700;
   color: ${({ theme }) => theme.color.primaryForeground};
@@ -448,7 +448,7 @@ export const PriceName = styled.div`
 `
 
 export const PriceAmount = styled.div`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+  font-family: ${({ theme }) => theme.typography.fontFamily.display};
   font-size: 2.5rem;
   font-weight: 700;
   line-height: 1;
@@ -495,7 +495,7 @@ export const FinalCTA = styled.section`
 `
 
 export const FinalTitle = styled.h2`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
+  font-family: ${({ theme }) => theme.typography.fontFamily.display};
   font-size: clamp(2rem, 5vw, 3.5rem);
   font-weight: 700;
   margin-bottom: 1rem;

@@ -38,7 +38,6 @@ const Header = styled.div`
 `;
 
 const Title = styled.h3`
-  font-family: ${({ theme }) => theme.typography.fontFamily.serif};
   font-size: ${({ theme }) => theme.typography.fontSize.lg};
   font-weight: ${({ theme }) => theme.typography.fontWeight.semibold};
   margin: 0;
