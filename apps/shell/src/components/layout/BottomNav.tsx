@@ -1,3 +1,4 @@
+import { focusRing } from '@ledgr/ui'
 import { NavLink, useLocation } from 'react-router-dom'
 import { LayoutDashboard, MessageSquare, Bot, Grid3X3, MoreHorizontal } from 'lucide-react'
 import styled from 'styled-components'
@@ -35,10 +36,7 @@ const TabLink = styled(NavLink)<{ $active: boolean }>`
   color: ${({ theme, $active }) => $active ? theme.color.primary : theme.color.mutedForeground};
   transition: color 120ms;
 
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: -4px;
-  }
+  ${focusRing}
 `
 
 const IconWrap = styled.div<{ $active: boolean }>`

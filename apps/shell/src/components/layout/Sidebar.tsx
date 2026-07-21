@@ -5,8 +5,7 @@ import { useAuthStore } from '@aios/shared/stores/authStore'
 import { logoutAndRedirect } from '@aios/shared/lib/logout'
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
-  DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
-} from '@ledgr/ui'
+  DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel, focusRing } from '@ledgr/ui'
 import {
   LayoutDashboard, MessageSquare, Bot, IndianRupee,
   Heart, Briefcase, Settings,
@@ -81,10 +80,7 @@ const ToggleButton = styled.button<{ $collapsed: boolean }>`
     transition: transform 200ms cubic-bezier(0.2, 0, 0, 1);
   }
 
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: 2px;
-  }
+  ${focusRing}
 
   @media (max-width: 768px) {
     display: none;
@@ -223,10 +219,7 @@ const NavItemLink = styled(NavLink)<{ $collapsed: boolean }>`
     color: ${({ theme }) => theme.chrome.fg};
   }
 
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: 2px;
-  }
+  ${focusRing}
 
   &.active {
     background: rgba(255, 255, 255, 0.10);
@@ -272,10 +265,7 @@ const UserBlock = styled.button<{ $collapsed: boolean }>`
     box-shadow: ${({ theme }) => theme.shadow.sm};
   }
 
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: 2px;
-  }
+  ${focusRing}
 
   ${({ $collapsed }) => $collapsed && css`
     justify-content: center;

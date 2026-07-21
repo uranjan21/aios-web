@@ -7,7 +7,7 @@ import { api } from '@aios/shared/api/client'
 import { useVaultSync } from '@aios/shared/hooks/useVaultSync'
 import { useFeatures } from '@aios/shared/hooks/useFeatures'
 import { Skeleton } from '@aios/shared/components/ui/skeleton'
-import { Button } from '@ledgr/ui'
+import { Button, focusRing } from '@ledgr/ui'
 import { Row, Section } from '../shared'
 
 // ── Backend status ────────────────────────────────────────────────────────────
@@ -33,7 +33,7 @@ const RetryBtn = styled.button`
   border-radius: 4px;
   transition: color 120ms ease-in-out;
   &:hover { color: ${({ theme }) => theme.color.foreground}; }
-  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 2px; }
+  ${focusRing}
 `
 
 const SkelStatus = styled(Skeleton)`
@@ -89,7 +89,7 @@ const PushBtn = styled.button<{ $active: boolean; $busy: boolean }>`
     color: ${theme.color.mutedForeground};
     &:hover { color: ${theme.color.foreground}; }
   `}
-  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 2px; }
+  ${focusRing}
 `
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {

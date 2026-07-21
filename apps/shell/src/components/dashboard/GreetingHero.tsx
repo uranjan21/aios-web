@@ -1,3 +1,4 @@
+import { focusRing } from '@ledgr/ui'
 import { useUIStore } from "@aios/shared/stores/uiStore";
 import { Button, Card } from "@ledgr/ui";
 import { Heart, RefreshCcw, Zap } from "lucide-react";
@@ -275,7 +276,7 @@ const IconBtn = styled.button<{ $active?: boolean }>`
   transition: background 120ms, color 120ms;
   flex-shrink: 0;
   &:hover { background: ${({ theme }) => theme.color.accent}18; color: ${({ theme }) => theme.color.accent}; }
-  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 2px; }
+  ${focusRing}
   @media (prefers-reduced-motion: reduce) { transition: none; }
 `;
 

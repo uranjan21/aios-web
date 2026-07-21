@@ -7,7 +7,7 @@ import { useAuthStore } from '@aios/shared/stores/authStore'
 import { logoutAndRedirect } from '@aios/shared/lib/logout'
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
-  DropdownMenuItem, DropdownMenuSeparator, } from '@ledgr/ui'
+  DropdownMenuItem, DropdownMenuSeparator, focusRing } from '@ledgr/ui'
 
 import styled from 'styled-components'
 import { TOPBAR_HEIGHT } from '@aios/shared/theme/layout'
@@ -45,10 +45,7 @@ const BackButton = styled.button`
     color: ${({ theme }) => theme.color.foreground};
   }
 
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: 2px;
-  }
+  ${focusRing}
   
   svg { width: 16px; height: 16px; }
 `
@@ -64,10 +61,7 @@ const Hamburger = styled.button`
   
   &:hover { background: ${({ theme }) => theme.color.muted}; }
 
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: 2px;
-  }
+  ${focusRing}
   
   @media (min-width: 768px) {
     display: none;
@@ -100,10 +94,7 @@ const BreadcrumbNav = styled.nav`
   .crumb.link {
     cursor: pointer;
     &:hover { color: ${({ theme }) => theme.color.foreground}; }
-    &:focus-visible {
-      outline: 2px solid ${({ theme }) => theme.color.ring};
-      outline-offset: 1px;
-    }
+  ${focusRing}
   }
 
   .crumb.active {
@@ -187,10 +178,7 @@ const IconButton = styled.button`
     color: ${({ theme }) => theme.color.foreground};
   }
 
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: 2px;
-  }
+  ${focusRing}
   
   svg {
     width: 16px;
@@ -216,10 +204,7 @@ const UserMenuTrigger = styled.button`
   
   &:hover { background: ${({ theme }) => theme.color.muted}; }
 
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: 2px;
-  }
+  ${focusRing}
   
   .avatar {
     width: 24px;

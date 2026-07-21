@@ -1,3 +1,4 @@
+import { focusRing } from '@ledgr/ui'
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Switch, Tooltip } from "@ledgr/ui";
@@ -50,10 +51,7 @@ const RowButton = styled.button<{ $status: string }>`
     box-shadow: inset 0 0 0 1px color-mix(in srgb, ${({ theme }) => theme.color.border} 40%, transparent);
   }
 
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: -2px;
-  }
+  ${focusRing}
 
   @media (min-width: 980px) {
     grid-template-columns: minmax(0, 2fr) 95px 140px 110px 110px 110px;

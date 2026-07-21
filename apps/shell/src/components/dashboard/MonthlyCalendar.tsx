@@ -1,3 +1,4 @@
+import { focusRing } from '@ledgr/ui'
 import {
   fmtDateKey,
   parseLocalDate,
@@ -79,10 +80,7 @@ const IconBtn = styled.button`
   &:hover {
     background: ${({ theme }) => theme.color.muted};
   }
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: 2px;
-  }
+  ${focusRing}
 `;
 
 const DowGrid = styled.div`
@@ -151,10 +149,7 @@ const Cell = styled.button<{
     border-color: ${({ theme, $selected }) =>
       $selected ? "transparent" : theme.color.border};
   }
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: 1px;
-  }
+  ${focusRing}
 `;
 
 const DayNum = styled.span`

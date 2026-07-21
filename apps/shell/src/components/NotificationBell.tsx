@@ -1,3 +1,4 @@
+import { focusRing } from '@ledgr/ui'
 import { useRef, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
@@ -39,7 +40,7 @@ const BellBtn = styled.button`
   align-items: center;
   transition: background 120ms, color 120ms;
   &:hover { background: ${({ theme }) => theme.color.muted}; color: ${({ theme }) => theme.color.foreground}; }
-  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 2px; }
+  ${focusRing}
 `
 
 const BadgeMotion = styled(motion.span)`

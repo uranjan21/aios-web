@@ -1,3 +1,4 @@
+import { focusRing } from '@ledgr/ui'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -24,7 +25,7 @@ const Trigger = styled.button<{ $placeholder: boolean; $invalid?: boolean }>`
   font-size: 0.875rem;
   cursor: pointer;
   text-align: left;
-  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.primary}; outline-offset: 2px; }
+  ${focusRing}
   & svg { width: 15px; height: 15px; flex-shrink: 0; color: ${({ theme }) => theme.color.mutedForeground}; }
   .val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 `

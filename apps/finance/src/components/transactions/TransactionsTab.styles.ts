@@ -1,5 +1,5 @@
 import { Skeleton } from '@aios/shared/components/ui/skeleton'
-import { ToolbarIconBtn } from '@ledgr/ui'
+import { ToolbarIconBtn, focusRing } from '@ledgr/ui'
 import styled from 'styled-components'
 
 export const StyledSkeleton = styled(Skeleton)<{ $height?: string; $width?: string; $margin?: string }>`
@@ -69,6 +69,6 @@ export const SortBtn = styled.button`
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease;
   &:hover { background: ${({ theme }) => theme.color.muted}; }
-  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.primary}; outline-offset: 2px; }
+  ${focusRing}
   & svg { color: ${({ theme }) => theme.color.mutedForeground}; }
 `

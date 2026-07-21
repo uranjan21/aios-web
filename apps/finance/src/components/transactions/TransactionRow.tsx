@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Input, EmptyState, Badge, Checkbox,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
-  ConfirmDialog } from '@ledgr/ui'
+  ConfirmDialog, focusRing } from '@ledgr/ui'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import { PencilLine, Trash2, Check, X, Tag as TagIcon, FolderInput, MoreHorizontal, Split } from 'lucide-react'
@@ -124,7 +124,7 @@ const TxnActionBtn = styled.button<{ $danger?: boolean }>`
     background: ${({ theme, $danger }) => $danger ? `color-mix(in srgb, ${theme.color.destructive} 12%, transparent)` : theme.color.muted};
     color: ${({ theme, $danger }) => $danger ? theme.color.destructive : theme.color.foreground};
   }
-  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.primary}; outline-offset: 1px; }
+  ${focusRing}
 `
 
 const TxnAmount = styled.div<{ $color: string }>`

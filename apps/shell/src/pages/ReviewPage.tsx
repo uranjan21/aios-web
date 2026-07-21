@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import styled from 'styled-components'
 import { useQuery } from '@tanstack/react-query'
-import { Card, PageHeader, Button, Input, EmptyState } from '@ledgr/ui'
+import { Card, PageHeader, Button, Input, EmptyState, focusRing } from '@ledgr/ui'
 import { goalsApi } from '@aios/shared/api/goals'
 import { capturesApi } from '@aios/shared/api/areas'
 import { insightsApi } from '@aios/shared/api/insights'
@@ -77,10 +77,7 @@ const RateBtn = styled.button<{ $tone: 'good' | 'bad'; $selected?: boolean }>`
     background: ${({ theme, $tone }) =>
       $tone === 'good' ? `${theme.color.success}1A` : `${theme.color.destructive}1A`};
   }
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: 2px;
-  }
+  ${focusRing}
 `
 
 const FocusRow = styled.div`

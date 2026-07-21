@@ -1,3 +1,4 @@
+import { focusRing } from '@ledgr/ui'
 import { goalsApi, type MacroGoal } from "@aios/shared/api/goals";
 import { DOMAIN_OPTIONS } from "@aios/shared/config/domains";
 import { PageContainer, PageContent } from "@aios/shared/components/layout/PageLayout";
@@ -75,10 +76,7 @@ const IconBtn = styled.button`
     background: ${({ theme }) => theme.color.muted};
     color: ${({ theme }) => theme.color.destructive};
   }
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: 2px;
-  }
+  ${focusRing}
 `;
 
 const CategoryChip = styled.span`

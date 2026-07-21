@@ -2,7 +2,7 @@ import { useState } from 'react'
 import styled from 'styled-components'
 import { motion } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
-import { Button } from '@ledgr/ui'
+import { Button, focusRing } from '@ledgr/ui'
 import { Check, Globe, Sparkles, Zap, Info } from 'lucide-react'
 import { useAuthStore } from '@aios/shared/stores/authStore'
 import { usePricingCurrency } from '@aios/shared/hooks/usePricingCurrency'
@@ -141,7 +141,7 @@ const ModuleTile = styled.button<{ $selected: boolean }>`
   transition: border-color 0.15s ease, background 0.15s ease;
 
   &:hover { border-color: ${({ theme }) => theme.color.accent}; }
-  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.accent}; outline-offset: 2px; }
+  ${focusRing}
 
   .ico {
     width: 34px; height: 34px;

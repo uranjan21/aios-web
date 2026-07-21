@@ -1,5 +1,5 @@
 import { Sun, Moon } from 'lucide-react'
-import { Button } from '@ledgr/ui'
+import { Button, focusRing } from '@ledgr/ui'
 import styled from 'styled-components'
 import { useUIStore } from '@aios/shared/stores/uiStore'
 import { PALETTES } from '@aios/shared/theme/palettes'
@@ -36,7 +36,7 @@ const ThemeBtn = styled.button<{ $active: boolean }>`
     color: ${theme.color.mutedForeground};
     &:hover { color: ${theme.color.foreground}; }
   `}
-  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 2px; }
+  ${focusRing}
 `
 
 // ── Palette picker ────────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ const PaletteBtn = styled.button<{ $active: boolean }>`
   cursor: pointer;
   transition: all 120ms;
   &:hover { border-color: ${({ theme }) => theme.color.accent}; }
-  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 2px; }
+  ${focusRing}
 `
 
 const SwatchStack = styled.div`

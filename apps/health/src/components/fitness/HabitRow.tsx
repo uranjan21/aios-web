@@ -1,3 +1,4 @@
+import { focusRing } from '@ledgr/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Popconfirm } from '@aios/shared/components/ui/Popconfirm'
 import { toast } from 'sonner'
@@ -90,10 +91,7 @@ const StyledHabitDayButton = styled.button<{ $checked?: boolean; $isToday?: bool
     border-color: ${({ $checked }) => $checked ? 'var(--primary)' : 'var(--accent)'};
   }
 
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color?.ring || '#CA8A04'};
-    outline-offset: 1px;
-  }
+  ${focusRing}
 `;
 
 const StyledHabitDeleteButton = styled.button`

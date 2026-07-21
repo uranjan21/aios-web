@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import styled, { useTheme } from 'styled-components'
 import { useQuery } from '@tanstack/react-query'
-import { Card, KpiCard, KpiGrid, SegmentedControl, Input, EmptyState } from '@ledgr/ui'
+import { Card, KpiCard, KpiGrid, SegmentedControl, Input, EmptyState, focusRing } from '@ledgr/ui'
 import { FlaskConical, TrendingUp } from 'lucide-react'
 import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid,
@@ -66,10 +66,7 @@ const Range = styled.input.attrs({ type: 'range' })`
     background: ${({ theme }) => theme.color.primary};
     border: 2px solid ${({ theme }) => theme.color.card};
   }
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: 2px;
-  }
+  ${focusRing}
 `
 
 const AssumptionsBox = styled.div`

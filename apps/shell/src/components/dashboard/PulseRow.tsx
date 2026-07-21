@@ -1,7 +1,7 @@
 import styled, { useTheme } from 'styled-components'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Sparkline } from '@ledgr/ui'
+import { Sparkline, focusRing } from '@ledgr/ui'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { api } from '@aios/shared/api/client'
 import { formatCurrency } from '@aios/shared/lib/utils'
@@ -60,10 +60,7 @@ const Tile = styled.button`
   &:hover {
     box-shadow: ${({ theme }) => theme.shadow.sm};
   }
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: 2px;
-  }
+  ${focusRing}
 `
 
 const TileLabel = styled.span`

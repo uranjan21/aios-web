@@ -1,3 +1,4 @@
+import { focusRing } from '@ledgr/ui'
 import {
   fmtDateKey,
   parseLocalDate,
@@ -159,10 +160,7 @@ const ActionBtn = styled.button`
     background: ${({ theme }) => theme.color.muted};
     color: ${({ theme }) => theme.color.foreground};
   }
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: 1px;
-  }
+  ${focusRing}
 `;
 
 const Empty = styled.div`

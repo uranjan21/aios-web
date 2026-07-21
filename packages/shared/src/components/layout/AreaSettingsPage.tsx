@@ -1,3 +1,4 @@
+import { focusRing } from '@ledgr/ui'
 import { ReactNode, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
@@ -129,10 +130,7 @@ export const NavItem = styled.button<{ $active: boolean }>`
       $active ? `${theme.color.accent}20` : theme.color.muted};
   }
 
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.accent};
-    outline-offset: 2px;
-  }
+  ${focusRing}
 
   svg {
     flex-shrink: 0;

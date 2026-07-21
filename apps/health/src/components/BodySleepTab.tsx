@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button, Input, Select, Dialog, SegmentedControl, HeaderActionPortal } from '@ledgr/ui'
+import { Button, Input, Select, Dialog, SegmentedControl, HeaderActionPortal, focusRing } from '@ledgr/ui'
 import { Scale, Percent, Ruler, Moon, Clock, Plus, LineChart as LineChartIcon, BarChart3, BedDouble } from 'lucide-react'
 import { healthApi } from '@aios/shared/api/areas'
 import { Skeleton } from '@aios/shared/components/ui/skeleton'
@@ -66,10 +66,7 @@ const StyledListItem = styled.div`
     background-color: rgba(45, 49, 58, 0.02);
   }
 
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color?.ring || '#CA8A04'};
-    outline-offset: -2px;
-  }
+  ${focusRing}
 `;
 
 const StyledListItemTitle = styled.p`

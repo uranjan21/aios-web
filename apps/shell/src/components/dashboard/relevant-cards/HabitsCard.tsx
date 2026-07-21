@@ -2,7 +2,7 @@ import { toast } from 'sonner'
 import styled, { useTheme } from 'styled-components'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Flame, Check } from 'lucide-react'
-import { Card, Stack } from '@ledgr/ui'
+import { Card, Stack, focusRing } from '@ledgr/ui'
 import { healthApi } from '@aios/shared/api/areas'
 import { fmtDateKey } from '@aios/shared/stores/dayEventsStore'
 import { Skeleton } from '@aios/shared/components/ui/skeleton'
@@ -51,7 +51,7 @@ const HabitRow = styled.button<{ $checkedToday: boolean }>`
   transition: background 120ms, transform 120ms;
   text-align: left;
   &:hover { transform: translateY(-1px); background: ${({ theme }) => theme.color.muted}; }
-  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 1px; }
+  ${focusRing}
 `
 
 const HabitName = styled.span`

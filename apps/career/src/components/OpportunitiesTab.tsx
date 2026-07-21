@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@aios/shared/components/ui/Popconfirm'
-import { Select, Button, Badge, SegmentedControl, HeaderActionPortal } from '@ledgr/ui'
+import { Select, Button, Badge, SegmentedControl, HeaderActionPortal, focusRing } from '@ledgr/ui'
 import { Plus, ExternalLink, Trash2, Briefcase, XCircle } from 'lucide-react'
 import {
   DndContext, DragOverlay, PointerSensor, KeyboardSensor,
@@ -110,10 +110,7 @@ const DragCard = styled.div<{ $dragging: boolean }>`
   opacity: ${({ $dragging }) => $dragging ? 0.4 : 1};
   &:active { cursor: grabbing; }
 
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: -2px;
-  }
+  ${focusRing}
 `
 
 const DragCardRole = styled.div`
@@ -200,7 +197,7 @@ const DelBtn = styled.button`
   flex-shrink: 0;
   transition: opacity 120ms, color 120ms, background 120ms;
   &:hover { background: ${({ theme }) => `${theme.color.destructive}1A`}; color: ${({ theme }) => theme.color.destructive}; }
-  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 2px; }
+  ${focusRing}
 `
 
 const OppRowRoot = styled.div`

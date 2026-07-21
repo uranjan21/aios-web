@@ -1,3 +1,4 @@
+import { focusRing } from '@ledgr/ui'
 import styled from 'styled-components'
 
 export const StyledContainer = styled.div`
@@ -56,10 +57,7 @@ export const StyledMealItem = styled.div`
     background-color: rgba(45, 49, 58, 0.02);
   }
 
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color?.ring || '#CA8A04'};
-    outline-offset: -2px;
-  }
+  ${focusRing}
 `;
 
 export const StyledMealInfo = styled.div`
@@ -148,10 +146,7 @@ export const StyledQuickAddButton = styled.button`
     background-color: rgba(45, 49, 58, 0.2);
   }
 
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color?.ring || '#CA8A04'};
-    outline-offset: 1px;
-  }
+  ${focusRing}
 `;
 
 export const StyledSearchSection = styled.div`
