@@ -1,0 +1,63 @@
+=== TSC ===
+TSC_EXIT=0
+=== BUILD ===
+dist/assets/AreaTabs-Cwu4RvIL.js                    1.80 kB │ gzip:   0.85 kB
+dist/assets/WorkspaceStatsWidget-BrE876FJ.js        2.02 kB │ gzip:   0.71 kB
+dist/assets/SkillForm-RfLMBnsP.js                   2.04 kB │ gzip:   0.95 kB
+dist/assets/OAuthCallbackPage-f2GCAsaZ.js           2.27 kB │ gzip:   1.10 kB
+dist/assets/LegalLayout-DZCYcE5Y.js                 2.35 kB │ gzip:   0.89 kB
+dist/assets/CareerSettingsPage-Bd3WuYCH.js          2.58 kB │ gzip:   1.28 kB
+dist/assets/ActionCenterStrip-CMI4_cX8.js           2.77 kB │ gzip:   1.12 kB
+dist/assets/pricing-CguggnTs.js                     2.78 kB │ gzip:   1.55 kB
+dist/assets/AgentsGuide-DKvfzx3c.js                 2.81 kB │ gzip:   1.28 kB
+dist/assets/DocStyles-XiyGauEB.js                   2.90 kB │ gzip:   1.06 kB
+dist/assets/CareerGuide-dJmjJNO4.js                 2.99 kB │ gzip:   1.38 kB
+dist/assets/BusinessGuide-CicG5cII.js               3.12 kB │ gzip:   1.34 kB
+dist/assets/GoogleAuthCallbackPage-Btl3rkJ8.js      3.17 kB │ gzip:   1.37 kB
+dist/assets/ContentGuide-HW3JlofR.js                3.23 kB │ gzip:   1.43 kB
+dist/assets/BusinessSettingsPage-ByelUpKk.js        3.38 kB │ gzip:   1.47 kB
+dist/assets/AreaSettingsPage-D1XXwdri.js            3.46 kB │ gzip:   1.43 kB
+dist/assets/IconBadge-B4bfj6X4.js                   3.73 kB │ gzip:   1.62 kB
+dist/assets/SupportPage-CtGBbyrU.js                 3.86 kB │ gzip:   1.43 kB
+dist/assets/GuideOverview-nnCmykYH.js               3.94 kB │ gzip:   1.62 kB
+dist/assets/FinanceGuide-qgaVEBWG.js                4.05 kB │ gzip:   1.80 kB
+dist/assets/HealthGuide-CxmfaXot.js                 4.24 kB │ gzip:   1.86 kB
+dist/assets/PrivacyPolicyPage-D0YBZr-m.js           4.70 kB │ gzip:   1.65 kB
+dist/assets/TermsOfServicePage-CoImwvS7.js          5.04 kB │ gzip:   1.95 kB
+dist/assets/ChatPage-C53_2KP8.js                    5.31 kB │ gzip:   2.17 kB
+dist/assets/IntegrationsPage-b20X3pDm.js            5.70 kB │ gzip:   2.35 kB
+dist/assets/HealthSettingsPage-CKXs_hBX.js          6.13 kB │ gzip:   1.69 kB
+dist/assets/ReviewPage-vm1mmI_J.js                  6.71 kB │ gzip:   2.38 kB
+dist/assets/utils-CzrDMJPg.js                       7.10 kB │ gzip:   3.09 kB
+dist/assets/GoalsTab-BbHTtEtV.js                    7.96 kB │ gzip:   2.90 kB
+dist/assets/SprintsPage-CKi7YnMM.js                 8.89 kB │ gzip:   3.06 kB
+dist/assets/AdminPage-Cd6GmPHj.js                   9.31 kB │ gzip:   3.09 kB
+dist/assets/PricingPage-BaxMOADQ.js                 9.85 kB │ gzip:   3.07 kB
+dist/assets/ProjectsPage-DIlPT7Xt.js                9.98 kB │ gzip:   3.40 kB
+dist/assets/GoalsPage-CrgBgDPx.js                  13.73 kB │ gzip:   4.39 kB
+dist/assets/TasksPage-0B5l_Wmz.js                  14.75 kB │ gzip:   4.45 kB
+dist/assets/BusinessPage-CIQuZUK_.js               17.94 kB │ gzip:   5.85 kB
+dist/assets/format-Cnhhoib4.js                     19.73 kB │ gzip:   5.57 kB
+dist/assets/LandingPage-B2Cl7XfZ.js                20.87 kB │ gzip:   5.70 kB
+dist/assets/LoginPage-BEr4lft8.js                  21.04 kB │ gzip:   6.59 kB
+dist/assets/AgentsPage-DlvEiNGj.js                 32.71 kB │ gzip:   9.47 kB
+dist/assets/SettingsPage-Cxv1qWvh.js               35.72 kB │ gzip:  10.10 kB
+dist/assets/FinanceSettingsPage-BNYdt9hp.js        38.53 kB │ gzip:  10.60 kB
+dist/assets/ContentPage-CamUVpPe.js                39.83 kB │ gzip:  11.08 kB
+dist/assets/core.esm-CZ3qPfgQ.js                   42.52 kB │ gzip:  14.16 kB
+dist/assets/DashboardPage-DGWC6akd.js              52.71 kB │ gzip:  13.99 kB
+dist/assets/FinancePage-CgAYuAiK.js                53.14 kB │ gzip:  15.21 kB
+dist/assets/HealthPage-KGuugpO2.js                 61.58 kB │ gzip:  15.42 kB
+dist/assets/QuickAddAccounts-Cw-TNovh.js           84.00 kB │ gzip:  23.46 kB
+dist/assets/CareerPage-C2IsR6qD.js                130.44 kB │ gzip:  44.32 kB
+dist/assets/Timeline-BR-QhOeu.js                  225.93 kB │ gzip:  77.19 kB
+dist/assets/ui-Bj7xwVCC.js                        227.37 kB │ gzip:  67.79 kB
+dist/assets/vendor-afpEC4i7.js                    250.00 kB │ gzip:  79.82 kB
+dist/assets/index-B5JWvlq1.js                     552.18 kB │ gzip: 153.90 kB
+dist/assets/charts-Cui2Xu-L.js                    724.48 kB │ gzip: 222.87 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 9.02s
