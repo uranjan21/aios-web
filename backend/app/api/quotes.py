@@ -90,14 +90,6 @@ async def get_random_quote(
     return random.choice(quotes)
 
 
-@router.get("/saved", response_model=List[SavedQuoteOut])
-async def list_saved_quotes(
-    current_user: User = Depends(get_current_user),
-    db=Depends(get_db),
-):
-    return await list_quotes(current_user, db)
-
-
 @router.post("/save", response_model=SavedQuoteOut, status_code=201)
 async def save_quote(
     body: SaveQuoteBody,
@@ -105,15 +97,6 @@ async def save_quote(
     db=Depends(get_db),
 ):
     return await create_quote(body, current_user, db)
-
-
-@router.delete("/save/{quote_id}", status_code=204)
-async def delete_saved_quote(
-    quote_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
-    db=Depends(get_db),
-):
-    return await delete_quote(quote_id, current_user, db)
 
 
 @router.get("/{quote_id}", response_model=SavedQuoteOut)

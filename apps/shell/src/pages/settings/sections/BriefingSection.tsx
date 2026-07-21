@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { api } from '@aios/shared/api/client'
+import { insightsApi } from '@aios/shared/api/insights'
 import { Switch, Input } from '@ledgr/ui'
 import { RowRoot, RowLabel, Section } from '../shared'
 
@@ -10,11 +10,11 @@ export function BriefingSection() {
   const queryClient = useQueryClient()
   const { data: prefs } = useQuery({
     queryKey: ['insights', 'briefing', 'preferences'],
-    queryFn: () => api.get('/insights/briefing/preferences').then(r => r.data),
+    queryFn: insightsApi.briefingPreferences,
   })
 
   const saveMutation = useMutation({
-    mutationFn: (next: any) => api.post('/insights/briefing/preferences', next).then(r => r.data),
+    mutationFn: insightsApi.updateBriefingPreferences,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['insights', 'briefing', 'preferences'] })
       toast.success('Briefing preferences saved')

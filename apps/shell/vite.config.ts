@@ -17,14 +17,10 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: [
-      'highcharts',
-      'highcharts-react-official',
       'dayjs',
-      'antd',
       'styled-components',
       'framer-motion',
       '@dnd-kit/core',
-      '@dnd-kit/sortable',
     ],
   },
   server: {
@@ -48,8 +44,8 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'],
           ui: ['styled-components', 'framer-motion', 'lucide-react'],
-          charts: ['recharts', 'highcharts', 'highcharts-react-official'],
-          utils: ['dayjs', 'zod']
+          charts: ['recharts'],
+          utils: ['dayjs'],
         }
       }
     }

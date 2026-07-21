@@ -24,7 +24,11 @@ from app.core.config import get_settings
 from app.core.deps import get_current_user, get_db
 
 # ── Module catalog ────────────────────────────────────────────────────────────
-AREA_MODULES = ("finance", "health", "career", "business", "content")
+# Business and Content were retired from the product on 2026-07-21. Their
+# tables and any historical `modules` rows survive, so a stored subscription
+# may still list them — the `& set(ALL_MODULES)` intersections below drop the
+# stale keys instead of granting access to routers that no longer exist.
+AREA_MODULES = ("finance", "health", "career")
 SERVICE_MODULES = ("chat", "agents", "integrations")
 ALL_MODULES: frozenset[str] = frozenset(AREA_MODULES + SERVICE_MODULES)
 BUNDLE_KEY = "everything"
@@ -36,8 +40,7 @@ ACTIVE_STATUSES = {"active", "trialing"}
 GRACE_STATUSES = ACTIVE_STATUSES | {"past_due"}
 
 # Maps the legacy plan rank → owned modules. Pro/Pro Plus unlock the core areas
-# plus all services; Business/Content are unlocked per-plan via purchased
-# `addons` (Pro Plus path) or wholesale by the Household bundle.
+# plus all services; Household takes everything.
 _PLAN_MODULES = {
     "free": {"finance", "health", "career"},
     "pro": {"finance", "health", "career", "chat", "agents", "integrations"},
@@ -51,7 +54,7 @@ def _modules_for(plan: str, addons, sub_status: str) -> set[str]:
     if sub_status not in ACTIVE_STATUSES:
         plan = "free"
     mods = set(_PLAN_MODULES.get(plan, _PLAN_MODULES["free"]))
-    # Pro Plus unlocks Business/Content via purchased add-ons.
+    # Legacy add-on keys still intersect against the live catalog.
     mods |= {a for a in (addons or []) if a in ALL_MODULES}
     return mods & set(ALL_MODULES)
 

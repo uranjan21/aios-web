@@ -28,7 +28,6 @@ export const goalsApi = {
   update: (goalId: string, data: Partial<{ title: string; category: string; description: string | null; target_date: string | null; status: string; priority: string }>) =>
     api.patch<MacroGoal>(`/goals/${goalId}`, data).then(r => r.data),
   remove: (goalId: string) => api.delete(`/goals/${goalId}`).then(r => r.data),
-  getProgress: (goalId: string) => api.get<GoalProgress[]>(`/goals/${goalId}/progress`).then(r => r.data),
   addProgress: (goalId: string, data: { progress_score: number; ai_insight?: string }) =>
     api.post<GoalProgress>(`/goals/${goalId}/progress`, data).then(r => r.data),
 }

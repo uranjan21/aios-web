@@ -38,22 +38,6 @@ async def _seed_forecast(factory, user_id, domain="finance"):
         return row.id
 
 
-async def _seed_action(factory, user_id, source_domain="finance"):
-    from app.models.action import AgentAction
-    async with factory() as s:
-        row = AgentAction(
-            user_id=user_id,
-            source_domain=source_domain,
-            action_type="draft_email",
-            payload={},
-            status="pending",
-        )
-        s.add(row)
-        await s.commit()
-        await s.refresh(row)
-        return row.id
-
-
 async def _seed_insight(factory, user_id, title="B secret insight"):
     from app.models.insights import Insight
     async with factory() as s:
@@ -150,29 +134,6 @@ async def test_forecasts_list_excludes_other_users(client_a, user_b, db_session_
 
 # ── actions ──────────────────────────────────────────────────────────────────
 
-@pytest.mark.asyncio
-async def test_actions_list_excludes_other_users(client_a, user_b, db_session_factory):
-    await _seed_action(db_session_factory, user_b.id)
-    resp = await client_a.get("/api/actions")
-    assert resp.status_code == 200
-    assert resp.json() == []
-
-
-@pytest.mark.asyncio
-async def test_action_reject_other_users_action_is_404(client_a, user_b, db_session_factory):
-    aid = await _seed_action(db_session_factory, user_b.id)
-    resp = await client_a.post(f"/api/actions/{aid}/reject")
-    assert resp.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_action_approve_other_users_action_is_404(client_a, user_b, db_session_factory):
-    aid = await _seed_action(db_session_factory, user_b.id)
-    resp = await client_a.post(f"/api/actions/{aid}/approve")
-    assert resp.status_code == 404
-
-
-# ── insights ─────────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_discoveries_excludes_other_users(client_a, user_b, db_session_factory):

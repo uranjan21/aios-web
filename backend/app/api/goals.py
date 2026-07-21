@@ -111,25 +111,6 @@ async def delete_goal(
     return None
 
 
-@router.get("/{goal_id}/progress", response_model=List[GoalProgress])
-async def list_goal_progress(
-    goal_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
-    db = Depends(get_db)
-):
-    # Verify ownership
-    goal = await db.get(MacroGoal, goal_id)
-    if not goal or goal.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Goal not found")
-        
-    result = await db.execute(
-        select(GoalProgress)
-        .where(GoalProgress.goal_id == goal_id)
-        .where(GoalProgress.user_id == current_user.id)
-        .order_by(desc(GoalProgress.created_at))
-    )
-    return result.scalars().all()
-
 @router.post("/{goal_id}/progress", response_model=GoalProgress, status_code=201)
 async def create_goal_progress(
     goal_id: uuid.UUID,

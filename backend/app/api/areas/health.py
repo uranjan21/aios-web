@@ -254,27 +254,6 @@ async def water_today(current_user=Depends(get_current_user), db=Depends(get_db)
 
 # ── Steps today ────────────────────────────────────────────
 
-@router.get("/steps/today")
-async def steps_today(current_user=Depends(get_current_user), db=Depends(get_db)):
-    from sqlalchemy import func
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    result = await db.execute(
-        select(func.coalesce(func.sum(HealthLog.value), 0))
-        .where(HealthLog.user_id == current_user.id)
-        .where(HealthLog.entry_type == "steps")
-        .where(HealthLog.logged_at >= today_start)
-    )
-    steps_logged = float(result.scalar_one())
-
-    goals_result = await db.execute(select(HealthGoal).where(HealthGoal.user_id == current_user.id))
-    goal = goals_result.scalar_one_or_none()
-    target = goal.steps_target if goal else 10000
-
-    return {"steps_logged": steps_logged, "target": target}
-
-
-# ── Sleep recent (last 7 days) ────────────────────────────────────────────
-
 @router.get("/sleep/recent")
 async def sleep_recent(current_user=Depends(get_current_user), db=Depends(get_db)):
     from datetime import timedelta
@@ -545,18 +524,3 @@ class FoodCreate(BaseModel):
     serving_grams: Optional[float] = None
 
 
-@router.post("/foods")
-async def create_food(body: FoodCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    existing = (await db.execute(select(FoodItem).where(FoodItem.user_id == current_user.id).where(FoodItem.name.ilike(body.name.strip())))).scalar_one_or_none()
-    if existing:
-        raise HTTPException(status_code=409, detail="Food already exists")
-    food = FoodItem(
-        user_id=current_user.id,
-        name=body.name.strip(), calories=body.calories, protein=body.protein,
-        carbs=body.carbs, fat=body.fat, serving_desc=body.serving_desc,
-        serving_grams=body.serving_grams, is_custom=True,
-    )
-    db.add(food)
-    await db.commit()
-    await db.refresh(food)
-    return food

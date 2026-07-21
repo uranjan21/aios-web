@@ -117,18 +117,6 @@ async def get_summary(current_user=Depends(get_current_user), db=Depends(get_db)
     }
 
 
-@router.get("/roadmap")
-async def get_roadmap(current_user=Depends(get_current_user)):
-    from app.core.config import get_settings
-    from app.services.vault_sync.writer import VaultWriteGuard
-    settings = get_settings()
-    guard = VaultWriteGuard(settings.vault_path)
-    content = guard.read_file("03-career/context.md")
-    return {"raw_context": content[:3000] if content else None}
-
-
-# ── Job Opportunities ───────────────────────────────────────────
-
 @router.get("/opportunities")
 async def list_opportunities(current_user=Depends(get_current_user), db=Depends(get_db)):
     from sqlmodel import asc

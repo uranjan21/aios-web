@@ -51,16 +51,20 @@ def billing_on(monkeypatch):
 @pytest.mark.asyncio
 async def test_require_module_blocks_unentitled_when_billing_on(client_a, billing_on):
     """Phase 0 security fix (HTTP): a free user (no sub) is entitled to finance/
-    health/career only — the Business & Content routers must 402 *server-side*,
+    health/career only — every other module's router must 402 *server-side*,
     closing the curl auth-bypass that frontend-only gating allowed. The 402 fires
-    before the handler, so no domain tables are needed."""
-    rb = await client_a.get("/api/areas/business/")
-    assert rb.status_code == 402
-    assert rb.json()["detail"]["module"] == "business"
+    before the handler, so no domain tables are needed.
 
-    rc = await client_a.get("/api/areas/content/items")
-    assert rc.status_code == 402
-    assert rc.json()["detail"]["module"] == "content"
+    Originally asserted on the Business and Content areas; those were retired on
+    2026-07-21, so this now covers the paid service modules instead. The property
+    under test is unchanged."""
+    ra = await client_a.get("/api/agents")
+    assert ra.status_code == 402
+    assert ra.json()["detail"]["module"] == "agents"
+
+    ri = await client_a.get("/api/integrations")
+    assert ri.status_code == 402
+    assert ri.json()["detail"]["module"] == "integrations"
 
 
 def _principal(user, is_admin=False):
@@ -79,7 +83,12 @@ async def test_entitled_modules_free_user(user_a, db_session_factory, billing_on
 
 @pytest.mark.asyncio
 async def test_entitled_modules_with_addon(user_a, db_session_factory, billing_on):
-    """Pro Plus + a Business add-on grants Business but not Content."""
+    """A legacy add-on key for a retired module is dropped, not granted.
+
+    Business was an add-on before 2026-07-21. Its subscription rows survive the
+    product removal, so this pins the behaviour that the catalog intersection
+    discards the stale key rather than granting access to a router that is no
+    longer mounted."""
     from app.models.billing import Subscription
     from app.core.entitlements import get_entitled_modules
     async with db_session_factory() as db:
@@ -87,8 +96,8 @@ async def test_entitled_modules_with_addon(user_a, db_session_factory, billing_o
         await db.commit()
     async with db_session_factory() as db:
         mods = await get_entitled_modules(db, _principal(user_a))
-    assert "business" in mods
-    assert "content" not in mods
+    assert "business" not in mods, "retired module must not be granted from a legacy addon"
+    assert {"finance", "health", "career"} <= mods
 
 
 @pytest.mark.asyncio
@@ -117,7 +126,7 @@ async def test_catalog_lists_all_modules(client_a):
     assert resp.status_code == 200
     data = resp.json()
     keys = {m["key"] for m in data["modules"]}
-    assert keys == {"finance", "health", "career", "business", "content", "chat", "agents", "integrations"}
+    assert keys == {"finance", "health", "career", "chat", "agents", "integrations"}
     assert data["bundle_key"] == "everything"
     metered = {m["key"] for m in data["modules"] if m["metered"]}
     assert metered == {"chat", "agents"}
@@ -126,13 +135,13 @@ async def test_catalog_lists_all_modules(client_a):
 @pytest.mark.asyncio
 async def test_set_modules_billing_off_persists(client_a):
     """Self-host / billing-off: setting modules applies immediately, no checkout."""
-    resp = await client_a.post("/api/billing/modules", json={"modules": ["finance", "business"], "bundle": False})
+    resp = await client_a.post("/api/billing/modules", json={"modules": ["finance", "agents"], "bundle": False})
     assert resp.status_code == 200
     assert resp.json()["checkout_url"] is None
-    assert set(resp.json()["modules"]) == {"finance", "business"}
+    assert set(resp.json()["modules"]) == {"finance", "agents"}
 
     sub = await client_a.get("/api/billing/subscription")
-    assert set(sub.json()["modules"]) == {"finance", "business"}
+    assert set(sub.json()["modules"]) == {"finance", "agents"}
 
 
 @pytest.mark.asyncio
@@ -151,11 +160,11 @@ async def test_entitled_reads_modules_column(user_a, db_session_factory, billing
     from app.models.billing import Subscription
     from app.core.entitlements import get_entitled_modules
     async with db_session_factory() as db:
-        db.add(Subscription(user_id=user_a.id, plan="free", status="active", modules=["finance", "content"]))
+        db.add(Subscription(user_id=user_a.id, plan="free", status="active", modules=["finance", "chat"]))
         await db.commit()
     async with db_session_factory() as db:
         mods = await get_entitled_modules(db, _principal(user_a))
-    assert mods == {"finance", "content"}
+    assert mods == {"finance", "chat"}
 
 
 @pytest.mark.asyncio
@@ -179,7 +188,7 @@ async def test_webhook_rebuilds_modules_from_all_line_items(user_a, db_session_f
     from app.services.billing import service as billing
     s = get_settings()
     monkeypatch.setattr(s, "stripe_module_prices", {
-        "finance": "price_fin", "content": "price_con", "everything": "price_all",
+        "finance": "price_fin", "chat": "price_chat", "everything": "price_all",
     })
     async with db_session_factory() as db:
         db.add(Subscription(user_id=user_a.id, plan="free", status="active", stripe_customer_id="cus_phase1"))
@@ -187,7 +196,7 @@ async def test_webhook_rebuilds_modules_from_all_line_items(user_a, db_session_f
 
     stripe_obj = {
         "customer": "cus_phase1", "id": "sub_phase1", "status": "active",
-        "items": {"data": [{"price": {"id": "price_fin"}}, {"price": {"id": "price_con"}}]},
+        "items": {"data": [{"price": {"id": "price_fin"}}, {"price": {"id": "price_chat"}}]},
     }
     async with db_session_factory() as db:
         await billing._apply_subscription_object(db, stripe_obj)
@@ -195,7 +204,7 @@ async def test_webhook_rebuilds_modules_from_all_line_items(user_a, db_session_f
     from sqlmodel import select
     async with db_session_factory() as db:
         sub = (await db.execute(select(Subscription).where(Subscription.user_id == user_a.id))).scalar_one()
-        assert set(sub.modules) == {"finance", "content"}
+        assert set(sub.modules) == {"finance", "chat"}
         assert sub.bundle is False
 
 
@@ -261,11 +270,11 @@ async def test_canceled_loses_paid_modules(user_a, db_session_factory, billing_o
     from app.models.billing import Subscription
     from app.core.entitlements import get_entitled_modules
     async with db_session_factory() as db:
-        db.add(Subscription(user_id=user_a.id, plan="pro", status="canceled", modules=["finance", "chat", "business"]))
+        db.add(Subscription(user_id=user_a.id, plan="pro", status="canceled", modules=["finance", "chat", "agents"]))
         await db.commit()
     async with db_session_factory() as db:
         mods = await get_entitled_modules(db, _principal(user_a))
-    assert "business" not in mods and "chat" not in mods
+    assert "agents" not in mods and "chat" not in mods
 
 
 @pytest.mark.asyncio

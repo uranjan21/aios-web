@@ -379,14 +379,6 @@ async def list_snapshots(current_user=Depends(get_current_user), db=Depends(get_
     return result.scalars().all()
 
 
-@router.get("/snapshots/latest")
-async def latest_snapshot(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(
-        select(FinanceSnapshot).where(FinanceSnapshot.user_id == current_user.id).order_by(desc(FinanceSnapshot.snapshot_month)).limit(1)
-    )
-    return result.scalar_one_or_none()
-
-
 @router.get("/transactions/search")
 async def search_transactions(
     q: Optional[str] = None,

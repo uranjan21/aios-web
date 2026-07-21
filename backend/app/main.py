@@ -28,8 +28,6 @@ from app.api.integrations import router as integrations_router
 from app.api.areas.finance import router as finance_router
 from app.api.areas.health import router as health_router
 from app.api.areas.career import router as career_router
-from app.api.areas.business import router as business_router
-from app.api.areas.content import router as content_router
 from app.api.captures import router as captures_router
 from app.api.push import router as push_router
 from app.api.ai import router as ai_router
@@ -37,7 +35,6 @@ from app.api.billing import router as billing_router
 from app.api.admin import router as admin_router
 from app.api.goals import router as goals_router
 from app.api.forecasts import router as forecasts_router
-from app.api.actions import router as actions_router
 from app.api.insights import router as insights_router
 from app.api.automations import router as automations_router
 from app.api.workspace import router as workspace_router
@@ -309,8 +306,6 @@ def create_app() -> FastAPI:
     app.include_router(finance_router, dependencies=[Depends(require_module("finance")), _verified])
     app.include_router(health_router, dependencies=[Depends(require_module("health")), _verified])
     app.include_router(career_router, dependencies=[Depends(require_module("career")), _verified])
-    app.include_router(business_router, dependencies=[Depends(require_module("business")), _verified])
-    app.include_router(content_router, dependencies=[Depends(require_module("content")), _verified])
     app.include_router(captures_router, dependencies=[_verified])
     app.include_router(push_router)  # push subscriptions don't require verified email
     app.include_router(ai_router, dependencies=[_verified])
@@ -318,7 +313,6 @@ def create_app() -> FastAPI:
     app.include_router(admin_router)    # admin already requires is_admin; admins are always verified
     app.include_router(goals_router, dependencies=[_verified])
     app.include_router(forecasts_router, dependencies=[_verified])
-    app.include_router(actions_router, dependencies=[_verified])
     app.include_router(insights_router, dependencies=[_verified])
     app.include_router(automations_router, dependencies=[_verified])
     app.include_router(workspace_router, dependencies=[_verified])

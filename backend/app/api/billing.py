@@ -112,23 +112,6 @@ class CheckoutBody(BaseModel):
     plan: str  # "pro" | "household"
 
 
-@router.post("/checkout")
-async def create_checkout(body: CheckoutBody, current_user=Depends(get_current_user), db=Depends(get_db)):
-    _require_billing()
-    settings = get_settings()
-    user = await _load_user(db, current_user.id)
-    success_url = f"{settings.allowed_origin}/app/settings?billing=success"
-    cancel_url = f"{settings.allowed_origin}/pricing"
-    try:
-        url = await billing.create_checkout_session(db, user, body.plan, success_url, cancel_url)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        logger.exception("Checkout session creation failed")
-        raise HTTPException(status_code=502, detail="Could not start checkout — please try again")
-    return {"url": url}
-
-
 @router.post("/portal")
 async def create_portal(current_user=Depends(get_current_user), db=Depends(get_db)):
     _require_billing()

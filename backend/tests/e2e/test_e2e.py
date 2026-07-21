@@ -159,42 +159,8 @@ async def test_r2_stats_schema(client_a):
     assert "goals_count" in data
 
 # R3: Content Page UI Consistency
-@pytest.mark.asyncio
-async def test_r3_create_campaign(client_a):
-    resp = await client_a.post("/api/areas/content/campaigns", json={"name": "Campaign Alpha", "description": "My first campaign"})
-    assert resp.status_code == 200
-    assert resp.json()["name"] == "Campaign Alpha"
 
-@pytest.mark.asyncio
-async def test_r3_create_item(client_a):
-    resp = await client_a.post("/api/areas/content/items", json={"title": "Item Alpha", "platform": "youtube", "status": "idea"})
-    assert resp.status_code == 200
-    assert resp.json()["title"] == "Item Alpha"
 
-@pytest.mark.asyncio
-async def test_r3_update_item(client_a, db_session_factory, user_a):
-    item = await _seed_content_item(db_session_factory, user_a.id, title="Old Item")
-    resp = await client_a.patch(f"/api/areas/content/items/{item.id}", json={"title": "New Item", "status": "in_progress"})
-    assert resp.status_code == 200
-    assert resp.json()["title"] == "New Item"
-    assert resp.json()["status"] == "in_progress"
-
-@pytest.mark.asyncio
-async def test_r3_list_campaigns(client_a, db_session_factory, user_a):
-    await _seed_campaign(db_session_factory, user_a.id, name="Campaign Z")
-    resp = await client_a.get("/api/areas/content/campaigns")
-    assert resp.status_code == 200
-    names = [c["name"] for c in resp.json()]
-    assert "Campaign Z" in names
-
-@pytest.mark.asyncio
-async def test_r3_delete_item(client_a, db_session_factory, user_a):
-    item = await _seed_content_item(db_session_factory, user_a.id, title="Delete Me")
-    resp = await client_a.delete(f"/api/areas/content/items/{item.id}")
-    assert resp.status_code == 200
-    assert resp.json() == {"status": "deleted"}
-
-# R4: Collapsible Workspace Sections
 @pytest.mark.asyncio
 async def test_r4_list_tasks_project(client_a, db_session_factory, user_a):
     p1 = await _seed_project(db_session_factory, user_a.id, name="P1")
@@ -436,40 +402,8 @@ async def test_t2_r2_stats_isolation(client_a, client_b, db_session_factory, use
     assert resp_a.json()["projects_count"] >= 1
 
 # R3 Boundaries
-@pytest.mark.asyncio
-async def test_t2_r3_campaign_duplicate_name(client_a, db_session_factory, user_a):
-    await _seed_campaign(db_session_factory, user_a.id, name="Unique Campaign")
-    resp = await client_a.post("/api/areas/content/campaigns", json={"name": "Unique Campaign"})
-    assert resp.status_code == 409
 
-@pytest.mark.asyncio
-async def test_t2_r3_item_invalid_status(client_a):
-    resp = await client_a.post("/api/areas/content/items", json={"title": "Bad Item", "platform": "t", "status": "invalid_status"})
-    assert resp.status_code == 422
 
-@pytest.mark.asyncio
-async def test_t2_r3_patch_item_invalid_status(client_a, db_session_factory, user_a):
-    item = await _seed_content_item(db_session_factory, user_a.id)
-    resp = await client_a.patch(f"/api/areas/content/items/{item.id}", json={"status": "super_published"})
-    assert resp.status_code == 422
-
-@pytest.mark.asyncio
-async def test_t2_r3_item_nonexistent_campaign(client_a):
-    resp = await client_a.post("/api/areas/content/items", json={"title": "Item", "platform": "t", "campaign_id": str(uuid.uuid4())})
-    assert resp.status_code == 404
-
-@pytest.mark.asyncio
-async def test_t2_r3_delete_campaign_cascade(client_a, db_session_factory, user_a):
-    c = await _seed_campaign(db_session_factory, user_a.id, name="Cascade Campaign")
-    item = await _seed_content_item(db_session_factory, user_a.id, title="Child Item", campaign_id=c.id)
-    resp = await client_a.delete(f"/api/areas/content/campaigns/{c.id}")
-    assert resp.status_code == 200
-    from app.models.content import ContentItem
-    async with db_session_factory() as s:
-        db_item = await s.get(ContentItem, item.id)
-        assert db_item.campaign_id is None
-
-# R4 Boundaries
 @pytest.mark.asyncio
 async def test_t2_r4_list_tasks_invalid_project_id(client_a):
     resp = await client_a.get("/api/workspace/tasks?project_id=not-a-uuid")
@@ -624,28 +558,6 @@ async def test_t3_project_sprint_task_hierarchy(client_a, db_session_factory, us
     assert resp.json()["project_id"] == str(p.id)
     assert resp.json()["sprint_id"] == str(s.id)
 
-@pytest.mark.asyncio
-async def test_t3_quick_capture_parsed_into_content(client_a):
-    parse_resp = await client_a.post("/api/captures/parse", json={"text": "Write a blog post about FastAPI"})
-    assert parse_resp.status_code == 200
-    summary = parse_resp.json().get("summary", "Write a blog post about FastAPI")
-    item_resp = await client_a.post("/api/areas/content/items", json={
-        "title": summary,
-        "platform": "medium",
-        "status": "idea"
-    })
-    assert item_resp.status_code == 200
-    assert item_resp.json()["title"] == summary
-
-@pytest.mark.asyncio
-async def test_t3_content_item_publish_updates_heatmap_and_pulse(client_a, db_session_factory, user_a):
-    item = await _seed_content_item(db_session_factory, user_a.id, title="Pulse Item", platform="youtube", status="idea")
-    resp = await client_a.patch(f"/api/areas/content/items/{item.id}", json={"status": "published"})
-    assert resp.status_code == 200
-    pulse_resp = await client_a.get("/api/insights/pulse")
-    assert pulse_resp.status_code == 200
-    content_val = next(tile["value"] for tile in pulse_resp.json() if tile["domain"] == "content")
-    assert content_val >= 1
 
 @pytest.mark.asyncio
 async def test_t3_project_and_tasks_reflected_in_stats(client_a, db_session_factory, user_a):
@@ -677,25 +589,6 @@ async def test_t3_saved_quotes_interaction_with_dashboard(client_a):
 
 # ── Tier 4: Real-World Application Scenarios (Tests 78-82) ────────────────────
 
-@pytest.mark.asyncio
-async def test_t4_flow_content_creator(client_a):
-    camp_resp = await client_a.post("/api/areas/content/campaigns", json={
-        "name": "Product Launch 2026",
-        "description": "Marketing campaign for new launch"
-    })
-    assert camp_resp.status_code == 200
-    camp_id = camp_resp.json()["id"]
-    item1 = await client_a.post("/api/areas/content/items", json={
-        "title": "Teaser Video", "platform": "youtube", "status": "idea", "campaign_id": camp_id
-    })
-    assert item1.status_code == 200
-    item2 = await client_a.post("/api/areas/content/items", json={
-        "title": "Launch Thread", "platform": "twitter", "status": "idea", "campaign_id": camp_id
-    })
-    assert item2.status_code == 200
-    list_resp = await client_a.get(f"/api/areas/content/items?campaign_id={camp_id}")
-    assert list_resp.status_code == 200
-    assert len(list_resp.json()) == 2
 
 @pytest.mark.asyncio
 async def test_t4_flow_sprint_planning(client_a):
