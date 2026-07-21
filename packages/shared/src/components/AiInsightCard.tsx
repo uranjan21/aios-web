@@ -17,18 +17,18 @@ const ThemedSparkles = styled(Sparkles)`
 const SkeletonStack = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const ResultText = styled.div`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.foreground};
   line-height: 1.6;
   white-space: pre-wrap;
 `
 
 const HintText = styled.p`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
   margin: 0;
 `

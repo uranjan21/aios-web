@@ -11,8 +11,8 @@ const STATUS_ORDER: OpportunityStatus[] = ['prospect', 'applied', 'screening', '
 const FormGrid2 = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[3]}`};
   @media ${({ theme }) => theme.media.sm} {
     grid-template-columns: 1fr 1fr;
   }
@@ -25,14 +25,14 @@ const FormField = styled.div`
 
 const FormLabel = styled.label`
   display: block;
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-bottom: 4px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[1]}`};
 `
 
 const FormFooter = styled.div`
   display: flex;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   justify-content: flex-end;
   width: 100%;
 `

@@ -17,7 +17,7 @@ const StyledMacroBarWrapper = styled.div`
 const StyledMacroBarHeader = styled.div`
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
 `;
 
 const StyledMacroBarLabel = styled.span`

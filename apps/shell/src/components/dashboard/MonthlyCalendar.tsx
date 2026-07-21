@@ -48,8 +48,8 @@ const Header = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[3]}`};
 `;
 
 const MonthTitle = styled.h3`
@@ -61,7 +61,7 @@ const MonthTitle = styled.h3`
 
 const NavBtns = styled.div`
   display: flex;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
   align-items: center;
 `;
 
@@ -86,8 +86,8 @@ const IconBtn = styled.button`
 const DowGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
-  margin-bottom: 4px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[1]}`};
 `;
 
 const DowCell = styled.div`
@@ -97,13 +97,13 @@ const DowCell = styled.div`
   color: ${({ theme }) => theme.color.mutedForeground};
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  padding: 4px 0;
+  padding: ${({ theme }) => `${theme.spacing[1]} 0`};
 `;
 
 const DaysGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
 `;
 
 const Cell = styled.button<{
@@ -169,15 +169,15 @@ const EventDots = styled.span`
   position: absolute;
   bottom: 4px;
   display: flex;
-  gap: 2px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
 `;
 
 const AddEventRow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 12px;
-  gap: 8px;
+  margin-top: ${({ theme }) => `${theme.spacing[3]}`};
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `;
 
 const SelectedLabel = styled.span`
@@ -186,16 +186,16 @@ const SelectedLabel = styled.span`
 `;
 
 const DialogBody = styled.div`
-  padding: 20px;
+  padding: ${({ theme }) => `${theme.spacing[5]}`};
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: ${({ theme }) => `${theme.spacing[3.5]}`};
 `;
 
 const FieldRow = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
 `;
 
 const Label = styled.label`
@@ -205,14 +205,14 @@ const Label = styled.label`
   letter-spacing: 0.06em;
   color: ${({ theme }) => theme.color.mutedForeground};
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[1.5]}`};
 `;
 
 const DialogFooter = styled.div`
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 20px 16px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[5]} ${theme.spacing[4]}`};
   border-top: 1px solid ${({ theme }) => theme.color.border};
   background: ${({ theme }) => theme.color.muted}50;
 `;

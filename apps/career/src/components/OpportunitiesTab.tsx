@@ -31,7 +31,7 @@ const PIPELINE_STAGES: OpportunityStatus[] = ['prospect', 'applied', 'screening'
 const Root = styled.div<{ $pipeline: boolean }>`
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
   max-width: ${({ $pipeline }) => $pipeline ? 'none' : '42rem'};
 `
 
@@ -40,8 +40,8 @@ const Root = styled.div<{ $pipeline: boolean }>`
 const AddBtn = styled.button`
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 500;
   color: ${({ theme }) => theme.color.primary};
   background: none;
@@ -54,8 +54,8 @@ const AddBtn = styled.button`
 
 const AddFormRoot = styled.div`
   background: ${({ theme }) => `${theme.color.muted}66`};
-  border-radius: 18px;
-  padding: 12px;
+  border-radius: ${({ theme }) => theme.radii.md};
+  padding: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 
@@ -67,16 +67,16 @@ const AddFormRoot = styled.div`
 const PipelineGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[3]}`};
   @media ${({ theme }) => theme.media.md} { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   @media ${({ theme }) => theme.media.xl} { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 `
 
 const PipelineCol = styled.div<{ $over: boolean }>`
-  border-radius: 12px;
+  border-radius: ${({ theme }) => theme.radii.md};
   border: 1px solid ${({ theme, $over }) => $over ? theme.color.primary : `${theme.color.border}99`};
-  padding: 8px;
+  padding: ${({ theme }) => `${theme.spacing[2]}`};
   min-height: 140px;
   background: ${({ theme, $over }) => $over ? 'rgba(248, 209, 104, 0.05)' : `${theme.color.muted}33`};
   transition: border-color 150ms, background 150ms;
@@ -86,25 +86,25 @@ const ColHead = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
-  padding: 0 4px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[2]}`};
+  padding: ${({ theme }) => `0 ${theme.spacing[1]}`};
 `
 
 const ColCount = styled.span`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
 const ColCards = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const DragCard = styled.div<{ $dragging: boolean }>`
   background: ${({ theme }) => theme.color.card};
-  border-radius: 12px;
-  padding: 10px;
+  border-radius: ${({ theme }) => theme.radii.md};
+  padding: ${({ theme }) => `${theme.spacing[2.5]}`};
   cursor: grab;
   box-shadow: ${({ theme }) => theme.shadow.xs};
   opacity: ${({ $dragging }) => $dragging ? 0.4 : 1};
@@ -114,21 +114,21 @@ const DragCard = styled.div<{ $dragging: boolean }>`
 `
 
 const DragCardRole = styled.div`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
   line-height: 1.3;
 `
 
 const DragCardCompany = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
 const DragCardNotes = styled.div`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-top: 4px;
+  margin-top: ${({ theme }) => `${theme.spacing[1]}`};
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -137,8 +137,8 @@ const DragCardNotes = styled.div`
 const OverlayCard = styled.div`
   background: ${({ theme }) => theme.color.card};
   border: 2px solid ${({ theme }) => theme.color.primary};
-  border-radius: 8px;
-  padding: 10px;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  padding: ${({ theme }) => `${theme.spacing[2.5]}`};
   box-shadow: ${({ theme }) => theme.shadow.xl};
   transform: rotate(2deg);
   width: 200px;
@@ -148,14 +148,14 @@ const RejectZoneRoot = styled.div<{ $over: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  border-radius: 12px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  border-radius: ${({ theme }) => theme.radii.md};
   border: 1px dashed ${({ theme, $over }) => $over ? theme.color.destructive : `${theme.color.border}99`};
-  padding: 12px;
+  padding: ${({ theme }) => `${theme.spacing[3]}`};
   background: ${({ theme, $over }) => $over ? `${theme.color.destructive}14` : 'transparent'};
   color: ${({ theme, $over }) => $over ? theme.color.destructive : theme.color.mutedForeground};
   transition: all 150ms;
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 500;
 `
 
@@ -166,14 +166,14 @@ import { Card } from '@ledgr/ui'
 
 
 const ListPad = styled.div`
-  padding: 6px;
+  padding: ${({ theme }) => `${theme.spacing[1.5]}`};
 `
 
 const ListSkeletonPad = styled.div`
-  padding: 12px;
+  padding: ${({ theme }) => `${theme.spacing[3]}`};
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const StyledListSkeleton = styled(Skeleton)`
@@ -183,12 +183,12 @@ const StyledListSkeleton = styled(Skeleton)`
 
 const StyledPipelineSkeleton = styled(Skeleton)`
   height: 140px;
-  border-radius: 12px;
+  border-radius: ${({ theme }) => theme.radii.md};
 `
 
 const DelBtn = styled.button`
-  padding: 4px;
-  border-radius: 6px;
+  padding: ${({ theme }) => `${theme.spacing[1]}`};
+  border-radius: ${({ theme }) => theme.radii.xs};
   border: none;
   background: none;
   cursor: pointer;
@@ -204,9 +204,9 @@ const OppRowRoot = styled.div`
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 8px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[3]}`};
+  border-radius: ${({ theme }) => theme.radii.sm};
   transition: background 120ms;
   position: relative;
   &:hover { background: ${({ theme }) => `${theme.color.muted}33`}; }
@@ -221,18 +221,18 @@ const OppRowLeft = styled.div`
 const OppRoleRow = styled.div`
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   flex-wrap: wrap;
 `
 
 const OppRole = styled.span`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const OppCompany = styled.span`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
@@ -245,13 +245,13 @@ const OppLink = styled.a`
 const OppMeta = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 4px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  margin-top: ${({ theme }) => `${theme.spacing[1]}`};
   flex-wrap: wrap;
 `
 
 const OppMetaText = styled.span`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   overflow: hidden;
   text-overflow: ellipsis;

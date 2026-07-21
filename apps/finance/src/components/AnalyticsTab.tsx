@@ -17,7 +17,7 @@ import styled from 'styled-components'
 const AnalyticsGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
   @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -26,7 +26,7 @@ const AnalyticsGrid = styled.div`
 const InsightsGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
   @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: repeat(2, 1fr);
   }

@@ -14,7 +14,7 @@ export const StyledSectionHeader = styled.div`
 `;
 
 export const StyledSectionTitle = styled.span`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
 `;
 
@@ -38,7 +38,7 @@ export const StyledPrHeader = styled.div`
 `;
 
 export const StyledPrTitle = styled.h2`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.025em;
@@ -47,7 +47,7 @@ export const StyledPrTitle = styled.h2`
 `;
 
 export const StyledHabitsStatsLabel = styled.p`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.025em;
@@ -56,7 +56,7 @@ export const StyledHabitsStatsLabel = styled.p`
 `;
 
 export const StyledHabitsStatsValue = styled.p`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
   letter-spacing: -0.01em;
@@ -64,7 +64,7 @@ export const StyledHabitsStatsValue = styled.p`
 `;
 
 export const StyledWorkoutsHeader = styled.p`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
   text-transform: uppercase;

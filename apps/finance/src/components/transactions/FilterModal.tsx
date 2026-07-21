@@ -5,12 +5,12 @@ import styled from 'styled-components'
 const FiltersGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  margin-top: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const FilterLabel = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -19,13 +19,13 @@ const FilterLabel = styled.div`
 
 const FilterRow = styled.div`
   display: flex;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const FilterActions = styled.div`
-  padding-top: 8px;
+  padding-top: ${({ theme }) => `${theme.spacing[2]}`};
   display: flex;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 export function FilterModal({

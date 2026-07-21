@@ -18,7 +18,7 @@ import { keyOf, buildRenderModel, getCategoryIcon, txnColors, useCategoryLabel, 
 export const TxnRowRoot = styled.div<{ $selected: boolean; $active: boolean; $compact: boolean }>`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
   padding: ${({ $compact }) => ($compact ? '5px 8px' : '9px 8px')};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   &:last-child { border-bottom: none; }
@@ -43,7 +43,7 @@ const RowCheck = styled.div<{ $show: boolean }>`
 const TxnLeft = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
   min-width: 0;
   flex: 1;
 `
@@ -61,7 +61,7 @@ const TxnIconWrap = styled.div<{ $bg: string; $color: string; $compact: boolean 
 `
 
 const TxnDesc = styled.span`
-  font-size: 12.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   color: ${({ theme }) => theme.color.foreground};
   overflow: hidden;
@@ -70,11 +70,11 @@ const TxnDesc = styled.span`
 `
 
 const TxnMeta = styled.div`
-  font-size: 10.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
   overflow: hidden;
   white-space: nowrap;
 `
@@ -90,7 +90,7 @@ const AccountChip = styled.span`
   border-radius: ${({ theme }) => theme.radii.xs};
   background: ${({ theme }) => theme.color.muted};
   color: ${({ theme }) => theme.color.mutedForeground};
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 500;
   flex-shrink: 0;
 `
@@ -98,21 +98,21 @@ const AccountChip = styled.span`
 const TxnRight = styled.div`
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
   flex-shrink: 0;
-  margin-left: 8px;
+  margin-left: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const TxnActions = styled.div`
   display: flex;
-  gap: 2px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
   opacity: 0;
   transition: opacity 120ms;
   @media ${({ theme }) => theme.media.belowMd} { opacity: 1; }
 `
 
 const TxnActionBtn = styled.button<{ $danger?: boolean }>`
-  padding: 5px;
+  padding: ${({ theme }) => `${theme.spacing[1]}`};
   border-radius: ${({ theme }) => theme.radii.xs};
   border: none;
   background: none;
@@ -128,7 +128,7 @@ const TxnActionBtn = styled.button<{ $danger?: boolean }>`
 `
 
 const TxnAmount = styled.div<{ $color: string }>`
-  font-size: 12.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: ${({ $color }) => $color};
@@ -138,7 +138,7 @@ const TxnAmount = styled.div<{ $color: string }>`
 const InlineEditWrap = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   flex: 1;
   min-width: 0;
 `
@@ -148,7 +148,7 @@ const InlineEditWrap = styled.div`
 const TxnListWrap = styled.div`
   max-height: 560px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: ${({ theme }) => `${theme.spacing[1]}`};
   outline: none;
 `
 
@@ -159,15 +159,15 @@ const DayHeaderRoot = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 8px 8px 5px;
-  margin-top: 4px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[2]} ${theme.spacing[1]}`};
+  margin-top: ${({ theme }) => `${theme.spacing[1]}`};
   background: ${({ theme }) => theme.color.card};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
 `
 
 const DayHeaderLabel = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -177,8 +177,8 @@ const DayHeaderLabel = styled.div`
 const DayHeaderTotals = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 11px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-variant-numeric: tabular-nums;
 `
 

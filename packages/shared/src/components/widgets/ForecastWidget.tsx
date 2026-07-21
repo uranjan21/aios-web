@@ -11,11 +11,11 @@ interface Props {
 const ValueRow = styled.div`
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const Value = styled.span`
-  font-size: 28px;
+  font-size: ${({ theme }) => theme.typography.fontSize['3xl']};
   font-weight: 700;
   color: ${({ theme }) => theme.color.foreground};
   font-variant-numeric: tabular-nums;
@@ -23,25 +23,25 @@ const Value = styled.span`
 `
 
 const Meta = styled.span`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
-  padding-bottom: 2px;
+  padding-bottom: ${({ theme }) => `${theme.spacing[0.5]}`};
 `
 
 const ConfidenceChip = styled.span`
   display: inline-flex;
   align-items: center;
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   color: ${({ theme }) => theme.color.accent};
   background: ${({ theme }) => theme.color.accent}1A;
-  padding: 2px 7px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
 `
 
 const InsightText = styled.p`
-  margin: 12px 0 0;
-  font-size: 13px;
+  margin: ${({ theme }) => `${theme.spacing[3]} 0 0`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   line-height: 1.5;
   color: ${({ theme }) => theme.color.mutedForeground};
 `

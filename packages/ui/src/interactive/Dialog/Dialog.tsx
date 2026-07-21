@@ -62,7 +62,7 @@ const Surface = styled.div<{ $size: DialogSize }>`
   flex-direction: column;
   background: ${({ theme }) => theme.color.card};
   color: ${({ theme }) => theme.color.cardForeground};
-  border-radius: 12px;
+  border-radius: ${({ theme }) => theme.radii.md};
   border: 1px solid ${({ theme }) => theme.color.border};
   box-shadow: none;
   outline: none;
@@ -71,11 +71,11 @@ const Surface = styled.div<{ $size: DialogSize }>`
 `;
 
 const Header = styled.div`
-  padding: 16px 20px 14px;
+  padding: ${({ theme }) => `${theme.spacing[4]} ${theme.spacing[5]} ${theme.spacing[3.5]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
   position: relative;
 `;
 
@@ -85,7 +85,7 @@ const IconWrap = styled.div`
   align-items: center;
   justify-content: center;
   color: ${({ theme }) => theme.color.foreground};
-  margin-top: 3px;
+  margin-top: ${({ theme }) => `${theme.spacing[0.5]}`};
 
   & svg {
     width: 18px;
@@ -96,14 +96,14 @@ const IconWrap = styled.div`
 const HeaderText = styled.div`
   flex: 1;
   min-width: 0;
-  padding-right: 28px;
+  padding-right: ${({ theme }) => `${theme.spacing[7]}`};
 `;
 
 
 
 const Title = styled.h2`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 17px;
+  font-size: ${({ theme }) => theme.typography.fontSize.lg};
   font-weight: 600;
   line-height: 1.3;
   color: ${({ theme }) => theme.color.foreground};
@@ -111,9 +111,9 @@ const Title = styled.h2`
 `;
 
 const Description = styled.p`
-  margin: 4px 0 0;
+  margin: ${({ theme }) => `${theme.spacing[1]} 0 0`};
   color: ${({ theme }) => theme.color.mutedForeground};
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   line-height: 1.5;
 `;
 
@@ -151,14 +151,14 @@ const StepperRow = styled.div`
   display: flex;
   align-items: center;
   gap: 0;
-  margin-top: 14px;
+  margin-top: ${({ theme }) => `${theme.spacing[3.5]}`};
 `;
 
 const StepNode = styled.div<{ $state: 'done' | 'active' | 'todo' }>`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
   flex-shrink: 0;
 `;
 
@@ -169,7 +169,7 @@ const StepCircle = styled.div<{ $state: 'done' | 'active' | 'todo' }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 700;
   transition: background 200ms, border-color 200ms;
 
@@ -190,7 +190,7 @@ const StepCircle = styled.div<{ $state: 'done' | 'active' | 'todo' }>`
 `;
 
 const StepLabel = styled.span<{ $state: 'done' | 'active' | 'todo' }>`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: ${({ $state }) => $state === 'active' ? '600' : '400'};
   color: ${({ $state, theme }) =>
     $state === 'active' ? theme.color.foreground
@@ -202,8 +202,8 @@ const StepLabel = styled.span<{ $state: 'done' | 'active' | 'todo' }>`
 const StepConnector = styled.div<{ $done: boolean }>`
   flex: 1;
   height: 2px;
-  margin: 0 6px;
-  margin-bottom: 14px;
+  margin: ${({ theme }) => `0 ${theme.spacing[1.5]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[3.5]}`};
   background: ${({ $done, theme }) => $done ? theme.color.accent : theme.color.border};
   transition: background 200ms;
 `;
@@ -211,7 +211,7 @@ const StepConnector = styled.div<{ $done: boolean }>`
 /* ── Body ─────────────────────────────────────────────────────────── */
 
 const Body = styled.div`
-  padding: 20px;
+  padding: ${({ theme }) => `${theme.spacing[5]}`};
   overflow-y: auto;
   flex: 1;
 `;
@@ -316,8 +316,8 @@ export const DialogFooter = styled.div`
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 20px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  padding: ${({ theme }) => `${theme.spacing[4]} ${theme.spacing[5]}`};
   margin: 20px -20px -20px -20px;
   border-top: 1px solid ${({ theme }) => theme.color.border};
   background: ${({ theme }) => theme.color.card};

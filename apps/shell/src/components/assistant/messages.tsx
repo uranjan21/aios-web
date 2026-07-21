@@ -47,7 +47,7 @@ const TimelineContainer = styled.div`
 
 const ToolCallContainer = styled.div<{ $isLast?: boolean }>`
   position: relative;
-  padding-left: 28px;
+  padding-left: ${({ theme }) => `${theme.spacing[7]}`};
   padding-bottom: ${({ $isLast }) => ($isLast ? '0' : '16px')};
 
   &::before {
@@ -80,7 +80,7 @@ const ToolCallCard = styled.div`
   border-radius: ${({ theme }) => theme.radii.lg};
   overflow: hidden;
   background-color: ${({ theme }) => theme.color.background};
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   box-shadow: ${({ theme }) => theme.shadow.sm};
   transition: box-shadow ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard}, border-color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
 
@@ -135,11 +135,11 @@ const ToolCallTitle = styled.span`
 
 const ToolCallStatusText = styled.span<{ $success?: boolean; $pending?: boolean }>`
   margin-left: auto;
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 4px 8px;
+  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[2]}`};
   border-radius: ${({ theme }) => theme.radii.md};
   flex-shrink: 0;
   ${({ $success, $pending, theme }) => {
@@ -166,7 +166,7 @@ const ToolCallDetails = styled.div`
   padding: ${({ theme }) => theme.spacing[2]} ${({ theme }) => theme.spacing[3]};
   background-color: ${({ theme }) => theme.color.background}4d;
   border-top: 1px solid ${({ theme }) => theme.color.border};
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
 `
 
 const ToolCallDetailsInput = styled.p`
@@ -190,11 +190,11 @@ const AffectedPathsContainer = styled.div`
 `
 
 const AffectedPathPill = styled.span`
-  padding: 2px 6px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
   background-color: ${({ theme }) => theme.color.success}1a;
   color: ${({ theme }) => theme.color.success};
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
 `
 
 export function ToolCallBlock({ tool, input, result, affected, isLast }: {
@@ -270,8 +270,8 @@ const PathChip = styled.span`
   display: inline-flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing[1]};
-  font-size: 10px;
-  padding: 2px 8px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[2]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
   background-color: ${({ theme }) => theme.color.primary}14;
   color: ${({ theme }) => theme.color.primary};
@@ -324,7 +324,7 @@ const BotAvatar = styled.div`
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: ${({ theme }) => `${theme.spacing[0.5]}`};
   border: 1px solid ${({ theme }) => theme.color.primary}33;
 `
 
@@ -337,9 +337,9 @@ const UserAvatar = styled.div`
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: ${({ theme }) => `${theme.spacing[0.5]}`};
   color: ${({ theme }) => theme.color.primaryForeground};
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: bold;
 `
 
@@ -354,7 +354,7 @@ const MessageContentWrapper = styled.div<{ $isUser: boolean }>`
 const MessageBubble = styled.div<{ $isUser: boolean; $error?: boolean }>`
   border-radius: ${({ theme }) => theme.radii.lg};
   padding: ${({ theme }) => theme.spacing[2]} ${({ theme }) => theme.spacing[3]};
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   ${({ theme, $isUser, $error }) => $isUser ? `
     background-color: ${theme.color.primary};
     color: ${theme.color.primaryForeground};
@@ -389,7 +389,7 @@ const StreamingCursor = styled.span`
   background: ${({ theme }) => theme.color.primary};
   animation: ${blink} 1s step-end infinite;
   vertical-align: text-bottom;
-  margin-left: 2px;
+  margin-left: ${({ theme }) => `${theme.spacing[0.5]}`};
 `
 
 export const MarkdownWrapper = styled.div`
@@ -409,19 +409,19 @@ export const MarkdownWrapper = styled.div`
     font-family: ${codeFont};
   }
   ul, ol {
-    padding-left: 20px;
-    margin: 8px 0;
+    padding-left: ${({ theme }) => `${theme.spacing[5]}`};
+    margin: ${({ theme }) => `${theme.spacing[2]} 0`};
   }
   table {
     border-collapse: collapse;
-    margin: 8px 0;
+    margin: ${({ theme }) => `${theme.spacing[2]} 0`};
     max-width: 100%;
     display: block;
     overflow-x: auto;
   }
   th, td {
     border: 1px solid ${({ theme }) => theme.color.border};
-    padding: 4px 10px;
+    padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[2.5]}`};
     text-align: left;
   }
   th {
@@ -439,7 +439,7 @@ export function Markdown({ children }: { children: string }) {
 }
 
 const ThinkingContainer = styled.details`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   border-left: 2px solid ${({ theme }) => theme.color.border};
   padding-left: ${({ theme }) => theme.spacing[2]};
@@ -460,7 +460,7 @@ const ThinkingSummary = styled.summary`
   user-select: none;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   transition: color ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
   &:hover {
     color: ${({ theme }) => theme.color.foreground};
@@ -514,14 +514,14 @@ const ArtifactHeader = styled.div`
   gap: ${({ theme }) => theme.spacing[2]};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   font-weight: 600;
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const ArtifactContent = styled.div`
   padding: ${({ theme }) => theme.spacing[3]};
   background-color: ${({ theme }) => theme.color.background};
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.foreground};
 
   pre, code {
@@ -560,11 +560,11 @@ const MessageActionsWrapper = styled.div<{ $isUser: boolean }>`
   background: ${({ theme }) => theme.color.background};
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.sm};
-  padding: 2px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]}`};
   box-shadow: ${({ theme }) => theme.shadow.sm};
   z-index: 10;
   display: flex;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
   opacity: 0;
   pointer-events: none;
   transition: opacity ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};

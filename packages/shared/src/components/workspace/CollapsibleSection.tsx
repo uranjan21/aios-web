@@ -4,27 +4,27 @@ import { useUIStore } from '@aios/shared/stores/uiStore'
 const Section = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const Header = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 6px;
+  padding-bottom: ${({ theme }) => `${theme.spacing[1.5]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
-  margin-bottom: 2px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[0.5]}`};
   cursor: pointer;
 `
 
 const HeaderLeft = styled.div`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
 `
 
 const Title = styled.span`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
   text-transform: uppercase;
@@ -32,7 +32,7 @@ const Title = styled.span`
 `
 
 const Count = styled.span`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
@@ -43,7 +43,7 @@ const CollapseBtn = styled.button`
   color: ${({ theme }) => theme.color.mutedForeground};
   display: inline-flex;
   align-items: center;
-  padding: 0 4px;
+  padding: ${({ theme }) => `0 ${theme.spacing[1]}`};
   transition: color 120ms;
   &:hover { color: ${({ theme }) => theme.color.foreground}; }
 `

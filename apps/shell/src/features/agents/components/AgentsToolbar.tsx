@@ -8,7 +8,7 @@ const FiltersRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   flex-wrap: wrap;
 `;
 

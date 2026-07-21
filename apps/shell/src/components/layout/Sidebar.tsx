@@ -91,8 +91,8 @@ const ToggleButton = styled.button<{ $collapsed: boolean }>`
 const BrandPanel = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  padding: ${({ theme }) => `${theme.spacing[4]}`};
   border-bottom: 1px solid ${({ theme }) => theme.chrome.border};
   min-height: 68px;
   position: relative;
@@ -103,7 +103,7 @@ const LogoBadge = styled.div`
   width: 36px;
   height: 36px;
   flex-shrink: 0;
-  border-radius: 12px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.chrome.border};
   color: ${({ theme }) => theme.color.accent};
   display: flex;
@@ -134,7 +134,7 @@ const BrandText = styled.div<{ $collapsed: boolean }>`
     .accent { color: ${({ theme }) => theme.color.accent}; }
   }
   .tagline {
-    font-size: 10px;
+    font-size: ${({ theme }) => theme.typography.fontSize.xs};
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: ${({ theme }) => theme.chrome.fg}99;
@@ -145,28 +145,28 @@ const NavList = styled.nav`
   flex: 1;
   overflow-y: auto;
   scrollbar-width: thin;
-  padding: 8px;
+  padding: ${({ theme }) => `${theme.spacing[2]}`};
   display: flex;
   flex-direction: column;
   position: relative;
 `
 
 const NavGroup = styled.div`
-  margin-top: 16px;
+  margin-top: ${({ theme }) => `${theme.spacing[4]}`};
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
   &:first-child { margin-top: 0; }
 `
 
 const CategoryHeader = styled.div<{ $collapsed: boolean }>`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.09em;
   color: ${({ theme }) => theme.chrome.fg}80;
-  padding: 0 12px;
-  margin-bottom: 6px;
+  padding: ${({ theme }) => `0 ${theme.spacing[3]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[1.5]}`};
   min-height: 15px;
 
   ${({ $collapsed, theme }) => $collapsed && css`
@@ -187,10 +187,10 @@ const CategoryHeader = styled.div<{ $collapsed: boolean }>`
 const NavItemLink = styled(NavLink)<{ $collapsed: boolean }>`
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 9px 12px;
-  border-radius: 12px;
-  font-size: 13px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[3]}`};
+  border-radius: ${({ theme }) => theme.radii.md};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   color: ${({ theme }) => theme.chrome.fg}D9;
   text-decoration: none;
@@ -247,17 +247,17 @@ const NavItemLink = styled(NavLink)<{ $collapsed: boolean }>`
 
 const UserBlock = styled.button<{ $collapsed: boolean }>`
   width: calc(100% - 16px);
-  margin: 8px;
+  margin: ${({ theme }) => `${theme.spacing[2]}`};
   border: none;
-  border-radius: 12px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: transparent;
   font: inherit;
   color: inherit;
   cursor: pointer;
-  padding: 8px;
+  padding: ${({ theme }) => `${theme.spacing[2]}`};
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
   position: relative;
   transition: background-color 150ms ease, box-shadow 150ms ease;
 
@@ -270,7 +270,7 @@ const UserBlock = styled.button<{ $collapsed: boolean }>`
 
   ${({ $collapsed }) => $collapsed && css`
     justify-content: center;
-    padding: 8px 0;
+    padding: ${({ theme }) => `${theme.spacing[2]} 0`};
   `}
 `
 
@@ -283,7 +283,7 @@ const Avatar = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 700;
   flex-shrink: 0;
 `
@@ -298,7 +298,7 @@ const UserInfo = styled.div<{ $collapsed: boolean }>`
   display: ${({ $collapsed }) => $collapsed ? 'none' : 'flex'};
 
   .name {
-    font-size: 13px;
+    font-size: ${({ theme }) => theme.typography.fontSize.sm};
     font-weight: 600;
     color: ${({ theme }) => theme.chrome.fg};
     white-space: nowrap;
@@ -308,7 +308,7 @@ const UserInfo = styled.div<{ $collapsed: boolean }>`
   }
 
   .email {
-    font-size: 11px;
+    font-size: ${({ theme }) => theme.typography.fontSize.xs};
     font-weight: 500;
     color: ${({ theme }) => theme.chrome.fg}99;
     white-space: nowrap;
@@ -321,8 +321,8 @@ const UserInfo = styled.div<{ $collapsed: boolean }>`
 const MenuProfileCard = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 6px 4px 10px 4px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[1]} ${theme.spacing[2.5]} ${theme.spacing[1]}`};
 `
 
 const MenuProfileInfo = styled.div`
@@ -350,13 +350,13 @@ const MenuProfileInfo = styled.div`
 
 const UserMenuContent = styled.div`
   width: 208px;
-  padding: 8px;
+  padding: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const UserMenuItemContent = styled.span`
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
 `
 
 const DropdownIconWrapper = styled.div`

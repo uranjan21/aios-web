@@ -35,8 +35,8 @@ const StyledDashboardGrid = styled.div`
 const StyledKpiGrid = styled.div`
   display: flex;
   overflow-x: auto;
-  gap: 8px;
-  padding-bottom: 4px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  padding-bottom: ${({ theme }) => `${theme.spacing[1]}`};
   
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -50,7 +50,7 @@ const StyledKpiGrid = styled.div`
   @media ${({ theme }) => theme.media.sm} {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
+    gap: ${({ theme }) => `${theme.spacing[4]}`};
     padding-bottom: 0;
     
     > * { min-width: 0; }

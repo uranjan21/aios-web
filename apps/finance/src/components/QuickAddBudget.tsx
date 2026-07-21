@@ -13,14 +13,14 @@ const FormStack = styled.form`
 `
 
 const LabelText = styled.div`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   margin-bottom: 0.25rem;
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const LabelMuted = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-bottom: 0.25rem;
 `
@@ -84,7 +84,7 @@ const CheckboxInput = styled.input`
 `
 
 const CheckboxLabel = styled.label`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   cursor: pointer;
   color: ${({ theme }) => theme.color.foreground};

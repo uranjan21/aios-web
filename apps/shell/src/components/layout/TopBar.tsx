@@ -25,16 +25,16 @@ const HeaderRoot = styled.header`
   box-shadow: ${({ theme }) => theme.shadow.sm};
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 16px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  padding: ${({ theme }) => `0 ${theme.spacing[4]}`};
 `
 
 const BackButton = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
-  border-radius: 8px;
+  padding: ${({ theme }) => `${theme.spacing[1.5]}`};
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: transparent;
   border: none;
   color: ${({ theme }) => theme.color.mutedForeground};
@@ -52,13 +52,13 @@ const BackButton = styled.button`
 `
 
 const Hamburger = styled.button`
-  padding: 8px;
+  padding: ${({ theme }) => `${theme.spacing[2]}`};
   margin-left: -8px;
   background: transparent;
   border: none;
   color: ${({ theme }) => theme.color.foreground};
   cursor: pointer;
-  border-radius: 12px;
+  border-radius: ${({ theme }) => theme.radii.md};
   
   &:hover { background: ${({ theme }) => theme.color.muted}; }
 
@@ -72,8 +72,8 @@ const Hamburger = styled.button`
 const BreadcrumbNav = styled.nav`
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 14px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   
   @media ${({ theme }) => theme.media.belowMd} {
     display: none;
@@ -86,9 +86,9 @@ const BreadcrumbNav = styled.nav`
     align-items: center;
     background: none;
     border: none;
-    padding: 2px 4px;
+    padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1]}`};
     margin: -2px -4px;
-    border-radius: 6px;
+    border-radius: ${({ theme }) => theme.radii.xs};
     font: inherit;
   }
 
@@ -115,7 +115,7 @@ const GlobalSearchContainer = styled.div`
   flex: 1;
   max-width: 28rem;
   position: relative;
-  margin-left: 24px;
+  margin-left: ${({ theme }) => `${theme.spacing[6]}`};
 
   @media ${({ theme }) => theme.media.belowSm} {
     display: none;
@@ -125,12 +125,12 @@ const GlobalSearchContainer = styled.div`
   input {
     width: 100%;
     height: 36px;
-    padding: 0 32px;
-    border-radius: 12px;
+    padding: ${({ theme }) => `0 ${theme.spacing[8]}`};
+    border-radius: ${({ theme }) => theme.radii.md};
     border: 1px solid ${({ theme }) => theme.color.input};
     background: ${({ theme }) => theme.color.background};
     color: ${({ theme }) => theme.color.foreground};
-    font-size: 14px;
+    font-size: ${({ theme }) => theme.typography.fontSize.base};
     
     &:focus {
       outline: none;
@@ -159,15 +159,15 @@ const RightCluster = styled.div`
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
 `
 
 const IconButton = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
-  border-radius: 12px;
+  padding: ${({ theme }) => `${theme.spacing[1.5]}`};
+  border-radius: ${({ theme }) => theme.radii.md};
   background: transparent;
   border: none;
   color: ${({ theme }) => theme.color.mutedForeground};
@@ -195,9 +195,9 @@ const IconButton = styled.button`
 const UserMenuTrigger = styled.button`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  border-radius: 12px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[2]}`};
+  border-radius: ${({ theme }) => theme.radii.md};
   background: transparent;
   border: none;
   cursor: pointer;
@@ -216,7 +216,7 @@ const UserMenuTrigger = styled.button`
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: ${({ theme }) => theme.typography.fontSize.xs};
     font-weight: 600;
   }
   
@@ -230,14 +230,14 @@ const UserMenuTrigger = styled.button`
     }
     
     .name {
-      font-size: 12px;
+      font-size: ${({ theme }) => theme.typography.fontSize.sm};
       font-weight: 500;
       color: ${({ theme }) => theme.color.foreground};
       line-height: 1.2;
     }
     
     .role {
-      font-size: 10px;
+      font-size: ${({ theme }) => theme.typography.fontSize.xs};
       text-transform: capitalize;
       color: ${({ theme }) => theme.color.mutedForeground};
       line-height: 1.2;
@@ -253,10 +253,10 @@ const AccountMenuContent = styled(DropdownMenuContent)`
 const PopoverHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px;
-  margin-bottom: 4px;
-  border-radius: 8px;
+  gap: ${({ theme }) => `${theme.spacing[3.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[3]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[1]}`};
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: linear-gradient(145deg, ${({ theme }) => theme.color.muted}, transparent);
   
   .avatar-large {
@@ -268,7 +268,7 @@ const PopoverHeader = styled.div`
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    font-size: ${({ theme }) => theme.typography.fontSize.md};
     font-weight: 600;
     flex-shrink: 0;
     box-shadow: ${({ theme }) => theme.elevation[2]};
@@ -280,18 +280,18 @@ const PopoverHeader = styled.div`
     overflow: hidden;
     
     .name {
-      font-size: 15px;
+      font-size: ${({ theme }) => theme.typography.fontSize.base};
       font-weight: 600;
       color: ${({ theme }) => theme.color.foreground};
       white-space: nowrap;
       text-overflow: ellipsis;
       overflow: hidden;
       letter-spacing: -0.01em;
-      margin-bottom: 2px;
+      margin-bottom: ${({ theme }) => `${theme.spacing[0.5]}`};
     }
     
     .email {
-      font-size: 13px;
+      font-size: ${({ theme }) => theme.typography.fontSize.sm};
       color: ${({ theme }) => theme.color.mutedForeground};
       white-space: nowrap;
       text-overflow: ellipsis;

@@ -23,8 +23,8 @@ export interface InsightCardProps {
 const CardWrapper = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  padding: ${({ theme }) => `${theme.spacing[4]}`};
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.lg};
@@ -35,7 +35,7 @@ const CardWrapper = styled.div`
 const Header = styled.div`
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const IconWrap = styled.div`
@@ -48,7 +48,7 @@ const IconWrap = styled.div`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-top: 2px;
+  margin-top: ${({ theme }) => `${theme.spacing[0.5]}`};
 `
 
 const BodyWrap = styled.div`
@@ -57,15 +57,15 @@ const BodyWrap = styled.div`
 `
 
 const Title = styled.h4`
-  margin: 0 0 4px 0;
-  font-size: 14px;
+  margin: ${({ theme }) => `0 0 ${theme.spacing[1]} 0`};
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const BodyText = styled.p<{ $expanded: boolean }>`
   margin: 0;
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   line-height: 1.5;
   color: ${({ theme }) => theme.color.mutedForeground};
   
@@ -79,8 +79,8 @@ const ExpandBtn = styled.button`
   background: none;
   border: none;
   padding: 0;
-  margin-top: 4px;
-  font-size: 12px;
+  margin-top: ${({ theme }) => `${theme.spacing[1]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.accent};
   cursor: pointer;
@@ -93,13 +93,13 @@ const Footer = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 4px;
-  padding-top: 12px;
+  margin-top: ${({ theme }) => `${theme.spacing[1]}`};
+  padding-top: ${({ theme }) => `${theme.spacing[3]}`};
   border-top: 1px solid ${({ theme }) => theme.color.border};
 `
 
 const Attribution = styled.span`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   font-weight: 500;
 `
@@ -107,13 +107,13 @@ const Attribution = styled.span`
 const Actions = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const IconButton = styled.button`
   background: none;
   border: none;
-  padding: 4px;
+  padding: ${({ theme }) => `${theme.spacing[1]}`};
   display: inline-flex;
   align-items: center;
   justify-content: center;

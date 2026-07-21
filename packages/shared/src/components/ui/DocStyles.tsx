@@ -3,18 +3,18 @@ import { AlertCircle, Lightbulb, Info } from 'lucide-react'
 import styled from 'styled-components'
 
 export const DocSection = styled.section`
-  margin-bottom: 48px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[12]}`};
 `
 
 const DocH1Root = styled.h1`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 36px;
+  font-size: ${({ theme }) => theme.typography.fontSize['3xl']};
   font-weight: 700;
   letter-spacing: -0.02em;
-  margin: 0 0 16px;
+  margin: ${({ theme }) => `0 0 ${theme.spacing[4]}`};
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
   color: ${({ theme }) => theme.color.foreground};
   line-height: 1.15;
 `
@@ -29,39 +29,39 @@ export function DocH1({ children, icon: Icon }: { children: React.ReactNode; ico
 }
 
 export const DocH2 = styled.h2`
-  font-size: 22px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xl};
   font-weight: 600;
-  margin: 48px 0 24px;
-  padding-bottom: 8px;
+  margin: ${({ theme }) => `${theme.spacing[12]} 0 ${theme.spacing[6]}`};
+  padding-bottom: ${({ theme }) => `${theme.spacing[2]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   color: ${({ theme }) => theme.color.foreground};
   line-height: 1.3;
 `
 
 export const DocH3 = styled.h3`
-  font-size: 18px;
+  font-size: ${({ theme }) => theme.typography.fontSize.lg};
   font-weight: 500;
-  margin: 32px 0 16px;
+  margin: ${({ theme }) => `${theme.spacing[8]} 0 ${theme.spacing[4]}`};
   color: ${({ theme }) => theme.color.foreground};
   opacity: 0.9;
   line-height: 1.4;
 `
 
 export const DocP = styled.p`
-  font-size: 15px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   color: ${({ theme }) => theme.color.mutedForeground};
   line-height: 1.75;
-  margin: 0 0 16px;
+  margin: ${({ theme }) => `0 0 ${theme.spacing[4]}`};
 `
 
 export const DocUl = styled.ul`
   list-style-type: disc;
   list-style-position: outside;
-  margin: 0 0 24px 24px;
+  margin: ${({ theme }) => `0 0 ${theme.spacing[6]} ${theme.spacing[6]}`};
   color: ${({ theme }) => theme.color.mutedForeground};
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 export const DocLi = styled.li`
@@ -69,25 +69,25 @@ export const DocLi = styled.li`
 `
 
 export const Kbd = styled.kbd`
-  padding: 4px 8px;
-  margin: 0 2px;
-  font-size: 11px;
+  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[2]}`};
+  margin: ${({ theme }) => `0 ${theme.spacing[0.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 500;
   color: ${({ theme }) => theme.color.foreground};
   background: ${({ theme }) => theme.color.muted};
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 6px;
+  border-radius: ${({ theme }) => theme.radii.xs};
   box-shadow: ${({ theme }) => theme.shadow.xs};
   font-family: ui-monospace, monospace;
 `
 
 export const Code = styled.code`
-  padding: 2px 6px;
-  margin: 0 2px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
+  margin: ${({ theme }) => `0 ${theme.spacing[0.5]}`};
   font-size: 0.85em;
   color: ${({ theme }) => theme.color.primary};
   background: ${({ theme }) => `${theme.color.primary}18`};
-  border-radius: 4px;
+  border-radius: ${({ theme }) => theme.radii.xs};
   font-family: ui-monospace, monospace;
 `
 
@@ -98,23 +98,23 @@ const ALERT_STYLES = {
 }
 
 const AlertRoot = styled.div<{ $bg: string; $border: string }>`
-  margin: 24px 0;
-  padding: 16px;
-  border-radius: 12px;
+  margin: ${({ theme }) => `${theme.spacing[6]} 0`};
+  padding: ${({ theme }) => `${theme.spacing[4]}`};
+  border-radius: ${({ theme }) => theme.radii.md};
   border: 1px solid ${({ $border }) => $border};
   background: ${({ $bg }) => $bg};
   display: flex;
-  gap: 16px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
 `
 
 const AlertTitle = styled.h4<{ $color: string }>`
   font-weight: 500;
-  margin: 0 0 4px;
+  margin: ${({ theme }) => `0 0 ${theme.spacing[1]}`};
   color: ${({ $color }) => $color};
 `
 
 const AlertBody = styled.div`
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   color: ${({ theme }) => `${theme.color.foreground}cc`};
   line-height: 1.6;
 `

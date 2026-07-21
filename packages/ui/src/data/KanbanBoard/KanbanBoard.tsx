@@ -69,9 +69,9 @@ const ColHeader = styled.div<{ $accent?: string }>`
 const Count = styled.span`
   background: ${({ theme }) => theme.color.card};
   color: ${({ theme }) => theme.color.mutedForeground};
-  padding: 2px 6px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
 `;
 
 const Cards = styled.div`

@@ -42,7 +42,7 @@ const FileCard = styled.div`
     position: absolute;
     top: 4px;
     right: 4px;
-    padding: 4px;
+    padding: ${({ theme }) => `${theme.spacing[1]}`};
     background: rgba(0, 0, 0, 0.5);
     border-radius: 50%;
     color: white;
@@ -94,17 +94,17 @@ const FileDetails = styled.div`
 const FileIconWrapper = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 
   .icon-bg {
-    padding: 6px;
+    padding: ${({ theme }) => `${theme.spacing[1.5]}`};
     background-color: ${({ theme }) => theme.color.muted};
     border-radius: ${({ theme }) => theme.radii.sm};
     display: flex;
   }
 
   .ext {
-    font-size: 10px;
+    font-size: ${({ theme }) => theme.typography.fontSize.xs};
     font-weight: 500;
     color: ${({ theme }) => theme.color.mutedForeground};
     text-transform: uppercase;
@@ -118,10 +118,10 @@ const FileIconWrapper = styled.div`
 const FileTextInfo = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
 
   .name {
-    font-size: 12px;
+    font-size: ${({ theme }) => theme.typography.fontSize.sm};
     font-weight: 500;
     color: ${({ theme }) => theme.color.foreground};
     white-space: nowrap;
@@ -130,7 +130,7 @@ const FileTextInfo = styled.div`
   }
 
   .size {
-    font-size: 10px;
+    font-size: ${({ theme }) => theme.typography.fontSize.xs};
     color: ${({ theme }) => theme.color.mutedForeground};
   }
 `
@@ -146,7 +146,7 @@ export const PastedCard = styled(FileCard)`
   box-shadow: ${({ theme }) => theme.shadow.sm};
 
   .content-text {
-    font-size: 10px;
+    font-size: ${({ theme }) => theme.typography.fontSize.xs};
     color: ${({ theme }) => theme.color.mutedForeground};
     line-height: 1.4;
     word-break: break-word;
@@ -163,18 +163,18 @@ export const PastedCard = styled(FileCard)`
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    margin-top: 8px;
+    margin-top: ${({ theme }) => `${theme.spacing[2]}`};
   }
 
   .badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 2px 6px;
+    padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
     border-radius: ${({ theme }) => theme.radii.sm};
     border: 1px solid ${({ theme }) => theme.color.border};
     background-color: ${({ theme }) => theme.color.background};
-    font-size: 11px;
+    font-size: ${({ theme }) => theme.typography.fontSize.xs};
     font-weight: bold;
     color: ${({ theme }) => theme.color.foreground};
     text-transform: uppercase;

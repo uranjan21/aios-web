@@ -19,20 +19,20 @@ export const AgentSkeleton = styled(Skeleton)`
 export const Stack = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
 `;
 
 export const RowDivider = styled.div`
   height: 1px;
   background: color-mix(in srgb, ${({ theme }) => theme.color.border} 30%, transparent);
-  margin: 0 20px;
+  margin: ${({ theme }) => `0 ${theme.spacing[5]}`};
 `;
 
 export const StatusBadge = styled.span<{ $status: string }>`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[2.5]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
   border: 1px solid ${({ theme, $status }) =>
     $status === "success"
@@ -42,7 +42,7 @@ export const StatusBadge = styled.span<{ $status: string }>`
         : $status === "running"
           ? `color-mix(in srgb, ${theme.color.accent} 20%, transparent)`
           : `color-mix(in srgb, ${theme.color.mutedForeground} 15%, transparent)`};
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   background: ${({ theme, $status }) =>
     $status === "success"
@@ -67,7 +67,7 @@ export const Cell = styled.div<{ $alignRight?: boolean }>`
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
 
   @media ${({ theme }) => theme.media.lg} {
     ${({ $alignRight }) => $alignRight && `
@@ -80,8 +80,8 @@ export const Cell = styled.div<{ $alignRight?: boolean }>`
 export const MobileLabel = styled.span`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 10px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -93,31 +93,31 @@ export const MobileLabel = styled.span`
 `;
 
 export const Value = styled.span`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
 `;
 
 export const SubValue = styled.span`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 `;
 
 export const RosterCard = styled(Card)`
   overflow: hidden;
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 12px;
+  border-radius: ${({ theme }) => theme.radii.md};
   box-shadow: none;
 
   h2 {
-    font-size: 17px;
+    font-size: ${({ theme }) => theme.typography.fontSize.lg};
     font-weight: 600;
     color: ${({ theme }) => theme.color.foreground};
   }
 
   p {
-    font-size: 13px;
+    font-size: ${({ theme }) => theme.typography.fontSize.sm};
     color: ${({ theme }) => theme.color.mutedForeground};
-    margin-top: 4px;
+    margin-top: ${({ theme }) => `${theme.spacing[1]}`};
   }
 `;

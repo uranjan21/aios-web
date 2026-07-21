@@ -37,31 +37,31 @@ const EMPTY_EDIT: EditState = { name: '', type: 'checking', balance: '0', curren
 // ── Styled ───────────────────────────────────────────────────────────────────
 
 const Section = styled.div`
-  padding: 16px 20px;
+  padding: ${({ theme }) => `${theme.spacing[4]} ${theme.spacing[5]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
 `
 
 const SectionLabel = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-bottom: 12px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const FormGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
   @media ${({ theme }) => theme.media.belowXs} { grid-template-columns: 1fr; }
 `
 
 const FieldLabel = styled.label`
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   color: ${({ theme }) => theme.color.foreground};
 `
@@ -73,8 +73,8 @@ const FullWidth = styled.div`
 const SaveRow = styled.div`
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  padding-top: 4px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  padding-top: ${({ theme }) => `${theme.spacing[1]}`};
 `
 
 // Transaction list section
@@ -88,8 +88,8 @@ const TxnSectionHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 20px 10px;
-  font-size: 11px;
+  padding: ${({ theme }) => `${theme.spacing[3.5]} ${theme.spacing[5]} ${theme.spacing[2.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -106,8 +106,8 @@ const TxnList = styled.div`
 const TxnCard = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 20px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[5]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border}55;
   &:last-child { border-bottom: 0; }
   &:hover { background: ${({ theme }) => theme.color.muted}44; }
@@ -137,7 +137,7 @@ const TxnInfo = styled.div`
 `
 
 const TxnLabel = styled.div`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   color: ${({ theme }) => theme.color.foreground};
   white-space: nowrap;
@@ -146,16 +146,16 @@ const TxnLabel = styled.div`
 `
 
 const TxnMeta = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-top: 1px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
 `
 
 const TxnAmount = styled.div<{ $positive: boolean }>`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
@@ -164,7 +164,7 @@ const TxnAmount = styled.div<{ $positive: boolean }>`
 
 const TxnActions = styled.div`
   display: flex;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
   flex-shrink: 0;
   opacity: 0;
   transition: opacity 120ms;

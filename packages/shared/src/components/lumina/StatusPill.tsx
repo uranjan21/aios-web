@@ -12,9 +12,9 @@ export interface StatusPillProps {
 const Pill = styled.span<{ $tone: StatusPillTone }>`
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[2]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;

@@ -35,18 +35,18 @@ function humaniseParams(tool: string, params: Record<string, unknown>): string {
 const Card = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[3.5]}`};
   border: 1px solid ${({ theme }) => theme.color.warning ?? '#CA8A04'}33;
   border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.card};
-  margin: 4px 0;
+  margin: ${({ theme }) => `${theme.spacing[1]} 0`};
 `
 
 const Header = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const IconWrap = styled.div`
@@ -63,19 +63,19 @@ const TitleBlock = styled.div`
 `
 
 const Title = styled.div`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const Detail = styled.div`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
 const Actions = styled.div`
   display: flex;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 export function ToolConfirmationCard({ tool, tool_call_id, params, onConfirm, onCancel }: Props) {

@@ -68,8 +68,8 @@ async function executeParsed(p: ParsedCapture, rawText: string): Promise<string>
 /* cmdk global overrides */
 const CmdkStyles = createGlobalStyle`
   [cmdk-group-heading] {
-    padding: 6px 12px 4px;
-    font-size: 10px;
+    padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[3]} ${theme.spacing[1]}`};
+    font-size: ${({ theme }) => theme.typography.fontSize.xs};
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -79,13 +79,13 @@ const CmdkStyles = createGlobalStyle`
   [cmdk-item] {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
-    font-size: 14px;
+    gap: ${({ theme }) => `${theme.spacing[3]}`};
+    padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[3]}`};
+    font-size: ${({ theme }) => theme.typography.fontSize.base};
     color: ${({ theme }) => theme.color.foreground};
     cursor: pointer;
-    border-radius: 8px;
-    margin: 0 4px;
+    border-radius: ${({ theme }) => theme.radii.sm};
+    margin: ${({ theme }) => `0 ${theme.spacing[1]}`};
     outline: none;
     transition: background 100ms;
   }
@@ -93,11 +93,11 @@ const CmdkStyles = createGlobalStyle`
     background: ${({ theme }) => theme.color.primary}14;
     color: ${({ theme }) => theme.color.primary};
   }
-  [cmdk-list] { padding: 4px 0; }
+  [cmdk-list] { padding: ${({ theme }) => `${theme.spacing[1]} 0`}; }
   [cmdk-empty] {
-    padding: 24px;
+    padding: ${({ theme }) => `${theme.spacing[6]}`};
     text-align: center;
-    font-size: 14px;
+    font-size: ${({ theme }) => theme.typography.fontSize.base};
     color: ${({ theme }) => theme.color.mutedForeground};
   }
 `
@@ -117,7 +117,7 @@ const Panel = styled.div`
   position: relative;
   width: 100%;
   max-width: 512px;
-  margin: 0 16px;
+  margin: ${({ theme }) => `0 ${theme.spacing[4]}`};
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii['2xl']};
@@ -128,8 +128,8 @@ const Panel = styled.div`
 const SearchRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  padding: ${({ theme }) => `0 ${theme.spacing[3]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
 
   [cmdk-input] {
@@ -138,19 +138,19 @@ const SearchRow = styled.div`
     background: transparent;
     border: none;
     outline: none;
-    font-size: 16px;
+    font-size: ${({ theme }) => theme.typography.fontSize.md};
     color: ${({ theme }) => theme.color.foreground};
     &::placeholder { color: ${({ theme }) => theme.color.mutedForeground}; }
   }
 `
 
 const ModePrefix = styled.span<{ $color: string }>`
-  font-size: 16px;
+  font-size: ${({ theme }) => theme.typography.fontSize.md};
   font-weight: 600;
   color: ${({ $color }) => $color};
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
 `
 
 const ListWrap = styled.div`
@@ -161,35 +161,35 @@ const ListWrap = styled.div`
 const Footer = styled.div`
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 8px 12px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[3]}`};
   border-top: 1px solid ${({ theme }) => theme.color.border};
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 
   kbd {
     font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-variant-numeric: tabular-nums;
     background: ${({ theme }) => theme.color.muted};
-    border-radius: 4px;
+    border-radius: ${({ theme }) => theme.radii.xs};
     padding: 1px 4px;
-    margin-right: 2px;
+    margin-right: ${({ theme }) => `${theme.spacing[0.5]}`};
   }
 `
 
 const StreamOutput = styled.div`
-  padding: 16px;
-  font-size: 14px;
+  padding: ${({ theme }) => `${theme.spacing[4]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   line-height: 1.5;
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const ActionArea = styled.div`
-  padding: 12px 16px;
+  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[4]}`};
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   background: ${({ theme }) => theme.color.muted};
   border-top: 1px solid ${({ theme }) => theme.color.border};
 `

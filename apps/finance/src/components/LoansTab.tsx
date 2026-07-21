@@ -47,7 +47,7 @@ const NameText = styled.div`
 `
 
 const SubText = styled.div`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
@@ -94,7 +94,7 @@ const UpdateForm = styled.form`
 `
 
 const FieldLabel = styled.label`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-bottom: 0.25rem;
   display: block;

@@ -50,18 +50,18 @@ const StyledSessionSetRow = styled.div`
 `;
 
 const StyledSessionSetExercise = styled.span`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
 `;
 
 const StyledSessionSetDetails = styled.span`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
 `;
 
 const StyledSessionNotes = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
   margin-top: 0.5rem;
 `;

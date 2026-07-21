@@ -17,9 +17,9 @@ const Card = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  padding: 40px;
-  border-radius: 18px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
+  padding: ${({ theme }) => `${theme.spacing[10]}`};
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
   box-shadow: ${({ theme }) => theme.shadow.md};
@@ -28,14 +28,14 @@ const Card = styled.div`
 `
 
 const Heading = styled.h2`
-  font-size: 18px;
+  font-size: ${({ theme }) => theme.typography.fontSize.lg};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
   margin: 0;
 `
 
 const Detail = styled.p`
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin: 0;
 `

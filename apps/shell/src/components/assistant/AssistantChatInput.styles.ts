@@ -51,17 +51,17 @@ export const InputBox = styled.div`
 export const InnerPadding = styled.div`
   display: flex;
   flex-direction: column;
-  padding: 12px 12px 8px 12px;
-  gap: 8px;
+  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[3]} ${theme.spacing[2]} ${theme.spacing[3]}`};
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 export const ArtifactsRow = styled.div`
   display: flex;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
   overflow-x: auto;
-  padding-bottom: 8px;
-  padding-left: 4px;
-  padding-right: 4px;
+  padding-bottom: ${({ theme }) => `${theme.spacing[2]}`};
+  padding-left: ${({ theme }) => `${theme.spacing[1]}`};
+  padding-right: ${({ theme }) => `${theme.spacing[1]}`};
 
   &::-webkit-scrollbar {
     height: 4px;
@@ -78,7 +78,7 @@ export const TextAreaWrapper = styled.div`
   width: 100%;
   overflow-y: auto;
   min-height: 40px;
-  padding-left: 4px;
+  padding-left: ${({ theme }) => `${theme.spacing[1]}`};
   margin: 0;
 
   &::-webkit-scrollbar {
@@ -96,7 +96,7 @@ export const StyledTextarea = styled.textarea`
   border: 0;
   outline: none;
   color: ${({ theme }) => theme.color.foreground};
-  font-size: 16px;
+  font-size: ${({ theme }) => theme.typography.fontSize.md};
   resize: none;
   overflow: hidden;
   padding: 0;
@@ -110,7 +110,7 @@ export const StyledTextarea = styled.textarea`
 
 export const ActionBar = styled.div`
   display: flex;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   width: 100%;
   align-items: center;
 `
@@ -119,7 +119,7 @@ export const LeftTools = styled.div`
   display: flex;
   flex: 1;
   align-items: center;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
   min-width: 0;
 `
 
@@ -160,11 +160,11 @@ export const ToolButton = styled.button.attrs({ type: 'button' })<{ $active?: bo
     top: 100%;
     left: 50%;
     transform: translateX(-50%);
-    margin-top: 8px;
-    padding: 4px 8px;
+    margin-top: ${({ theme }) => `${theme.spacing[2]}`};
+    padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[2]}`};
     background: ${({ theme }) => theme.color.foreground};
     color: ${({ theme }) => theme.color.background};
-    font-size: 11px;
+    font-size: ${({ theme }) => theme.typography.fontSize.xs};
     font-weight: 500;
     border-radius: ${({ theme }) => theme.radii.sm};
     opacity: 0;
@@ -183,7 +183,7 @@ export const ToolButton = styled.button.attrs({ type: 'button' })<{ $active?: bo
 export const RightTools = styled.div`
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
   min-width: 0;
 `
 
@@ -241,15 +241,15 @@ export const DragOverlay = styled.div`
   p {
     color: ${({ theme }) => theme.color.primary};
     font-weight: 500;
-    margin-top: 8px;
+    margin-top: ${({ theme }) => `${theme.spacing[2]}`};
   }
 `
 
 export const Disclaimer = styled.div`
   text-align: center;
-  margin-top: 16px;
+  margin-top: ${({ theme }) => `${theme.spacing[4]}`};
   p {
-    font-size: 12px;
+    font-size: ${({ theme }) => theme.typography.fontSize.sm};
     color: ${({ theme }) => theme.color.foreground};
   }
 `
@@ -267,18 +267,18 @@ export const ContextDropdown = styled.div`
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.md};
   box-shadow: ${({ theme }) => theme.shadow.md};
-  padding: 4px;
+  padding: ${({ theme }) => `${theme.spacing[1]}`};
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
   z-index: 100;
   min-width: 150px;
 `
 
 export const ContextOption = styled.button.attrs({ type: 'button' })<{ $active?: boolean }>`
   text-align: left;
-  padding: 6px 10px;
-  font-size: 12px;
+  padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[2.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   border: none;
   background: ${({ theme, $active }) => $active ? theme.color.muted : 'transparent'};
   border-radius: ${({ theme }) => theme.radii.sm};

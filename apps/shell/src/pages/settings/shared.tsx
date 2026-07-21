@@ -8,12 +8,12 @@ export const RowRoot = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 14px 20px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
+  padding: ${({ theme }) => `${theme.spacing[3.5]} ${theme.spacing[5]}`};
 `
 
 export const RowLabel = styled.span`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   color: ${({ theme }) => theme.color.foreground};
 `
@@ -21,7 +21,7 @@ export const RowLabel = styled.span`
 const RowActions = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 export function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -66,9 +66,9 @@ export function Section({ title, children, action }: { title: string; children: 
 // ── Shared form input ─────────────────────────────────────────────────────────
 
 export const FormInput = styled.input`
-  font-size: 13px;
-  padding: 7px 10px;
-  border-radius: 6px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
+  padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[2.5]}`};
+  border-radius: ${({ theme }) => theme.radii.xs};
   border: 1px solid ${({ theme }) => theme.color.border};
   background: ${({ theme }) => theme.color.background};
   color: ${({ theme }) => theme.color.foreground};

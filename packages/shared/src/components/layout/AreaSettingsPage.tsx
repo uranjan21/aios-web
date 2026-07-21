@@ -35,7 +35,7 @@ interface AreaSettingsPageProps {
 export const Shell = styled.div`
   display: flex;
   align-items: flex-start;
-  gap: 24px;
+  gap: ${({ theme }) => `${theme.spacing[6]}`};
   width: 100%;
 
   @media ${({ theme }) => theme.media.belowLg} {
@@ -49,9 +49,9 @@ export const NavRail = styled.nav`
 
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: ${({ theme }) => `${theme.spacing[4.5]}`};
 
-  padding: 14px 12px;
+  padding: ${({ theme }) => `${theme.spacing[3.5]} ${theme.spacing[3]}`};
 
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
@@ -72,14 +72,14 @@ export const NavRail = styled.nav`
 export const GroupBlock = styled.section`
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
 `;
 
 export const GroupLabel = styled.h3`
   margin: 0;
-  padding: 0 10px 6px;
+  padding: ${({ theme }) => `0 ${theme.spacing[2.5]} ${theme.spacing[1.5]}`};
 
-  font-size: 10.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -90,10 +90,10 @@ export const GroupLabel = styled.h3`
 export const GroupItems = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
 
-  margin-left: 12px;
-  padding-left: 9px;
+  margin-left: ${({ theme }) => `${theme.spacing[3]}`};
+  padding-left: ${({ theme }) => `${theme.spacing[2]}`};
 
   border-left: 1px solid ${({ theme }) => theme.color.border};
 `;
@@ -101,10 +101,10 @@ export const GroupItems = styled.div`
 export const NavItem = styled.button<{ $active: boolean }>`
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 
   width: 100%;
-  padding: 8px 10px;
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[2.5]}`};
 
   border: none;
   border-radius: ${({ theme }) => theme.radii.md};
@@ -116,7 +116,7 @@ export const NavItem = styled.button<{ $active: boolean }>`
     $active ? theme.color.accent : theme.color.foreground};
 
   text-align: left;
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: ${({ $active }) => ($active ? 600 : 500)};
 
   cursor: pointer;
@@ -146,7 +146,7 @@ export const ContentPane = styled.main`
 
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: ${({ theme }) => `${theme.spacing[6]}`};
 `;
 
 const ContentHeader = styled.div`

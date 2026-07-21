@@ -109,7 +109,7 @@ const MonthLabel = styled.span`
 const WeekHeader = styled.div`
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
   margin-bottom: ${({ theme }) => theme.spacing[1]};
 `;
 
@@ -123,7 +123,7 @@ const WeekCell = styled.div`
 const DayGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
 `;
 
 const Day = styled.button<{ $selected: boolean; $today: boolean; $outside: boolean; $disabled: boolean }>`

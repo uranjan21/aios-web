@@ -17,7 +17,7 @@ const List = styled.ul`
   padding: ${({ theme }) => theme.spacing[2]};
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
   list-style: none;
   margin: 0;
 `
@@ -27,16 +27,16 @@ const Item = styled.li`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
 `
 
 const SelectBtn = styled.button.attrs({ type: 'button' })<{ $active?: boolean }>`
   flex: 1;
   border: none;
-  padding: 10px 12px;
+  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[3]}`};
   background: ${({ theme, $active }) => $active ? theme.color.muted : 'transparent'};
   border-radius: ${({ theme }) => theme.radii.md};
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   cursor: pointer;
   color: ${({ theme, $active }) => $active ? theme.color.foreground : theme.color.mutedForeground};
   font-weight: ${({ $active }) => $active ? 500 : 400};
@@ -64,7 +64,7 @@ const Title = styled.span`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-right: 8px;
+  margin-right: ${({ theme }) => `${theme.spacing[2]}`};
   text-align: left;
 `
 
@@ -74,7 +74,7 @@ const ActionBtn = styled.button.attrs({ type: 'button' })`
   cursor: pointer;
   color: ${({ theme }) => theme.color.mutedForeground};
   display: flex;
-  padding: 2px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
   opacity: 0.5;
   transition: all ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
@@ -92,7 +92,7 @@ const ActionBtn = styled.button.attrs({ type: 'button' })`
 const Menu = styled.div`
   position: absolute;
   right: 12px;
-  margin-top: 24px;
+  margin-top: ${({ theme }) => `${theme.spacing[6]}`};
   background: ${({ theme }) => theme.color.background};
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.md};
@@ -101,13 +101,13 @@ const Menu = styled.div`
   flex-direction: column;
   z-index: 101;
   min-width: 120px;
-  padding: 4px;
+  padding: ${({ theme }) => `${theme.spacing[1]}`};
 `
 
 const MenuItem = styled.button.attrs({ type: 'button' })`
   text-align: left;
-  padding: 6px 10px;
-  font-size: 12px;
+  padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[2.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   border: none;
   background: transparent;
   border-radius: ${({ theme }) => theme.radii.sm};

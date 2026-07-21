@@ -2,46 +2,46 @@ import styled from 'styled-components'
 
 const Title = styled.h1`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 40px;
+  font-size: ${({ theme }) => theme.typography.fontSize['4xl']};
   font-weight: 700;
-  margin-bottom: 16px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
 `
 
 const LastUpdated = styled.p`
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-bottom: 48px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[12]}`};
 `
 
 const Section = styled.section`
-  margin-bottom: 32px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[8]}`};
 `
 
 const Heading = styled.h2`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 20px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xl};
   font-weight: 600;
-  margin-bottom: 16px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const Text = styled.p`
-  font-size: 15px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   line-height: 1.6;
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-bottom: 16px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
 `
 
 const List = styled.ul`
   list-style: disc;
-  padding-left: 24px;
-  margin-bottom: 16px;
+  padding-left: ${({ theme }) => `${theme.spacing[6]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
   color: ${({ theme }) => theme.color.mutedForeground};
   
   li {
-    font-size: 15px;
+    font-size: ${({ theme }) => theme.typography.fontSize.base};
     line-height: 1.6;
-    margin-bottom: 8px;
+    margin-bottom: ${({ theme }) => `${theme.spacing[2]}`};
   }
 `
 

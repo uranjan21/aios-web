@@ -34,11 +34,11 @@ export const TableFooter = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 12px;
-  padding-top: 10px;
+  margin-top: ${({ theme }) => `${theme.spacing[3]}`};
+  padding-top: ${({ theme }) => `${theme.spacing[2.5]}`};
   border-top: 1px solid ${({ theme }) => theme.color.border};
   font-weight: 500;
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.foreground};
 `
 

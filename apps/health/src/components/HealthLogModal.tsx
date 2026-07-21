@@ -35,7 +35,7 @@ const StyledInputWrapper = styled.div`
 `;
 
 const StyledErrorMessage = styled.span`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.destructive || 'var(--destructive)'};
   padding-left: 0.25rem;
 `;

@@ -30,18 +30,18 @@ const StyledCalorieRingTextWrapper = styled.div`
 `;
 
 const StyledCalorieRingValue = styled.span`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
 `;
 
 const StyledCalorieRingUnit = styled.span`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
 `;
 
 const StyledCalorieRingSubtitle = styled.p`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
   margin: 0;
 `;

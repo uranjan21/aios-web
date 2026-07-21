@@ -8,8 +8,8 @@ const ErrorContainer = styled.div`
   align-items: center;
   justify-content: center;
   height: 100%;
-  gap: 16px;
-  padding: 32px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
+  padding: ${({ theme }) => `${theme.spacing[8]}`};
   text-align: center;
 `
 

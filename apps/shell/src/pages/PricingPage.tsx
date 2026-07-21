@@ -68,14 +68,14 @@ const TitleSection = styled.div`
 const CurrencyBadge = styled.div`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   background: ${({ theme }) => theme.color.muted};
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.sm};
-  padding: 4px 12px;
-  margin-top: 12px;
+  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[3]}`};
+  margin-top: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const FreeBanner = styled.div`
@@ -86,13 +86,13 @@ const FreeBanner = styled.div`
   flex-wrap: wrap;
   background: ${({ theme }) => theme.color.muted};
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 16px;
+  border-radius: ${({ theme }) => theme.radii.md};
   padding: 1.25rem 1.5rem;
   margin-bottom: 2rem;
 
   .lead { display: flex; align-items: center; gap: 0.75rem; }
   .lead strong { font-size: 1rem; }
-  .lead span { font-size: 13px; color: ${({ theme }) => theme.color.mutedForeground}; }
+  .lead span { font-size: ${({ theme }) => theme.typography.fontSize.sm}; color: ${({ theme }) => theme.color.mutedForeground}; }
 `
 
 const Layout = styled.div`
@@ -109,12 +109,12 @@ const Layout = styled.div`
 const Panel = styled.div`
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 20px;
+  border-radius: ${({ theme }) => theme.radii.lg};
   padding: 1.75rem;
 `
 
 const GroupLabel = styled.div`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -134,7 +134,7 @@ const ModuleTile = styled.button<{ $selected: boolean }>`
   display: flex;
   gap: 0.75rem;
   padding: 0.875rem 1rem;
-  border-radius: 14px;
+  border-radius: ${({ theme }) => theme.radii.md};
   cursor: pointer;
   background: ${({ theme, $selected }) => ($selected ? `${theme.color.accent}14` : theme.color.background)};
   border: 1.5px solid ${({ theme, $selected }) => ($selected ? theme.color.accent : theme.color.border)};
@@ -146,25 +146,25 @@ const ModuleTile = styled.button<{ $selected: boolean }>`
   .ico {
     width: 34px; height: 34px;
     flex-shrink: 0;
-    border-radius: 10px;
+    border-radius: ${({ theme }) => theme.radii.sm};
     display: grid;
     place-items: center;
     background: ${({ theme, $selected }) => ($selected ? theme.color.accent : theme.color.muted)};
     color: ${({ theme, $selected }) => ($selected ? theme.color.accentForeground : theme.color.mutedForeground)};
   }
   .body { min-width: 0; flex: 1; }
-  .row { display: flex; align-items: center; gap: 6px; }
-  .name { font-weight: 600; font-size: 14px; }
-  .price { font-size: 12px; color: ${({ theme }) => theme.color.mutedForeground}; }
-  .desc { font-size: 12px; color: ${({ theme }) => theme.color.mutedForeground}; margin-top: 2px; line-height: 1.35; }
-  .meter { font-size: 10px; font-weight: 600; color: ${({ theme }) => theme.color.accent}; }
+  .row { display: flex; align-items: center; gap: ${({ theme }) => `${theme.spacing[1.5]}`}; }
+  .name { font-weight: 600; font-size: ${({ theme }) => theme.typography.fontSize.base}; }
+  .price { font-size: ${({ theme }) => theme.typography.fontSize.sm}; color: ${({ theme }) => theme.color.mutedForeground}; }
+  .desc { font-size: ${({ theme }) => theme.typography.fontSize.sm}; color: ${({ theme }) => theme.color.mutedForeground}; margin-top: ${({ theme }) => `${theme.spacing[0.5]}`}; line-height: 1.35; }
+  .meter { font-size: ${({ theme }) => theme.typography.fontSize.xs}; font-weight: 600; color: ${({ theme }) => theme.color.accent}; }
   .tick { color: ${({ theme }) => theme.color.accent}; flex-shrink: 0; opacity: ${({ $selected }) => ($selected ? 1 : 0)}; }
 `
 
 const Summary = styled.div`
   background: ${({ theme }) => theme.color.card};
   border: 2px solid ${({ theme }) => theme.color.accent};
-  border-radius: 20px;
+  border-radius: ${({ theme }) => theme.radii.lg};
   padding: 1.75rem;
   position: sticky;
   top: 1.5rem;
@@ -186,14 +186,14 @@ const TotalRow = styled.div`
 `
 
 const UsdNote = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-bottom: 1rem;
   opacity: 0.8;
 `
 
 const SummaryMeta = styled.div`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-bottom: 1rem;
 `
@@ -201,13 +201,13 @@ const SummaryMeta = styled.div`
 const SaveHint = styled.div`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.accent};
   background: ${({ theme }) => `${theme.color.accent}14`};
   border-radius: ${({ theme }) => theme.radii.sm};
-  padding: 4px 10px;
+  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[2.5]}`};
   margin-bottom: 1rem;
 `
 
@@ -219,8 +219,8 @@ const BundleButton = styled.button<{ $active: boolean }>`
   gap: 0.5rem;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
-  border-radius: 12px;
-  font-size: 13px;
+  border-radius: ${({ theme }) => theme.radii.md};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   cursor: pointer;
   background: ${({ theme, $active }) => ($active ? theme.color.primary : theme.color.muted)};
@@ -231,8 +231,8 @@ const BundleButton = styled.button<{ $active: boolean }>`
 
 const MeteredNote = styled.div`
   display: flex;
-  gap: 8px;
-  font-size: 12px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   line-height: 1.45;
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-top: 1rem;
@@ -243,7 +243,7 @@ const MeteredNote = styled.div`
 
 const FootNote = styled.p`
   text-align: center;
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-top: 2.5rem;
 `

@@ -65,7 +65,7 @@ const Category = styled.div<{ $collapsed: boolean }>`
 const CategoryLabel = styled.p`
   margin: 0 0 ${({ theme }) => theme.spacing[1]};
   padding: 0 ${({ theme }) => theme.spacing[2]};
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: ${({ theme }) => theme.typography.fontWeight.semibold};
   text-transform: uppercase;
   letter-spacing: ${({ theme }) => theme.typography.letterSpacing.wider};
@@ -75,13 +75,13 @@ const CategoryLabel = styled.p`
 const Items = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
 `;
 
 const Footer = styled.div<{ $collapsed: boolean }>`
   padding: ${({ theme }) => theme.spacing[3]};
   border-top: 1px solid ${({ theme }) => theme.color.primaryHover};
-  ${({ $collapsed }) => $collapsed && css`padding: 8px;`}
+  ${({ $collapsed }) => $collapsed && css`padding: ${({ theme }) => `${theme.spacing[2]}`};`}
 `;
 
 const CollapseToggle = styled.button<{ $collapsed: boolean }>`
@@ -169,7 +169,7 @@ export const SidebarLink = styled.a<{ $active?: boolean; $collapsed?: boolean }>
   transition: background-color ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard},
               color ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
 
-  ${({ $collapsed }) => $collapsed && css`justify-content: center; padding: 8px;`}
+  ${({ $collapsed }) => $collapsed && css`justify-content: center; padding: ${({ theme }) => `${theme.spacing[2]}`};`}
 
   &:hover {
     background: ${({ theme }) => theme.color.primaryHover};

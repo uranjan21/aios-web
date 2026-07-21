@@ -5,7 +5,7 @@ const Container = styled.div`
   flex-direction: row;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-variant-numeric: tabular-nums;
   color: ${({ theme }) => theme.color?.foreground || '#000'};
@@ -14,12 +14,12 @@ const Container = styled.div`
 const Group = styled.div`
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
 `;
 
 const Label = styled.span`
   font-weight: 600;
-  font-size: 9px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.mutedForeground || theme.color?.muted || '#666'};
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -31,8 +31,8 @@ const SelectBox = styled.select`
   border: 1px solid ${({ theme }) => theme.color?.border || 'rgba(0,0,0,0.1)'};
   color: ${({ theme }) => theme.color?.foreground || '#000'};
   border-radius: ${({ theme }) => theme.radii?.sm || '4px'};
-  padding: 2px 18px 2px 6px;
-  font-size: 11px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[4.5]} ${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 500;
   cursor: pointer;
   text-align: center;
@@ -52,7 +52,7 @@ const SelectBox = styled.select`
 
 const Colon = styled.span`
   font-weight: bold;
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.foreground || '#000'};
 `;
 

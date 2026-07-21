@@ -14,13 +14,13 @@ import { toast } from 'sonner'
 const FormGrid = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: ${({ theme }) => `${theme.spacing[3.5]}`};
 `
 
 const TwoCol = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const PRIORITY_OPTIONS = [

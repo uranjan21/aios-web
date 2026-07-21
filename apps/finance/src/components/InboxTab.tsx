@@ -13,10 +13,10 @@ import styled from 'styled-components'
 dayjs.extend(relativeTime)
 
 const TransactionCard = styled(Card)`
-  padding: 24px;
+  padding: ${({ theme }) => `${theme.spacing[6]}`};
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: ${({ theme }) => `${theme.spacing[5]}`};
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   
   &:hover {
@@ -33,14 +33,14 @@ const CardHeader = styled.div`
 const HeaderLeft = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const TypeBadge = styled.span<{ $type: string }>`
   background: ${props => props.$type === 'expense' ? 'var(--ui-danger-subtle)' : 'var(--ui-success-subtle)'};
   color: ${props => props.$type === 'expense' ? 'var(--ui-danger)' : 'var(--ui-success)'};
-  padding: 6px 12px;
-  border-radius: 16px;
+  padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[3]}`};
+  border-radius: ${({ theme }) => theme.radii.md};
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -55,12 +55,12 @@ const MetaText = styled.span`
 const SourceChip = styled.span`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   background: var(--ui-bg-subtle);
   border: 1px solid var(--ui-border);
   color: var(--ui-text-secondary);
-  padding: 4px 10px;
-  border-radius: 8px;
+  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[2.5]}`};
+  border-radius: ${({ theme }) => theme.radii.sm};
   font-size: 0.75rem;
   font-weight: 600;
 `
@@ -69,25 +69,25 @@ const BulkBar = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const ActionGroup = styled.div`
   display: flex;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const FieldsGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 2fr 2fr 2fr;
-  gap: 20px;
+  gap: ${({ theme }) => `${theme.spacing[5]}`};
   align-items: start;
 `
 
 const FieldGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const FieldLabel = styled.div`
@@ -104,22 +104,22 @@ const SuggestedBadge = styled.span`
   font-size: 0.7rem;
   font-weight: 600;
   background: var(--ui-primary-subtle);
-  padding: 2px 8px;
-  border-radius: 12px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[2]}`};
+  border-radius: ${({ theme }) => theme.radii.md};
 `
 
 const SnippetContainer = styled.div`
-  padding: 16px;
+  padding: ${({ theme }) => `${theme.spacing[4]}`};
   background: var(--ui-bg-subtle);
-  border-radius: 12px;
+  border-radius: ${({ theme }) => theme.radii.md};
   border: 1px solid var(--ui-border);
 `
 
 const SnippetHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[3]}`};
   color: var(--ui-text-secondary);
   font-size: 0.875rem;
   font-weight: 600;
@@ -128,17 +128,17 @@ const SnippetHeader = styled.div`
 const SnippetGrid = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
 `
 
 const SnippetPill = styled.div`
   background: var(--ui-bg-base);
   border: 1px solid var(--ui-border);
-  padding: 6px 12px;
-  border-radius: 8px;
+  padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[3]}`};
+  border-radius: ${({ theme }) => theme.radii.sm};
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   font-size: 0.8125rem;
   box-shadow: var(--ui-shadow-sm);
 `
@@ -174,8 +174,8 @@ const EmptyStateTitle = styled.div`
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--ui-text-primary);
-  margin-top: 16px;
-  margin-bottom: 8px;
+  margin-top: ${({ theme }) => `${theme.spacing[4]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const EmptyStateDesc = styled.div`

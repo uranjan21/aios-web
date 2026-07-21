@@ -88,7 +88,7 @@ const Eyebrow = styled.span`
     width: 14px;
     height: 2px;
     background: ${({ theme }) => theme.color.accent};
-    border-radius: 1px;
+    border-radius: ${({ theme }) => theme.radii.xs};
   }
 `;
 
@@ -137,8 +137,8 @@ const DesktopActions = styled.div`
 const MobileActionsMenu = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  padding: ${({ theme }) => `${theme.spacing[2]}`};
 `;
 
 export function PageHeader({ eyebrow, icon, title, subtitle, actions, className }: PageHeaderProps) {

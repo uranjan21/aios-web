@@ -8,7 +8,7 @@ import { fmtDateKey } from '@aios/shared/stores/dayEventsStore'
 const HeatmapWrapper = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
   overflow-x: auto;
   
   /* Thin scrollbar */
@@ -26,14 +26,14 @@ const Grid = styled.div`
   display: grid;
   grid-template-rows: repeat(7, 1fr);
   grid-auto-flow: column;
-  gap: 3px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
   min-width: max-content;
 `
 
 const Cell = styled.div<{ $intensity: number }>`
   width: 10px;
   height: 10px;
-  border-radius: 2px;
+  border-radius: ${({ theme }) => theme.radii.xs};
   background: ${({ theme, $intensity }) => {
     if ($intensity === 0) return theme.color.muted
     const opacities = ['0.3', '0.6', '0.8', '1.0']
@@ -52,7 +52,7 @@ const Footer = styled.div`
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
@@ -66,12 +66,12 @@ const LegendCell = styled(Cell)`
 const StreakChip = styled.span`
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
   font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 700;
   color: ${({ theme }) => theme.color.accent};
   background: ${({ theme }) => theme.color.accent}1A;
-  padding: 2px 7px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
   white-space: nowrap;
 `

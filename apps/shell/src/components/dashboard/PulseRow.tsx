@@ -25,10 +25,10 @@ const DOMAIN_ROUTES: Record<string, string> = {
 
 const Row = styled.div`
   display: flex;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  padding-bottom: 4px;
+  padding-bottom: ${({ theme }) => `${theme.spacing[1]}`};
   scrollbar-width: none;
   &::-webkit-scrollbar { display: none; }
 
@@ -46,8 +46,8 @@ const Tile = styled.button`
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
-  padding: 12px 14px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[3.5]}`};
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.md};
@@ -75,7 +75,7 @@ const ValueRow = styled.div`
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   width: 100%;
 `
 
@@ -90,7 +90,7 @@ const TileValue = styled.span`
 const Delta = styled.span<{ $good: boolean }>`
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
   font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 700;
   color: ${({ theme, $good }) => ($good ? theme.color.success : theme.color.destructive)};

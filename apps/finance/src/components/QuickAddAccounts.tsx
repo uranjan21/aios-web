@@ -21,20 +21,20 @@ const DivStack = styled.div`
 `
 
 const LabelText = styled.div`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   margin-bottom: 0.25rem;
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const HelperText = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-bottom: 0.25rem;
 `
 
 const InfoText = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-top: -0.25rem;
 `
@@ -68,7 +68,7 @@ const TypePickerContainer = styled.div`
 const TypeButton = styled.button<{ $active: boolean }>`
   padding: 0.25rem 0.5rem;
   border-radius: 0.5rem;
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 500;
   border: 1px solid ${({ $active, theme }) => $active ? theme.color.primary : theme.color.border};
   background-color: ${({ $active, theme }) => $active ? `${theme.color.primary}1a` : 'transparent'};

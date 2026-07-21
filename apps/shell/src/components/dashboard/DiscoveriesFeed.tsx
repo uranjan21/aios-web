@@ -7,7 +7,7 @@ import { insightsApi } from '@aios/shared/api/insights'
 const FeedWrapper = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const Header = styled.div`
@@ -23,7 +23,7 @@ const Title = styled.h3`
   color: ${({ theme }) => theme.color.foreground};
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
 `
 
 

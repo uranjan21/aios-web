@@ -15,9 +15,9 @@ const Trigger = styled.button<{ $placeholder: boolean; $invalid?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   height: 38px;
-  padding: 0 12px;
+  padding: ${({ theme }) => `0 ${theme.spacing[3]}`};
   border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.border)};
@@ -37,7 +37,7 @@ const Panel = styled.div`
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.lg};
   box-shadow: ${({ theme }) => theme.shadow.lg};
-  padding: 6px;
+  padding: ${({ theme }) => `${theme.spacing[1.5]}`};
   width: 248px;
   max-height: 320px;
   overflow-y: auto;
@@ -47,10 +47,10 @@ const Row = styled.button<{ $muted?: boolean; $accent?: boolean; $active?: boole
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[3]}`};
   border-radius: ${({ theme }) => theme.radii.md};
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   text-align: left;
   background: ${({ theme, $active }) => ($active ? theme.color.muted : 'transparent')};
   color: ${({ theme, $muted, $accent }) =>
@@ -65,30 +65,30 @@ const Row = styled.button<{ $muted?: boolean; $accent?: boolean; $active?: boole
 const Divider = styled.div`
   height: 1px;
   background: ${({ theme }) => theme.color.border};
-  margin: 4px 0;
+  margin: ${({ theme }) => `${theme.spacing[1]} 0`};
 `
 
 const Header = styled.div`
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  font-size: 12px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[2]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
 const InlineCreate = styled.div`
   display: flex;
-  gap: 6px;
-  padding: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[1.5]}`};
   & input {
     flex: 1;
     height: 32px;
-    padding: 0 10px;
+    padding: ${({ theme }) => `0 ${theme.spacing[2.5]}`};
     border-radius: ${({ theme }) => theme.radii.md};
     border: 1px solid ${({ theme }) => theme.color.border};
-    font-size: 13px;
+    font-size: ${({ theme }) => theme.typography.fontSize.sm};
     background: ${({ theme }) => theme.color.card};
     color: ${({ theme }) => theme.color.foreground};
   }

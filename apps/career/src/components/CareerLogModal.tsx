@@ -11,9 +11,9 @@ import styled from 'styled-components'
 const TwoColGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 2fr;
-  gap: 16px;
-  margin-top: 8px;
-  margin-bottom: 16px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
+  margin-top: ${({ theme }) => `${theme.spacing[2]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
   @media ${({ theme }) => theme.media.belowXs} {
     grid-template-columns: 1fr;
   }
@@ -21,13 +21,13 @@ const TwoColGrid = styled.div`
 
 const FormFooter = styled.div`
   display: flex;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   width: 100%;
   justify-content: flex-end;
 `
 
 const FormGroup = styled.div`
-  margin-bottom: 16px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
 `
 
 const EVENT_TYPE_LABELS: Record<string, string> = {

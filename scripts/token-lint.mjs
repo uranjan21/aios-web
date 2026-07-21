@@ -92,8 +92,12 @@ const RULES = [
   {
     id: 'hardcoded-spacing',
     label: 'padding/margin/gap in raw px (use theme.spacing / layout.spacing)',
+    // Only CSS declarations inside styled-components. A quoted value is an
+    // inline style object (`style={{ padding: '16px' }}`) and belongs to the
+    // inline-style-object rule — counting it here double-charged the same
+    // violation to two categories and made both numbers meaningless.
     pattern:
-      /(?:padding|margin|gap|row-gap|column-gap)(?:-(?:top|right|bottom|left))?:\s*[^;\n]*?\d+px/g,
+      /(?:padding|margin|gap|row-gap|column-gap)(?:-(?:top|right|bottom|left))?:\s*(?!['"])[^;\n'"]*?\d+px/g,
     skip: (rel) => isThemeFile(rel),
   },
   {
@@ -114,9 +118,16 @@ const RULES = [
     pattern: /@media[^{\n]*\(\s*(?:min|max)-width:\s*\d+px/g,
   },
   {
-    id: 'inline-style-object',
-    label: 'inline style={{ }} carrying visual style',
-    pattern: /style=\{\{/g,
+    id: 'inline-style-static-value',
+    label: "inline style={{ }} with a STATIC visual value (move to styled-components)",
+    // Was `style={{` — which flagged every inline style including the many
+    // that carry genuinely computed values (transforms, measured heights,
+    // progress widths). Those are correct usage and unfixable by definition,
+    // so a count including them could never reach zero and told you nothing.
+    // This matches only literal spacing/size/colour values, which are the ones
+    // that actually belong in a styled-component reading the theme.
+    pattern:
+      /style=\{\{[^}]*?(?:padding|margin|gap|fontSize|borderRadius|width|height)\s*:\s*['"]\d+px['"]/g,
   },
 ];
 

@@ -20,7 +20,7 @@ const ExtraInputGroup = styled.div`
 `
 
 const ExtraLabel = styled.span`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   white-space: nowrap;
 `
@@ -35,7 +35,7 @@ const StatsGrid = styled.div`
 `
 
 const StatLabel = styled.div`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: ${({ theme }) => theme.color.mutedForeground};
@@ -43,14 +43,14 @@ const StatLabel = styled.div`
 `
 
 const StatValue = styled.div<{ $positive?: boolean }>`
-  font-size: 18px;
+  font-size: ${({ theme }) => theme.typography.fontSize.lg};
   font-weight: 700;
   color: ${({ theme, $positive }) => $positive ? theme.color.success : theme.color.foreground};
   font-variant-numeric: tabular-nums;
 `
 
 const StatSubtext = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-top: 0.125rem;
 `
@@ -62,7 +62,7 @@ const OrderSection = styled.div`
 `
 
 const OrderTitle = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 500;
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-bottom: 0.5rem;

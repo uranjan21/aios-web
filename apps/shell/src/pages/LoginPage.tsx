@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import styled, { keyframes, useTheme } from 'styled-components'
 import { api } from '@aios/shared/api/client'
 import { useAuthStore } from '@aios/shared/stores/authStore'
+import { errorMessage } from '@aios/shared/lib/utils'
 import {
   IndianRupee, Heart, Briefcase,
   Eye, EyeOff, Sparkles, Shield, Zap,
@@ -287,7 +288,7 @@ const Shell = styled.div`
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: 32px 20px;
+  padding: ${({ theme }) => `${theme.spacing[8]} ${theme.spacing[5]}`};
 
   @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: 1fr 420px;
@@ -295,7 +296,7 @@ const Shell = styled.div`
     gap: 72px;
     max-width: 1240px;
     margin: 0 auto;
-    padding: 48px 40px;
+    padding: ${({ theme }) => `${theme.spacing[12]} ${theme.spacing[10]}`};
   }
 `
 
@@ -311,14 +312,14 @@ const Hero = styled.div`
 const LogoRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 40px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[10]}`};
 `
 
 const LogoBadge = styled.div<{ $size?: number }>`
   width: ${({ $size }) => $size ?? 42}px;
   height: ${({ $size }) => $size ?? 42}px;
-  border-radius: 10px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: linear-gradient(135deg, ${GOLD} 0%, #7a5208 100%);
   display: flex;
   align-items: center;
@@ -343,13 +344,13 @@ const BrandName = styled.span<{ $size?: number }>`
 const Eyebrow = styled.p`
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 10px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: ${GOLD};
-  margin: 0 0 18px;
+  margin: ${({ theme }) => `0 0 ${theme.spacing[4.5]}`};
 
   &::after {
     content: '';
@@ -363,38 +364,38 @@ const Eyebrow = styled.p`
 /* GlobalStyles sets h1/h2 to Playfair Display — pin sans, UI is never serif. */
 const Title = styled.h1`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 46px;
+  font-size: ${({ theme }) => theme.typography.fontSize['4xl']};
   line-height: 1.06;
   font-weight: 700;
   color: ${TXT};
   letter-spacing: -0.035em;
-  margin: 0 0 16px;
+  margin: ${({ theme }) => `0 0 ${theme.spacing[4]}`};
 
   span { color: ${GOLD}; }
 `
 
 const Sub = styled.p`
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   color: ${MUTED};
   line-height: 1.7;
   max-width: 400px;
-  margin: 0 0 36px;
+  margin: ${({ theme }) => `0 0 ${theme.spacing[8]}`};
 `
 
 /* Domain chips — the five life domains, one row */
 const ChipRow = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 36px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[8]}`};
 `
 
 const Chip = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 13px;
-  border-radius: 10px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[3]}`};
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: ${GLASS};
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -402,7 +403,7 @@ const Chip = styled.div`
 `
 
 const ChipLabel = styled.span`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${TXT};
 `
@@ -412,21 +413,21 @@ const Features = styled.div`
   display: flex;
   flex-direction: column;
   border-top: 1px solid ${LINE};
-  margin-bottom: 32px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[8]}`};
 `
 
 const FeatureRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 15px 2px;
+  gap: ${({ theme }) => `${theme.spacing[3.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[3.5]} ${theme.spacing[0.5]}`};
   border-bottom: 1px solid ${LINE};
 `
 
 const FeatureIcon = styled.div<{ $c: string }>`
   width: 30px;
   height: 30px;
-  border-radius: 8px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -436,7 +437,7 @@ const FeatureIcon = styled.div<{ $c: string }>`
 `
 
 const FeatureTitle = styled.span`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${TXT};
   width: 106px;
@@ -444,7 +445,7 @@ const FeatureTitle = styled.span`
 `
 
 const FeatureDesc = styled.span`
-  font-size: 12.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${MUTED};
 `
 
@@ -452,8 +453,8 @@ const FeatureDesc = styled.span`
 const Ticker = styled.div`
   display: flex;
   align-items: center;
-  gap: 14px;
-  font-size: 11px;
+  gap: ${({ theme }) => `${theme.spacing[3.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${FAINT};
   letter-spacing: 0.04em;
 `
@@ -477,8 +478,8 @@ const TickerSep = styled.span`
 const Card = styled.div`
   width: 100%;
   max-width: 420px;
-  padding: 32px 28px;
-  border-radius: 14px;
+  padding: ${({ theme }) => `${theme.spacing[8]} ${theme.spacing[7]}`};
+  border-radius: ${({ theme }) => theme.radii.md};
   background: rgba(14, 16, 14, 0.72);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
@@ -497,8 +498,8 @@ const MobileLogo = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  margin-bottom: 26px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[6]}`};
   @media ${({ theme }) => theme.media.lg} {
     display: none;
   }
@@ -506,34 +507,34 @@ const MobileLogo = styled.div`
 
 const CardTitle = styled.h2`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 25px;
+  font-size: ${({ theme }) => theme.typography.fontSize['2xl']};
   font-weight: 700;
   color: ${TXT};
   letter-spacing: -0.02em;
-  margin: 0 0 6px;
+  margin: ${({ theme }) => `0 0 ${theme.spacing[1.5]}`};
 `
 
 const CardSub = styled.p`
-  font-size: 13.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${MUTED};
-  margin: 0 0 26px;
+  margin: ${({ theme }) => `0 0 ${theme.spacing[6]}`};
 `
 
 const Fields = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 15px;
-  margin-bottom: 16px;
+  gap: ${({ theme }) => `${theme.spacing[3.5]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
 `
 
 const Label = styled.label`
   display: block;
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: ${FAINT};
-  margin-bottom: 7px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[1.5]}`};
 `
 
 const InputWrap = styled.div`
@@ -562,12 +563,12 @@ const Input = styled.input`
   width: 100%;
   box-sizing: border-box;
   padding: 12px 42px;
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   color: ${TXT};
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid ${LINE};
-  border-radius: 10px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   outline: none;
   transition: border-color 150ms, box-shadow 150ms, background 150ms;
 
@@ -581,7 +582,7 @@ const Input = styled.input`
 `
 
 const InputPlain = styled(Input)`
-  padding: 12px 14px;
+  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[3.5]}`};
 `
 
 const EyeBtn = styled.button`
@@ -593,7 +594,7 @@ const EyeBtn = styled.button`
   color: rgba(255, 255, 255, 0.32);
   transition: color 120ms;
   &:hover { color: ${TXT}; }
-  &:focus-visible { outline: 2px solid ${GOLD}; outline-offset: 2px; border-radius: 4px; }
+  &:focus-visible { outline: 2px solid ${GOLD}; outline-offset: 2px; border-radius: ${({ theme }) => theme.radii.xs}; }
 `
 
 /* Valid-email check. Success, not a domain colour. */
@@ -612,14 +613,14 @@ const Row = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 22px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[5]}`};
 `
 
 const Remember = styled.label`
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${MUTED};
   cursor: pointer;
   user-select: none;
@@ -627,14 +628,14 @@ const Remember = styled.label`
   input {
     width: 15px;
     height: 15px;
-    border-radius: 4px;
+    border-radius: ${({ theme }) => theme.radii.xs};
     accent-color: ${GOLD};
     cursor: pointer;
   }
 `
 
 const Forgot = styled(Link)`
-  font-size: 12.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   color: ${GOLD};
   text-decoration: none;
@@ -642,13 +643,13 @@ const Forgot = styled(Link)`
 `
 
 const ErrorBox = styled.div`
-  font-size: 12.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: #fca5a5;
-  padding: 10px 13px;
-  border-radius: 8px;
+  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[3]}`};
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.28);
-  margin-bottom: 16px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
 `
 
 const Primary = styled.button`
@@ -656,18 +657,18 @@ const Primary = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 13px;
-  font-size: 14.5px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  padding: ${({ theme }) => `${theme.spacing[3]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-weight: 700;
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   color: #100c02;
   background: linear-gradient(135deg, #e3ac1a 0%, ${GOLD} 100%);
   border: none;
-  border-radius: 10px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   cursor: pointer;
   transition: filter 150ms, transform 100ms;
-  margin-bottom: 20px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[5]}`};
 
   &:hover:not(:disabled) { filter: brightness(1.1); }
   &:active:not(:disabled) { transform: scale(0.99); }
@@ -678,11 +679,11 @@ const Primary = styled.button`
 const Divider = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
 
   span {
-    font-size: 10px;
+    font-size: ${({ theme }) => theme.typography.fontSize.xs};
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: rgba(255, 255, 255, 0.22);
@@ -701,18 +702,18 @@ const Ghost = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 12px;
-  font-size: 13.5px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[3]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   color: ${TXT};
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid ${LINE};
-  border-radius: 10px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   cursor: pointer;
   transition: background 150ms, border-color 150ms;
-  margin-bottom: 20px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[5]}`};
 
   &:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.06);
@@ -724,22 +725,22 @@ const Ghost = styled.button`
 
 const Toggle = styled.p`
   text-align: center;
-  font-size: 12.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${MUTED};
-  margin: 0 0 22px;
+  margin: ${({ theme }) => `0 0 ${theme.spacing[5]}`};
 
   button {
     background: none;
     border: none;
     color: ${GOLD};
-    font-size: 12.5px;
+    font-size: ${({ theme }) => theme.typography.fontSize.sm};
     font-weight: 600;
     font-family: ${({ theme }) => theme.typography.fontFamily.sans};
     cursor: pointer;
     padding: 0;
-    margin-left: 5px;
+    margin-left: ${({ theme }) => `${theme.spacing[1]}`};
     &:hover { color: ${GOLD_LIT}; }
-    &:focus-visible { outline: 2px solid ${GOLD}; border-radius: 2px; }
+    &:focus-visible { outline: 2px solid ${GOLD}; border-radius: ${({ theme }) => theme.radii.xs}; }
   }
 `
 
@@ -747,26 +748,26 @@ const Foot = styled.p`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  font-size: 11px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: rgba(255, 255, 255, 0.22);
-  margin: 0 0 9px;
+  margin: ${({ theme }) => `0 0 ${theme.spacing[2]}`};
 `
 
 const Legal = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
 
   a {
-    font-size: 11px;
+    font-size: ${({ theme }) => theme.typography.fontSize.xs};
     color: rgba(255, 255, 255, 0.28);
     text-decoration: none;
     transition: color 120ms;
     &:hover { color: ${TXT}; }
   }
-  span { color: rgba(255, 255, 255, 0.14); font-size: 11px; }
+  span { color: rgba(255, 255, 255, 0.14); font-size: ${({ theme }) => theme.typography.fontSize.xs}; }
 `
 
 /* ── Static data ────────────────────────────────────────────────────── */
@@ -791,13 +792,6 @@ const GoogleIcon = () => (
   </svg>
 )
 
-/** Pull a human-readable message out of a FastAPI error response. */
-function errorMessage(err: any, fallback: string): string {
-  const detail = err?.response?.data?.detail
-  if (typeof detail === 'string') return detail
-  if (Array.isArray(detail) && detail[0]?.msg) return detail[0].msg
-  return fallback
-}
 
 type AuthMode = 'login' | 'signup'
 
@@ -813,6 +807,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
   const [googleLoading, setGoogleLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
+  const [signupSent, setSignupSent] = useState(false)
   const navigate = useNavigate()
   const setAuthenticated = useAuthStore(s => s.setAuthenticated)
   const setUser = useAuthStore(s => s.setUser)
@@ -846,9 +841,15 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
     setLoading(true)
     setError('')
     try {
-      const { data } = isSignup
-        ? await api.post('/auth/signup', { name, email, password })
-        : await api.post('/auth/login', { email, password })
+      if (isSignup) {
+        // Signup issues no session — it answers 202 for new AND existing emails
+        // so the endpoint can't be used to enumerate users. The verification
+        // link in the inbox is what turns the account on.
+        await api.post('/auth/signup', { name, email, password })
+        setSignupSent(true)
+        return
+      }
+      const { data } = await api.post('/auth/login', { email, password })
       setAuthenticated(true)
       if (data.user) setUser(data.user)
       navigate('/app')
@@ -920,6 +921,22 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
             <BrandName $size={18}>aios</BrandName>
           </MobileLogo>
 
+          {signupSent ? (
+            <>
+              <CardTitle>Check your email</CardTitle>
+              <CardSub>
+                We've sent a verification link to <strong>{email}</strong>. Click it to
+                activate your account, then sign in.
+              </CardSub>
+              <Toggle>
+                Wrong address or already registered?
+                <button type="button" onClick={() => { setSignupSent(false); setMode('login') }}>
+                  Back to sign in
+                </button>
+              </Toggle>
+            </>
+          ) : (
+          <>
           <CardTitle>{isSignup ? 'Create your account' : 'Welcome back'}</CardTitle>
           <CardSub>
             {isSignup ? 'Start running your life on AIOS' : 'Sign in to continue to AIOS'}
@@ -1022,6 +1039,8 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
               {isSignup ? 'Sign in' : 'Create an account'}
             </button>
           </Toggle>
+          </>
+          )}
 
           <Foot><Lock size={10} /> Your data, encrypted · Private by design</Foot>
           <Legal>

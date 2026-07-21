@@ -6,11 +6,11 @@ const Banner = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 20px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[5]}`};
   background: color-mix(in srgb, var(--color-warning, #c8a449) 12%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--color-warning, #c8a449) 30%, transparent);
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: var(--color-text);
   flex-wrap: wrap;
 `
@@ -18,16 +18,16 @@ const Banner = styled.div`
 const Actions = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   flex-shrink: 0;
 `
 
 const ResendBtn = styled.button`
   background: none;
   border: 1px solid var(--color-border, rgba(0,0,0,0.12));
-  border-radius: 8px;
-  padding: 4px 12px;
-  font-size: 12px;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[3]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   cursor: pointer;
   color: var(--color-text);
@@ -39,8 +39,8 @@ const ResendBtn = styled.button`
 const DismissBtn = styled.button`
   background: none;
   border: none;
-  padding: 4px 8px;
-  font-size: 18px;
+  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[2]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.lg};
   line-height: 1;
   cursor: pointer;
   color: var(--color-muted);

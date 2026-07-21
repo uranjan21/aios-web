@@ -101,11 +101,11 @@ const HeroCard = styled(Card)`
 const Row = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: 18px;
+  gap: ${({ theme }) => `${theme.spacing[4.5]}`};
   align-items: stretch;
   @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.9fr);
-    gap: 24px;
+    gap: ${({ theme }) => `${theme.spacing[6]}`};
     align-items: stretch;
   }
 `;
@@ -113,7 +113,7 @@ const Row = styled.div`
 const Left = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: ${({ theme }) => `${theme.spacing[3.5]}`};
   min-width: 0;
   justify-content: center;
 `;
@@ -121,7 +121,7 @@ const Left = styled.div`
 const StatusRow = styled.div`
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.mutedForeground};
@@ -177,16 +177,16 @@ const DateLine = styled.p`
 const ChipRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   flex-wrap: wrap;
-  margin-top: 2px;
+  margin-top: ${({ theme }) => `${theme.spacing[0.5]}`};
 `;
 
 const Chip = styled.span`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 11px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[2.5]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ theme }) => theme.color.muted};
   border: 1px solid ${({ theme }) => theme.color.border};
@@ -207,8 +207,8 @@ const ChipKey = styled.span`
 const QuotePanel = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 18px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
+  padding: ${({ theme }) => `${theme.spacing[4.5]}`};
   border-radius: ${({ theme }) => theme.radii.lg};
   background: ${({ theme }) => theme.color.muted};
   border: 1px solid ${({ theme }) => theme.color.border};
@@ -217,7 +217,7 @@ const QuotePanel = styled.div`
 const QuoteLabel = styled.span`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 700;
   text-transform: uppercase;
@@ -227,11 +227,11 @@ const QuoteLabel = styled.span`
 
 const QuoteBlock = styled.blockquote`
   margin: 0;
-  padding-left: 14px;
+  padding-left: ${({ theme }) => `${theme.spacing[3.5]}`};
   border-left: 2px solid ${({ theme }) => theme.color.accent};
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   flex: 1;
 `;
 
@@ -258,7 +258,7 @@ const CaptureBtn = styled(Button)`
 const QuoteActions = styled.div`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   margin-left: auto;
 `;
 

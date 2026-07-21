@@ -10,21 +10,21 @@ import { Section } from '../shared'
 // ── Token gauge ───────────────────────────────────────────────────────────────
 
 const GaugeWrap = styled.div`
-  padding: 14px 20px;
+  padding: ${({ theme }) => `${theme.spacing[3.5]} ${theme.spacing[5]}`};
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const GaugeMeta = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
 `
 
 const GaugeNote = styled.p`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin: 0;
 `

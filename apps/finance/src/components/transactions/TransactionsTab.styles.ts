@@ -25,9 +25,9 @@ export const MobileSearchBtn = styled(ToolbarIconBtn)`
 export const ListHeaderRoot = styled.div<{ $selecting: boolean }>`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
   min-height: 40px;
-  padding: 4px 4px 8px;
+  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[1]} ${theme.spacing[2]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   background: ${({ theme, $selecting }) => $selecting ? `color-mix(in srgb, ${theme.color.primary} 5%, ${theme.color.card})` : theme.color.card};
   border-radius: ${({ theme, $selecting }) => $selecting ? `${theme.radii.sm} ${theme.radii.sm} 0 0` : '0'};
@@ -35,7 +35,7 @@ export const ListHeaderRoot = styled.div<{ $selecting: boolean }>`
 `
 
 export const ListHeaderLabel = styled.div`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
   white-space: nowrap;
@@ -49,7 +49,7 @@ export const ListHeaderSpacer = styled.div`
 export const BulkBtnRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   flex-wrap: wrap;
   justify-content: flex-end;
 `
@@ -57,14 +57,14 @@ export const BulkBtnRow = styled.div`
 export const SortBtn = styled.button`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   height: 32px;
-  padding: 0 12px;
+  padding: ${({ theme }) => `0 ${theme.spacing[3]}`};
   border-radius: ${({ theme }) => theme.radii.md};
   border: 1px solid ${({ theme }) => theme.color.border};
   background: ${({ theme }) => theme.color.card};
   color: ${({ theme }) => theme.color.foreground};
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease;

@@ -32,7 +32,7 @@ import {
 const TwoCol = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
   @media ${({ theme }) => theme.media.md} {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -41,7 +41,7 @@ const TwoCol = styled.div`
 const GoalsGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
   @media ${({ theme }) => theme.media.md} {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -54,7 +54,7 @@ const IconBtn = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  padding: ${({ theme }) => `${theme.spacing[1]}`};
   border: none;
   background: transparent;
   color: ${({ theme }) => theme.color.mutedForeground};
@@ -72,19 +72,19 @@ const IconBtn = styled.button`
 
 const CategoryChip = styled.span`
   display: inline-flex;
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: ${({ theme }) => theme.color.accent};
   background: ${({ theme }) => theme.color.accent}1A;
-  padding: 2px 7px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
 `;
 
 const GoalDesc = styled.p`
   margin: 0;
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   line-height: 1.5;
   color: ${({ theme }) => theme.color.mutedForeground};
 `;
@@ -93,15 +93,15 @@ const GoalMeta = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 16px;
-  font-size: 12px;
+  margin-top: ${({ theme }) => `${theme.spacing[4]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
 `;
 
 const FormGrid = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
 `;
 
 const CATEGORY_OPTIONS = DOMAIN_OPTIONS;

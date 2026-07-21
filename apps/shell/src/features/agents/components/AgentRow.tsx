@@ -25,11 +25,11 @@ const RowButton = styled.button<{ $status: string }>`
   width: auto;
   border: none;
   background: transparent;
-  padding: 14px 16px;
-  margin: 0 20px;
+  padding: ${({ theme }) => `${theme.spacing[3.5]} ${theme.spacing[4]}`};
+  margin: ${({ theme }) => `0 ${theme.spacing[5]}`};
   display: grid;
   grid-template-columns: 1fr;
-  gap: 10px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
   text-align: left;
   position: relative;
   cursor: pointer;
@@ -55,7 +55,7 @@ const RowButton = styled.button<{ $status: string }>`
 
   @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: minmax(0, 2fr) 95px 140px 110px 110px 110px;
-    gap: 12px;
+    gap: ${({ theme }) => `${theme.spacing[3]}`};
     align-items: center;
   }
 `;
@@ -64,34 +64,34 @@ const AgentCell = styled.div`
   min-width: 0;
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
 `;
 
 const AgentText = styled.div`
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
 `;
 
 const AgentTop = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   flex-wrap: wrap;
 `;
 
 const AgentName = styled.h3`
   margin: 0;
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 15px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
 `;
 
 const AgentSummary = styled.p`
   margin: 0;
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   line-height: 1.55;
   color: ${({ theme }) => theme.color.mutedForeground};
   display: -webkit-box;
@@ -103,7 +103,7 @@ const AgentSummary = styled.p`
 const ActionsCell = styled.div`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   justify-content: flex-start;
 
   @media ${({ theme }) => theme.media.lg} {

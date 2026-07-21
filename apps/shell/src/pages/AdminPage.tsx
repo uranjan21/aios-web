@@ -15,7 +15,7 @@ import { PageDivider } from '@aios/shared/components/layout/PageDivider'
 const StatsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
   @media ${({ theme }) => theme.media.belowLg} { grid-template-columns: repeat(2, 1fr); }
   @media ${({ theme }) => theme.media.belowXs} { grid-template-columns: 1fr; }
 `
@@ -23,22 +23,22 @@ const StatsGrid = styled.div`
 const StatCard = styled.div`
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: ${({ theme }) => theme.radii.md};
+  padding: ${({ theme }) => `${theme.spacing[5]}`};
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
 `
 
 const StatValue = styled.div`
   font-family: ${({ theme }) => theme.typography.fontFamily.display};
-  font-size: 28px;
+  font-size: ${({ theme }) => theme.typography.fontSize['3xl']};
   font-weight: 700;
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const StatLabel = styled.div`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   font-weight: 500;
   text-transform: uppercase;
@@ -81,16 +81,16 @@ function StatsSection() {
 const SearchBar = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[4]}`};
   background: ${({ theme }) => theme.color.background};
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 8px;
+  border-radius: ${({ theme }) => theme.radii.sm};
 `
 
 const SearchInput = styled.input`
   flex: 1;
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   background: transparent;
   border: none;
   outline: none;
@@ -106,13 +106,13 @@ const Table = styled.div`
 const THead = styled.div`
   display: grid;
   grid-template-columns: 1fr 120px 110px 110px 80px;
-  padding: 8px 16px;
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[4]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const TH = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   color: ${({ theme }) => theme.color.mutedForeground};
   text-transform: uppercase;
@@ -122,9 +122,9 @@ const TH = styled.div`
 const TRow = styled.div`
   display: grid;
   grid-template-columns: 1fr 120px 110px 110px 80px;
-  padding: 12px 16px;
+  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[4]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border}40;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   align-items: center;
   &:last-child { border-bottom: none; }
   &:hover { background: ${({ theme }) => theme.color.muted}40; }
@@ -133,12 +133,12 @@ const TRow = styled.div`
 const UserInfo = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
   min-width: 0;
 `
 
 const UserName = styled.div`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   color: ${({ theme }) => theme.color.foreground};
   white-space: nowrap;
@@ -147,7 +147,7 @@ const UserName = styled.div`
 `
 
 const UserEmail = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   white-space: nowrap;
   overflow: hidden;
@@ -157,11 +157,11 @@ const UserEmail = styled.div`
 const PlanBadge = styled.span<{ $plan: string }>`
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 20px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[2]}`};
+  border-radius: ${({ theme }) => theme.radii.lg};
   ${({ theme, $plan }) => {
     if ($plan === 'pro') return `background: color-mix(in srgb, ${theme.color.accent} 15%, transparent); color: ${theme.color.accent};`
     if ($plan === 'household') return `background: color-mix(in srgb, ${theme.color.primary} 15%, transparent); color: ${theme.color.primary};`
@@ -172,13 +172,13 @@ const PlanBadge = styled.span<{ $plan: string }>`
 const AdminBadge = styled.span`
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  font-size: 10px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 700;
   color: ${({ theme }) => theme.color.primaryForeground};
   background: ${({ theme }) => theme.color.primary};
-  padding: 2px 6px;
-  border-radius: 20px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
+  border-radius: ${({ theme }) => theme.radii.lg};
   letter-spacing: 0.05em;
 `
 

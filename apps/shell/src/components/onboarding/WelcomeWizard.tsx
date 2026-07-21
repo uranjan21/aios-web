@@ -20,7 +20,7 @@ const Overlay = styled(motion.div)`
 const WizardCard = styled(motion.div)`
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 24px;
+  border-radius: ${({ theme }) => theme.radii.xl};
   width: 100%;
   max-width: 600px;
   box-shadow: ${({ theme }) => theme.shadow.xl};
@@ -30,7 +30,7 @@ const WizardCard = styled(motion.div)`
 
 const StepIndicator = styled.div`
   display: flex;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   padding: 2rem 2rem 0;
   justify-content: center;
 `
@@ -83,7 +83,7 @@ const CloseBtn = styled.button`
   border: none;
   color: ${({ theme }) => theme.color.mutedForeground};
   cursor: pointer;
-  padding: 8px;
+  padding: ${({ theme }) => `${theme.spacing[2]}`};
   border-radius: 50%;
   transition: background 0.2s;
 

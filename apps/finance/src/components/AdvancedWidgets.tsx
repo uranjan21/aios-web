@@ -17,11 +17,11 @@ import { TableFooter } from '@aios/shared/components/ui/Table';
 
 const AIInsightWrapper = styled.div`
   display: flex;
-  gap: 16px;
-  margin-bottom: 12px;
-  padding: 12px 16px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[3]}`};
+  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[4]}`};
   background: transparent;
-  border-radius: 16px;
+  border-radius: ${({ theme }) => theme.radii.md};
   border-bottom: 1px dashed color-mix(in srgb, var(--border) 40%, transparent);
   transition: background-color 0.2s;
 
@@ -71,7 +71,7 @@ const SubName = styled.div`
 `;
 
 const SubMeta = styled.div`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 `;
 

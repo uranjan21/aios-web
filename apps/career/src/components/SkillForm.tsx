@@ -14,8 +14,8 @@ export const LEVEL_LABELS: Record<SkillInventory['level'], string> = {
 const HalfGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
   @media ${({ theme }) => theme.media.belowXs} {
     grid-template-columns: 1fr;
   }
@@ -24,8 +24,8 @@ const HalfGrid = styled.div`
 const TwoColGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 2fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
   @media ${({ theme }) => theme.media.belowXs} {
     grid-template-columns: 1fr;
   }
@@ -33,7 +33,7 @@ const TwoColGrid = styled.div`
 
 const FormFooter = styled.div`
   display: flex;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   width: 100%;
   justify-content: flex-end;
 `

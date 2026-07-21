@@ -3,15 +3,15 @@ import { Mail, Clock } from 'lucide-react'
 
 const Title = styled.h1`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 40px;
+  font-size: ${({ theme }) => theme.typography.fontSize['4xl']};
   font-weight: 700;
-  margin-bottom: 16px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
 `
 
 const Subtitle = styled.p`
-  font-size: 16px;
+  font-size: ${({ theme }) => theme.typography.fontSize.md};
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-bottom: 48px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[12]}`};
   max-width: 500px;
   line-height: 1.6;
 `
@@ -19,8 +19,8 @@ const Subtitle = styled.p`
 const Grid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: 24px;
-  margin-bottom: 48px;
+  gap: ${({ theme }) => `${theme.spacing[6]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[12]}`};
   
   @media ${({ theme }) => theme.media.sm} {
     grid-template-columns: 1fr 1fr;
@@ -30,17 +30,17 @@ const Grid = styled.div`
 const Card = styled.div`
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 16px;
-  padding: 24px;
+  border-radius: ${({ theme }) => theme.radii.md};
+  padding: ${({ theme }) => `${theme.spacing[6]}`};
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
 `
 
 const IconWrapper = styled.div`
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.primary}15;
   color: ${({ theme }) => theme.color.primary};
   display: flex;
@@ -50,14 +50,14 @@ const IconWrapper = styled.div`
 
 const CardTitle = styled.h3`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 18px;
+  font-size: ${({ theme }) => theme.typography.fontSize.lg};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
   margin: 0;
 `
 
 const CardText = styled.p`
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   color: ${({ theme }) => theme.color.mutedForeground};
   line-height: 1.5;
   margin: 0;
@@ -65,7 +65,7 @@ const CardText = styled.p`
 `
 
 const CardLink = styled.a`
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-weight: 600;
   color: ${({ theme }) => theme.color.primary};
   text-decoration: none;
@@ -77,20 +77,20 @@ const CardLink = styled.a`
 `
 
 const Section = styled.section`
-  margin-bottom: 48px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[12]}`};
 `
 
 const Heading = styled.h2`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 24px;
+  font-size: ${({ theme }) => theme.typography.fontSize['2xl']};
   font-weight: 600;
-  margin-bottom: 24px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[6]}`};
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const FaqItem = styled.div`
-  margin-bottom: 24px;
-  padding-bottom: 24px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[6]}`};
+  padding-bottom: ${({ theme }) => `${theme.spacing[6]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   &:last-child {
     border-bottom: none;
@@ -98,14 +98,14 @@ const FaqItem = styled.div`
 `
 
 const FaqQuestion = styled.h4`
-  font-size: 16px;
+  font-size: ${({ theme }) => theme.typography.fontSize.md};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
-  margin-bottom: 8px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const FaqAnswer = styled.p`
-  font-size: 15px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   color: ${({ theme }) => theme.color.mutedForeground};
   line-height: 1.6;
   margin: 0;

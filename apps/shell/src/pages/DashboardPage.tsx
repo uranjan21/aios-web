@@ -18,7 +18,7 @@ import { PageContainer, PageContent } from "@aios/shared/components/layout/PageL
 const DashboardGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: 20px;
+  gap: ${({ theme }) => `${theme.spacing[5]}`};
   align-items: start;
   @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: minmax(0, 1fr) 300px;
@@ -28,14 +28,14 @@ const DashboardGrid = styled.div`
 const HeroBlock = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
   align-items: stretch;
 `;
 
 const LeftColumn = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: ${({ theme }) => `${theme.spacing[5]}`};
   min-width: 0;
   align-self: stretch;
 `;
@@ -55,7 +55,7 @@ const RightColumn = styled.aside`
 const ThreeRow = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: 20px;
+  gap: ${({ theme }) => `${theme.spacing[5]}`};
   align-items: stretch;
   @media ${({ theme }) => theme.media.md} {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -69,7 +69,7 @@ const ThreeRow = styled.div`
 const RowOnly = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: 20px;
+  gap: ${({ theme }) => `${theme.spacing[5]}`};
   align-items: stretch;
 `;
 

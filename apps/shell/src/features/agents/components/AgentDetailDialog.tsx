@@ -18,7 +18,7 @@ import { NextRunCountdown } from "./NextRunCountdown";
 const DetailGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: 20px;
+  gap: ${({ theme }) => `${theme.spacing[5]}`};
 
   @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.4fr);
@@ -33,25 +33,25 @@ const Panel = styled.div`
 `;
 
 const PanelHeader = styled.div`
-  padding: 16px 18px 12px;
+  padding: ${({ theme }) => `${theme.spacing[4]} ${theme.spacing[4.5]} ${theme.spacing[3]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
 `;
 
 const PanelTitle = styled.h4`
   margin: 0;
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 700;
   letter-spacing: 0.02em;
   color: ${({ theme }) => theme.color.foreground};
 `;
 
 const PanelBody = styled.div`
-  padding: 18px;
+  padding: ${({ theme }) => `${theme.spacing[4.5]}`};
 `;
 
 const OutputBody = styled.div`
   color: ${({ theme }) => theme.color.foreground};
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   line-height: 1.65;
 
   h1, h2, h3, h4, h5, h6 {
@@ -60,18 +60,18 @@ const OutputBody = styled.div`
   }
 
   p, ul, ol, pre, blockquote {
-    margin: 0 0 12px;
+    margin: ${({ theme }) => `0 0 ${theme.spacing[3]}`};
   }
 
   code {
     background: ${({ theme }) => theme.color.muted};
-    padding: 2px 6px;
+    padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
     border-radius: ${({ theme }) => theme.radii.sm};
   }
 
   pre {
     overflow-x: auto;
-    padding: 12px;
+    padding: ${({ theme }) => `${theme.spacing[3]}`};
     border-radius: ${({ theme }) => theme.radii.md};
     background: ${({ theme }) => theme.color.muted};
   }
@@ -86,11 +86,11 @@ const OutputShell = styled.div`
 const OutputHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[3.5]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   color: ${({ theme }) => theme.color.mutedForeground};
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   letter-spacing: 0.08em;
   text-transform: uppercase;
 `;
@@ -98,17 +98,17 @@ const OutputHeader = styled.div`
 const MetaList = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px 12px;
+  gap: ${({ theme }) => `${theme.spacing[3.5]} ${theme.spacing[3]}`};
 `;
 
 const MetaItem = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
 `;
 
 const MetaKey = styled.span`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -116,7 +116,7 @@ const MetaKey = styled.span`
 `;
 
 const MetaText = styled.span`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
 `;
@@ -124,9 +124,9 @@ const MetaText = styled.span`
 const DialogActions = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
   flex-wrap: wrap;
-  margin-top: 18px;
+  margin-top: ${({ theme }) => `${theme.spacing[4.5]}`};
 `;
 
 export function AgentDetailDialog({

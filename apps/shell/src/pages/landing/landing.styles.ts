@@ -57,7 +57,7 @@ export const HeaderNav = styled.nav`
   gap: 1.5rem;
   align-items: center;
   a {
-    font-size: 14px;
+    font-size: ${({ theme }) => theme.typography.fontSize.base};
     font-weight: 500;
     color: ${({ theme }) => theme.color.mutedForeground};
     text-decoration: none;
@@ -93,7 +93,7 @@ export const HeroEyebrow = styled(motion.div)`
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -144,14 +144,14 @@ export const TrustBar = styled(motion.div)`
   margin-top: 2.5rem;
   flex-wrap: wrap;
   justify-content: center;
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
 export const TrustItem = styled.div`
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
   font-weight: 500;
   svg { color: ${({ theme }) => theme.color.accent}; }
 `
@@ -185,9 +185,9 @@ export const StatNum = styled.div`
 `
 
 export const StatLabel = styled.div`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-top: 2px;
+  margin-top: ${({ theme }) => `${theme.spacing[0.5]}`};
 `
 
 // ── Domains ───────────────────────────────────────────────────────────────────
@@ -200,7 +200,7 @@ export const SectionWrap = styled.section`
 `
 
 export const SectionLabel = styled.div`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -233,7 +233,7 @@ export const DomainGrid = styled.div`
 export const DomainCard = styled(motion.div)`
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 16px;
+  border-radius: ${({ theme }) => theme.radii.md};
   padding: 1.75rem;
   display: flex;
   flex-direction: column;
@@ -248,7 +248,7 @@ export const DomainCard = styled(motion.div)`
 export const DomainIcon = styled.div`
   width: 44px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ theme }) => theme.color.accent}12;
   color: ${({ theme }) => theme.color.accent};
   display: flex;
@@ -258,13 +258,13 @@ export const DomainIcon = styled.div`
 `
 
 export const DomainName = styled.div`
-  font-size: 15px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
 `
 
 export const DomainDesc = styled.div`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   line-height: 1.55;
 `
@@ -275,15 +275,15 @@ export const DomainFeatures = styled.ul`
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
 `
 
 export const DomainFeat = styled.li`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   svg { color: ${({ theme }) => theme.color.accent}; flex-shrink: 0; }
 `
 
@@ -336,24 +336,24 @@ export const AiGrid = styled.div`
 export const AiCard = styled.div`
   background: ${({ theme }) => theme.color.primaryForeground}0F;
   border: 1px solid ${({ theme }) => theme.color.primaryForeground}1A;
-  border-radius: 14px;
+  border-radius: ${({ theme }) => theme.radii.md};
   padding: 1.5rem;
   text-align: left;
 `
 
 export const AiCardTitle = styled.div`
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-weight: 600;
   color: ${({ theme }) => theme.color.primaryForeground};
-  margin-bottom: 6px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[1.5]}`};
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   svg { color: ${({ theme }) => theme.color.accent}; }
 `
 
 export const AiCardDesc = styled.div`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.primaryForeground}8C;
   line-height: 1.55;
 `
@@ -368,7 +368,7 @@ export const CompareTable = styled.div`
   display: grid;
   grid-template-columns: 2fr 1fr 1fr;
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 16px;
+  border-radius: ${({ theme }) => theme.radii.md};
   overflow: hidden;
   text-align: left;
   margin-top: 2rem;
@@ -381,17 +381,17 @@ export const CompareHeader = styled.div<{ $highlight?: boolean }>`
   color: ${({ theme, $highlight }) => $highlight ? theme.color.primaryForeground : 'inherit'};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   font-weight: 700;
-  font-size: 15px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
 `
 
 export const CompareRow = styled.div<{ $highlight?: boolean }>`
   padding: 0.875rem 1.5rem;
   background: ${({ theme, $highlight }) => $highlight ? `${theme.color.primary}08` : 'transparent'};
   border-bottom: 1px solid ${({ theme }) => theme.color.border}60;
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   &:last-child { border-bottom: none; }
   .yes { color: ${({ theme }) => theme.color.accent}; }
   .no { color: ${({ theme }) => theme.color.mutedForeground}; }
@@ -417,7 +417,7 @@ export const PriceCard = styled.div<{ $featured?: boolean }>`
   background: ${({ theme, $featured }) => $featured ? theme.color.primary : theme.color.card};
   color: ${({ theme, $featured }) => $featured ? theme.color.primaryForeground : 'inherit'};
   border: 1px solid ${({ theme, $featured }) => $featured ? 'transparent' : theme.color.border};
-  border-radius: 16px;
+  border-radius: ${({ theme }) => theme.radii.md};
   padding: 2rem;
   text-align: left;
   position: relative;
@@ -430,16 +430,16 @@ export const PriceBadge = styled.div`
   transform: translateX(-50%);
   background: ${({ theme }) => theme.color.accent};
   color: ${({ theme }) => theme.color.accentForeground};
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding: 3px 12px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[3]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
 `
 
 export const PriceName = styled.div`
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -456,7 +456,7 @@ export const PriceAmount = styled.div`
 `
 
 export const PricePer = styled.div`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   opacity: 0.6;
   margin-bottom: 1.5rem;
 `
@@ -467,21 +467,21 @@ export const PriceFeats = styled.ul`
   margin: 0 0 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 export const PriceFeat = styled.li`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   line-height: 1.4;
   opacity: 0.9;
-  svg { flex-shrink: 0; margin-top: 2px; }
+  svg { flex-shrink: 0; margin-top: ${({ theme }) => `${theme.spacing[0.5]}`}; }
 `
 
 export const PriceUsdNote = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   opacity: 0.6;
   margin-bottom: 1.5rem;
 `
@@ -515,7 +515,7 @@ export const Footer = styled.footer`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   flex-wrap: wrap;
   gap: 1rem;

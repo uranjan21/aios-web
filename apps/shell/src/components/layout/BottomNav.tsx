@@ -29,8 +29,8 @@ const TabLink = styled(NavLink)<{ $active: boolean }>`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  font-size: 10px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 500;
   text-decoration: none;
   color: ${({ theme, $active }) => $active ? theme.color.primary : theme.color.mutedForeground};
@@ -40,8 +40,8 @@ const TabLink = styled(NavLink)<{ $active: boolean }>`
 `
 
 const IconWrap = styled.div<{ $active: boolean }>`
-  padding: 6px;
-  border-radius: 10px;
+  padding: ${({ theme }) => `${theme.spacing[1.5]}`};
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ theme, $active }) => $active ? `${theme.color.primary}12` : 'transparent'};
   transition: background 120ms;
 `

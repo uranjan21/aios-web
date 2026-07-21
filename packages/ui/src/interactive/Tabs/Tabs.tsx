@@ -90,8 +90,8 @@ const listStyles = {
   segmented: css`
     display: inline-flex;
     align-items: center;
-    gap: 2px;
-    padding: 4px;
+    gap: ${({ theme }) => `${theme.spacing[0.5]}`};
+    padding: ${({ theme }) => `${theme.spacing[1]}`};
     background: ${({ theme }) => theme.color.muted};
     border-radius: ${({ theme }) => theme.radii.lg};
     ${mobileScroll}

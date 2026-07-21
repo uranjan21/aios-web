@@ -13,17 +13,17 @@ import { Empty } from './shared'
 const BarsWrap = styled.div`
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   align-items: end;
   height: 90px;
-  margin-top: 4px;
+  margin-top: ${({ theme }) => `${theme.spacing[1]}`};
 `
 
 const BarColumn = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
   height: 100%;
   justify-content: flex-end;
 `
@@ -43,11 +43,11 @@ const DowSm = styled.span<{ $today: boolean }>`
 `
 
 const Total = styled.div`
-  margin-top: 12px;
+  margin-top: ${({ theme }) => `${theme.spacing[3]}`};
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding-top: 10px;
+  padding-top: ${({ theme }) => `${theme.spacing[2.5]}`};
   border-top: 1px solid ${({ theme }) => theme.color.border};
 `
 

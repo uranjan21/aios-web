@@ -16,20 +16,20 @@ import { formatCurrency } from '@aios/shared/lib/utils'
 const RailStack = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: ${({ theme }) => `${theme.spacing[5]}`};
 `
 
 const LeverBlock = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
 `
 
 const LeverLabel = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
 `
@@ -72,12 +72,12 @@ const Range = styled.input.attrs({ type: 'range' })`
 `
 
 const AssumptionsBox = styled.div`
-  font-size: 11.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   line-height: 1.7;
   color: ${({ theme }) => theme.color.mutedForeground};
   background: ${({ theme }) => theme.color.muted};
   border-radius: ${({ theme }) => theme.radii.md};
-  padding: 10px 12px;
+  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[3]}`};
   font-variant-numeric: tabular-nums;
 `
 

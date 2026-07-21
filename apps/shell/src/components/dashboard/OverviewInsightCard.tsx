@@ -94,8 +94,8 @@ const DomainList = styled.div`
 const DomainRow = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  padding: 10px 0;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
+  padding: ${({ theme }) => `${theme.spacing[2.5]} 0`};
 
   &:not(:last-child) {
     border-bottom: 1px solid ${({ theme }) => theme.color.border};
@@ -105,14 +105,14 @@ const DomainRow = styled.div`
 const DomainHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
 `;
 
 const DomainIconBox = styled.span<{ $accent: string }>`
   flex-shrink: 0;
   width: 20px;
   height: 20px;
-  border-radius: 5px;
+  border-radius: ${({ theme }) => theme.radii.xs};
   background: ${({ $accent }) => $accent}1A;
   border: 1px solid ${({ $accent }) => $accent}30;
   color: ${({ $accent }) => $accent};
@@ -131,14 +131,14 @@ const DomainLabel = styled.span`
 const BulletList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding-left: 4px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
+  padding-left: ${({ theme }) => `${theme.spacing[1]}`};
 `;
 
 const BulletItem = styled.span<{ $accent: string }>`
   display: flex;
   align-items: flex-start;
-  gap: 7px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   font-size: ${({ theme }) => theme.typography.fontSize.sm};
   line-height: 1.5;
   color: ${({ theme }) => theme.color.mutedForeground};
@@ -150,7 +150,7 @@ const BulletItem = styled.span<{ $accent: string }>`
     height: 4px;
     border-radius: 50%;
     background: ${({ $accent }) => $accent};
-    margin-top: 5px;
+    margin-top: ${({ theme }) => `${theme.spacing[1]}`};
   }
 `;
 
@@ -203,8 +203,8 @@ const SkeletonList = styled.div`
 const SkeletonRow = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px 0;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[2.5]} 0`};
 
   &:not(:last-child) {
     border-bottom: 1px solid ${({ theme }) => theme.color.border};

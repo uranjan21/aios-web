@@ -26,50 +26,50 @@ export interface KpiCardProps {
 }
 
 const Value = styled.div`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 800;
   color: ${({ theme }) => theme.color.foreground};
   font-variant-numeric: tabular-nums;
-  margin-bottom: 8px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[2]}`};
   
   @media ${({ theme }) => theme.media.sm} {
-    font-size: 28px;
-    margin-bottom: 16px;
+    font-size: ${({ theme }) => theme.typography.fontSize['3xl']};
+    margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
   }
 `
 
 const Skeleton = styled.div`
   height: 18px;
   width: 60px;
-  border-radius: 4px;
+  border-radius: ${({ theme }) => theme.radii.xs};
   background: ${({ theme }) => theme.color.muted};
-  margin-bottom: 8px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[2]}`};
   
   @media ${({ theme }) => theme.media.sm} {
     height: 32px;
     width: 120px;
-    margin-bottom: 16px;
-    border-radius: 6px;
+    margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
+    border-radius: ${({ theme }) => theme.radii.xs};
   }
 `
 
 const FooterRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
   
   @media ${({ theme }) => theme.media.sm} {
-    gap: 8px;
+    gap: ${({ theme }) => `${theme.spacing[2]}`};
   }
 `
 
 const TrendPill = styled.div<{ $good: boolean }>`
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 2px 4px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
-  font-size: 9px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   background: ${({ theme, $good }) => `color-mix(in srgb, ${$good ? theme.color.success : theme.color.destructive} 12%, transparent)`};
   color: ${({ theme, $good }) => ($good ? theme.color.success : theme.color.destructive)};
@@ -80,8 +80,8 @@ const TrendPill = styled.div<{ $good: boolean }>`
   }
   
   @media ${({ theme }) => theme.media.sm} {
-    padding: 4px 8px;
-    font-size: 11px;
+    padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[2]}`};
+    font-size: ${({ theme }) => theme.typography.fontSize.xs};
     & svg {
       width: 12px;
       height: 12px;
@@ -96,9 +96,9 @@ export const KpiGrid = styled.div<{ $cols?: number }>`
      overflow-y computed 'auto' too — without this the grid silently shrinks
      and vertically clips the KPI values. */
   flex-shrink: 0;
-  gap: 8px;
-  padding-bottom: 4px;
-  margin-bottom: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  padding-bottom: ${({ theme }) => `${theme.spacing[1]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[2]}`};
   
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -119,7 +119,7 @@ export const KpiGrid = styled.div<{ $cols?: number }>`
     -webkit-mask-image: none;
     mask-image: none;
     grid-template-columns: repeat(${({ $cols }) => $cols || 4}, minmax(0, 1fr));
-    gap: 12px;
+    gap: ${({ theme }) => `${theme.spacing[3]}`};
     padding-bottom: 0;
     
     > * { min-width: 0; }

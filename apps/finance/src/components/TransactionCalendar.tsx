@@ -51,12 +51,12 @@ const MonthTitle = styled.div`
 const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
 `
 
 const DayHeader = styled.div`
   text-align: center;
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 500;
   color: ${({ theme }) => theme.color.mutedForeground};
   text-transform: uppercase;
@@ -65,8 +65,8 @@ const DayHeader = styled.div`
 
 const DayCell = styled.div<{ $dim: boolean; $selected: boolean }>`
   min-height: 56px;
-  border-radius: 8px;
-  padding: 4px 6px;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[1.5]}`};
   cursor: pointer;
   border: 1px solid ${({ $selected, theme }) => $selected ? theme.color.primary : `${theme.color.border}80`};
   background: ${({ $selected, theme }) => $selected ? `${theme.color.primary}14` : theme.color.card};
@@ -79,7 +79,7 @@ const DayCell = styled.div<{ $dim: boolean; $selected: boolean }>`
 `
 
 const DateNumber = styled.div<{ $isToday: boolean }>`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 500;
   color: ${({ $isToday, theme }) => $isToday ? theme.color.primary : theme.color.foreground};
 `
@@ -92,7 +92,7 @@ const ValuesWrap = styled.div`
 `
 
 const ValueText = styled.div<{ $type: 'income' | 'expense' }>`
-  font-size: 9px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   line-height: 1.25;
   font-weight: 500;
   white-space: nowrap;

@@ -96,10 +96,22 @@ export const typography = {
 
 export const spacing = {
   0: '0',
+  /*
+   * Half-steps. Added 2026-07-21 after auditing actual usage: 2px, 6px, 10px
+   * and 14px account for 245 declarations across the app, overwhelmingly icon
+   * gaps and tight insets inside controls. Rounding them onto the whole steps
+   * would have changed density everywhere for no design reason, so the grid
+   * gains the half-steps it was already being used at.
+   */
+  0.5: '2px',
   1: '4px',
+  1.5: '6px',
   2: '8px',
+  2.5: '10px',
   3: '12px',
+  3.5: '14px',
   4: '16px',
+  4.5: '18px',
   5: '20px',
   6: '24px',
   7: '28px',

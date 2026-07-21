@@ -77,7 +77,7 @@ const StyledListItemTitle = styled.p`
 `;
 
 const StyledListItemSubtitle = styled.p`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
   text-transform: capitalize;
   margin: 0;
@@ -121,7 +121,7 @@ const StyledFormGroup = styled.div`
 `;
 
 const StyledLabel = styled.label`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
   display: block;
 `;

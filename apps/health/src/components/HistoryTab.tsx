@@ -37,7 +37,7 @@ const StyledDatePrimary = styled.div`
 `;
 
 const StyledDateSecondary = styled.div`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
 `;
 

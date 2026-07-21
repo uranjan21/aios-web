@@ -6,11 +6,11 @@ import { Row, Section } from '../shared'
 // ── Kbd ───────────────────────────────────────────────────────────────────────
 
 const KbdEl = styled.kbd`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   background: ${({ theme }) => theme.color.muted};
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: 4px;
-  padding: 2px 8px;
+  border-radius: ${({ theme }) => theme.radii.xs};
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[2]}`};
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-variant-numeric: tabular-nums;
 `

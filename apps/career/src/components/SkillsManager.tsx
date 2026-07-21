@@ -14,32 +14,32 @@ const Row = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 20px;
+  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[5]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border}55;
   &:last-child { border-bottom: 0; }
 `
 
 const Name = styled.div`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const Cat = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
 const FormWrap = styled.div`
-  padding: 16px 20px;
+  padding: ${({ theme }) => `${theme.spacing[4]} ${theme.spacing[5]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
 `
 
 const LoadingWrap = styled.div`
-  padding: 20px;
+  padding: ${({ theme }) => `${theme.spacing[5]}`};
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 export function SkillsManager() {

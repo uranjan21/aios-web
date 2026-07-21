@@ -35,10 +35,10 @@ import styled from 'styled-components'
 const Shell = styled.div<{ $fullWidth: boolean }>`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
-  padding: 10px 12px;
+  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[3]}`};
   border-radius: ${({ theme }) => theme.radii.md};
   box-shadow: ${({ theme }) => theme.shadow.xs};
   margin-bottom: 0;
@@ -55,13 +55,13 @@ const Shell = styled.div<{ $fullWidth: boolean }>`
 const LeftSlot = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   flex-shrink: 0;
   min-width: 0;
 `
 
 export const ToolbarTitle = styled.span`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
   white-space: nowrap;
@@ -72,13 +72,13 @@ export const ToolbarDivider = styled.div`
   height: 20px;
   background: ${({ theme }) => theme.color.border};
   flex-shrink: 0;
-  margin: 0 4px;
+  margin: ${({ theme }) => `0 ${theme.spacing[1]}`};
 `
 
 const RightSlot = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   margin-left: auto;
   flex-shrink: 0;
 `
@@ -87,7 +87,7 @@ const CenterSlot = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   flex: 1;
   min-width: 0;
 `
@@ -96,7 +96,7 @@ const CenterSlot = styled.div`
 
 /** Small muted label inside the toolbar (e.g., "Showing 24 results") */
 export const ToolbarMeta = styled.span`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   white-space: nowrap;
 `
@@ -106,14 +106,14 @@ export const ToolbarIconBtn = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   height: 32px;
-  padding: 0 16px;
+  padding: ${({ theme }) => `0 ${theme.spacing[4]}`};
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.card};
   color: ${({ theme }) => theme.color.mutedForeground};
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
@@ -137,7 +137,7 @@ export const ToolbarIconBtn = styled.button`
 export const DateNav = styled.div`
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
   flex-shrink: 0;
 `
 
@@ -158,7 +158,7 @@ export const DateNavBtn = styled.button`
 `
 
 export const DateNavLabel = styled.span`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
   min-width: 100px;

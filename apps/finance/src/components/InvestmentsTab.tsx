@@ -26,7 +26,7 @@ const AssetName = styled.div`
 `
 
 const AssetLabel = styled.div`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
@@ -36,7 +36,7 @@ const ReturnAmount = styled.div<{ $positive: boolean }>`
 `
 
 const ReturnPct = styled.div<{ $positive: boolean }>`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ $positive, theme }) => $positive ? theme.color.success : theme.color.destructive};
   opacity: 0.8;
 `
@@ -77,7 +77,7 @@ const SummaryGrid = styled.div`
   background-color: ${({ theme }) => theme.color.muted}33;
   border-top: 1px solid ${({ theme }) => theme.color.border};
   font-weight: 500;
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
 `
 
 const SummaryReturnText = styled.span<{ $positive: boolean }>`
@@ -85,7 +85,7 @@ const SummaryReturnText = styled.span<{ $positive: boolean }>`
 `
 
 const SummaryReturnPctText = styled.span`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   margin-left: 0.25rem;
 `
 
@@ -103,7 +103,7 @@ const FormContainer = styled.form`
 const FormGroup = styled.div``
 
 const Label = styled.label`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-bottom: 0.25rem;
   display: block;

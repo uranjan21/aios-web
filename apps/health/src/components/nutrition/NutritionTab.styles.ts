@@ -83,7 +83,7 @@ export const StyledMealTime = styled.div`
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
   margin-top: 0.125rem;
 `;
@@ -104,7 +104,7 @@ export const StyledMealCalories = styled.p`
 `;
 
 export const StyledMealMacros = styled.p`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
   margin: 0;
 `;
@@ -120,7 +120,7 @@ export const StyledQuickAddSection = styled.div`
 `;
 
 export const StyledQuickAddTitle = styled.p`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
   margin: 0 0 0.375rem 0;
 `;
@@ -132,7 +132,7 @@ export const StyledQuickAddButtons = styled.div`
 `;
 
 export const StyledQuickAddButton = styled.button`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 500;
   padding: 0.25rem 0.5rem;
   border-radius: 0.5rem;
@@ -161,7 +161,7 @@ export const StyledSearchInputWrapper = styled.div`
 `;
 
 export const StyledSearchFeedback = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
   margin-bottom: 0.5rem;
 `;
@@ -179,7 +179,7 @@ export const StyledFormGroup = styled.div`
 `;
 
 export const StyledLabel = styled.label`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
   display: block;
 `;

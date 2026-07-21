@@ -15,8 +15,8 @@ import { Row, Section } from '../shared'
 const StatusText = styled.span<{ $variant: 'success' | 'warning' }>`
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   color: ${({ theme, $variant }) => $variant === 'success' ? theme.color.success : theme.color.warning};
 `
@@ -24,13 +24,13 @@ const StatusText = styled.span<{ $variant: 'success' | 'warning' }>`
 const RetryBtn = styled.button`
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   background: none;
   border: none;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: ${({ theme }) => theme.radii.xs};
   transition: color 120ms ease-in-out;
   &:hover { color: ${({ theme }) => theme.color.foreground}; }
   ${focusRing}
@@ -72,10 +72,10 @@ function BackendStatus() {
 const PushBtn = styled.button<{ $active: boolean; $busy: boolean }>`
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  padding: 6px 10px;
-  border-radius: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
+  padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[2.5]}`};
+  border-radius: ${({ theme }) => theme.radii.xs};
   cursor: pointer;
   transition: all 120ms;
   opacity: ${({ $busy }) => $busy ? 0.6 : 1};
@@ -163,7 +163,7 @@ function PushNotificationsRow() {
 // ── Vault sync row ────────────────────────────────────────────────────────────
 
 const SyncStatusText = styled.span<{ $state: string }>`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   color: ${({ theme, $state }) => {
     switch ($state) {

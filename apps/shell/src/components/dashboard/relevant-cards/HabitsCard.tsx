@@ -13,7 +13,7 @@ const StatRow = styled.div`
   align-items: center;
   justify-content: space-between;
   font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  padding: 6px 0;
+  padding: ${({ theme }) => `${theme.spacing[1.5]} 0`};
   &:not(:last-child) {
     border-bottom: 1px solid ${({ theme }) => theme.color.border};
   }
@@ -22,7 +22,7 @@ const StatRow = styled.div`
 const StatLabel = styled.span`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   color: ${({ theme }) => theme.color.mutedForeground};
   font-weight: 500;
 `
@@ -40,8 +40,8 @@ const HabitRow = styled.button<{ $checkedToday: boolean }>`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[2.5]}`};
   border-radius: ${({ theme }) => theme.radii.md};
   border: 1px solid ${({ theme }) => theme.color.border};
   background: ${({ theme, $checkedToday }) =>
@@ -59,18 +59,18 @@ const HabitName = styled.span`
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const StreakBadge = styled.span`
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
   font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 700;
   color: ${({ theme }) => theme.color.accent};
   background: ${({ theme }) => theme.color.accent}1A;
-  padding: 2px 7px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
 `
 

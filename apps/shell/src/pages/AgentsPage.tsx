@@ -35,13 +35,13 @@ import styled from "styled-components";
 const AgentGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
 `;
 
 const TableShell = styled.div`
   display: flex;
   flex-direction: column;
-  padding-bottom: 20px;
+  padding-bottom: ${({ theme }) => `${theme.spacing[5]}`};
 `;
 
 const TableHeader = styled.div`
@@ -50,11 +50,11 @@ const TableHeader = styled.div`
   @media ${({ theme }) => theme.media.lg} {
     display: grid;
     grid-template-columns: minmax(0, 2fr) 95px 140px 110px 110px 110px;
-    gap: 12px;
-    padding: 12px 16px;
+    gap: ${({ theme }) => `${theme.spacing[3]}`};
+    padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[4]}`};
     background: ${({ theme }) => theme.color.muted};
     border-radius: 8px 8px 0 0;
-    margin: 12px 20px 0 20px;
+    margin: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[5]} 0 ${theme.spacing[5]}`};
     border-bottom: 1px solid ${({ theme }) => theme.color.border};
   }
 `;
@@ -62,8 +62,8 @@ const TableHeader = styled.div`
 const TableHeaderCell = styled.div<{ $alignRight?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 11px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -92,23 +92,23 @@ const FooterSection = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: ${({ theme }) => `${theme.spacing[4]} ${theme.spacing[5]}`};
   border-top: 1px solid ${({ theme }) => theme.color.border};
 `;
 
 const FooterLabel = styled.span`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.foreground};
 `;
 
 const FooterValue = styled.span`
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-weight: 700;
   color: ${({ theme }) => theme.color.foreground};
 `;
 
 const EmptyWrap = styled.div`
-  padding: 32px;
+  padding: ${({ theme }) => `${theme.spacing[8]}`};
 `;
 
 function AgentsContent({ agents }: { agents: Agent[] }) {

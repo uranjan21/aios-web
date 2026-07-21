@@ -6,15 +6,15 @@ const TooltipContainer = styled.div`
   background-color: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.md};
-  padding: 12px;
+  padding: ${({ theme }) => `${theme.spacing[3]}`};
   box-shadow: ${({ theme }) => theme.shadow.sm};
   min-width: 140px;
 `
 
 const TooltipLabel = styled.p`
   margin: 0;
-  margin-bottom: 8px;
-  font-size: 13px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[2]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
 `
@@ -23,9 +23,9 @@ const TooltipRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 6px;
-  font-size: 12px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[1.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   
   &:last-child {
     margin-bottom: 0;
@@ -35,7 +35,7 @@ const TooltipRow = styled.div`
 const TooltipKey = styled.div`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 

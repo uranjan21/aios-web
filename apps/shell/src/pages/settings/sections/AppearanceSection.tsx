@@ -10,19 +10,19 @@ import { Row, Section } from '../shared'
 const ThemeSwitcher = styled.div`
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
   background: ${({ theme }) => theme.color.muted};
-  border-radius: 8px;
-  padding: 4px;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  padding: ${({ theme }) => `${theme.spacing[1]}`};
 `
 
 const ThemeBtn = styled.button<{ $active: boolean }>`
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  padding: 6px 10px;
-  border-radius: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
+  padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[2.5]}`};
+  border-radius: ${({ theme }) => theme.radii.xs};
   border: 1px solid transparent;
   cursor: pointer;
   transition: all 120ms;
@@ -42,25 +42,25 @@ const ThemeBtn = styled.button<{ $active: boolean }>`
 // ── Palette picker ────────────────────────────────────────────────────────────
 
 const PaletteLabel = styled.div`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   color: ${({ theme }) => theme.color.foreground};
-  padding: 14px 20px 0;
+  padding: ${({ theme }) => `${theme.spacing[3.5]} ${theme.spacing[5]} 0`};
 `
 
 const PaletteGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
-  gap: 10px;
-  padding: 4px 20px 16px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[5]} ${theme.spacing[4]}`};
 `
 
 const PaletteBtn = styled.button<{ $active: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 10px 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[1.5]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
   border: 1px solid ${({ theme, $active }) => $active ? theme.color.accent : theme.color.border};
   background: ${({ theme, $active }) => $active ? theme.color.muted : 'transparent'};
@@ -85,7 +85,7 @@ const SwatchChip = styled.div<{ $color: string }>`
 `
 
 const PaletteName = styled.span<{ $active: boolean }>`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: ${({ $active }) => $active ? 600 : 500};
   color: ${({ theme, $active }) => $active ? theme.color.foreground : theme.color.mutedForeground};
   text-align: center;

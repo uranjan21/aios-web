@@ -12,7 +12,7 @@ const StyledTabsWrapper = styled.div`
   [role="tab"] {
     /* Icon inside tab label */
     svg {
-      margin-right: 6px;
+      margin-right: ${({ theme }) => `${theme.spacing[1.5]}`};
       vertical-align: -2px;
     }
   }
@@ -51,7 +51,7 @@ const StyledTabsList = styled(TabsList)`
 const StyledTabsTrigger = styled(TabsTrigger)`
   position: relative;
   padding: ${({ theme }) => theme.spacing[3]} 0;
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: ${({ theme }) => theme.typography.fontWeight.medium};
   white-space: nowrap;
   transition: all ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};

@@ -26,7 +26,7 @@ const GoalNameText = styled.div`
 `
 
 const GoalCategoryText = styled.div`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   text-transform: capitalize;
 `
@@ -43,7 +43,7 @@ const DueText = styled.div`
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-top: 0.125rem;
 `
@@ -90,7 +90,7 @@ const FormContainer = styled.form`
 const FormGroup = styled.div``
 
 const Label = styled.label`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-bottom: 0.25rem;
   display: block;

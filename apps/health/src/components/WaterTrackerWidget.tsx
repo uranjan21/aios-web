@@ -46,7 +46,7 @@ const StyledGlassButton = styled.button<{ $filled?: boolean }>`
 `;
 
 const StyledMessage = styled.p`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
   margin: 0;
 `;

@@ -10,25 +10,25 @@ import { CollapsibleSection } from '@aios/shared/components/workspace/Collapsibl
 
 const Grid = styled.div`
   display: grid;
-  gap: 16px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
 `
 
 const FormGrid = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: ${({ theme }) => `${theme.spacing[3.5]}`};
 `
 
 const TwoCol = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const SprintGoals = styled.p`
-  margin: 0 0 8px;
-  font-size: 13px;
+  margin: ${({ theme }) => `0 0 ${theme.spacing[2]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   line-height: 1.5;
   color: ${({ theme }) => theme.color.mutedForeground};
 `
@@ -37,27 +37,27 @@ const SprintMeta = styled.div`
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  margin-top: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const MetaItem = styled.span`
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
 const MetaChip = styled.span<{ $tone?: 'accent' | 'default' }>`
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  font-size: 10px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 2px 7px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ theme, $tone }) => $tone === 'accent' ? `${theme.color.accent}18` : theme.color.muted};
   color: ${({ theme, $tone }) => $tone === 'accent' ? theme.color.accent : theme.color.mutedForeground};

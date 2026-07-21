@@ -9,16 +9,16 @@ import { AreaSettingsPage } from '@aios/shared/components/layout/AreaSettingsPag
 import styled from 'styled-components'
 
 const FormBody = styled.div`
-  padding: 16px 20px;
+  padding: ${({ theme }) => `${theme.spacing[4]} ${theme.spacing[5]}`};
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const Label = styled.label`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
-  margin-bottom: 4px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[1]}`};
   display: block;
   color: ${({ theme }) => theme.color.foreground};
 `

@@ -14,8 +14,8 @@ export type { Kind }
 const FormGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[3]}`};
 
   @media ${({ theme }) => theme.media.sm} {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -23,19 +23,19 @@ const FormGrid = styled.div`
 `
 
 const FormLabel = styled.label`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-bottom: 4px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[1]}`};
   display: block;
 `
 
 const FormGroup = styled.div`
-  margin-bottom: 12px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const FullWidthWrap = styled.div`
   width: 100%;
-  margin-bottom: 16px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
 `
 
 export function TransactionModal({ open, onClose, editing, initialKind = 'Expense' }: { open: boolean; onClose: () => void; editing: Txn | null; initialKind?: Kind }) {

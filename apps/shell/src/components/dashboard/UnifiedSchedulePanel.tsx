@@ -28,14 +28,14 @@ const Section = styled.section`
 
 const CalendarSection = styled(Section)`
   flex: 0 0 auto;
-  padding: 0 0 12px;
+  padding: ${({ theme }) => `0 0 ${theme.spacing[3]}`};
 `;
 
 const TimelineSection = styled(Section)`
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 12px 0 0;
+  padding: ${({ theme }) => `${theme.spacing[3]} 0 0`};
 `;
 
 export function UnifiedSchedulePanel({

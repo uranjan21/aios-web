@@ -24,11 +24,11 @@ const SelectorButton = styled.button.attrs({ type: 'button' })<{ $isOpen: boolea
               box-shadow ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
   height: 32px;
   border-radius: ${({ theme }) => theme.radii.lg};
-  padding: 0 8px 0 10px;
+  padding: ${({ theme }) => `0 ${theme.spacing[2]} 0 ${theme.spacing[2.5]}`};
   min-width: 4rem;
   white-space: nowrap;
-  font-size: 12px;
-  gap: 4px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
   border: none;
   cursor: pointer;
 
@@ -59,7 +59,7 @@ const DropdownMenu = styled.div`
   position: absolute;
   bottom: 100%;
   right: 0;
-  margin-bottom: 8px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[2]}`};
   width: 260px;
   background-color: ${({ theme }) => theme.color.background}f2;
   backdrop-filter: blur(20px);
@@ -71,7 +71,7 @@ const DropdownMenu = styled.div`
   z-index: 50;
   display: flex;
   flex-direction: column;
-  padding: 6px;
+  padding: ${({ theme }) => `${theme.spacing[1.5]}`};
   animation: fadein ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
   transform-origin: bottom right;
 `
@@ -79,7 +79,7 @@ const DropdownMenu = styled.div`
 const DropdownItem = styled.button.attrs({ type: 'button' })`
   width: 100%;
   text-align: left;
-  padding: 10px 12px;
+  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[3]}`};
   border-radius: ${({ theme }) => theme.radii.lg};
   display: flex;
   align-items: flex-start;
@@ -102,30 +102,30 @@ const DropdownItem = styled.button.attrs({ type: 'button' })`
   .info {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: ${({ theme }) => `${theme.spacing[0.5]}`};
   }
 
   .title-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: ${({ theme }) => `${theme.spacing[2]}`};
   }
 
   .title {
-    font-size: 13px;
+    font-size: ${({ theme }) => theme.typography.fontSize.sm};
     font-weight: 600;
     color: ${({ theme }) => theme.color.foreground};
   }
 
   .desc {
-    font-size: 11px;
+    font-size: ${({ theme }) => theme.typography.fontSize.xs};
     color: ${({ theme }) => theme.color.mutedForeground};
   }
 
   .badge {
-    padding: 2px 6px;
+    padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
     border-radius: ${({ theme }) => theme.radii.md};
-    font-size: 10px;
+    font-size: ${({ theme }) => theme.typography.fontSize.xs};
     font-weight: 500;
     border: 1px solid ${({ theme }) => theme.color.border};
     color: ${({ theme }) => theme.color.mutedForeground};

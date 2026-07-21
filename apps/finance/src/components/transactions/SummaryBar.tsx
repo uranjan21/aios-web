@@ -6,9 +6,9 @@ import styled from 'styled-components'
 const KpiGrid = styled.div`
   display: flex;
   overflow-x: auto;
-  gap: 8px;
-  padding-bottom: 4px;
-  margin-bottom: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  padding-bottom: ${({ theme }) => `${theme.spacing[1]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[2]}`};
 
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -22,7 +22,7 @@ const KpiGrid = styled.div`
   @media ${({ theme }) => theme.media.sm} {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+    gap: ${({ theme }) => `${theme.spacing[3]}`};
     padding-bottom: 0;
 
     > * { min-width: 0; }

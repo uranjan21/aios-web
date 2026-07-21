@@ -8,37 +8,37 @@ const Wrap = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: ${({ theme }) => `${theme.spacing[6]}`};
 `
 
 const Card = styled.div`
   max-width: 400px;
   width: 100%;
-  padding: 32px;
+  padding: ${({ theme }) => `${theme.spacing[8]}`};
   background: var(--color-surface);
-  border-radius: 16px;
+  border-radius: ${({ theme }) => theme.radii.md};
   text-align: center;
 `
 
 const Title = styled.h1`
-  font-size: 20px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xl};
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const Message = styled.p`
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   color: var(--color-muted);
-  margin-bottom: 24px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[6]}`};
 `
 
 const Btn = styled.button`
-  padding: 10px 24px;
+  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[6]}`};
   background: var(--color-primary, #114b3f);
   color: #fff;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-weight: 500;
   cursor: pointer;
 `

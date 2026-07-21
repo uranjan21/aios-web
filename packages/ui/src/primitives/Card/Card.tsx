@@ -195,7 +195,7 @@ export const TitleGroup = styled.div`
     width: 16px;
     height: 16px;
     flex-shrink: 0;
-    margin-top: 3px;
+    margin-top: ${({ theme }) => `${theme.spacing[0.5]}`};
     color: ${({ theme }) => theme.color.mutedForeground};
   }
 `;
@@ -209,7 +209,7 @@ export const CardTitle = styled.h2`
 
 export const CardSubtitle = styled.p`
   ${textRole('body-s')}
-  margin: 2px 0 0;
+  margin: ${({ theme }) => `${theme.spacing[0.5]} 0 0`};
   color: ${({ theme }) => theme.color.mutedForeground};
 
   /* Hidden on mobile to protect vertical space for primary content. */

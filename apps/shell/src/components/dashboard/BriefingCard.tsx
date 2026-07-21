@@ -20,7 +20,7 @@ const Footer = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 12px;
+  margin-top: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const Attribution = styled.span`

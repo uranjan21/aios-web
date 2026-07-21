@@ -48,7 +48,7 @@ const CrumbLink = styled.a`
   text-decoration: none;
   white-space: nowrap;
   border-radius: ${({ theme }) => theme.radii.sm};
-  padding: 2px 4px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1]}`};
   &:hover { color: ${({ theme }) => theme.color.foreground}; }
   &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 1px; }
   & svg { width: 12px; height: 12px; }

@@ -11,44 +11,44 @@ import { CollapsibleSection } from '@aios/shared/components/workspace/Collapsibl
 
 const Grid = styled.div`
   display: grid;
-  gap: 16px;
+  gap: ${({ theme }) => `${theme.spacing[4]}`};
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
 `
 
 const FormGrid = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: ${({ theme }) => `${theme.spacing[3.5]}`};
 `
 
 const TwoCol = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const ProjectDesc = styled.div`
   color: ${({ theme }) => theme.color.mutedForeground};
-  font-size: 13px;
-  margin-bottom: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
+  margin-bottom: ${({ theme }) => `${theme.spacing[2.5]}`};
 `
 
 const CardMeta = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  margin-top: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const MetaChip = styled.span<{ $tone?: 'accent' | 'warn' | 'default' }>`
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  font-size: 10px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 2px 7px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ theme, $tone }) =>
     $tone === 'accent' ? `${theme.color.accent}18`

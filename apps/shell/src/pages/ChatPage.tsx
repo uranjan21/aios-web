@@ -52,7 +52,7 @@ const RailHeader = styled.div`
   padding: ${({ theme }) => theme.spacing[3]};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   font-weight: 600;
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
 `
 
 const Thread = styled.section`
@@ -71,7 +71,7 @@ const ThreadHeader = styled.div`
   justify-content: space-between;
   padding: ${({ theme }) => theme.spacing[2]} ${({ theme }) => theme.spacing[4]};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
@@ -92,10 +92,10 @@ const Composer = styled.div`
 `
 
 const QuotaLine = styled.div`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   text-align: right;
-  padding: 0 4px 4px;
+  padding: ${({ theme }) => `0 ${theme.spacing[1]} ${theme.spacing[1]}`};
 `
 
 const EmptyState = styled.div`
@@ -106,7 +106,7 @@ const EmptyState = styled.div`
   height: 100%;
   text-align: center;
   color: ${({ theme }) => theme.color.mutedForeground};
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
 `
 
 export function ChatPage() {

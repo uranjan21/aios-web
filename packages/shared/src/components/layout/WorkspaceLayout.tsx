@@ -24,7 +24,7 @@ interface RailHeadingProps {
 const Root = styled.section`
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: ${({ theme }) => `${theme.spacing[6]}`};
   width: 100%;
   align-items: flex-start;
 
@@ -55,7 +55,7 @@ const Main = styled.main`
 
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: ${({ theme }) => `${theme.spacing[6]}`};
 `;
 
 export function WorkspaceLayout({ children, rail, railTitle, railSubtitle }: WorkspaceLayoutProps) {
@@ -85,9 +85,9 @@ export function WorkspaceLayout({ children, rail, railTitle, railSubtitle }: Wor
 const RailHeadingRoot = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   width: 100%;
-  padding: 0 4px;
+  padding: ${({ theme }) => `0 ${theme.spacing[1]}`};
 `;
 
 const Dot = styled.span`
@@ -101,7 +101,7 @@ const Dot = styled.span`
 const RailLabel = styled.span`
   flex-shrink: 0;
 
-  font-size: 10.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   line-height: 1;
 

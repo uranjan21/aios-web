@@ -10,7 +10,7 @@ const Root = styled.div`
 `
 
 const Header = styled.header`
-  padding: 24px;
+  padding: ${({ theme }) => `${theme.spacing[6]}`};
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -21,13 +21,13 @@ const LogoLink = styled(Link)`
   text-decoration: none;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const LogoBadge = styled.div`
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: linear-gradient(135deg, ${({ theme }) => theme.color.primary}, ${({ theme }) => theme.color.accent});
   display: flex;
   align-items: center;
@@ -37,7 +37,7 @@ const LogoBadge = styled.div`
 
 const LogoBadgeText = styled.span`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-weight: 700;
   color: ${({ theme }) => theme.color.primaryForeground};
   letter-spacing: -0.02em;
@@ -45,13 +45,13 @@ const LogoBadgeText = styled.span`
 
 const BrandText = styled.span`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 24px;
+  font-size: ${({ theme }) => theme.typography.fontSize['2xl']};
   font-weight: 700;
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const NavLink = styled(Link)`
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-weight: 500;
   color: ${({ theme }) => theme.color.mutedForeground};
   text-decoration: none;
@@ -63,14 +63,14 @@ const NavLink = styled(Link)`
 
 const Main = styled.main`
   flex: 1;
-  padding: 48px 24px;
+  padding: ${({ theme }) => `${theme.spacing[12]} ${theme.spacing[6]}`};
   max-width: 800px;
   margin: 0 auto;
   width: 100%;
 `
 
 const Footer = styled.footer`
-  padding: 48px 24px;
+  padding: ${({ theme }) => `${theme.spacing[12]} ${theme.spacing[6]}`};
   text-align: center;
   border-top: 1px solid ${({ theme }) => theme.color.border};
 `
@@ -78,13 +78,13 @@ const Footer = styled.footer`
 const FooterNav = styled.div`
   display: flex;
   justify-content: center;
-  gap: 24px;
-  margin-bottom: 24px;
+  gap: ${({ theme }) => `${theme.spacing[6]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[6]}`};
   flex-wrap: wrap;
 `
 
 const Copyright = styled.p`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin: 0;
 `

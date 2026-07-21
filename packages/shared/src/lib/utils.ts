@@ -4,6 +4,14 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(inputs)
 }
 
+/** Pull a human-readable message out of a FastAPI error response. */
+export function errorMessage(err: any, fallback: string): string {
+  const detail = err?.response?.data?.detail
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail) && detail[0]?.msg) return detail[0].msg
+  return fallback
+}
+
 export function formatCurrency(amount: number | null | undefined, currency = '₹'): string {
   if (amount == null) return '—'
   const sign = amount < 0 ? '-' : ''

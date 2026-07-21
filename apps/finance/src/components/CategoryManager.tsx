@@ -13,7 +13,7 @@ import { Skeleton } from '@aios/shared/components/ui/skeleton'
 const RowActions = styled.span`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
   opacity: 0.6;
   transition: opacity 0.2s;
   &:hover { opacity: 1; }
@@ -35,7 +35,7 @@ const NodeRow = styled.div`
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
   cursor: pointer;
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.foreground};
   &:hover {
     background-color: ${({ theme }) => theme.color.muted}4d;
@@ -89,7 +89,7 @@ const FormContainer = styled.form`
 const FormGroup = styled.div``
 
 const Label = styled.div`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   margin-bottom: 0.25rem;
 `

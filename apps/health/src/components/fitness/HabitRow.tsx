@@ -39,7 +39,7 @@ const StyledHabitDetails = styled.div`
 `;
 
 const StyledHabitName = styled.div`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
   white-space: nowrap;
@@ -51,7 +51,7 @@ const StyledHabitStreak = styled.div`
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
 `;
 
@@ -71,7 +71,7 @@ const StyledHabitDayButton = styled.button<{ $checked?: boolean; $isToday?: bool
   width: 1.5rem;
   height: 1.5rem;
   border-radius: 0.375rem;
-  font-size: 9px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 500;
   transition: background-color 0.2s, border-color 0.2s, color 0.2s;
   display: flex;

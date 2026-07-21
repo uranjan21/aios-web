@@ -18,8 +18,8 @@ const HeaderRow = styled.div`
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 14px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[3.5]}`};
 `;
 
 const DateLabel = styled.h3`
@@ -37,7 +37,7 @@ const Counter = styled.span`
 const Track = styled.ol`
   position: relative;
   margin: 0;
-  padding: 0 0 0 28px;
+  padding: ${({ theme }) => `0 0 0 ${theme.spacing[7]}`};
   list-style: none;
   &::before {
     content: "";
@@ -47,13 +47,13 @@ const Track = styled.ol`
     bottom: 4px;
     width: 2px;
     background: ${({ theme }) => theme.color.border};
-    border-radius: 1px;
+    border-radius: ${({ theme }) => theme.radii.xs};
   }
 `;
 
 const Item = styled.li<{ $done?: boolean }>`
   position: relative;
-  padding-bottom: 14px;
+  padding-bottom: ${({ theme }) => `${theme.spacing[3.5]}`};
   &:last-child {
     padding-bottom: 0;
   }
@@ -79,13 +79,13 @@ const Dot = styled.span<{ $color: string }>`
 const Time = styled.div`
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: ${({ theme }) => `${theme.spacing[1]}`};
   font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-bottom: 2px;
+  margin-bottom: ${({ theme }) => `${theme.spacing[0.5]}`};
 `;
 
 const Title = styled.div<{ $done?: boolean }>`
@@ -102,8 +102,8 @@ const Title = styled.div<{ $done?: boolean }>`
 const Meta = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 4px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  margin-top: ${({ theme }) => `${theme.spacing[1]}`};
 `;
 
 const CategoryChip = styled.span<{ $color: string }>`
@@ -113,12 +113,12 @@ const CategoryChip = styled.span<{ $color: string }>`
   letter-spacing: 0.06em;
   color: ${({ $color }) => $color};
   background: ${({ $color }) => $color}1A;
-  padding: 2px 8px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[2]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
 `;
 
 const Notes = styled.p`
-  margin: 4px 0 0 0;
+  margin: ${({ theme }) => `${theme.spacing[1]} 0 0 0`};
   font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   line-height: 1.4;
@@ -128,7 +128,7 @@ const ItemRow = styled.div`
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `;
 
 const ItemBody = styled.div`
@@ -138,7 +138,7 @@ const ItemBody = styled.div`
 
 const Actions = styled.div`
   display: flex;
-  gap: 2px;
+  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
   flex-shrink: 0;
 `;
 
@@ -165,13 +165,13 @@ const ActionBtn = styled.button`
 
 const Empty = styled.div`
   text-align: center;
-  padding: 28px 16px 12px;
+  padding: ${({ theme }) => `${theme.spacing[7]} ${theme.spacing[4]} ${theme.spacing[3]}`};
   color: ${({ theme }) => theme.color.mutedForeground};
   font-size: ${({ theme }) => theme.typography.fontSize.sm};
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `;
 
 function fmtTime(t?: string): string {

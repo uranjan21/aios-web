@@ -26,15 +26,15 @@ const Root = styled.div`
   align-items: center;
   justify-content: center;
   background: ${({ theme }) => theme.color.background};
-  padding: 24px;
+  padding: ${({ theme }) => `${theme.spacing[6]}`};
 `
 
 const Card = styled.div`
   text-align: center;
   width: 100%;
   max-width: 380px;
-  padding: 48px 40px;
-  border-radius: 16px;
+  padding: ${({ theme }) => `${theme.spacing[12]} ${theme.spacing[10]}`};
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
   box-shadow: ${({ theme }) => theme.elevation[3]};
@@ -49,7 +49,7 @@ const IconWrapper = styled.div<{ $status: 'loading' | 'success' | 'error' }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 24px;
+  margin: ${({ theme }) => `0 auto ${theme.spacing[6]}`};
   
   background: ${({ theme, $status }) => 
     $status === 'success' ? 'rgba(34, 197, 94, 0.12)' : 
@@ -70,16 +70,16 @@ const IconWrapper = styled.div<{ $status: 'loading' | 'success' | 'error' }>`
 
 const Title = styled.h2`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 20px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xl};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
-  margin: 0 0 12px;
+  margin: ${({ theme }) => `0 0 ${theme.spacing[3]}`};
   letter-spacing: -0.01em;
 `
 
 const Detail = styled.p`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: 15px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin: 0;
   line-height: 1.5;

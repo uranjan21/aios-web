@@ -13,25 +13,25 @@ import { PageContainer, PageContent } from '@aios/shared/components/layout/PageL
 const ReviewContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: ${({ theme }) => `${theme.spacing[6]}`};
   max-width: 860px;
   margin: 0 auto;
   width: 100%;
 `
 
 const SummaryBox = styled.div`
-  padding: 16px;
+  padding: ${({ theme }) => `${theme.spacing[4]}`};
   background: ${({ theme }) => theme.color.muted};
   border-radius: ${({ theme }) => theme.radii.md};
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   line-height: 1.6;
   color: ${({ theme }) => theme.color.mutedForeground};
   white-space: pre-wrap;
 `
 
 const Attribution = styled.div`
-  margin-top: 8px;
-  font-size: 11px;
+  margin-top: ${({ theme }) => `${theme.spacing[2]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 500;
   color: ${({ theme }) => theme.color.mutedForeground};
 `
@@ -40,32 +40,32 @@ const GoalRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[4]}`};
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.md};
 `
 
 const GoalTitle = styled.div`
-  font-size: 13.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const GoalCategory = styled.div`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-top: 2px;
+  margin-top: ${({ theme }) => `${theme.spacing[0.5]}`};
 `
 
 const RateBtn = styled.button<{ $tone: 'good' | 'bad'; $selected?: boolean }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
+  padding: ${({ theme }) => `${theme.spacing[2]}`};
   border: none;
   background: ${({ theme, $selected, $tone }) =>
     $selected ? ($tone === 'good' ? `${theme.color.success}1A` : `${theme.color.destructive}1A`) : 'transparent'};
@@ -82,7 +82,7 @@ const RateBtn = styled.button<{ $tone: 'good' | 'bad'; $selected?: boolean }>`
 
 const FocusRow = styled.div`
   display: flex;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const FocusList = styled.ul`
@@ -91,26 +91,26 @@ const FocusList = styled.ul`
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 const FocusItem = styled.li`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[3.5]}`};
   background: ${({ theme }) => theme.color.muted};
   border-radius: ${({ theme }) => theme.radii.sm};
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const RemoveBtn = styled.button`
   background: none;
   border: none;
-  padding: 2px 6px;
-  font-size: 14px;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   color: ${({ theme }) => theme.color.mutedForeground};
   cursor: pointer;
   border-radius: ${({ theme }) => theme.radii.sm};
@@ -123,15 +123,15 @@ const RemoveBtn = styled.button`
 const StepActions = styled.div`
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+  margin-top: ${({ theme }) => `${theme.spacing[4]}`};
 `
 
 const DoneWrap = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 32px 0;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  padding: ${({ theme }) => `${theme.spacing[8]} 0`};
   text-align: center;
 `
 
@@ -148,14 +148,14 @@ const DoneIcon = styled.div`
 
 const DoneTitle = styled.h2`
   margin: 0;
-  font-size: 18px;
+  font-size: ${({ theme }) => theme.typography.fontSize.lg};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const DoneSub = styled.p`
   margin: 0;
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 

@@ -43,7 +43,7 @@ const Grid2Col = styled.div`
 `
 
 const LabelInfo = styled.div`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-bottom: 0.25rem;
 `
@@ -54,12 +54,12 @@ const SelectFull = styled(Select)`
 
 const FileInput = styled.input`
   display: block;
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
 const MonoTextarea = styled(Textarea)`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
 `
 
 /* ── Step indicator ─────────────────────────────────────────────────── */
@@ -74,7 +74,7 @@ const StepRow = styled.div`
 const StepItem = styled.div<{ $active: boolean; $done: boolean }>`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   flex: 1;
 `
 
@@ -85,7 +85,7 @@ const StepDot = styled.div<{ $active: boolean; $done: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   flex-shrink: 0;
   background: ${({ $active, $done, theme }) =>
@@ -95,7 +95,7 @@ const StepDot = styled.div<{ $active: boolean; $done: boolean }>`
 `
 
 const StepLabel = styled.span<{ $active: boolean }>`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: ${({ $active }) => ($active ? '600' : '400')};
   color: ${({ $active, theme }) =>
     $active ? theme.color.foreground : theme.color.mutedForeground};
@@ -106,7 +106,7 @@ const StepConnector = styled.div<{ $done: boolean }>`
   height: 1px;
   background: ${({ $done, theme }) =>
     $done ? theme.color.primary : theme.color.border};
-  margin: 0 4px;
+  margin: ${({ theme }) => `0 ${theme.spacing[1]}`};
   align-self: center;
 `
 
@@ -135,12 +135,12 @@ function StepIndicator({ current }: { current: number }) {
 const PreviewTable = styled.table`
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
 `
 
 const Th = styled.th`
   text-align: left;
-  padding: 6px 8px;
+  padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[2]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   color: ${({ theme }) => theme.color.mutedForeground};
   font-weight: 500;
@@ -148,7 +148,7 @@ const Th = styled.th`
 `
 
 const Td = styled.td`
-  padding: 6px 8px;
+  padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[2]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   color: ${({ theme }) => theme.color.foreground};
   vertical-align: middle;
@@ -165,16 +165,16 @@ const PaginationRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
-  margin-top: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  margin-top: ${({ theme }) => `${theme.spacing[1.5]}`};
 `
 
 const PageBtn = styled.button<{ $active?: boolean }>`
   min-width: 26px;
   height: 26px;
-  padding: 0 6px;
-  font-size: 12px;
-  border-radius: 6px;
+  padding: ${({ theme }) => `0 ${theme.spacing[1.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
+  border-radius: ${({ theme }) => theme.radii.xs};
   border: 1px solid ${({ $active, theme }) => ($active ? theme.color.primary : theme.color.border)};
   background: ${({ $active, theme }) => ($active ? theme.color.primary : 'transparent')};
   color: ${({ $active, theme }) => ($active ? theme.color.primaryForeground : theme.color.foreground)};

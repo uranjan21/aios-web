@@ -75,19 +75,19 @@ export const AssistantHeader = styled.div`
 export const HeaderLeft = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
 `
 
 export const HeaderTitle = styled.span`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-weight: 600;
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
 `
 
 export const HeaderRight = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 export const HeaderActionButton = styled.button.attrs({ type: 'button' })`
@@ -97,7 +97,7 @@ export const HeaderActionButton = styled.button.attrs({ type: 'button' })`
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
+  padding: ${({ theme }) => `${theme.spacing[1.5]}`};
   color: ${({ theme }) => theme.color.mutedForeground};
   transition: color ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
 
@@ -158,11 +158,11 @@ export const SettingsPanel = styled(motion.div)`
 export const SettingRow = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
 `
 
 export const SettingLabel = styled.label`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 500;
   color: ${({ theme }) => theme.color.mutedForeground};
 `
@@ -195,14 +195,14 @@ export const HistoryHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   font-weight: 600;
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
 `
 
 export const QuotaLine = styled.div`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   text-align: right;
-  padding: 0 4px 4px;
+  padding: ${({ theme }) => `0 ${theme.spacing[1]} ${theme.spacing[1]}`};
 `
 
 export const EmptyStateContainer = styled.div`
@@ -229,14 +229,14 @@ export const EmptyStateIconWrapper = styled.div`
 export const QuickPromptsGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
-  gap: 8px;
-  margin-top: 24px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  margin-top: ${({ theme }) => `${theme.spacing[6]}`};
   width: 100%;
 `
 
 export const QuickPromptButton = styled.button.attrs({ type: 'button' })`
-  padding: 8px 12px;
-  font-size: 12px;
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[3]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   border-radius: ${({ theme }) => theme.radii.md};
   text-align: left;
   background-color: transparent;

@@ -23,7 +23,7 @@ const SubtitleContainer = styled.div`
 `
 
 const CategoryText = styled.span`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   text-transform: capitalize;
 `
@@ -32,7 +32,7 @@ const AutoText = styled.span`
   display: inline-flex;
   align-items: center;
   gap: 0.125rem;
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.accent};
   font-weight: 500;
   margin-left: 0.25rem;
@@ -49,7 +49,7 @@ const DueContainer = styled.div`
 `
 
 const DueText = styled.span`
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
 `
 
 const ActionContainer = styled.div`

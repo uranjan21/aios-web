@@ -9,17 +9,17 @@ const Root = styled.div`
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 32px 20px;
-  gap: 12px;
+  padding: ${({ theme }) => `${theme.spacing[8]} ${theme.spacing[5]}`};
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
   border: 1px dashed ${({ theme }) => theme.color.accent}60;
-  border-radius: 12px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.accent}06;
 `
 
 const IconWrap = styled.div`
   width: 44px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ theme }) => theme.color.accent}15;
   color: ${({ theme }) => theme.color.accent};
   display: flex;
@@ -28,13 +28,13 @@ const IconWrap = styled.div`
 `
 
 const Title = styled.div`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const Sub = styled.div`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   max-width: 240px;
   line-height: 1.5;

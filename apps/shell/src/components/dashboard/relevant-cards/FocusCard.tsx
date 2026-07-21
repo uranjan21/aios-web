@@ -11,8 +11,8 @@ import { Empty } from './shared'
 const FocusItem = styled.li<{ $color: string }>`
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 8px 0;
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[2]} 0`};
   &:not(:last-child) {
     border-bottom: 1px solid ${({ theme }) => theme.color.border};
   }
@@ -49,10 +49,10 @@ const FocusTitle = styled.div`
 const FocusMeta = styled.div`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-top: 2px;
+  margin-top: ${({ theme }) => `${theme.spacing[0.5]}`};
 `
 
 export function FocusCard() {

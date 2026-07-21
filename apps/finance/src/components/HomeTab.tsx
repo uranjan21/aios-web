@@ -22,7 +22,7 @@ const StyledSkeleton = styled(Skeleton)<{ $height: string }>`
 const LoadingWrapper = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const LoadingHeader = styled(Skeleton)`
@@ -34,7 +34,7 @@ const LoadingHeader = styled(Skeleton)`
 const LoadingGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const LoadingGridItem7 = styled(Skeleton)`
@@ -58,8 +58,8 @@ const LoadingGridItem5 = styled(Skeleton)`
 const KpiGrid = styled.div`
   display: flex;
   overflow-x: auto;
-  gap: 8px;
-  padding-bottom: 4px;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  padding-bottom: ${({ theme }) => `${theme.spacing[1]}`};
   
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -73,7 +73,7 @@ const KpiGrid = styled.div`
   @media ${({ theme }) => theme.media.sm} {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
+    gap: ${({ theme }) => `${theme.spacing[3]}`};
     padding-bottom: 0;
     
     > * { min-width: 0; }
@@ -86,7 +86,7 @@ const KpiGrid = styled.div`
 const AnalyticsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));
-  gap: 12px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
   @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -121,18 +121,18 @@ const ListItem = styled.div`
 `
 
 const ItemTitle = styled.div`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const ItemSubtitle = styled.div`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
 const ItemAmountText = styled.span<{ $color?: string }>`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: ${({ $color, theme }) => $color || theme.color.foreground};
@@ -145,7 +145,7 @@ const AmountContainer = styled.div`
 `
 
 const NavBtn = styled.button`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   padding: 0.125rem 0.375rem;
   background-color: ${({ theme }) => theme.color.muted}80;
   color: ${({ theme }) => theme.color.mutedForeground};
@@ -168,7 +168,7 @@ const HealthScoreTop = styled.div`
 `
 
 const HealthScoreValue = styled.span`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
   font-variant-numeric: tabular-nums;
@@ -176,7 +176,7 @@ const HealthScoreValue = styled.span`
 `
 
 const HealthScoreMax = styled.span`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
@@ -194,19 +194,19 @@ const ComponentHeader = styled.div`
 `
 
 const ComponentLabel = styled.span`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 500;
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const ComponentValue = styled.span`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-variant-numeric: tabular-nums;
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
 const ComponentDisplay = styled.div`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-top: 0.125rem;
 `

@@ -30,8 +30,8 @@ const Root = styled.div`position: relative;`
 
 const BellBtn = styled.button`
   position: relative;
-  padding: 6px;
-  border-radius: 10px;
+  padding: ${({ theme }) => `${theme.spacing[1.5]}`};
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: transparent;
   border: none;
   color: ${({ theme }) => theme.color.mutedForeground};
@@ -49,11 +49,11 @@ const BadgeMotion = styled(motion.span)`
   right: -2px;
   min-width: 16px;
   height: 16px;
-  padding: 0 4px;
+  padding: ${({ theme }) => `0 ${theme.spacing[1]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ theme }) => theme.color.primary};
   color: ${({ theme }) => theme.color.primaryForeground};
-  font-size: 9px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -77,18 +77,18 @@ const PanelHead = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[4]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
 `
 
 const PanelTitle = styled.span`
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
 `
 
 const ClearAllBtn = styled.button`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   background: none;
   border: none;
@@ -103,8 +103,8 @@ const EmptyWrap = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 16px;
-  gap: 8px;
+  padding: ${({ theme }) => `${theme.spacing[10]} ${theme.spacing[4]}`};
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   color: ${({ theme }) => theme.color.mutedForeground};
   text-align: center;
 `
@@ -112,8 +112,8 @@ const EmptyWrap = styled.div`
 const NotifRow = styled(motion.div)<{ $unread: boolean }>`
   position: relative;
   display: flex;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[4]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   cursor: pointer;
   background: ${({ theme, $unread }) => $unread ? `${theme.color.primary}06` : 'transparent'};
@@ -125,20 +125,20 @@ const NotifRow = styled(motion.div)<{ $unread: boolean }>`
 const NotifContent = styled.div`flex: 1; min-width: 0;`
 
 const NotifTitle2 = styled.p<{ $unread: boolean }>`
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-weight: ${({ $unread }) => $unread ? 500 : 400};
   color: ${({ theme, $unread }) => $unread ? theme.color.foreground : theme.color.mutedForeground};
-  margin: 0 0 2px;
+  margin: ${({ theme }) => `0 0 ${theme.spacing[0.5]}`};
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 `
 
 const NotifBody2 = styled.p`
-  font-size: 12px; color: ${({ theme }) => theme.color.mutedForeground};
-  margin: 0 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm}; color: ${({ theme }) => theme.color.mutedForeground};
+  margin: ${({ theme }) => `0 0 ${theme.spacing[1]}`}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 `
 
 const NotifTime = styled.p`
-  font-size: 10px; color: ${({ theme }) => theme.color.mutedForeground}80; margin: 0;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs}; color: ${({ theme }) => theme.color.mutedForeground}80; margin: 0;
 `
 
 const UnreadDot = styled.span`
@@ -148,7 +148,7 @@ const UnreadDot = styled.span`
 `
 
 const DismissBtn = styled.button`
-  padding: 2px; border-radius: 6px; background: none; border: none; cursor: pointer;
+  padding: ${({ theme }) => `${theme.spacing[0.5]}`}; border-radius: ${({ theme }) => theme.radii.xs}; background: none; border: none; cursor: pointer;
   color: ${({ theme }) => theme.color.mutedForeground}; flex-shrink: 0;
   display: flex; align-items: center;
   &:hover { color: ${({ theme }) => theme.color.foreground}; }
