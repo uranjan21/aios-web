@@ -9,7 +9,7 @@ import { WorkspaceLayout } from '@aios/shared/components/layout/WorkspaceLayout'
 import { Card as GlassCard, EmptyState, Select } from '@ledgr/ui'
 import { AiInsightCard } from '@aios/shared/components/AiInsightCard'
 import { ChartTooltip } from '@aios/shared/components/ui/ChartTooltip'
-import { FinancialInsights, CashflowForecasting, SubscriptionManagement } from './AdvancedWidgets'
+import { FinancialInsights, SubscriptionManagement } from './AdvancedWidgets'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { PieChart as PieChartIcon, Brain } from 'lucide-react'
 import styled from 'styled-components'
@@ -108,9 +108,6 @@ export function AnalyticsTab() {
 
   return (
     <WorkspaceLayout rail={undefined}>
-      {/* Cashflow Forecasting — full width */}
-      <CashflowForecasting />
-
       {/* Subscriptions + Top Categories
           (Budget-vs-allocated lives in the Budgets tab — not duplicated here) */}
       <AnalyticsGrid>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   IndianRupee, LayoutDashboard, ArrowLeftRight,
-  PiggyBank, BarChart2, Gem, Settings, FlaskConical,
+  PiggyBank, BarChart2, Gem, Settings, TrendingUp,
 } from 'lucide-react'
 import { AreaTabs } from '@aios/shared/components/ui/AreaTabs'
 import { PageHeader, Button } from '@ledgr/ui'
@@ -56,7 +56,7 @@ export function FinancePage() {
     },
     {
       key: '6',
-      label: <><FlaskConical size={14} /> Simulator</>,
+      label: <><TrendingUp size={14} /> Projections</>,
       children: <SimulatorTab />,
     },
     {

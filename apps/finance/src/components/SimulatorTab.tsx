@@ -9,6 +9,8 @@ import {
 } from 'recharts'
 import { financeApi, type SimulationParams } from '@aios/shared/api/areas'
 import { WorkspaceLayout, RailHeading } from '@aios/shared/components/layout/WorkspaceLayout'
+import { ForecastWidget } from '@aios/shared/components/widgets/ForecastWidget'
+import { CashflowForecasting } from './AdvancedWidgets'
 import { formatCurrency } from '@aios/shared/lib/utils'
 
 const RailStack = styled.div`
@@ -200,7 +202,7 @@ export function SimulatorTab() {
 
   if (error) {
     return (
-      <WorkspaceLayout rail={rail}>
+      <WorkspaceLayout rail={rail} railTitle="Assumptions" railSubtitle="Adjust the levers to re-run the projection">
         <EmptyState
           icon={<FlaskConical size={24} />}
           title="Not enough history to simulate"
@@ -211,7 +213,17 @@ export function SimulatorTab() {
   }
 
   return (
-    <WorkspaceLayout rail={rail}>
+    <WorkspaceLayout rail={rail} railTitle="Assumptions" railSubtitle="Adjust the levers to re-run the projection">
+      {/*
+        Every forward-looking finance surface lives here now. They used to be
+        scattered across three tabs — ForecastWidget on Overview,
+        CashflowForecasting in Analytics and the Monte-Carlo simulator alone in
+        its own tab — so "what happens next to my money" had three different
+        answers in three places. Analytics is retrospective only.
+      */}
+      <ForecastWidget domain="finance" />
+      <CashflowForecasting />
+
       <KpiGrid $cols={3}>
         <KpiCard label="Median outcome" icon={FlaskConical} sub={`Balance after ${months} months (p50)`}
           loading={isLoading} value={endP50 != null ? formatCurrency(endP50) : '—'} spark={data?.p50} />

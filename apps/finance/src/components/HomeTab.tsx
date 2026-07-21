@@ -11,8 +11,6 @@ import { ErrorState } from '@ledgr/ui'
 import { ProgressBar } from '@aios/shared/components/lumina';
 import { Card as GlassCard } from '@ledgr/ui';
 import { WorkspaceLayout } from '@aios/shared/components/layout/WorkspaceLayout'
-import { ForecastWidget } from '@aios/shared/components/widgets/ForecastWidget'
-import { WorkspaceStatsWidget } from '@aios/shared/components/workspace/WorkspaceStatsWidget'
 import styled, { useTheme } from 'styled-components'
 import { TrendingDown, TrendingUp, Wallet, PiggyBank, CalendarClock, HeartPulse } from 'lucide-react'
 
@@ -404,7 +402,6 @@ export function HomeTab() {
   return (
     <>
       <WorkspaceLayout>
-        <WorkspaceStatsWidget domain="finance" />
         {/* KPI lead row */}
         <KpiGrid>
           <KpiCard
@@ -432,8 +429,6 @@ export function HomeTab() {
             icon={PiggyBank}
           />
         </KpiGrid>
-
-        <ForecastWidget domain="finance" />
 
         {/* Analytics: 2×2 */}
         <AnalyticsGrid>

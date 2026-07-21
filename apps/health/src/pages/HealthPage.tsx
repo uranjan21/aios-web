@@ -20,7 +20,6 @@ import { FitnessTab } from '@aios/health/components/FitnessTab'
 import { HealthLogModal } from '@aios/health/components/HealthLogModal'
 import { PageHeader } from '@ledgr/ui'
 import { AiInsightCard } from '@aios/shared/components/AiInsightCard'
-import { WorkspaceStatsWidget } from '@aios/shared/components/workspace/WorkspaceStatsWidget'
 import styled, { useTheme } from 'styled-components'
 import { PageContainer, PageContent } from '@aios/shared/components/layout/PageLayout'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
@@ -152,7 +151,6 @@ export function HealthPage() {
         items={[
         { key: '1', label: <StyledTabLabel><LayoutDashboard size={14} /> Dashboard</StyledTabLabel>, children: (
           <>
-            <WorkspaceStatsWidget domain="health" />
             <StyledKpiGrid>
               <StyledGridItemKpi>
                 <KpiCard label="Current Weight" icon={Scale} sub="Latest logged body weight" loading={loadingSummary} value={`${summary?.weight ?? '—'} kg`} />

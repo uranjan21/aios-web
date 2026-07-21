@@ -5,6 +5,14 @@ import { LayoutDashboard } from "lucide-react";
 import { SIDEBAR_WIDTH, TOPBAR_HEIGHT } from "@aios/shared/theme/layout";
 
 interface WorkspaceLayoutProps {
+  /**
+   * Rail heading. The title used to be hardcoded to "Workspace / Workspace
+   * tools & quick actions" for every consumer, so the Finance Projections rail
+   * announced itself as "Workspace" above a set of what-if levers. Name the
+   * rail for what it actually holds.
+   */
+  railTitle?: string;
+  railSubtitle?: string;
   children: ReactNode;
   rail?: ReactNode;
 }
@@ -50,13 +58,13 @@ const Main = styled.main`
   gap: 24px;
 `;
 
-export function WorkspaceLayout({ children, rail }: WorkspaceLayoutProps) {
+export function WorkspaceLayout({ children, rail, railTitle, railSubtitle }: WorkspaceLayoutProps) {
   return (
     <Root>
       {rail && (
         <StyledRail
-          title="Workspace"
-          subtitle="Workspace tools & quick actions"
+          title={railTitle ?? 'Workspace'}
+          subtitle={railSubtitle ?? 'Workspace tools & quick actions'}
           icon={<LayoutDashboard size={16} />}
           variant="glass"
         >
