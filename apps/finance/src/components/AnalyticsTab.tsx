@@ -18,7 +18,7 @@ const AnalyticsGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: repeat(2, 1fr);
   }
 `
@@ -27,7 +27,7 @@ const InsightsGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: repeat(2, 1fr);
   }
 `

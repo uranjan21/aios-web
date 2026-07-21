@@ -19,7 +19,7 @@ const KpiGrid = styled.div`
     min-width: 140px;
   }
 
-  @media (min-width: 640px) {
+  @media ${({ theme }) => theme.media.sm} {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;

@@ -69,7 +69,7 @@ export const Cell = styled.div<{ $alignRight?: boolean }>`
   flex-direction: column;
   gap: 2px;
 
-  @media (min-width: 980px) {
+  @media ${({ theme }) => theme.media.lg} {
     ${({ $alignRight }) => $alignRight && `
       align-items: flex-end;
       text-align: right;
@@ -87,7 +87,7 @@ export const MobileLabel = styled.span`
   text-transform: uppercase;
   color: ${({ theme }) => theme.color.mutedForeground};
 
-  @media (min-width: 980px) {
+  @media ${({ theme }) => theme.media.lg} {
     display: none;
   }
 `;

@@ -39,7 +39,7 @@ const SidebarRoot = styled.aside<{ $collapsed: boolean; $mobileOpen?: boolean }>
     pointer-events: none;
   }
 
-  @media (max-width: 768px) {
+  @media ${({ theme }) => theme.media.belowMd} {
     position: fixed;
     top: 0;
     left: 0;
@@ -83,7 +83,7 @@ const ToggleButton = styled.button<{ $collapsed: boolean }>`
 
   ${focusRing}
 
-  @media (max-width: 768px) {
+  @media ${({ theme }) => theme.media.belowMd} {
     display: none;
   }
 `

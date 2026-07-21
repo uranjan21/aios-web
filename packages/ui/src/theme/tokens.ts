@@ -238,6 +238,7 @@ export const media = {
   lg: `(min-width: ${breakpoint.lg})`,
   xl: `(min-width: ${breakpoint.xl})`,
   /** Below a breakpoint. Uses 0.02px to avoid the exact-boundary double-match. */
+  belowXs: `(max-width: ${parseInt(breakpoint.xs) - 0.02}px)`,
   belowSm: `(max-width: ${parseInt(breakpoint.sm) - 0.02}px)`,
   belowMd: `(max-width: ${parseInt(breakpoint.md) - 0.02}px)`,
   belowLg: `(max-width: ${parseInt(breakpoint.lg) - 0.02}px)`,

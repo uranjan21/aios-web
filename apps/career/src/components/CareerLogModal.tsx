@@ -14,7 +14,7 @@ const TwoColGrid = styled.div`
   gap: 16px;
   margin-top: 8px;
   margin-bottom: 16px;
-  @media (max-width: 480px) {
+  @media ${({ theme }) => theme.media.belowXs} {
     grid-template-columns: 1fr;
   }
 `

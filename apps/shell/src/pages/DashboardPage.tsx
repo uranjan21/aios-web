@@ -20,7 +20,7 @@ const DashboardGrid = styled.div`
   grid-template-columns: 1fr;
   gap: 20px;
   align-items: start;
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: minmax(0, 1fr) 300px;
   }
 `;
@@ -44,7 +44,7 @@ const RightColumn = styled.aside`
   min-width: 0;
   width: 100%;
   max-width: 100%;
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     position: sticky;
     top: 16px;
     align-self: start;
@@ -57,10 +57,10 @@ const ThreeRow = styled.div`
   grid-template-columns: 1fr;
   gap: 20px;
   align-items: stretch;
-  @media (min-width: 768px) {
+  @media ${({ theme }) => theme.media.md} {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 `;

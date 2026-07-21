@@ -28,7 +28,7 @@ const Root = styled.section`
   width: 100%;
   align-items: flex-start;
 
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     flex-direction: row;
     align-items: stretch;
   }
@@ -39,7 +39,7 @@ const StyledRail = styled(Card)`
   flex-shrink: 0;
   align-self: flex-start;
 
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     width: ${SIDEBAR_WIDTH};
     position: sticky;
     top: 24px;
@@ -94,7 +94,7 @@ const Dot = styled.span`
   width: 4px;
   height: 4px;
   flex-shrink: 0;
-  border-radius: 999px;
+  border-radius: ${({ theme }) => theme.radii.full}; /* true circle */
   background: ${({ theme }) => theme.color.primary};
 `;
 

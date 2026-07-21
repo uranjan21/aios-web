@@ -38,7 +38,7 @@ export const Shell = styled.div`
   gap: 24px;
   width: 100%;
 
-  @media (max-width: 1023px) {
+  @media ${({ theme }) => theme.media.belowLg} {
     flex-direction: column;
   }
 `;
@@ -57,14 +57,14 @@ export const NavRail = styled.nav`
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.lg};
 
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     position: sticky;
     top: 24px;
     max-height: calc(100dvh - ${TOPBAR_HEIGHT});
     overflow-y: auto;
   }
 
-  @media (max-width: 1023px) {
+  @media ${({ theme }) => theme.media.belowLg} {
     width: 100%;
   }
 `;

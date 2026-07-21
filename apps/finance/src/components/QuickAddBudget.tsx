@@ -64,7 +64,7 @@ const IconButton = styled.button<{ $active: boolean }>`
 const ColorButton = styled.button<{ $active: boolean, $color: string }>`
   width: 1.5rem;
   height: 1.5rem;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.full}; /* true circle */
   border: 2px solid ${({ $active, theme }) => $active ? theme.color.foreground : 'transparent'};
   background-color: ${({ $color }) => $color};
   transition: all 0.2s;

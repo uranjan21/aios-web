@@ -257,7 +257,7 @@ const HudSvg = styled.svg`
   height: 100%;
   pointer-events: none;
   opacity: 0.5;
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     opacity: 1;
   }
 `
@@ -280,7 +280,7 @@ const Shell = styled.div`
   place-items: center;
   padding: 32px 20px;
 
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: 1fr 420px;
     align-items: center;
     gap: 72px;
@@ -293,7 +293,7 @@ const Shell = styled.div`
 /* ── Left column ────────────────────────────────────────────────────── */
 const Hero = styled.div`
   display: none;
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     display: block;
     animation: ${fadeUp} 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
@@ -479,7 +479,7 @@ const Card = styled.div`
     0 0 0 1px rgba(202, 138, 4, 0.06);
   animation: ${fadeUp} 0.5s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
 
-  @media (min-width: 640px) {
+  @media ${({ theme }) => theme.media.sm} {
     padding: 36px 34px;
   }
 `
@@ -490,7 +490,7 @@ const MobileLogo = styled.div`
   justify-content: center;
   gap: 10px;
   margin-bottom: 26px;
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     display: none;
   }
 `

@@ -108,7 +108,7 @@ const TxnActions = styled.div`
   gap: 2px;
   opacity: 0;
   transition: opacity 120ms;
-  @media (max-width: 768px) { opacity: 1; }
+  @media ${({ theme }) => theme.media.belowMd} { opacity: 1; }
 `
 
 const TxnActionBtn = styled.button<{ $danger?: boolean }>`

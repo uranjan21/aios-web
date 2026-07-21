@@ -29,7 +29,7 @@ const StyledChartsGrid = styled.div`
   grid-template-columns: 1fr;
   gap: 1rem;
 
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: repeat(2, 1fr);
   }
 `;

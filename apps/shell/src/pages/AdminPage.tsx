@@ -16,8 +16,8 @@ const StatsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  @media (max-width: 900px) { grid-template-columns: repeat(2, 1fr); }
-  @media (max-width: 500px) { grid-template-columns: 1fr; }
+  @media ${({ theme }) => theme.media.belowLg} { grid-template-columns: repeat(2, 1fr); }
+  @media ${({ theme }) => theme.media.belowXs} { grid-template-columns: 1fr; }
 `
 
 const StatCard = styled.div`
@@ -31,7 +31,7 @@ const StatCard = styled.div`
 `
 
 const StatValue = styled.div`
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: ${({ theme }) => theme.typography.fontFamily.display};
   font-size: 28px;
   font-weight: 700;
   color: ${({ theme }) => theme.color.foreground};

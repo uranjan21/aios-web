@@ -54,7 +54,7 @@ const FormGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  @media (max-width: 480px) { grid-template-columns: 1fr; }
+  @media ${({ theme }) => theme.media.belowXs} { grid-template-columns: 1fr; }
 `
 
 const FieldLabel = styled.label`

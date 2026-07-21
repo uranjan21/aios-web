@@ -37,7 +37,7 @@ const MobileBackdrop = styled.div<{ $show: boolean }>`
     opacity 180ms ease,
     visibility 180ms ease;
 
-  @media (min-width: 769px) {
+  @media ${({ theme }) => theme.media.md} {
     display: none;
   }
 `;
@@ -83,7 +83,7 @@ const ContentArea = styled.main`
   scroll-behavior: smooth;
   overscroll-behavior: contain;
 
-  @media (max-width: 768px) {
+  @media ${({ theme }) => theme.media.belowMd} {
     padding-bottom: ${BOTTOM_NAV_HEIGHT};
   }
 `;
@@ -103,7 +103,7 @@ const SkipLink = styled.a`
   background: ${({ theme }) => theme.color.primary};
   color: ${({ theme }) => theme.color.primaryForeground};
 
-  box-shadow: 0 4px 16px rgba(45, 49, 58, 0.2);
+  box-shadow: ${({ theme }) => theme.elevation[3]};
 
   &:focus {
     top: 12px;

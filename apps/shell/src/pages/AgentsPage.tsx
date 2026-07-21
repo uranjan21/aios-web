@@ -47,7 +47,7 @@ const TableShell = styled.div`
 const TableHeader = styled.div`
   display: none;
 
-  @media (min-width: 980px) {
+  @media ${({ theme }) => theme.media.lg} {
     display: grid;
     grid-template-columns: minmax(0, 2fr) 95px 140px 110px 110px 110px;
     gap: 12px;
@@ -81,7 +81,7 @@ const TableHeaderCell = styled.div<{ $alignRight?: boolean }>`
     transform: scale(1.05);
   }
 
-  @media (min-width: 980px) {
+  @media ${({ theme }) => theme.media.lg} {
     ${({ $alignRight }) => $alignRight && `
       justify-content: flex-end;
     `}

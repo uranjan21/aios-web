@@ -17,7 +17,7 @@ const FormGrid = styled.div`
   gap: 12px;
   margin-bottom: 12px;
 
-  @media (min-width: 640px) {
+  @media ${({ theme }) => theme.media.sm} {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 `

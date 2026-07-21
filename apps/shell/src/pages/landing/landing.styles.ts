@@ -174,7 +174,7 @@ export const StatItem = styled.div`
   padding: 0 2rem;
   border-right: 1px solid ${({ theme }) => theme.color.border};
   &:last-child { border-right: none; }
-  @media (max-width: 640px) { min-width: 120px; padding: 0 1rem; }
+  @media ${({ theme }) => theme.media.belowSm} { min-width: 120px; padding: 0 1rem; }
 `
 
 export const StatNum = styled.div`
@@ -372,7 +372,7 @@ export const CompareTable = styled.div`
   overflow: hidden;
   text-align: left;
   margin-top: 2rem;
-  @media (max-width: 640px) { grid-template-columns: 1fr; }
+  @media ${({ theme }) => theme.media.belowSm} { grid-template-columns: 1fr; }
 `
 
 export const CompareHeader = styled.div<{ $highlight?: boolean }>`

@@ -18,7 +18,7 @@ const Nav = styled.nav`
   box-shadow: ${({ theme }) => theme.shadow.lg};
   z-index: ${({ theme }) => theme.zIndex.sticky};
 
-  @media (min-width: 768px) {
+  @media ${({ theme }) => theme.media.md} {
     display: none;
   }
 `

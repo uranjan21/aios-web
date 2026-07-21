@@ -18,7 +18,7 @@ export const FAB = styled(motion.button).attrs({ type: 'button' })`
   cursor: pointer;
   z-index: 50;
 
-  @media (max-width: 767px) {
+  @media ${({ theme }) => theme.media.belowMd} {
     bottom: 88px; /* clear the mobile BottomNav (64px + margin) */
   }
 
@@ -148,7 +148,7 @@ export const SettingsPanel = styled(motion.div)`
   gap: ${({ theme }) => theme.spacing[3]};
   z-index: 60;
 
-  @media (max-width: 767px) {
+  @media ${({ theme }) => theme.media.belowMd} {
     width: calc(100% - 32px);
     left: 16px;
     right: 16px;
@@ -182,7 +182,7 @@ export const HistorySidebar = styled(motion.div)`
   flex-direction: column;
   box-shadow: ${({ theme }) => theme.shadow.sm};
 
-  @media (max-width: 767px) {
+  @media ${({ theme }) => theme.media.belowMd} {
     width: 100%;
     border-right: none;
   }

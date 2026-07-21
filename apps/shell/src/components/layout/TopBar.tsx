@@ -64,7 +64,7 @@ const Hamburger = styled.button`
 
   ${focusRing}
   
-  @media (min-width: 768px) {
+  @media ${({ theme }) => theme.media.md} {
     display: none;
   }
 `
@@ -75,7 +75,7 @@ const BreadcrumbNav = styled.nav`
   gap: 6px;
   font-size: 14px;
   
-  @media (max-width: 767px) {
+  @media ${({ theme }) => theme.media.belowMd} {
     display: none;
   }
   
@@ -117,7 +117,7 @@ const GlobalSearchContainer = styled.div`
   position: relative;
   margin-left: 24px;
 
-  @media (max-width: 639px) {
+  @media ${({ theme }) => theme.media.belowSm} {
     display: none;
     margin-left: 0;
   }
@@ -225,7 +225,7 @@ const UserMenuTrigger = styled.button`
     flex-direction: column;
     text-align: left;
 
-    @media (min-width: 640px) {
+    @media ${({ theme }) => theme.media.sm} {
       display: flex;
     }
     
@@ -271,7 +271,7 @@ const PopoverHeader = styled.div`
     font-size: 16px;
     font-weight: 600;
     flex-shrink: 0;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    box-shadow: ${({ theme }) => theme.elevation[2]};
   }
   
   .user-details {

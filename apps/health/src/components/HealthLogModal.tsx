@@ -50,7 +50,7 @@ const StyledTextarea = styled.textarea`
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
-  box-shadow: 0 1px 2px 0 rgba(45, 49, 58, 0.05);
+  box-shadow: ${({ theme }) => theme.elevation[1]};
   
   &::placeholder {
     color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};

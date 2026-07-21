@@ -28,7 +28,7 @@ const ChatShell = styled.div`
   height: calc(100vh - 230px);
   min-height: 480px;
 
-  @media (max-width: 900px) {
+  @media ${({ theme }) => theme.media.belowLg} {
     grid-template-columns: 1fr;
     height: calc(100vh - 200px);
   }
@@ -43,7 +43,7 @@ const Rail = styled.aside`
   background: ${({ theme }) => theme.color.card};
   overflow: hidden;
 
-  @media (max-width: 900px) {
+  @media ${({ theme }) => theme.media.belowLg} {
     display: none;
   }
 `

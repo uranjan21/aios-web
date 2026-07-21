@@ -20,7 +20,7 @@ const DetailGrid = styled.div`
   grid-template-columns: 1fr;
   gap: 20px;
 
-  @media (min-width: 980px) {
+  @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.4fr);
   }
 `;

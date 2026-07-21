@@ -41,7 +41,7 @@ const LoadingGridItem7 = styled(Skeleton)`
   grid-column: span 12 / span 12;
   height: 300px;
   border-radius: 0.75rem;
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     grid-column: span 7 / span 7;
   }
 `
@@ -50,7 +50,7 @@ const LoadingGridItem5 = styled(Skeleton)`
   grid-column: span 12 / span 12;
   height: 300px;
   border-radius: 0.75rem;
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     grid-column: span 5 / span 5;
   }
 `
@@ -70,7 +70,7 @@ const KpiGrid = styled.div`
     min-width: 140px;
   }
 
-  @media (min-width: 640px) {
+  @media ${({ theme }) => theme.media.sm} {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
@@ -87,7 +87,7 @@ const AnalyticsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(1, minmax(0, 1fr));
   gap: 12px;
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 `
@@ -97,7 +97,7 @@ const AnalyticsGrid = styled.div`
 const AnalyticsCell = styled.div`
   display: flex;
   flex-direction: column;
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     height: 380px;
   }
 `

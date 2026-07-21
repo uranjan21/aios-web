@@ -13,7 +13,7 @@ export const StyledMacrosWrapper = styled.div`
   gap: 1.5rem;
   align-items: center;
 
-  @media (min-width: 640px) {
+  @media ${({ theme }) => theme.media.sm} {
     flex-direction: row;
   }
 `;

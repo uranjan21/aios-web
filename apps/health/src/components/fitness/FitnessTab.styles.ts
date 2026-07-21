@@ -139,7 +139,7 @@ export const StyledDivider = styled.div`
   margin: 0 0.25rem;
   opacity: 0.6;
 
-  @media (max-width: 768px) {
+  @media ${({ theme }) => theme.media.belowMd} {
     display: none;
   }
 `;

@@ -32,7 +32,7 @@ const Value = styled.div`
   font-variant-numeric: tabular-nums;
   margin-bottom: 8px;
   
-  @media (min-width: 640px) {
+  @media ${({ theme }) => theme.media.sm} {
     font-size: 28px;
     margin-bottom: 16px;
   }
@@ -45,7 +45,7 @@ const Skeleton = styled.div`
   background: ${({ theme }) => theme.color.muted};
   margin-bottom: 8px;
   
-  @media (min-width: 640px) {
+  @media ${({ theme }) => theme.media.sm} {
     height: 32px;
     width: 120px;
     margin-bottom: 16px;
@@ -58,7 +58,7 @@ const FooterRow = styled.div`
   align-items: center;
   gap: 4px;
   
-  @media (min-width: 640px) {
+  @media ${({ theme }) => theme.media.sm} {
     gap: 8px;
   }
 `
@@ -79,7 +79,7 @@ const TrendPill = styled.div<{ $good: boolean }>`
     height: 10px;
   }
   
-  @media (min-width: 640px) {
+  @media ${({ theme }) => theme.media.sm} {
     padding: 4px 8px;
     font-size: 11px;
     & svg {
@@ -114,7 +114,7 @@ export const KpiGrid = styled.div<{ $cols?: number }>`
     scroll-snap-align: start;
   }
 
-  @media (min-width: 640px) {
+  @media ${({ theme }) => theme.media.sm} {
     display: grid;
     -webkit-mask-image: none;
     mask-image: none;

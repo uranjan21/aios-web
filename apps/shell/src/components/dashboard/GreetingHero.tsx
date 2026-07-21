@@ -103,7 +103,7 @@ const Row = styled.div`
   grid-template-columns: 1fr;
   gap: 18px;
   align-items: stretch;
-  @media (min-width: 900px) {
+  @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.9fr);
     gap: 24px;
     align-items: stretch;
@@ -131,7 +131,7 @@ const StatusRow = styled.div`
 const PulseDot = styled.span`
   width: 7px;
   height: 7px;
-  border-radius: 999px;
+  border-radius: ${({ theme }) => theme.radii.full}; /* true circle */
   background: ${({ theme }) => theme.color.accent};
   flex-shrink: 0;
   position: relative;
@@ -139,7 +139,7 @@ const PulseDot = styled.span`
     content: "";
     position: absolute;
     inset: 0;
-    border-radius: 999px;
+    border-radius: ${({ theme }) => theme.radii.full}; /* true circle */
     background: ${({ theme }) => theme.color.accent};
     animation: ${pulse} 2.4s ease-in-out infinite;
   }

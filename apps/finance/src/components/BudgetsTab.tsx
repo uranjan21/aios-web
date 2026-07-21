@@ -20,7 +20,7 @@ const CategoryCell = styled.div`
 const CategoryDot = styled.div`
   width: 0.5rem;
   height: 0.5rem;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.full}; /* true circle */
   background-color: ${({ theme }) => theme.color.primary}99;
   flex-shrink: 0;
 `
@@ -37,7 +37,7 @@ const AmountText = styled.span<{ $over?: boolean }>`
 
 const UtilContainer = styled.div`
   width: 120px;
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     width: 150px;
   }
 `
@@ -64,7 +64,7 @@ const ActionContainer = styled.div`
   opacity: 1;
   transition: opacity 0.2s;
 
-  @media (min-width: 768px) {
+  @media ${({ theme }) => theme.media.md} {
     opacity: 0;
     tr:hover & {
       opacity: 1;

@@ -53,7 +53,7 @@ const RowButton = styled.button<{ $status: string }>`
 
   ${focusRing}
 
-  @media (min-width: 980px) {
+  @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: minmax(0, 2fr) 95px 140px 110px 110px 110px;
     gap: 12px;
     align-items: center;
@@ -106,7 +106,7 @@ const ActionsCell = styled.div`
   gap: 6px;
   justify-content: flex-start;
 
-  @media (min-width: 980px) {
+  @media ${({ theme }) => theme.media.lg} {
     justify-content: flex-end;
   }
 `;

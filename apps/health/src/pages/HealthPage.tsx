@@ -47,7 +47,7 @@ const StyledKpiGrid = styled.div`
     min-width: 140px;
   }
 
-  @media (min-width: 640px) {
+  @media ${({ theme }) => theme.media.sm} {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 16px;
@@ -62,7 +62,7 @@ const StyledGridItemKpi = styled.div``;
 const StyledGridItemMain = styled.div`
   grid-column: span 12 / span 12;
   
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     grid-column: span 8 / span 8;
   }
 `;
@@ -73,7 +73,7 @@ const StyledGridItemSide = styled.div`
   flex-direction: column;
   gap: 1rem;
   
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     grid-column: span 4 / span 4;
   }
 `;

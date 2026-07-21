@@ -32,7 +32,7 @@ const Row = styled.div`
   scrollbar-width: none;
   &::-webkit-scrollbar { display: none; }
 
-  @media (min-width: 1024px) {
+  @media ${({ theme }) => theme.media.lg} {
     display: grid;
     grid-template-columns: repeat(${ACTIVE_DOMAIN_KEYS.length}, minmax(0, 1fr));
     overflow: visible;

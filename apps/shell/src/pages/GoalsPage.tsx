@@ -33,7 +33,7 @@ const TwoCol = styled.div`
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
-  @media (min-width: 768px) {
+  @media ${({ theme }) => theme.media.md} {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 `;
@@ -42,10 +42,10 @@ const GoalsGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
-  @media (min-width: 768px) {
+  @media ${({ theme }) => theme.media.md} {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  @media (min-width: 1280px) {
+  @media ${({ theme }) => theme.media.xl} {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 `;

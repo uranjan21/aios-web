@@ -2,13 +2,13 @@
   "generated": "2026-07-21",
   "counts": {
     "hardcoded-font-size": 400,
-    "hardcoded-radius": 93,
-    "pill-radius": 5,
+    "hardcoded-radius": 88,
+    "pill-radius": 0,
     "hardcoded-hex": 96,
     "hardcoded-spacing": 798,
-    "rgba-in-shadow": 6,
-    "hardcoded-font-family": 7,
-    "adhoc-breakpoint": 84,
+    "rgba-in-shadow": 2,
+    "hardcoded-font-family": 6,
+    "adhoc-breakpoint": 0,
     "inline-style-object": 514,
     "undefined-css-var": 0
   }

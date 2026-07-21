@@ -54,7 +54,7 @@ const ActionContainer = styled.div`
   opacity: 1;
   transition: opacity 0.2s;
 
-  @media (min-width: 768px) {
+  @media ${({ theme }) => theme.media.md} {
     opacity: 0;
     tr:hover & {
       opacity: 1;

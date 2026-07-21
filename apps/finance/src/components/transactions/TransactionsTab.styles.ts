@@ -10,14 +10,14 @@ export const StyledSkeleton = styled(Skeleton)<{ $height?: string; $width?: stri
 
 export const DesktopSearch = styled.div`
   display: none;
-  @media (min-width: 640px) {
+  @media ${({ theme }) => theme.media.sm} {
     display: block;
   }
 `
 
 export const MobileSearchBtn = styled(ToolbarIconBtn)`
   display: flex;
-  @media (min-width: 640px) {
+  @media ${({ theme }) => theme.media.sm} {
     display: none;
   }
 `

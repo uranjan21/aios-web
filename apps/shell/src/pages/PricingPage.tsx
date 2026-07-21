@@ -101,7 +101,7 @@ const Layout = styled.div`
   gap: 1.5rem;
   align-items: start;
 
-  @media (min-width: 880px) {
+  @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: 1.6fr 1fr;
   }
 `

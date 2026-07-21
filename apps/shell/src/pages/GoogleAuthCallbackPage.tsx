@@ -37,7 +37,7 @@ const Card = styled.div`
   border-radius: 16px;
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
-  box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.08);
+  box-shadow: ${({ theme }) => theme.elevation[3]};
   animation: ${fadeInUp} 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;
 `

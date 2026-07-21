@@ -69,8 +69,8 @@ const PipelineGrid = styled.div`
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 12px;
-  @media (min-width: 768px) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  @media (min-width: 1280px) { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  @media ${({ theme }) => theme.media.md} { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media ${({ theme }) => theme.media.xl} { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 `
 
 const PipelineCol = styled.div<{ $over: boolean }>`

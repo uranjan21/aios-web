@@ -16,7 +16,7 @@ const HalfGrid = styled.div`
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-bottom: 16px;
-  @media (max-width: 480px) {
+  @media ${({ theme }) => theme.media.belowXs} {
     grid-template-columns: 1fr;
   }
 `
@@ -26,7 +26,7 @@ const TwoColGrid = styled.div`
   grid-template-columns: 1fr 2fr;
   gap: 16px;
   margin-bottom: 16px;
-  @media (max-width: 480px) {
+  @media ${({ theme }) => theme.media.belowXs} {
     grid-template-columns: 1fr;
   }
 `

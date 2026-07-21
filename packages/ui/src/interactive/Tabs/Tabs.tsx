@@ -61,7 +61,7 @@ export function Tabs({
 /* Mobile scroll mixin shared by all variants so tabs never overflow the
    viewport. Invisible scrollbar preserves the clean look. */
 const mobileScroll = css`
-  @media (max-width: 639px) {
+  @media ${({ theme }) => theme.media.belowSm} {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;

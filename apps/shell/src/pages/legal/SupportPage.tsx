@@ -22,7 +22,7 @@ const Grid = styled.div`
   gap: 24px;
   margin-bottom: 48px;
   
-  @media (min-width: 640px) {
+  @media ${({ theme }) => theme.media.sm} {
     grid-template-columns: 1fr 1fr;
   }
 `
