@@ -1,5 +1,6 @@
 import { RouterProvider } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MotionConfig } from 'framer-motion'
 import { Toaster } from 'sonner'
 import { router } from './router'
 import { ThemeProvider } from './components/ThemeProvider'
@@ -20,7 +21,22 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <PageHeaderProvider>
-          <RouterProvider router={router} future={{ v7_startTransition: true }} />
+          {/*
+            reducedMotion="user" makes EVERY framer-motion component in the tree
+            honour prefers-reduced-motion, not just the ones written against the
+            useMotion() hook. The 2026-07-21 audit found ~100 motion call sites
+            ignoring the preference: the global CSS rule in GlobalStyles zeroes
+            animation- and transition-duration, but framer-motion drives values
+            in JS and is untouched by it. Wrapping here fixes all of them at
+            once rather than requiring every call site to remember.
+
+            useMotion() is still the right way to write NEW animation — it also
+            collapses stagger delays and returns still variants — but this is
+            the backstop for everything else, including third-party motion.
+          */}
+          <MotionConfig reducedMotion="user">
+            <RouterProvider router={router} future={{ v7_startTransition: true }} />
+          </MotionConfig>
           <Toaster
             position="bottom-right"
             toastOptions={{

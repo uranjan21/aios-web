@@ -13,7 +13,7 @@
  * directly, and the preference is honoured everywhere by construction.
  */
 import { useEffect, useState } from 'react';
-import type { Transition, Variants } from 'framer-motion';
+import type { TargetAndTransition, Transition, Variants } from 'framer-motion';
 import { motion as motionTokens } from '@ledgr/ui';
 
 const QUERY = '(prefers-reduced-motion: reduce)';
@@ -42,9 +42,9 @@ export interface MotionKit {
   reduced: boolean;
   spring: { snappy: Transition; smooth: Transition; gentle: Transition };
   /** Fade + rise. The default surface entrance. */
-  rise: { initial: Variants[string]; animate: Variants[string]; exit: Variants[string]; transition: Transition };
+  rise: { initial: TargetAndTransition; animate: TargetAndTransition; exit: TargetAndTransition; transition: Transition };
   /** Scale + fade. For popovers and cards that own a point of origin. */
-  pop: { initial: Variants[string]; animate: Variants[string]; exit: Variants[string]; transition: Transition };
+  pop: { initial: TargetAndTransition; animate: TargetAndTransition; exit: TargetAndTransition; transition: Transition };
   /** Parent of a staggered list. Pair with `child`. */
   stagger: { initial: string; animate: string; variants: Variants };
   child: { variants: Variants };
