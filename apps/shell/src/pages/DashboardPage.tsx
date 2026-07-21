@@ -7,6 +7,8 @@ import {
 } from "@/components/dashboard/RelevantCards";
 import { UnifiedSchedulePanel } from "@/components/dashboard/UnifiedSchedulePanel";
 import { useState } from "react";
+import { motion } from "framer-motion";
+import { useMotion } from "@aios/shared/hooks/useMotion";
 import styled, { keyframes } from "styled-components";
 import { DiscoveriesFeed } from "@/components/dashboard/DiscoveriesFeed";
 import { LifeHeatmap } from "@/components/dashboard/LifeHeatmap";
@@ -131,6 +133,10 @@ export function DashboardPage() {
   };
 
   const offset = refreshing ? 60 : Math.min(pullDist / 2, 60);
+  // Staggered entrance. Routed through useMotion so `prefers-reduced-motion`
+  // is honoured — framer-motion drives values in JS and is not reached by the
+  // global CSS reduced-motion rule in GlobalStyles.
+  const { stagger, child } = useMotion();
 
   return (
     <PageContainer onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
@@ -140,18 +146,18 @@ export function DashboardPage() {
           {(pullDist > 40 || refreshing) && <SpinningLoader $spinning={refreshing} style={{ transform: refreshing ? 'none' : `rotate(${pullDist * 2}deg)` }} size={20} color="var(--muted-foreground)" />}
         </div>
         
-        <DashboardGrid style={{ transform: `translateY(${refreshing ? 0 : 0}px)`, transition: pullDist === 0 ? 'transform 0.2s' : 'none' }}>
-          <LeftColumn>
-          <HeroBlock>
+        <DashboardGrid>
+          <LeftColumn as={motion.div} initial={stagger.initial} animate={stagger.animate} variants={stagger.variants}>
+          <HeroBlock as={motion.div} variants={child.variants}>
             <GreetingHero />
             <BriefingCard />
             <OverviewInsightCard />
           </HeroBlock>
 
-          <PulseRow />
-          <DiscoveriesFeed />
+          <motion.div variants={child.variants}><PulseRow /></motion.div>
+          <motion.div variants={child.variants}><DiscoveriesFeed /></motion.div>
 
-          <ThreeRow>
+          <ThreeRow as={motion.div} variants={child.variants}>
             <CardFill>
               <HabitsCard />
             </CardFill>
@@ -163,7 +169,7 @@ export function DashboardPage() {
             </CardFill>
           </ThreeRow>
 
-          <RowOnly>
+          <RowOnly as={motion.div} variants={child.variants}>
             <CardFill>
               <LifeHeatmap />
             </CardFill>

@@ -1,7 +1,7 @@
 import styled from 'styled-components'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Card, Button } from '@ledgr/ui'
+import { Card, Button, EmptyState } from '@ledgr/ui'
 import { Sunrise } from 'lucide-react'
 import { insightsApi } from '@aios/shared/api/insights'
 
@@ -43,14 +43,30 @@ export function BriefingCard() {
     staleTime: 10 * 60_000,
   })
 
-  if (data?.status !== 'ready' || !data.briefing) return null
+  // Previously `return null` — the card vanished until the scheduler had run,
+  // so a new user's dashboard simply had a hole where the briefing belongs.
+  if (data?.status !== 'ready' || !data.briefing) {
+    return (
+      <Card title="Daily Briefing" icon={<Sunrise size={16} />}>
+        <EmptyState
+          icon={<Sunrise size={22} />}
+          title="No briefing yet"
+          description="Your morning brief is written from yesterday's logs and today's schedule. It appears here once the agent has run."
+          action={
+            <Button size="sm" variant="outline" onClick={() => navigate('/app/settings?section=briefing')}>
+              Briefing settings
+            </Button>
+          }
+        />
+      </Card>
+    )
+  }
 
   return (
     <Card
       title="Daily Briefing"
       subtitle={data.briefing.date}
       icon={<Sunrise size={16} />}
-      fadeIn="up"
     >
       <Body>{renderBold(data.briefing.content_md)}</Body>
       <Footer>

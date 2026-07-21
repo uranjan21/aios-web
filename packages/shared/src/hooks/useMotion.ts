@@ -13,6 +13,7 @@
  * directly, and the preference is honoured everywhere by construction.
  */
 import { useEffect, useState } from 'react';
+import type { Transition, Variants } from 'framer-motion';
 import { motion as motionTokens } from '@ledgr/ui';
 
 const QUERY = '(prefers-reduced-motion: reduce)';
@@ -37,18 +38,16 @@ export function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
-type Transition = Record<string, unknown>;
-
 export interface MotionKit {
   reduced: boolean;
   spring: { snappy: Transition; smooth: Transition; gentle: Transition };
   /** Fade + rise. The default surface entrance. */
-  rise: { initial: object; animate: object; exit: object; transition: Transition };
+  rise: { initial: Variants[string]; animate: Variants[string]; exit: Variants[string]; transition: Transition };
   /** Scale + fade. For popovers and cards that own a point of origin. */
-  pop: { initial: object; animate: object; exit: object; transition: Transition };
+  pop: { initial: Variants[string]; animate: Variants[string]; exit: Variants[string]; transition: Transition };
   /** Parent of a staggered list. Pair with `child`. */
-  stagger: { initial: string; animate: string; variants: object };
-  child: { variants: object };
+  stagger: { initial: string; animate: string; variants: Variants };
+  child: { variants: Variants };
   /** Seconds between siblings — 0 when reduced. */
   staggerDelay: number;
 }
@@ -65,8 +64,10 @@ export function useMotion(): MotionKit {
       spring: { snappy: NONE, smooth: NONE, gentle: NONE },
       rise: still,
       pop: still,
-      stagger: { initial: 'show', animate: 'show', variants: {} },
-      child: { variants: {} },
+      // Both variant maps define only `show`, so a reduced-motion user lands
+      // on the final state immediately with no transition to run.
+      stagger: { initial: 'show', animate: 'show', variants: { show: {} } },
+      child: { variants: { show: {} } },
       staggerDelay: 0,
     };
   }
@@ -78,13 +79,13 @@ export function useMotion(): MotionKit {
       initial: { opacity: 0, y: 12 },
       animate: { opacity: 1, y: 0 },
       exit: { opacity: 0, y: -6 },
-      transition: motionTokens.spring.smooth as Transition,
+      transition: motionTokens.spring.smooth as unknown as Transition,
     },
     pop: {
       initial: { opacity: 0, scale: 0.97 },
       animate: { opacity: 1, scale: 1 },
       exit: { opacity: 0, scale: 0.98 },
-      transition: motionTokens.spring.snappy as Transition,
+      transition: motionTokens.spring.snappy as unknown as Transition,
     },
     stagger: {
       initial: 'hidden',
@@ -92,13 +93,13 @@ export function useMotion(): MotionKit {
       variants: {
         hidden: {},
         show: { transition: { staggerChildren: motionTokens.stagger } },
-      },
+      } as Variants,
     },
     child: {
       variants: {
         hidden: { opacity: 0, y: 10 },
-        show: { opacity: 1, y: 0, transition: motionTokens.spring.smooth },
-      },
+        show: { opacity: 1, y: 0, transition: motionTokens.spring.smooth as Transition },
+      } as Variants,
     },
     staggerDelay: motionTokens.stagger,
   };

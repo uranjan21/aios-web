@@ -1,5 +1,5 @@
 import styled, { useTheme } from 'styled-components'
-import { InsightCard } from '@ledgr/ui'
+import { Card, EmptyState, InsightCard } from '@ledgr/ui'
 import { Sparkles, Activity } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { insightsApi } from '@aios/shared/api/insights'
@@ -46,7 +46,21 @@ export function DiscoveriesFeed({ limit = 8 }: { limit?: number }) {
   })
 
   const visible = insights.slice(0, limit)
-  if (visible.length === 0) return null
+
+  // Previously `return null`. Discoveries are cross-domain correlations the
+  // synergy job finds; with little logged data there are none, and silently
+  // rendering nothing gave no hint that the feature exists.
+  if (visible.length === 0) {
+    return (
+      <Card title="Discoveries" icon={<Sparkles size={16} />}>
+        <EmptyState
+          icon={<Sparkles size={22} />}
+          title="Nothing spotted yet"
+          description="Once there's a few weeks of data across your areas, patterns worth knowing about show up here."
+        />
+      </Card>
+    )
+  }
 
   return (
     <FeedWrapper>
