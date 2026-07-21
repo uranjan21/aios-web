@@ -64,7 +64,7 @@ const Tile = styled.button`
 `
 
 const TileLabel = styled.span`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -80,7 +80,7 @@ const ValueRow = styled.div`
 `
 
 const TileValue = styled.span`
-  font-size: 20px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xl};
   font-weight: 700;
   color: ${({ theme }) => theme.color.foreground};
   font-variant-numeric: tabular-nums;
@@ -91,7 +91,7 @@ const Delta = styled.span<{ $good: boolean }>`
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 700;
   color: ${({ theme, $good }) => ($good ? theme.color.success : theme.color.destructive)};
 `

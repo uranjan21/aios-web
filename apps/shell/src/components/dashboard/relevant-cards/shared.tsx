@@ -4,7 +4,7 @@ import styled from 'styled-components'
 
 export const Empty = styled.p`
   margin: 8px 0 0 0;
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   line-height: 1.4;
 `

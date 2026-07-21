@@ -122,7 +122,7 @@ const StatusRow = styled.div`
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.mutedForeground};
   font-variant-numeric: tabular-nums;
@@ -169,7 +169,7 @@ const Accent = styled.span`
 `;
 
 const DateLine = styled.p`
-  font-size: 13.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin: 0;
 `;
@@ -191,7 +191,7 @@ const Chip = styled.span`
   background: ${({ theme }) => theme.color.muted};
   border: 1px solid ${({ theme }) => theme.color.border};
   color: ${({ theme }) => theme.color.foreground};
-  font-size: 11.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 `;
@@ -201,7 +201,7 @@ const ChipKey = styled.span`
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
 `;
 
 const QuotePanel = styled.div`
@@ -218,7 +218,7 @@ const QuoteLabel = styled.span`
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -237,14 +237,14 @@ const QuoteBlock = styled.blockquote`
 
 const QuoteText = styled.p`
   margin: 0;
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   line-height: 1.55;
   color: ${({ theme }) => theme.color.foreground};
   font-weight: 500;
 `;
 
 const QuoteAuthor = styled.cite`
-  font-size: 11.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   font-style: normal;
 `;

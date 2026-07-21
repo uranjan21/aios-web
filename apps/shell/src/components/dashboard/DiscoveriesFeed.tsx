@@ -18,7 +18,7 @@ const Header = styled.div`
 
 const Title = styled.h3`
   margin: 0;
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-weight: 700;
   color: ${({ theme }) => theme.color.foreground};
   display: flex;

@@ -53,7 +53,7 @@ const Footer = styled.div`
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 `
 
@@ -67,7 +67,7 @@ const StreakChip = styled.span`
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 700;
   color: ${({ theme }) => theme.color.accent};
   background: ${({ theme }) => theme.color.accent}1A;

@@ -24,13 +24,13 @@ const HeaderRow = styled.div`
 
 const DateLabel = styled.h3`
   margin: 0;
-  font-size: 14px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
 `;
 
 const Counter = styled.span`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 `;
 
@@ -80,7 +80,7 @@ const Time = styled.div`
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 10.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -89,7 +89,7 @@ const Time = styled.div`
 `;
 
 const Title = styled.div<{ $done?: boolean }>`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
   ${({ $done }) =>
@@ -107,7 +107,7 @@ const Meta = styled.div`
 `;
 
 const CategoryChip = styled.span<{ $color: string }>`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -119,7 +119,7 @@ const CategoryChip = styled.span<{ $color: string }>`
 
 const Notes = styled.p`
   margin: 4px 0 0 0;
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   line-height: 1.4;
 `;
@@ -167,7 +167,7 @@ const Empty = styled.div`
   text-align: center;
   padding: 28px 16px 12px;
   color: ${({ theme }) => theme.color.mutedForeground};
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   display: flex;
   flex-direction: column;
   align-items: center;

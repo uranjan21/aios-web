@@ -9,7 +9,16 @@ import {
   Mail, Lock, ArrowRight, Check,
 } from 'lucide-react'
 
-/* ── Palette — Premium Black + Gold, constant across the page ───────── */
+/* ── Palette — deliberately page-local ───────────────────────────────
+ *
+ * These are NOT drift. This page renders always-dark regardless of the user's
+ * light/dark preference (see the chromeDomain note below), so it cannot source
+ * surface colours from the active theme without breaking that intent. GOLD is
+ * the same value as theme.color.accent; the rest are alpha steps over the dark
+ * ground that have no semantic equivalent in the palette.
+ *
+ * Everything that CAN come from the theme now does: the type family, and the
+ * focus ring. */
 const BG = '#080A08'
 const GOLD = '#CA8A04'
 const GOLD_LIT = '#FDE68A'
@@ -353,7 +362,7 @@ const Eyebrow = styled.p`
 
 /* GlobalStyles sets h1/h2 to Playfair Display — pin sans, UI is never serif. */
 const Title = styled.h1`
-  font-family: 'DM Sans', sans-serif;
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-size: 46px;
   line-height: 1.06;
   font-weight: 700;
@@ -496,7 +505,7 @@ const MobileLogo = styled.div`
 `
 
 const CardTitle = styled.h2`
-  font-family: 'DM Sans', sans-serif;
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-size: 25px;
   font-weight: 700;
   color: ${TXT};
@@ -554,7 +563,7 @@ const Input = styled.input`
   box-sizing: border-box;
   padding: 12px 42px;
   font-size: 14px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   color: ${TXT};
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid ${LINE};
@@ -567,7 +576,7 @@ const Input = styled.input`
   &:focus {
     border-color: ${GOLD};
     background: rgba(255, 255, 255, 0.055);
-    box-shadow: 0 0 0 3px rgba(202, 138, 4, 0.16);
+    box-shadow: ${({ theme }) => theme.focusRing};
   }
 `
 
@@ -651,7 +660,7 @@ const Primary = styled.button`
   padding: 13px;
   font-size: 14.5px;
   font-weight: 700;
-  font-family: 'DM Sans', sans-serif;
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   color: #100c02;
   background: linear-gradient(135deg, #e3ac1a 0%, ${GOLD} 100%);
   border: none;
@@ -696,7 +705,7 @@ const Ghost = styled.button`
   padding: 12px;
   font-size: 13.5px;
   font-weight: 500;
-  font-family: 'DM Sans', sans-serif;
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   color: ${TXT};
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid ${LINE};
@@ -725,7 +734,7 @@ const Toggle = styled.p`
     color: ${GOLD};
     font-size: 12.5px;
     font-weight: 600;
-    font-family: 'DM Sans', sans-serif;
+    font-family: ${({ theme }) => theme.typography.fontFamily.sans};
     cursor: pointer;
     padding: 0;
     margin-left: 5px;

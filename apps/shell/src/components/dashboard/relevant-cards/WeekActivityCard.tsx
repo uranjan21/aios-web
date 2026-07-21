@@ -37,7 +37,7 @@ const Bar = styled.div<{ $heightPct: number; $today: boolean }>`
 `
 
 const DowSm = styled.span<{ $today: boolean }>`
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: ${({ $today }) => $today ? 700 : 500};
   color: ${({ theme, $today }) => $today ? theme.color.accent : theme.color.mutedForeground};
 `
@@ -52,14 +52,14 @@ const Total = styled.div`
 `
 
 const TotalNum = styled.span`
-  font-size: 20px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xl};
   font-weight: 700;
   color: ${({ theme }) => theme.color.foreground};
   font-variant-numeric: tabular-nums;
 `
 
 const TotalLabel = styled.span`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   text-transform: uppercase;
   letter-spacing: 0.06em;

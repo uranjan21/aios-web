@@ -6,7 +6,7 @@ import { Sunrise } from 'lucide-react'
 import { insightsApi } from '@aios/shared/api/insights'
 
 const Body = styled.div`
-  font-size: 13.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   line-height: 1.65;
   color: ${({ theme }) => theme.color.foreground};
   white-space: pre-wrap;
@@ -24,7 +24,7 @@ const Footer = styled.div`
 `
 
 const Attribution = styled.span`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 500;
   color: ${({ theme }) => theme.color.mutedForeground};
 `

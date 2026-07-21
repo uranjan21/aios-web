@@ -122,7 +122,7 @@ const DomainIconBox = styled.span<{ $accent: string }>`
 `;
 
 const DomainLabel = styled.span`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 700;
   color: ${({ theme }) => theme.color.foreground};
   line-height: 1;
@@ -139,7 +139,7 @@ const BulletItem = styled.span<{ $accent: string }>`
   display: flex;
   align-items: flex-start;
   gap: 7px;
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   line-height: 1.5;
   color: ${({ theme }) => theme.color.mutedForeground};
 
@@ -155,7 +155,7 @@ const BulletItem = styled.span<{ $accent: string }>`
 `;
 
 const DomainErrorText = styled.span`
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: ${({ theme }) => theme.color.destructive};
 `;
 

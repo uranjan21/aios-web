@@ -54,7 +54,7 @@ const Header = styled.div`
 
 const MonthTitle = styled.h3`
   margin: 0;
-  font-size: 15px;
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
 `;
@@ -92,7 +92,7 @@ const DowGrid = styled.div`
 
 const DowCell = styled.div`
   text-align: center;
-  font-size: 10px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   color: ${({ theme }) => theme.color.mutedForeground};
   text-transform: uppercase;
@@ -124,7 +124,7 @@ const Cell = styled.button<{
         ? theme.color.mutedForeground + "AA"
         : theme.color.foreground};
   border-radius: ${({ theme }) => theme.radii.md};
-  font-size: 12px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 500;
   display: flex;
   flex-direction: column;
@@ -181,7 +181,7 @@ const AddEventRow = styled.div`
 `;
 
 const SelectedLabel = styled.span`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
 `;
 
@@ -199,7 +199,7 @@ const FieldRow = styled.div`
 `;
 
 const Label = styled.label`
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;

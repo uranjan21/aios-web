@@ -12,7 +12,7 @@ const StatRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   padding: 6px 0;
   &:not(:last-child) {
     border-bottom: 1px solid ${({ theme }) => theme.color.border};
@@ -55,7 +55,7 @@ const HabitRow = styled.button<{ $checkedToday: boolean }>`
 `
 
 const HabitName = styled.span`
-  font-size: 12.5px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -66,7 +66,7 @@ const StreakBadge = styled.span`
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 700;
   color: ${({ theme }) => theme.color.accent};
   background: ${({ theme }) => theme.color.accent}1A;

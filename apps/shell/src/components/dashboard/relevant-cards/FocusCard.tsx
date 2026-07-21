@@ -25,7 +25,7 @@ const FocusNum = styled.span<{ $color: string }>`
   border-radius: 50%;
   background: ${({ $color }) => $color}1F;
   color: ${({ $color }) => $color};
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -38,7 +38,7 @@ const FocusBody = styled.div`
 `
 
 const FocusTitle = styled.div`
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
   white-space: nowrap;
@@ -50,7 +50,7 @@ const FocusMeta = styled.div`
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-top: 2px;
 `
