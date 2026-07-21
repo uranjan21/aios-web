@@ -199,7 +199,7 @@ export function HealthSettingsPage() {
       icon={<Heart />}
       title="Health Settings"
       subtitle="Body, fitness, and nutrition targets used across your dashboards."
-      backTo="/app/areas/health"
+      backTo="/app/health"
       groups={[
         {
           label: 'Goals',

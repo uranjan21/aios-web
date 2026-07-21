@@ -1,15 +1,11 @@
 import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, FolderKanban, Trash2, PencilLine, CalendarDays, Tag, LayoutDashboard, IndianRupee, Heart, Briefcase, Settings } from 'lucide-react'
+import { Plus, FolderKanban, Trash2, PencilLine, CalendarDays, Tag } from 'lucide-react'
 import { Button, Card, EmptyState, Input, Dialog, DialogFooter, Select, Label } from '@ledgr/ui'
 import { workspaceApi, Project, ProjectPayload } from '@aios/shared/api/workspace'
 import { goalsApi } from '@aios/shared/api/goals'
-import { PageContainer, PageContent } from '@aios/shared/components/layout/PageLayout'
-import { PageHeader } from '@ledgr/ui'
 import styled from 'styled-components'
 import { toast } from 'sonner'
-import { AreaTabs } from '@aios/shared/components/ui/AreaTabs'
 import { DOMAIN_OPTIONS, domainLabel } from '@aios/shared/config/domains'
 import { CollapsibleSection } from '@aios/shared/components/workspace/CollapsibleSection'
 
@@ -114,10 +110,8 @@ const PRIORITY_TONE: Record<string, 'accent' | 'warn' | 'default'> = {
   low: 'default',
 }
 
-export function ProjectsPage() {
+export function ProjectsSection({ domainFilter }: { domainFilter?: string }) {
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState('overview')
   const [statusFilter, setStatusFilter] = useState('all')
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [name, setName] = useState('')
@@ -250,7 +244,7 @@ export function ProjectsPage() {
       return (
         <CollapsibleSection
           key={statusKey}
-          sectionId={`projects-${activeTab}-${statusKey}`}
+          sectionId={`projects-${domainFilter ?? 'all'}-${statusKey}`}
           label={label}
           count={`${items.length} project${items.length !== 1 ? 's' : ''}`}
         >
@@ -348,45 +342,8 @@ export function ProjectsPage() {
   }
 
   return (
-    <PageContainer>
-      <PageContent>
-        <PageHeader
-          icon={<FolderKanban />}
-          eyebrow="Workspace"
-          title="Projects"
-          subtitle="Cross-domain projects linked to your goals and sprints"
-          actions={
-            <Button variant="outline" size="sm" onClick={() => navigate('/app/settings')}>
-              <Settings size={14} style={{ marginRight: 6 }} /> Settings
-            </Button>
-          }
-        />
-        <AreaTabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={[
-            {
-              key: 'overview',
-              label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><LayoutDashboard size={14} /> Overview</span>,
-              children: renderTabContent()
-            },
-            {
-              key: 'finance',
-              label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><IndianRupee size={14} /> Finance</span>,
-              children: renderTabContent('finance')
-            },
-            {
-              key: 'health',
-              label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Heart size={14} /> Health</span>,
-              children: renderTabContent('health')
-            },
-            {
-              key: 'career',
-              label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Briefcase size={14} /> Career</span>,
-              children: renderTabContent('career')
-            }
-          ]}
-        />
+    <>
+      {renderTabContent(domainFilter)}
 
         <Dialog
           open={isOpen}
@@ -463,7 +420,6 @@ export function ProjectsPage() {
             </DialogFooter>
           </FormGrid>
         </Dialog>
-      </PageContent>
-    </PageContainer>
+    </>
   )
 }

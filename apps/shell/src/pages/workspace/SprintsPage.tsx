@@ -1,14 +1,10 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Zap, Trash2, PencilLine, CalendarRange, Target, LayoutDashboard, IndianRupee, Heart, Briefcase, Settings } from 'lucide-react'
+import { Plus, Zap, Trash2, PencilLine, CalendarRange, Target } from 'lucide-react'
 import { Button, Card, EmptyState, Input, Dialog, DialogFooter, Select, Label } from '@ledgr/ui'
 import { workspaceApi, Sprint, SprintPayload } from '@aios/shared/api/workspace'
-import { PageContainer, PageContent } from '@aios/shared/components/layout/PageLayout'
-import { PageHeader } from '@ledgr/ui'
 import styled from 'styled-components'
 import { toast } from 'sonner'
-import { AreaTabs } from '@aios/shared/components/ui/AreaTabs'
 import { domainLabel } from '@aios/shared/config/domains'
 import { CollapsibleSection } from '@aios/shared/components/workspace/CollapsibleSection'
 
@@ -87,10 +83,8 @@ function fmtDate(d?: string) {
   return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
-export function SprintsPage() {
+export function SprintsSection({ domainFilter }: { domainFilter?: string }) {
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState('overview')
   const [statusFilter, setStatusFilter] = useState('all')
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [name, setName] = useState('')
@@ -221,7 +215,7 @@ export function SprintsPage() {
       return (
         <CollapsibleSection
           key={statusKey}
-          sectionId={`sprints-${activeTab}-${statusKey}`}
+          sectionId={`sprints-${domainFilter ?? 'all'}-${statusKey}`}
           label={label}
           count={`${items.length} sprint${items.length !== 1 ? 's' : ''}`}
         >
@@ -321,45 +315,8 @@ export function SprintsPage() {
   }
 
   return (
-    <PageContainer>
-      <PageContent>
-        <PageHeader
-          icon={<Zap />}
-          eyebrow="Workspace"
-          title="Sprints"
-          subtitle="Time-boxed iterations within your projects"
-          actions={
-            <Button variant="outline" size="sm" onClick={() => navigate('/app/settings')}>
-              <Settings size={14} style={{ marginRight: 6 }} /> Settings
-            </Button>
-          }
-        />
-        <AreaTabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={[
-            {
-              key: 'overview',
-              label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><LayoutDashboard size={14} /> Overview</span>,
-              children: renderTabContent()
-            },
-            {
-              key: 'finance',
-              label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><IndianRupee size={14} /> Finance</span>,
-              children: renderTabContent('finance')
-            },
-            {
-              key: 'health',
-              label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Heart size={14} /> Health</span>,
-              children: renderTabContent('health')
-            },
-            {
-              key: 'career',
-              label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Briefcase size={14} /> Career</span>,
-              children: renderTabContent('career')
-            }
-          ]}
-        />
+    <>
+      {renderTabContent(domainFilter)}
 
         <Dialog
           open={isOpen}
@@ -418,7 +375,6 @@ export function SprintsPage() {
             </DialogFooter>
           </FormGrid>
         </Dialog>
-      </PageContent>
-    </PageContainer>
+    </>
   )
 }

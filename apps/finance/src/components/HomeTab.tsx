@@ -455,7 +455,7 @@ export function HomeTab() {
                     value={upcomingFilter}
                     onChange={(val) => setUpcomingFilter(val as string)}
                   />
-                  <NavButton onClick={() => navigate('/app/areas/finance/settings?section=bills')} />
+                  <NavButton onClick={() => navigate('/app/finance/settings?section=bills')} />
                 </div>
               } 
               hoverable fadeIn="up" delay={100} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}

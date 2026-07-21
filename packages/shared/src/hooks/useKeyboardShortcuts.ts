@@ -2,7 +2,16 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUIStore } from '@aios/shared/stores/uiStore'
 
-export function useKeyboardShortcuts() {
+/**
+ * Global keyboard shortcuts.
+ *
+ * `gotoMap` is injected rather than hardcoded here: the destinations belong to
+ * the shell's navigation config, and packages/shared must not import from
+ * apps/shell — that would invert the dependency graph. Passing the map keeps
+ * the goto shortcuts in sync with the sidebar, bottom nav and command palette
+ * without shared knowing any routes.
+ */
+export function useKeyboardShortcuts(gotoMap: Record<string, string> = {}) {
   const navigate = useNavigate()
   const { setCmdPaletteOpen, toggleTheme, toggleAssistant } = useUIStore()
 
@@ -37,15 +46,8 @@ export function useKeyboardShortcuts() {
       if (e.key === 'g') {
         const onSecond = (e2: KeyboardEvent) => {
           window.removeEventListener('keydown', onSecond)
-          switch (e2.key) {
-            case 'd': navigate('/app'); break
-            case 'c': navigate('/app/chat'); break
-            case 'a': navigate('/app/agents'); break
-            case 'f': navigate('/app/areas/finance'); break
-            case 'h': navigate('/app/areas/health'); break
-            case 'r': navigate('/app/areas/career'); break
-            case 's': navigate('/app/settings'); break
-          }
+          const dest = gotoMap[e2.key]
+          if (dest) navigate(dest)
         }
         window.addEventListener('keydown', onSecond, { once: true })
         return
@@ -60,5 +62,5 @@ export function useKeyboardShortcuts() {
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [navigate, setCmdPaletteOpen, toggleTheme, toggleAssistant])
+  }, [navigate, gotoMap, setCmdPaletteOpen, toggleTheme, toggleAssistant])
 }

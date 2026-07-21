@@ -1,17 +1,18 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useUIStore } from '@aios/shared/stores/uiStore'
+import { NAV_GROUP_ORDER, navItemsForGroup } from '@/config/navigation'
 import { useAuthStore } from '@aios/shared/stores/authStore'
 import { logoutAndRedirect } from '@aios/shared/lib/logout'
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel, focusRing } from '@ledgr/ui'
 import {
-  LayoutDashboard, MessageSquare, Bot, IndianRupee,
-  Heart, Briefcase, Settings,
-  ChevronLeft, LogOut, Target, CalendarCheck,
-  FolderKanban, ListTodo, Zap, ChevronsUpDown
+  Settings,
+  ChevronLeft, LogOut, ChevronsUpDown
 } from 'lucide-react'
+
+
 import styled, { css } from 'styled-components'
 import { SIDEBAR_NAV_WIDTH, SIDEBAR_NAV_COLLAPSED_WIDTH } from '@aios/shared/theme/layout'
 
@@ -371,40 +372,6 @@ const DropdownIconWrapper = styled.div`
   }
 `
 
-const NAV_GROUPS = [
-  {
-    category: 'Main',
-    items: [
-      { to: '/app', icon: LayoutDashboard, label: 'Dashboard' },
-      { to: '/app/chat', icon: MessageSquare, label: 'Chat' },
-      { to: '/app/agents', icon: Bot, label: 'Agents' },
-      { to: '/app/review', icon: CalendarCheck, label: 'Review' },
-    ]
-  },
-  {
-    category: 'Workspace',
-    items: [
-      { to: '/app/goals', icon: Target, label: 'Goals' },
-      { to: '/app/projects', icon: FolderKanban, label: 'Projects' },
-      { to: '/app/sprints', icon: Zap, label: 'Sprints' },
-      { to: '/app/tasks', icon: ListTodo, label: 'Tasks' },
-    ]
-  },
-  {
-    category: 'Areas',
-    items: [
-      { to: '/app/areas/finance', icon: IndianRupee, label: 'Finance' },
-      { to: '/app/areas/health', icon: Heart, label: 'Health' },
-      { to: '/app/areas/career', icon: Briefcase, label: 'Career' },
-    ]
-  },
-  {
-    category: 'System',
-    items: [
-      { to: '/app/settings', icon: Settings, label: 'Settings' },
-    ]
-  }
-]
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
@@ -427,10 +394,13 @@ export function Sidebar() {
       </BrandPanel>
 
       <NavList aria-label="Main navigation">
-        {NAV_GROUPS.map((group) => (
-          <NavGroup key={group.category}>
-            <CategoryHeader $collapsed={collapsed}>{group.category}</CategoryHeader>
-            {group.items.map((item) => {
+        {NAV_GROUP_ORDER.map((group) => {
+          const items = navItemsForGroup(group, !!user?.is_admin)
+          if (items.length === 0) return null
+          return (
+          <NavGroup key={group}>
+            <CategoryHeader $collapsed={collapsed}>{group}</CategoryHeader>
+            {items.map((item) => {
               const Icon = item.icon
               return (
                 <NavItemLink 
@@ -446,7 +416,8 @@ export function Sidebar() {
               )
             })}
           </NavGroup>
-        ))}
+          )
+        })}
       </NavList>
 
       <div style={{ padding: '0 0 8px 0', borderTop: '1px solid var(--ui-border)' }}>

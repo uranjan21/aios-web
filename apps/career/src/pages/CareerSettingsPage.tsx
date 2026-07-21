@@ -8,7 +8,7 @@ export function CareerSettingsPage() {
       icon={<Briefcase />}
       title="Career Settings"
       subtitle="Manage your skills inventory, used across the dashboard and radar."
-      backTo="/app/areas/career"
+      backTo="/app/career"
       groups={[
         {
           label: 'Profile',

@@ -27,7 +27,7 @@ export function FinanceSettingsPage() {
         icon={<IndianRupee />}
         title="Finance Settings"
         subtitle="Manage accounts, categories, goals, loans, and bills in one place."
-        backTo="/app/areas/finance"
+        backTo="/app/finance"
         groups={[
           {
             label: 'Money',

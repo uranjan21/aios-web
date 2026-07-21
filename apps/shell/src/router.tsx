@@ -20,12 +20,9 @@ const HealthPage = lazy(() => import('@aios/health/pages/HealthPage').then(m => 
 const HealthSettingsPage = lazy(() => import('@aios/health/pages/HealthSettingsPage').then(m => ({ default: m.HealthSettingsPage })))
 const CareerPage = lazy(() => import('@aios/career/pages/CareerPage').then(m => ({ default: m.CareerPage })))
 const CareerSettingsPage = lazy(() => import('@aios/career/pages/CareerSettingsPage').then(m => ({ default: m.CareerSettingsPage })))
-const GoalsPage = lazy(() => import('@/pages/GoalsPage').then(m => ({ default: m.GoalsPage })))
 const ReviewPage = lazy(() => import('@/pages/ReviewPage').then(m => ({ default: m.ReviewPage })))
 
-const ProjectsPage = lazy(() => import('@/pages/workspace/ProjectsPage').then(m => ({ default: m.ProjectsPage })))
-const SprintsPage = lazy(() => import('@/pages/workspace/SprintsPage').then(m => ({ default: m.SprintsPage })))
-const TasksPage = lazy(() => import('@/pages/workspace/TasksPage').then(m => ({ default: m.TasksPage })))
+const PlanPage = lazy(() => import('@/pages/PlanPage').then(m => ({ default: m.PlanPage })))
 
 const ChatPage = lazy(() => import('@/pages/ChatPage').then(m => ({ default: m.ChatPage })))
 const LandingPage = lazy(() => import('@/pages/LandingPage').then(m => ({ default: m.LandingPage })))
@@ -146,32 +143,37 @@ export const router = createBrowserRouter([
       { index: true, element: <Page><DashboardPage /></Page> },
       { path: 'chat', element: <Page><RequireModule module="chat"><ChatPage /></RequireModule></Page> },
       { path: 'agents', element: <Page><RequireModule module="agents"><AgentsPage /></RequireModule></Page> },
-      { path: 'goals', element: <Page><GoalsPage /></Page> },
-      { path: 'projects', element: <Page><ProjectsPage /></Page> },
-      { path: 'projects/:id', element: <Page><ProjectsPage /></Page> },
-      { path: 'sprints', element: <Page><SprintsPage /></Page> },
-      { path: 'sprints/:id', element: <Page><SprintsPage /></Page> },
-      { path: 'tasks', element: <Page><TasksPage /></Page> },
+      { path: 'plan', element: <Page><PlanPage /></Page> },
+      // The four workspace pages collapsed into /app/plan on 2026-07-21.
+      // Redirects keep old links and bookmarks working.
+      { path: 'goals', element: <Navigate to="/app/plan?view=goals" replace /> },
+      { path: 'projects', element: <Navigate to="/app/plan?view=projects" replace /> },
+      { path: 'sprints', element: <Navigate to="/app/plan?view=sprints" replace /> },
+      { path: 'tasks', element: <Navigate to="/app/plan?view=tasks" replace /> },
       { path: 'review', element: <Page><ReviewPage /></Page> },
 
       // Finance Area
-      { path: 'areas/finance', element: <Page><RequireModule module="finance"><FinancePage /></RequireModule></Page> },
-      { path: 'areas/finance/settings', element: <Page><RequireModule module="finance"><FinanceSettingsPage /></RequireModule></Page> },
+      { path: 'finance', element: <Page><RequireModule module="finance"><FinancePage /></RequireModule></Page> },
+      { path: 'finance/settings', element: <Page><RequireModule module="finance"><FinanceSettingsPage /></RequireModule></Page> },
 
       // Health Area
-      { path: 'areas/health', element: <Page><RequireModule module="health"><HealthPage /></RequireModule></Page> },
-      { path: 'areas/health/settings', element: <Page><RequireModule module="health"><HealthSettingsPage /></RequireModule></Page> },
+      { path: 'health', element: <Page><RequireModule module="health"><HealthPage /></RequireModule></Page> },
+      { path: 'health/settings', element: <Page><RequireModule module="health"><HealthSettingsPage /></RequireModule></Page> },
 
       // Career Area
-      { path: 'areas/career', element: <Page><RequireModule module="career"><CareerPage /></RequireModule></Page> },
-      { path: 'areas/career/settings', element: <Page><RequireModule module="career"><CareerSettingsPage /></RequireModule></Page> },
+      { path: 'career', element: <Page><RequireModule module="career"><CareerPage /></RequireModule></Page> },
+      { path: 'career/settings', element: <Page><RequireModule module="career"><CareerSettingsPage /></RequireModule></Page> },
 
       // System
       { path: 'integrations/:provider/callback', element: <Page><OAuthCallbackPage /></Page> },
       { path: 'settings', element: <Page><SettingsPage /></Page> },
       { path: 'admin', element: <Page><RequireAdmin><AdminPage /></RequireAdmin></Page> },
       
-      { path: 'areas', element: <Navigate to="/app/areas/finance" replace /> },
+      // Legacy /app/areas/* links.
+      { path: 'areas', element: <Navigate to="/app/finance" replace /> },
+      { path: 'areas/finance', element: <Navigate to="/app/finance" replace /> },
+      { path: 'areas/health', element: <Navigate to="/app/health" replace /> },
+      { path: 'areas/career', element: <Navigate to="/app/career" replace /> },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },

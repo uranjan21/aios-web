@@ -95,8 +95,8 @@ const CloseBtn = styled.button`
 
 
 const STEPS = [
-  { id: 'welcome', title: 'Welcome to AiOs', icon: Rocket, desc: 'Your personal AI-powered operating system for wealth, health, and business. Let’s get you set up in less than a minute.' },
-  { id: 'domains', title: '5 Core Domains', icon: Shield, desc: 'AiOs unifies Finance, Health, Career, Business, and Content into one premium dashboard.' },
+  { id: 'welcome', title: 'Welcome to AiOs', icon: Rocket, desc: 'Your personal AI-powered operating system for money, health and career. Let’s get you set up in less than a minute.' },
+  { id: 'domains', title: 'Three Core Areas', icon: Shield, desc: 'AiOs unifies Finance, Health and Career into one dashboard, with a shared Plan for goals, projects and tasks.' },
   { id: 'action', title: 'Take Action', icon: TrendingUp, desc: 'Ready to take control? Start by taking one high-value action right now.' },
   { id: 'finish', title: 'You\'re All Set', icon: CheckCircle, desc: 'Your personalized dashboard is ready. Dive in and start orchestrating your life.' }
 ]
@@ -158,7 +158,7 @@ export function WelcomeWizard({ onComplete }: { onComplete: () => void }) {
 
               {currentStep.id === 'action' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: 300, margin: '0 auto' }}>
-                  <Button variant="outline" onClick={() => { onComplete(); window.location.href = '/app/areas/finance' }}>Log your first expense</Button>
+                  <Button variant="outline" onClick={() => { onComplete(); window.location.href = '/app/finance' }}>Log your first expense</Button>
                   <Button variant="outline" onClick={() => { onComplete(); window.location.href = '/app/agents' }}>Create your first Agent</Button>
                 </div>
               )}

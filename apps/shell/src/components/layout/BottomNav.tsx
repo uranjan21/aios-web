@@ -1,6 +1,6 @@
+import { PRIMARY_NAV } from '@/config/navigation'
 import { focusRing } from '@ledgr/ui'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, MessageSquare, Bot, Grid3X3, MoreHorizontal } from 'lucide-react'
 import styled from 'styled-components'
 import { BOTTOM_NAV_HEIGHT } from '@aios/shared/theme/layout'
 
@@ -46,20 +46,13 @@ const IconWrap = styled.div<{ $active: boolean }>`
   transition: background 120ms;
 `
 
-const TABS = [
-  { to: '/app', icon: LayoutDashboard, label: 'Home' },
-  { to: '/app/chat', icon: MessageSquare, label: 'Chat' },
-  { to: '/app/areas', icon: Grid3X3, label: 'Areas' },
-  { to: '/app/agents', icon: Bot, label: 'Agents' },
-  { to: '/app/settings', icon: MoreHorizontal, label: 'More' },
-]
 
 export function BottomNav() {
   const location = useLocation()
 
   return (
     <Nav aria-label="Mobile navigation">
-      {TABS.map(({ to, icon: Icon, label }) => {
+      {PRIMARY_NAV.map(({ to, icon: Icon, label, shortLabel }) => {
         const active = to === '/app'
           ? location.pathname === '/app'
           : location.pathname.startsWith(to)

@@ -141,7 +141,7 @@ export function HealthPage() {
         title="Health"
         subtitle="Body, sleep, nutrition and fitness — track every metric in one place."
         actions={
-          <Button variant="outline" size="sm" onClick={() => navigate('/app/areas/health/settings')}>
+          <Button variant="outline" size="sm" onClick={() => navigate('/app/health/settings')}>
             <Settings size={14} style={{ marginRight: 6 }} /> Settings
           </Button>
         }

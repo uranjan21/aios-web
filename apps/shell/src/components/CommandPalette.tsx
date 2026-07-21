@@ -1,3 +1,4 @@
+import { NAV_ITEMS } from '@/config/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -5,24 +6,24 @@ import { Command } from 'cmdk'
 import { toast } from 'sonner'
 import styled, { createGlobalStyle, useTheme } from 'styled-components'
 import {
-  LayoutDashboard, MessageSquare, Bot, IndianRupee, Heart,
-  Briefcase, PenLine, Settings, Sun, Moon,
+  LayoutDashboard, PenLine, Sun, Moon,
   Clock, Play, Sparkles, Check, Loader2, ArrowRight
 } from 'lucide-react'
+
 import { useUIStore } from '@aios/shared/stores/uiStore'
 import { agentsApi } from '@aios/shared/api/agents'
 import { capturesApi, financeApi, healthApi, type ParsedCapture } from '@aios/shared/api/areas'
 import { Button } from '@ledgr/ui'
 
-const NAV_COMMANDS = [
-  { label: 'Dashboard', icon: LayoutDashboard, to: '/app', section: 'Navigate' },
-  { label: 'Chat', icon: MessageSquare, to: '/app/chat', section: 'Navigate' },
-  { label: 'Agents', icon: Bot, to: '/app/agents', section: 'Navigate' },
-  { label: 'Finance', icon: IndianRupee, to: '/app/areas/finance', section: 'Areas' },
-  { label: 'Health', icon: Heart, to: '/app/areas/health', section: 'Areas' },
-  { label: 'Career', icon: Briefcase, to: '/app/areas/career', section: 'Areas' },
-  { label: 'Settings', icon: Settings, to: '/app/settings', section: 'System' },
-]
+// Built from the shared nav config, so the palette can no longer offer a
+// different set of destinations than the sidebar. It previously listed 10
+// while the sidebar listed 16.
+const NAV_COMMANDS = NAV_ITEMS.filter(i => !i.adminOnly).map(i => ({
+  label: i.label,
+  icon: i.icon,
+  to: i.to,
+  section: i.group,
+}))
 
 const PATH_LABEL: Record<string, string> = Object.fromEntries(NAV_COMMANDS.map(c => [c.to, c.label]))
 const PATH_ICON: Record<string, typeof LayoutDashboard> = Object.fromEntries(NAV_COMMANDS.map(c => [c.to, c.icon]))

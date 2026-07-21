@@ -118,8 +118,8 @@ _WRITEBACK_INSTRUCTIONS = (
 # /app/finance for every agent).
 _PUSH_LINKS: dict[str, str] = {
     "aios-morning-brief": "/app",
-    "aios-health-coach": "/app/areas/health",
-    "aios-monthly-finance": "/app/areas/finance",
+    "aios-health-coach": "/app/health",
+    "aios-monthly-finance": "/app/finance",
 }
 
 # Which extra context each agent gets beyond the base week-facts.

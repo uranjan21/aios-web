@@ -75,7 +75,7 @@ export function FinancePage() {
           title="Finance"
           subtitle="Transactions, budgets, investments, and analytics — all your money in one place."
           actions={
-            <Button variant="outline" size="sm" onClick={() => navigate('/app/areas/finance/settings')}>
+            <Button variant="outline" size="sm" onClick={() => navigate('/app/finance/settings')}>
               <Settings size={14} style={{ marginRight: 6 }} /> Settings
             </Button>
           }

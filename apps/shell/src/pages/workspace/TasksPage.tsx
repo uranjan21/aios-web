@@ -1,17 +1,14 @@
 import { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Plus, ListTodo, LayoutGrid, List, LayoutDashboard, IndianRupee, Heart, Briefcase, Settings
+  Plus, ListTodo, LayoutGrid, List
 } from 'lucide-react'
 import {
   Button, Card, EmptyState, Input, Dialog, DialogFooter,
-  Select, Label, SegmentedControl, PageHeader,
-} from '@ledgr/ui'
+  Select, Label, SegmentedControl, } from '@ledgr/ui'
+
 import { workspaceApi, Task, TaskPayload } from '@aios/shared/api/workspace'
 import { goalsApi } from '@aios/shared/api/goals'
-import { PageContainer, PageContent } from '@aios/shared/components/layout/PageLayout'
-import { AreaTabs } from '@aios/shared/components/ui/AreaTabs'
 import { toast } from 'sonner'
 
 import { PRIORITY_OPTIONS, STATUS_OPTIONS, STATUS_FILTER_OPTIONS, DOMAIN_OPTIONS, domainLabel } from './tasks/constants'
@@ -22,9 +19,8 @@ import { TaskGroup } from './tasks/TaskGroup'
 
 /* ── Main page ─────────────────────────────────────────────────────── */
 
-export function TasksPage() {
+export function TasksSection({ domainFilter }: { domainFilter?: string }) {
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -39,7 +35,6 @@ export function TasksPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [statusFilter, setStatusFilter] = useState('all')
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
-  const [activeTab, setActiveTab] = useState('overview')
 
   const { data: projects = [] } = useQuery({ queryKey: ['workspace', 'projects'], queryFn: workspaceApi.getProjects, staleTime: 60_000 })
   const { data: sprints = [] } = useQuery({ queryKey: ['workspace', 'sprints'], queryFn: () => workspaceApi.getSprints(), staleTime: 60_000 })
@@ -298,45 +293,8 @@ export function TasksPage() {
   }
 
   return (
-    <PageContainer>
-      <PageContent>
-        <PageHeader
-          icon={<ListTodo />}
-          eyebrow="Workspace"
-          title="Tasks"
-          subtitle="Track your work across projects, sprints, and life areas"
-          actions={
-            <Button variant="outline" size="sm" onClick={() => navigate('/app/settings')}>
-              <Settings size={14} style={{ marginRight: 6 }} /> Settings
-            </Button>
-          }
-        />
-        <AreaTabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={[
-            {
-              key: 'overview',
-              label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><LayoutDashboard size={14} /> Overview</span>,
-              children: renderTabContent()
-            },
-            {
-              key: 'finance',
-              label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><IndianRupee size={14} /> Finance</span>,
-              children: renderTabContent('finance')
-            },
-            {
-              key: 'health',
-              label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Heart size={14} /> Health</span>,
-              children: renderTabContent('health')
-            },
-            {
-              key: 'career',
-              label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Briefcase size={14} /> Career</span>,
-              children: renderTabContent('career')
-            }
-          ]}
-        />
+    <>
+      {renderTabContent(domainFilter)}
 
         <Dialog
           open={isAddOpen || !!editingTask}
@@ -412,7 +370,6 @@ export function TasksPage() {
             </DialogFooter>
           </FormGrid>
         </Dialog>
-      </PageContent>
-    </PageContainer>
+    </>
   )
 }

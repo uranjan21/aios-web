@@ -1,4 +1,5 @@
 import React from 'react'
+import { PAGE_NAMES } from '@/config/navigation'
 import { ArrowLeft, Sun, Moon, Search, Menu, ChevronRight, Home, Settings, LogOut } from 'lucide-react'
 import { NotificationBell } from '@/components/NotificationBell'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -244,16 +245,6 @@ const UserMenuTrigger = styled.button`
   }
 `
 
-const PAGE_NAMES: Record<string, string> = {
-  '/app': 'Dashboard',
-  '/app/chat': 'Chat',
-  '/app/agents': 'Agents',
-  '/app/settings': 'Settings',
-  '/app/admin': 'Admin',
-  '/app/areas/finance': 'Finance',
-  '/app/areas/health': 'Health',
-  '/app/areas/career': 'Career',
-}
 
 const AccountMenuContent = styled(DropdownMenuContent)`
   min-width: 260px;
@@ -328,9 +319,9 @@ export function TopBar() {
     const parts = appPath.split('/').filter(Boolean)
     if (parts[0] === 'areas') {
       // "Areas" has no index route — point it at the first area so the link resolves.
-      breadcrumbs.push({ label: 'Areas', to: '/app/areas/finance' })
-      if (parts[1]) breadcrumbs.push({ label: cap(parts[1]), to: `/app/areas/${parts[1]}` })
-      if (parts[2]) breadcrumbs.push({ label: cap(parts[2]), to: `/app/areas/${parts[1]}/${parts[2]}` })
+      breadcrumbs.push({ label: 'Areas', to: '/app/finance' })
+      if (parts[1]) breadcrumbs.push({ label: cap(parts[1]), to: `/app/${parts[1]}` })
+      if (parts[2]) breadcrumbs.push({ label: cap(parts[2]), to: `/app/${parts[1]}/${parts[2]}` })
     } else if (parts.length) {
       const fullPath = `/app/${parts.join('/')}`
       breadcrumbs.push({ label: PAGE_NAMES[fullPath] || cap(parts[0]), to: fullPath })

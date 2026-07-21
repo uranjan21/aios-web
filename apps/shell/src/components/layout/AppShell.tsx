@@ -14,6 +14,7 @@ import { GlobalAssistant } from "@/components/assistant/GlobalAssistant";
 import { WelcomeWizard } from "@/components/onboarding/WelcomeWizard";
 
 import { useKeyboardShortcuts } from "@aios/shared/hooks/useKeyboardShortcuts";
+import { GOTO_SHORTCUTS } from "@/config/navigation";
 import { useNotifications } from "@aios/shared/hooks/useNotifications";
 import { useSubscription } from "@aios/shared/hooks/useSubscription";
 import { useUIStore } from "@aios/shared/stores/uiStore";
@@ -110,7 +111,7 @@ const SkipLink = styled.a`
 `;
 
 export function AppShell() {
-  useKeyboardShortcuts();
+  useKeyboardShortcuts(GOTO_SHORTCUTS);
   useNotifications();
   useSubscription();
 

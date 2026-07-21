@@ -18,9 +18,9 @@ interface PulseTile {
 }
 
 const DOMAIN_ROUTES: Record<string, string> = {
-  finance: '/app/areas/finance',
-  health: '/app/areas/health',
-  career: '/app/areas/career',
+  finance: '/app/finance',
+  health: '/app/health',
+  career: '/app/career',
 }
 
 const Row = styled.div`

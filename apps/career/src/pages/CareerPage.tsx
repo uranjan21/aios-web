@@ -50,7 +50,7 @@ export function CareerPage() {
               <Button variant="secondary" size="sm" onClick={() => setIsLogModalOpen(true)}>
                 <Plus size={14} style={{ marginRight: 6 }} /> Log entry
               </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate('/app/areas/career/settings')}>
+              <Button variant="outline" size="sm" onClick={() => navigate('/app/career/settings')}>
                 <Settings size={14} style={{ marginRight: 6 }} /> Settings
               </Button>
             </>
