@@ -71,8 +71,8 @@ const TrendPill = styled.div<{ $good: boolean }>`
   border-radius: ${({ theme }) => theme.radii.sm};
   font-size: 9px;
   font-weight: 600;
-  background: ${({ $good }) => $good ? 'rgba(27, 111, 93, 0.1)' : 'rgba(239, 68, 68, 0.1)'};
-  color: ${({ $good }) => $good ? '#1b6f5d' : '#dc2626'};
+  background: ${({ theme, $good }) => `color-mix(in srgb, ${$good ? theme.color.success : theme.color.destructive} 12%, transparent)`};
+  color: ${({ theme, $good }) => ($good ? theme.color.success : theme.color.destructive)};
   
   & svg {
     width: 10px;

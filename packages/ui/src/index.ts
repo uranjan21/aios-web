@@ -74,7 +74,6 @@ export * from './patterns/SegmentedControl';
 export * from './patterns/StatusBadge';
 export * from './patterns/MonthPicker';
 export * from './patterns/DatePicker';
-export * from './patterns/Toast';
 export * from './patterns/ConfirmDialog';
 export * from './patterns/ErrorBoundary';
 export * from './patterns/Skeleton';
@@ -85,7 +84,6 @@ export * from './layout/AppShell';
 export * from './layout/Sidebar';
 export * from './layout/AppHeader';
 export * from './layout/Breadcrumbs';
-export * from './layout/MobileBottomNav';
 
 /* ── Data viz ───────────────────────────────────────────────────────── */
 export * from './data/StatCard';
