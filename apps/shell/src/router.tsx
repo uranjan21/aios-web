@@ -21,12 +21,9 @@ const HealthPage = lazy(() => import('@aios/health/pages/HealthPage').then(m => 
 const HealthSettingsPage = lazy(() => import('@aios/health/pages/HealthSettingsPage').then(m => ({ default: m.HealthSettingsPage })))
 const CareerPage = lazy(() => import('@aios/career/pages/CareerPage').then(m => ({ default: m.CareerPage })))
 const CareerSettingsPage = lazy(() => import('@aios/career/pages/CareerSettingsPage').then(m => ({ default: m.CareerSettingsPage })))
-const BusinessPage = lazy(() => import('@aios/business/pages/BusinessPage').then(m => ({ default: m.BusinessPage })))
 const GoalsPage = lazy(() => import('@/pages/GoalsPage').then(m => ({ default: m.GoalsPage })))
 const ReviewPage = lazy(() => import('@/pages/ReviewPage').then(m => ({ default: m.ReviewPage })))
 const DiscoveriesPage = lazy(() => import('@/pages/DiscoveriesPage').then(m => ({ default: m.DiscoveriesPage })))
-const BusinessSettingsPage = lazy(() => import('@aios/business/pages/BusinessSettingsPage').then(m => ({ default: m.BusinessSettingsPage })))
-const ContentPage = lazy(() => import('@aios/content/pages/ContentPage').then(m => ({ default: m.ContentPage })))
 
 const ProjectsPage = lazy(() => import('@/pages/workspace/ProjectsPage').then(m => ({ default: m.ProjectsPage })))
 const SprintsPage = lazy(() => import('@/pages/workspace/SprintsPage').then(m => ({ default: m.SprintsPage })))
@@ -45,8 +42,6 @@ const AgentsGuide = lazy(() => import('@/pages/guide/AgentsGuide').then(m => ({ 
 const FinanceGuide = lazy(() => import('@/pages/guide/FinanceGuide').then(m => ({ default: m.FinanceGuide })))
 const HealthGuide = lazy(() => import('@/pages/guide/HealthGuide').then(m => ({ default: m.HealthGuide })))
 const CareerGuide = lazy(() => import('@/pages/guide/CareerGuide').then(m => ({ default: m.CareerGuide })))
-const BusinessGuide = lazy(() => import('@/pages/guide/BusinessGuide').then(m => ({ default: m.BusinessGuide })))
-const ContentGuide = lazy(() => import('@/pages/guide/ContentGuide').then(m => ({ default: m.ContentGuide })))
 
 // Legal Pages
 const LegalLayout = lazy(() => import('@/pages/legal/LegalLayout').then(m => ({ default: m.LegalLayout })))
@@ -182,13 +177,6 @@ export const router = createBrowserRouter([
       { path: 'areas/career', element: <Page><RequireModule module="career"><CareerPage /></RequireModule></Page> },
       { path: 'areas/career/settings', element: <Page><RequireModule module="career"><CareerSettingsPage /></RequireModule></Page> },
 
-      // Business Area
-      { path: 'areas/business', element: <Page><RequireModule module="business"><BusinessPage /></RequireModule></Page> },
-      { path: 'areas/business/:id/settings', element: <Page><RequireModule module="business"><BusinessSettingsPage /></RequireModule></Page> },
-
-      // Content Area
-      { path: 'areas/content', element: <Page><RequireModule module="content"><ContentPage /></RequireModule></Page> },
-      
       // System
       { path: 'integrations', element: <Page><RequireModule module="integrations"><IntegrationsPage /></RequireModule></Page> },
       { path: 'integrations/:provider/callback', element: <Page><OAuthCallbackPage /></Page> },
@@ -205,8 +193,6 @@ export const router = createBrowserRouter([
           { path: 'areas/finance', element: <FinanceGuide /> },
           { path: 'areas/health', element: <HealthGuide /> },
           { path: 'areas/career', element: <CareerGuide /> },
-          { path: 'areas/business', element: <BusinessGuide /> },
-          { path: 'areas/content', element: <ContentGuide /> },
         ]
       },
 

@@ -41,8 +41,6 @@ const DOMAIN_OPTIONS = [
   { label: 'Finance', value: 'finance' },
   { label: 'Health', value: 'health' },
   { label: 'Career', value: 'career' },
-  { label: 'Business', value: 'business' },
-  { label: 'Content', value: 'content' },
 ]
 
 export function GlobalAddTaskDialog() {

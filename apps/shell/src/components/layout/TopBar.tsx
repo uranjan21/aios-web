@@ -270,8 +270,6 @@ const PAGE_NAMES: Record<string, string> = {
   '/app/areas/finance': 'Finance',
   '/app/areas/health': 'Health',
   '/app/areas/career': 'Career',
-  '/app/areas/business': 'Business',
-  '/app/areas/content': 'Content',
 }
 
 const AccountMenuContent = styled(DropdownMenuContent)`

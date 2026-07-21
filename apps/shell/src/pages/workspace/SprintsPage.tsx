@@ -10,6 +10,7 @@ import { PageHeader } from '@ledgr/ui'
 import styled from 'styled-components'
 import { toast } from 'sonner'
 import { AreaTabs } from '@aios/shared/components/ui/AreaTabs'
+import { DOMAIN_OPTIONS, domainLabel } from '@aios/shared/config/domains'
 import { CollapsibleSection } from '@aios/shared/components/workspace/CollapsibleSection'
 
 const Grid = styled.div`
@@ -80,13 +81,7 @@ const STATUS_FILTER_OPTIONS = [
   { label: 'Completed', value: 'completed' },
 ]
 
-const DOMAIN_LABEL: Record<string, string> = {
-  finance: 'Finance',
-  health: 'Health',
-  career: 'Career',
-  business: 'Business',
-  content: 'Content',
-}
+
 
 function fmtDate(d?: string) {
   if (!d) return null
@@ -296,7 +291,7 @@ export function SprintsPage() {
       : byDomain.filter(s => s.status === statusFilter)
 
     const cardTitle = domainFilter
-      ? `${DOMAIN_LABEL[domainFilter]} Sprints`
+      ? `${domainLabel(domainFilter)} Sprints`
       : 'All Sprints'
     const count = byStatus.length
     const subtitle = `${count} sprint${count !== 1 ? 's' : ''}`
@@ -363,16 +358,6 @@ export function SprintsPage() {
               key: 'career',
               label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Briefcase size={14} /> Career</span>,
               children: renderTabContent('career')
-            },
-            {
-              key: 'business',
-              label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Rocket size={14} /> Business</span>,
-              children: renderTabContent('business')
-            },
-            {
-              key: 'content',
-              label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><PenLine size={14} /> Content</span>,
-              children: renderTabContent('content')
             }
           ]}
         />

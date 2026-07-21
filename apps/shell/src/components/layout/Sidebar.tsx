@@ -406,8 +406,6 @@ const NAV_GROUPS = [
       { to: '/app/areas/finance', icon: IndianRupee, label: 'Finance' },
       { to: '/app/areas/health', icon: Heart, label: 'Health' },
       { to: '/app/areas/career', icon: Briefcase, label: 'Career' },
-      { to: '/app/areas/business', icon: Rocket, label: 'Business' },
-      { to: '/app/areas/content', icon: PenLine, label: 'Content' },
     ]
   },
   {

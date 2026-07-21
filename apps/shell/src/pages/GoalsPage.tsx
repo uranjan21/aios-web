@@ -1,4 +1,5 @@
 import { goalsApi, type MacroGoal } from "@aios/shared/api/goals";
+import { DOMAIN_OPTIONS } from "@aios/shared/config/domains";
 import { PageContainer, PageContent } from "@aios/shared/components/layout/PageLayout";
 import {
   Button,
@@ -115,17 +116,7 @@ const FormGrid = styled.div`
   gap: 12px;
 `;
 
-const CATEGORY_OPTIONS = [
-  "general",
-  "finance",
-  "health",
-  "career",
-  "business",
-  "content",
-].map((c) => ({
-  label: c.charAt(0).toUpperCase() + c.slice(1),
-  value: c,
-}));
+const CATEGORY_OPTIONS = DOMAIN_OPTIONS;
 
 const StyledTabLabel = styled.span`
   display: flex;
@@ -376,34 +367,6 @@ export function GoalsPage() {
                 <DomainGoalsCard
                   domain="career"
                   onAdd={() => handleOpenAddGoal("career")}
-                />
-              ),
-            },
-            {
-              key: "business",
-              label: (
-                <StyledTabLabel>
-                  <Rocket size={14} /> Business
-                </StyledTabLabel>
-              ),
-              children: (
-                <DomainGoalsCard
-                  domain="business"
-                  onAdd={() => handleOpenAddGoal("business")}
-                />
-              ),
-            },
-            {
-              key: "content",
-              label: (
-                <StyledTabLabel>
-                  <PenLine size={14} /> Content
-                </StyledTabLabel>
-              ),
-              children: (
-                <DomainGoalsCard
-                  domain="content"
-                  onAdd={() => handleOpenAddGoal("content")}
                 />
               ),
             },

@@ -14,7 +14,7 @@ import { PageContainer, PageContent } from '@aios/shared/components/layout/PageL
 import { AreaTabs } from '@aios/shared/components/ui/AreaTabs'
 import { toast } from 'sonner'
 
-import { PRIORITY_OPTIONS, STATUS_OPTIONS, STATUS_FILTER_OPTIONS, DOMAIN_OPTIONS, DOMAIN_LABEL } from './tasks/constants'
+import { PRIORITY_OPTIONS, STATUS_OPTIONS, STATUS_FILTER_OPTIONS, DOMAIN_OPTIONS, domainLabel } from './tasks/constants'
 import { ViewToggle, FormGrid, TwoCol } from './tasks/TasksPage.styles'
 import { TaskCard } from './tasks/TaskCard'
 import { TaskRowItem } from './tasks/TaskRowItem'
@@ -211,7 +211,7 @@ export function TasksPage() {
     const hasTasks = domainTasks.length > 0
     const count = statusFilteredTasks.length
     const cardTitle = domainFilter
-      ? `${DOMAIN_LABEL[domainFilter]} Tasks`
+      ? `${domainLabel(domainFilter)} Tasks`
       : 'All Tasks'
 
     const content = !isLoading && !hasTasks ? (
@@ -334,16 +334,6 @@ export function TasksPage() {
               key: 'career',
               label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Briefcase size={14} /> Career</span>,
               children: renderTabContent('career')
-            },
-            {
-              key: 'business',
-              label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Rocket size={14} /> Business</span>,
-              children: renderTabContent('business')
-            },
-            {
-              key: 'content',
-              label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><PenLine size={14} /> Content</span>,
-              children: renderTabContent('content')
             }
           ]}
         />

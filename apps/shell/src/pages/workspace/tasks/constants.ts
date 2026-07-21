@@ -18,19 +18,6 @@ export const STATUS_FILTER_OPTIONS = [
   { label: 'Done', value: 'done' },
 ]
 
-export const DOMAIN_OPTIONS = [
-  { label: 'General', value: 'general' },
-  { label: 'Finance', value: 'finance' },
-  { label: 'Health', value: 'health' },
-  { label: 'Career', value: 'career' },
-  { label: 'Business', value: 'business' },
-  { label: 'Content', value: 'content' },
-]
-
-export const DOMAIN_LABEL: Record<string, string> = {
-  finance: 'Finance',
-  health: 'Health',
-  career: 'Career',
-  business: 'Business',
-  content: 'Content',
-}
+// Domain options come from the shared registry so the picker, the sidebar and
+// the goal tabs cannot drift apart again.
+export { DOMAIN_OPTIONS, domainLabel } from '@aios/shared/config/domains'

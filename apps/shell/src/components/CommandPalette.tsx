@@ -21,8 +21,6 @@ const NAV_COMMANDS = [
   { label: 'Finance', icon: IndianRupee, to: '/app/areas/finance', section: 'Areas' },
   { label: 'Health', icon: Heart, to: '/app/areas/health', section: 'Areas' },
   { label: 'Career', icon: Briefcase, to: '/app/areas/career', section: 'Areas' },
-  { label: 'Business', icon: Rocket, to: '/app/areas/business', section: 'Areas' },
-  { label: 'Content', icon: PenLine, to: '/app/areas/content', section: 'Areas' },
   { label: 'Integrations', icon: Plug, to: '/app/integrations', section: 'System' },
   { label: 'Settings', icon: Settings, to: '/app/settings', section: 'System' },
 ]

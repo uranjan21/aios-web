@@ -13,8 +13,6 @@ export default defineConfig({
       '@aios/finance': path.resolve(__dirname, '../finance/src'),
       '@aios/health': path.resolve(__dirname, '../health/src'),
       '@aios/career': path.resolve(__dirname, '../career/src'),
-      '@aios/business': path.resolve(__dirname, '../business/src'),
-      '@aios/content': path.resolve(__dirname, '../content/src'),
     },
   },
   optimizeDeps: {

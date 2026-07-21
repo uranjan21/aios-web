@@ -5,6 +5,7 @@ import { Sparkline } from '@ledgr/ui'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { api } from '@aios/shared/api/client'
 import { formatCurrency } from '@aios/shared/lib/utils'
+import { ACTIVE_DOMAIN_KEYS, isActiveDomain } from '@aios/shared/config/domains'
 
 interface PulseTile {
   domain: string
@@ -20,8 +21,6 @@ const DOMAIN_ROUTES: Record<string, string> = {
   finance: '/app/areas/finance',
   health: '/app/areas/health',
   career: '/app/areas/career',
-  business: '/app/areas/business',
-  content: '/app/areas/content',
 }
 
 const Row = styled.div`
@@ -35,7 +34,7 @@ const Row = styled.div`
 
   @media (min-width: 1024px) {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(${ACTIVE_DOMAIN_KEYS.length}, minmax(0, 1fr));
     overflow: visible;
   }
 `
@@ -103,11 +102,15 @@ const Delta = styled.span<{ $good: boolean }>`
 export function PulseRow() {
   const theme = useTheme()
   const navigate = useNavigate()
-  const { data: tiles = [] } = useQuery({
+  const { data: allTiles = [] } = useQuery({
     queryKey: ['insights', 'pulse'],
     queryFn: () => api.get<PulseTile[]>('/insights/pulse').then(r => r.data),
     staleTime: 5 * 60_000,
   })
+
+  // The endpoint still emits tiles for retired domains (their tables survive the
+  // 2026-07-21 cut). Drop them here so no tile renders without a page to open.
+  const tiles = allTiles.filter(t => isActiveDomain(t.domain))
 
   if (tiles.length === 0) return null
 

@@ -21,9 +21,7 @@
       "@aios/shared/*": ["packages/shared/src/*"],
       "@aios/finance/*": ["apps/finance/src/*"],
       "@aios/health/*": ["apps/health/src/*"],
-      "@aios/career/*": ["apps/career/src/*"],
-      "@aios/business/*": ["apps/business/src/*"],
-      "@aios/content/*": ["apps/content/src/*"]
+      "@aios/career/*": ["apps/career/src/*"]
     }
   },
   "include": [

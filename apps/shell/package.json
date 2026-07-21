@@ -10,9 +10,7 @@
     "lint": "eslint src --ext ts,tsx"
   },
   "dependencies": {
-    "@aios/business": "workspace:*",
     "@aios/career": "workspace:*",
-    "@aios/content": "workspace:*",
     "@aios/finance": "workspace:*",
     "@aios/health": "workspace:*",
     "@aios/shared": "workspace:*",
