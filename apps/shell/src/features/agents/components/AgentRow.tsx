@@ -21,7 +21,7 @@ import {
 } from "./agents.styles";
 import { NextRunCountdown } from "./NextRunCountdown";
 
-const RowButton = styled.button<{ $status: string }>`
+const RowButton = styled.div<{ $status: string }>`
   width: auto;
   border: none;
   background: transparent;
@@ -141,7 +141,17 @@ export function AgentRow({ agent, onOpen }: { agent: Agent; onOpen: () => void }
 
   return (
     <>
-      <RowButton $status={status} onClick={onOpen} aria-label={`Open details for ${agent.name}`}>
+      <RowButton
+        $status={status}
+        role="button"
+        tabIndex={0}
+        onClick={onOpen}
+        onKeyDown={(e) => {
+          // A div needs Enter/Space wired up by hand to match button behaviour.
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); }
+        }}
+        aria-label={`Open details for ${agent.name}`}
+      >
         <AgentCell>
           <AgentText>
             <AgentTop>
