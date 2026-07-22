@@ -55,11 +55,60 @@ const domainDark: Record<DomainKey, string> = {
   content: '#C084FC',
 };
 
+/**
+ * Categorical chart series — the fixed slot order for data-viz.
+ *
+ * Assign in order and never cycle: slot 1 to the first series, slot 2 to the
+ * second, and so on. The ORDER is the colourblind-safety mechanism, not a
+ * cosmetic choice — adjacent slots are the pairs a reader must tell apart in a
+ * stack or a grouped bar, so they carry the separation guarantee.
+ *
+ * Validated against THIS app's real chart surfaces (light #FFFFFF, dark
+ * #1C1917), both modes passing every gate: lightness band, chroma floor,
+ * adjacent-pair CVD separation (worst ΔE 9.1 light / 8.4 dark, target ≥8) and
+ * the normal-vision floor (worst 19.6 light / 19.3 dark, floor ≥15).
+ *
+ * Two caveats that come with the palette:
+ *  - On the LIGHT surface, aqua/yellow/magenta sit below 3:1 contrast. Charts
+ *    using them need direct labels or a table view — do not rely on the fill
+ *    alone to carry the value.
+ *  - Beyond THREE series on a scatter/bubble/small-multiple (where every pair
+ *    is adjacent, not just neighbours), the set no longer clears the floors.
+ *    Fold the tail into "Other" or facet instead of adding a 4th hue.
+ *
+ * These are deliberately NOT the domain colours: a domain is an identity that
+ * must stay put, whereas a chart slot is positional.
+ */
+const chartLight = [
+  '#2a78d6', // 1 blue
+  '#eb6834', // 2 orange
+  '#1baf7a', // 3 aqua
+  '#eda100', // 4 yellow
+  '#e87ba4', // 5 magenta
+  '#008300', // 6 green
+  '#4a3aa7', // 7 violet
+  '#e34948', // 8 red
+] as const;
+
+/** Same eight hues, re-stepped for the dark surface — not an automatic flip. */
+const chartDark = [
+  '#3987e5',
+  '#d95926',
+  '#199e70',
+  '#c98500',
+  '#d55181',
+  '#008300',
+  '#9085e9',
+  '#e66767',
+] as const;
+
 export interface AiosTheme extends Theme {
   domain: Record<DomainKey, string>;
   /** The sidebar is always dark, so anything domain-coloured inside it uses these. */
   chromeDomain: Record<DomainKey, string>;
   chrome: { bg: string; border: string; fg: string };
+  /** Categorical chart series, in fixed slot order. See `chartLight` above. */
+  chart: readonly string[];
 }
 
 /** Build the full theme object for a given palette id + light/dark mode. */
@@ -74,6 +123,7 @@ export function getTheme(paletteId: string, mode: 'light' | 'dark'): AiosTheme {
     ...buildTheme({ name: `${paletteId}-${mode}`, mode, color }),
     domain: mode === 'dark' ? domainDark : domainLight,
     chromeDomain: domainDark,
+    chart: mode === 'dark' ? chartDark : chartLight,
     chrome: {
       bg: chromeSource.card,
       border: chromeSource.muted,

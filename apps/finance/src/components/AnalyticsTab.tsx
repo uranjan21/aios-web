@@ -1,5 +1,6 @@
 
 import { useState, useMemo } from 'react'
+import { useTheme } from 'styled-components'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { format } from 'date-fns'
@@ -32,7 +33,9 @@ const InsightsGrid = styled.div`
   }
 `
 
-const COLORS = ['var(--primary)', 'var(--accent)', '#F4A261', '#E76F51', '#2A9D8F', '#E9C46A']
+// Series colours come from theme.chart (the validated categorical palette), in
+// fixed slot order. topCategories caps at 5 + "Other", so the 8 slots are never
+// cycled — cycling would give two categories the same colour.
 
 
 function renderCustomizedLabel(props: any) {
@@ -64,6 +67,7 @@ function renderCustomizedLabel(props: any) {
 }
 
 export function AnalyticsTab() {
+  const theme = useTheme()
   const [period, setPeriod] = useState<'This Week' | 'This Month' | 'This Year'>('This Month')
 
   const month = format(new Date(), 'yyyy-MM')
@@ -154,7 +158,7 @@ export function AnalyticsTab() {
                     isAnimationActive={false}
                   >
                     {topCategories.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={theme.chart[index]} />
                     ))}
                   </Pie>
                   <Tooltip content={<ChartTooltip valueFormatter={(value: any) => formatCurrency(value)} />} />

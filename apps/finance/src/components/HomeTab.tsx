@@ -11,7 +11,7 @@ import { ErrorState } from '@ledgr/ui'
 import { ProgressBar } from '@aios/shared/components/lumina';
 import { Card as GlassCard } from '@ledgr/ui';
 import { WorkspaceLayout } from '@aios/shared/components/layout/WorkspaceLayout'
-import styled, { useTheme } from 'styled-components'
+import styled, { useTheme, type DefaultTheme } from 'styled-components'
 import { TrendingDown, TrendingUp, Wallet, PiggyBank, CalendarClock, HeartPulse } from 'lucide-react'
 
 const StyledSkeleton = styled(Skeleton)<{ $height: string }>`
@@ -235,11 +235,22 @@ function urgencyColor(days: number): 'destructive' | 'warning' | 'success' {
 
 
 
-const BAND_STYLES: Record<string, { label: string; tag: string; barColor: string }> = {
-  excellent: { label: 'Excellent', tag: 'success', barColor: '#F8D168' },
-  good: { label: 'Good', tag: 'processing', barColor: 'var(--muted-foreground)' },
-  fair: { label: 'Fair', tag: 'warning', barColor: '#F4A261' },
-  attention: { label: 'Needs Attention', tag: 'error', barColor: '#F4A261' },
+/**
+ * Financial-health score bands.
+ *
+ * These are STATUS, not chart series — they say "this is fine / this needs
+ * you", so they read from the semantic status tokens and must never borrow a
+ * categorical slot from theme.chart.
+ *
+ * Note "Fair" and "Needs Attention" previously shared the exact same hex
+ * (#F4A261), so the two worst bands were visually identical — the bar looked
+ * the same whether a metric was merely fair or actually needed attention.
+ */
+const BAND_STYLES: Record<string, { label: string; tag: string; barColor: (t: DefaultTheme) => string }> = {
+  excellent: { label: 'Excellent', tag: 'success', barColor: t => t.color.success },
+  good: { label: 'Good', tag: 'processing', barColor: t => t.color.mutedForeground },
+  fair: { label: 'Fair', tag: 'warning', barColor: t => t.color.warning },
+  attention: { label: 'Needs Attention', tag: 'error', barColor: t => t.color.destructive },
 }
 
 function scoreBand(score: number): string {
@@ -296,7 +307,7 @@ function HealthScoreCard({ data, delay = 0 }: { data: import('@aios/shared/types
             <ProgressBar
               size="sm"
               value={c.available ? (c.score ?? 0) : 0}
-              color={c.available ? BAND_STYLES[scoreBand(c.score ?? 0)].barColor : theme.color.muted}
+              color={c.available ? BAND_STYLES[scoreBand(c.score ?? 0)].barColor(theme) : theme.color.muted}
             />
             <ComponentDisplay>{c.display}</ComponentDisplay>
           </div>

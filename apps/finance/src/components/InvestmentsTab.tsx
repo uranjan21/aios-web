@@ -115,15 +115,20 @@ const ActionsContainer = styled.div`
   padding-top: 0.5rem;
 `
 
-const TYPE_META: Record<string, { label: string; icon: string; color: string }> = {
-  stock: { label: 'Stocks', icon: '📈', color: '#3b82f6' },
-  mutual_fund: { label: 'Mutual Funds', icon: '💼', color: '#0D9488' },
-  fd: { label: 'Fixed Deposit', icon: '🏦', color: '#f97316' },
-  ppf: { label: 'PPF', icon: '🛡️', color: '#8b5cf6' },
-  nps: { label: 'NPS', icon: '👴', color: '#10b981' },
-  crypto: { label: 'Crypto', icon: '₿', color: '#f43f5e' },
-  gold: { label: 'Gold', icon: '🪙', color: '#eab308' },
-  other: { label: 'Other', icon: '📦', color: '#6b7280' },
+/**
+ * Asset types. Only `label` and `icon` are read — this used to carry a `color`
+ * per type too, but there is no chart in this tab and nothing ever consumed it,
+ * so the seven hexes were dead weight drifting from the palette.
+ */
+const TYPE_META: Record<string, { label: string; icon: string }> = {
+  stock: { label: 'Stocks', icon: '📈' },
+  mutual_fund: { label: 'Mutual Funds', icon: '💼' },
+  fd: { label: 'Fixed Deposit', icon: '🏦' },
+  ppf: { label: 'PPF', icon: '🛡️' },
+  nps: { label: 'NPS', icon: '👴' },
+  crypto: { label: 'Crypto', icon: '₿' },
+  gold: { label: 'Gold', icon: '🪙' },
+  other: { label: 'Other', icon: '📦' },
 }
 
 export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void }) {
