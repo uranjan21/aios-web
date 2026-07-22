@@ -145,7 +145,7 @@ function AddBudgetForm({ onSuccess }: { onSuccess?: () => void }) {
 function AddGoalForm({ onSuccess }: { onSuccess?: () => void }) {
   const queryClient = useQueryClient()
   const [icon, setIcon] = useState('🎯')
-  const [color, setColor] = useState('#0D9488')
+  const [color, setColor] = useState(SWATCH_COLORS_REQUIRED[0].value)
   
   const [values, setValues] = useState({ name: '', category: 'savings', target_amount: '', current_amount: '', deadline: '' })
 
@@ -165,7 +165,7 @@ function AddGoalForm({ onSuccess }: { onSuccess?: () => void }) {
       toast.success('Goal created')
       setValues({ name: '', category: 'savings', target_amount: '', current_amount: '', deadline: '' })
       setIcon('🎯')
-      setColor('#0D9488')
+      setColor(SWATCH_COLORS_REQUIRED[0].value)
       onSuccess?.()
     },
     onError: () => toast.error('Failed to create goal'),

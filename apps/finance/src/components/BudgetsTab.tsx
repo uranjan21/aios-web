@@ -214,7 +214,7 @@ export function BudgetsTab({ onAddClick }: { onAddClick?: () => void }) {
         const spent = spentByCategory.get(record.category) ?? 0
         const pct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0
         const over = spent > limit
-        const barColor = over ? 'var(--destructive)' : pct >= 80 ? 'var(--accent)' : 'var(--success, #22c55e)'
+        const barColor = over ? 'var(--destructive)' : pct >= 80 ? 'var(--accent)' : 'var(--success)'
         return (
           <UtilContainer>
             <ProgressBarBg>

@@ -6,7 +6,8 @@ export interface Goal {
   unit: string
   defaultTarget: number
   icon: React.FC<{ className?: string }>
-  color: string
+  // No `color` field: GoalCard renders the icon and progress from the theme,
+  // and never read the per-goal colour these entries used to carry.
   getValue: (summary: Record<string, unknown> | undefined, streak: Record<string, unknown> | undefined, logs: Record<string, unknown>[] | undefined) => number | null
 }
 
@@ -17,7 +18,6 @@ export const GOALS: Goal[] = [
     unit: 'kg',
     defaultTarget: 75,
     icon: Scale,
-    color: 'var(--primary)',
     getValue: (summary) => summary?.weight != null ? Number(summary.weight) : null,
   },
   {
@@ -26,7 +26,6 @@ export const GOALS: Goal[] = [
     unit: 'sessions/week',
     defaultTarget: 5,
     icon: Dumbbell,
-    color: '#F8D168',
     getValue: (_, __, gymLogs) => {
       if (!gymLogs) return null
       const oneWeekAgo = new Date()
@@ -40,7 +39,6 @@ export const GOALS: Goal[] = [
     unit: 'L/day',
     defaultTarget: 3,
     icon: Droplets,
-    color: '#F4A261',
     getValue: (_, __, waterLogs) => {
       if (!waterLogs) return null
       const today = new Date().toISOString().slice(0, 10)

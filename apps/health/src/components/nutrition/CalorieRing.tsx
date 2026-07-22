@@ -61,7 +61,7 @@ export function CalorieRing({ calories, target }: CalorieRingProps) {
           <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--muted)" strokeWidth={stroke} />
           <circle
             cx={size / 2} cy={size / 2} r={r} fill="none"
-            stroke="#F8D168" strokeWidth={stroke}
+            stroke="var(--accent)" strokeWidth={stroke}
             strokeDasharray={circ} strokeDashoffset={offset}
             strokeLinecap="round"
             style={{ transition: 'stroke-dashoffset 0.5s ease' }}

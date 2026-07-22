@@ -50,6 +50,8 @@ const THEME_FILES = [
   'packages/shared/src/theme/layout.ts',
   // User-facing swatch palette — persisted colour DATA, not theme styling.
   'packages/shared/src/config/swatches.ts',
+  // Decorative mode-aware hues for the lumina tones — a palette definition.
+  'packages/shared/src/components/lumina/tones.ts',
 ];
 
 /**

@@ -98,7 +98,7 @@ const ValueText = styled.div<{ $type: 'income' | 'expense' }>`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: ${({ $type }) => $type === 'income' ? 'var(--success, #16a34a)' : 'var(--destructive)'};
+  color: ${({ $type }) => $type === 'income' ? 'var(--success)' : 'var(--destructive)'};
 `
 
 export function TransactionCalendar({ month, byDay, selectedDate, onSelectDate, onMonthChange }: Props) {

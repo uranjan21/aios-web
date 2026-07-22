@@ -8,7 +8,7 @@ const Container = styled.div`
   gap: ${({ theme }) => `${theme.spacing[3]}`};
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-variant-numeric: tabular-nums;
-  color: ${({ theme }) => theme.color?.foreground || '#000'};
+  color: ${({ theme }) => theme.color.foreground};
 `;
 
 const Group = styled.div`
@@ -20,7 +20,7 @@ const Group = styled.div`
 const Label = styled.span`
   font-weight: 600;
   font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  color: ${({ theme }) => theme.color?.mutedForeground || theme.color?.muted || '#666'};
+  color: ${({ theme }) => theme.color.mutedForeground};
   text-transform: uppercase;
   letter-spacing: 0.5px;
 `;
@@ -29,7 +29,7 @@ const SelectBox = styled.select`
   appearance: none;
   background: ${({ theme }) => theme.color?.muted || 'rgba(0,0,0,0.05)'};
   border: 1px solid ${({ theme }) => theme.color?.border || 'rgba(0,0,0,0.1)'};
-  color: ${({ theme }) => theme.color?.foreground || '#000'};
+  color: ${({ theme }) => theme.color.foreground};
   border-radius: ${({ theme }) => theme.radii?.sm || '4px'};
   padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[4.5]} ${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
   font-size: ${({ theme }) => theme.typography.fontSize.xs};
@@ -53,7 +53,7 @@ const SelectBox = styled.select`
 const Colon = styled.span`
   font-weight: bold;
   font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  color: ${({ theme }) => theme.color?.foreground || '#000'};
+  color: ${({ theme }) => theme.color.foreground};
 `;
 
 export interface DigitalCronInputProps {

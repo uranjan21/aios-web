@@ -57,7 +57,7 @@ function GlassIcon({ filled }: { filled: boolean }) {
       <path
         d="M4 4 L2 28 L22 28 L20 4 Z"
         fill={filled ? 'var(--primary)' : 'var(--muted)'}
-        stroke={filled ? '#F8D168' : 'var(--border)'}
+        stroke={filled ? 'var(--accent)' : 'var(--border)'}
         strokeWidth="1.5"
         strokeLinejoin="round"
         opacity={filled ? 1 : 0.5}

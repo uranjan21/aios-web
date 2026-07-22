@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTheme } from 'styled-components'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
@@ -52,6 +53,7 @@ const QUICK_ADDS = [
 ]
 
 export function NutritionTab() {
+  const theme = useTheme()
   const [formState, setFormState] = useState({ food_name: '', calories: '', protein: '', carbs: '', fat: '', meal_type: 'Snack' })
   const queryClient = useQueryClient()
   const [foodQuery, setFoodQuery] = useState('')
@@ -168,9 +170,9 @@ export function NutritionTab() {
             <StyledMacrosWrapper>
               <CalorieRing calories={nutrition?.calories ?? 0} target={calorieTarget} />
               <StyledMacroBarsContainer>
-                <MacroBar label="Protein" current={nutrition?.protein ?? 0} target={proteinTarget} color="#F8D168" />
-                <MacroBar label="Carbs" current={nutrition?.carbs ?? 0} target={carbTarget} color="#F8D168" />
-                <MacroBar label="Fat" current={nutrition?.fat ?? 0} target={fatTarget} color="#F4A261" />
+                <MacroBar label="Protein" current={nutrition?.protein ?? 0} target={proteinTarget} color={theme.chart[0]} />
+                <MacroBar label="Carbs" current={nutrition?.carbs ?? 0} target={carbTarget} color={theme.chart[1]} />
+                <MacroBar label="Fat" current={nutrition?.fat ?? 0} target={fatTarget} color={theme.chart[2]} />
               </StyledMacroBarsContainer>
             </StyledMacrosWrapper>
           )}

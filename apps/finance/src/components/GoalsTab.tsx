@@ -8,7 +8,7 @@ import { financeApi } from '@aios/shared/api/areas'
 import { Skeleton } from '@aios/shared/components/ui/skeleton'
 import type { FinancialGoal } from '@aios/shared/types'
 import { differenceInDays } from 'date-fns'
-import styled from 'styled-components'
+import styled, { useTheme } from 'styled-components'
 
 const GoalCell = styled.div`
   display: flex;
@@ -144,6 +144,7 @@ function daysLeft(deadline: string | null): number | null {
 }
 
 export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
+  const theme = useTheme()
   type EditForm = { name: string; icon: string; target_amount: string; current_amount: string; deadline: string; color: string }
   const EMPTY_FORM: EditForm = { name: '', icon: '', target_amount: '0', current_amount: '0', deadline: '', color: '' }
 
@@ -244,7 +245,7 @@ export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
             <ProgressBarBg>
               <ProgressBarFill
                 $pct={pct}
-                $color={record.color || '#0D9488'}
+                $color={record.color || theme.color.accent}
               />
             </ProgressBarBg>
           </ProgressContainer>
@@ -260,7 +261,7 @@ export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
         const days = daysLeft(record.deadline)
         return (
           <StatusContainer>
-            <StatusText $color={record.color || '#0D9488'}>{pct}% complete</StatusText>
+            <StatusText $color={record.color || theme.color.accent}>{pct}% complete</StatusText>
             {days !== null && (
               <DueText>
                 <CalendarDays size={12} />
