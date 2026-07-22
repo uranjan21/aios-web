@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { SWATCH_COLORS } from '@aios/shared/config/swatches'
 import { Plus, FolderKanban, Trash2, PencilLine, CalendarDays, Tag } from 'lucide-react'
 import { Button, Card, EmptyState, Input, Dialog, DialogFooter, Select, Label } from '@ledgr/ui'
 import { workspaceApi, Project, ProjectPayload } from '@aios/shared/api/workspace'
@@ -93,15 +94,7 @@ const PRIORITY_OPTIONS = [
   { label: 'Urgent', value: 'urgent' },
 ]
 
-const COLOR_OPTIONS = [
-  { label: 'None', value: '' },
-  { label: 'Amber', value: '#CA8A04' },
-  { label: 'Teal', value: '#0D9488' },
-  { label: 'Blue', value: '#3B82F6' },
-  { label: 'Rose', value: '#F43F5E' },
-  { label: 'Violet', value: '#8B5CF6' },
-  { label: 'Slate', value: '#64748B' },
-]
+const COLOR_OPTIONS = SWATCH_COLORS
 
 const PRIORITY_TONE: Record<string, 'accent' | 'warn' | 'default'> = {
   urgent: 'warn',

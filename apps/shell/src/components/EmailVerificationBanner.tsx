@@ -8,10 +8,10 @@ const Banner = styled.div`
   justify-content: space-between;
   gap: ${({ theme }) => `${theme.spacing[3]}`};
   padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[5]}`};
-  background: color-mix(in srgb, var(--color-warning, #c8a449) 12%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--color-warning, #c8a449) 30%, transparent);
+  background: ${({ theme }) => `color-mix(in srgb, ${theme.color.warning} 12%, transparent)`};
+  border-bottom: 1px solid ${({ theme }) => `color-mix(in srgb, ${theme.color.warning} 30%, transparent)`};
   font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  color: var(--color-text);
+  color: ${({ theme }) => theme.color.foreground};
   flex-wrap: wrap;
 `
 

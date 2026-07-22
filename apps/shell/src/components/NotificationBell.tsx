@@ -4,17 +4,20 @@ import { useNavigate } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import { Bell, X, AlertTriangle, CheckCircle, Zap, Info, AlertCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import styled from 'styled-components'
+import styled, { useTheme, type DefaultTheme } from 'styled-components'
 import { useNotificationStore, type Notification } from '@aios/shared/stores/notificationStore'
 import { useNotifications } from '@aios/shared/hooks/useNotifications'
 import { formatRelativeTime } from '@aios/shared/lib/utils'
 
-const TYPE_COLORS: Record<Notification['type'], string> = {
-  conflict:       '#d97706',
-  agent_error:    '#dc2626',
-  agent_success:  '#16a34a',
-  budget_warning: '#7c3aed',
-  info:           '#0284c7',
+/** Notification-type colours, mapped to semantic theme tokens. */
+function typeColor(type: Notification['type'], theme: DefaultTheme): string {
+  switch (type) {
+    case 'conflict':       return theme.color.warning
+    case 'agent_error':    return theme.color.destructive
+    case 'agent_success':  return theme.color.success
+    case 'budget_warning': return theme.domain.content // violet — a distinct hue from warning
+    case 'info':           return theme.color.info
+  }
 }
 
 const TYPE_ICONS: Record<Notification['type'], LucideIcon> = {
@@ -156,8 +159,9 @@ const DismissBtn = styled.button`
 
 function NotifItemRow({ n, onClose }: { n: Notification; onClose: () => void }) {
   const navigate = useNavigate()
+  const theme = useTheme()
   const Icon = TYPE_ICONS[n.type]
-  const color = TYPE_COLORS[n.type]
+  const color = typeColor(n.type, theme)
   const markRead = useNotificationStore(s => s.markRead)
   const dismiss = useNotificationStore(s => s.dismiss)
 

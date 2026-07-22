@@ -34,8 +34,8 @@ const Message = styled.p`
 
 const Btn = styled.button`
   padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[6]}`};
-  background: var(--color-primary, #114b3f);
-  color: #fff;
+  background: ${({ theme }) => theme.color.primary};
+  color: ${({ theme }) => theme.color.primaryForeground};
   border: none;
   border-radius: ${({ theme }) => theme.radii.sm};
   font-size: ${({ theme }) => theme.typography.fontSize.base};

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { SWATCH_COLORS_REQUIRED } from '@aios/shared/config/swatches'
 import { Button, Input, Select, Dialog, SegmentedControl } from '@ledgr/ui'
 import { financeApi } from '@aios/shared/api/areas'
 import styled from 'styled-components'
@@ -98,14 +99,7 @@ const GOAL_CATEGORIES = ['Savings', 'Travel', 'Emergency', 'Investment', 'Purcha
 const BILL_CATEGORIES = ['utilities', 'rent', 'subscriptions', 'insurance', 'emi', 'other']
 
 const ICONS = ['🎯', '🏖️', '🚗', '📚', '🏠', '💍', '🏋️', '💰']
-const COLORS = [
-  { label: 'Teal', value: '#0D9488' },
-  { label: 'Orange', value: '#f97316' },
-  { label: 'Emerald', value: '#10b981' },
-  { label: 'Purple', value: '#8b5cf6' },
-  { label: 'Blue', value: '#3b82f6' },
-  { label: 'Rose', value: '#f43f5e' },
-]
+const COLORS = SWATCH_COLORS_REQUIRED
 
 function AddBudgetForm({ onSuccess }: { onSuccess?: () => void }) {
   const queryClient = useQueryClient()

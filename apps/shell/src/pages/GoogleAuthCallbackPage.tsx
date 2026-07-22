@@ -52,13 +52,13 @@ const IconWrapper = styled.div<{ $status: 'loading' | 'success' | 'error' }>`
   margin: ${({ theme }) => `0 auto ${theme.spacing[6]}`};
   
   background: ${({ theme, $status }) => 
-    $status === 'success' ? 'rgba(34, 197, 94, 0.12)' : 
-    $status === 'error' ? 'rgba(239, 68, 68, 0.12)' : 
-    'rgba(128, 128, 128, 0.12)'};
+    $status === 'success' ? `color-mix(in srgb, ${theme.color.success} 12%, transparent)` :
+    $status === 'error' ? `color-mix(in srgb, ${theme.color.destructive} 12%, transparent)` :
+    `color-mix(in srgb, ${theme.color.mutedForeground} 12%, transparent)`};
     
-  color: ${({ theme, $status }) => 
-    $status === 'success' ? '#22c55e' : 
-    $status === 'error' ? '#ef4444' : 
+  color: ${({ theme, $status }) =>
+    $status === 'success' ? theme.color.success :
+    $status === 'error' ? theme.color.destructive :
     theme.color.primary};
 
   animation: ${scaleIn} 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;

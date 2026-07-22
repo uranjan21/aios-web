@@ -37,7 +37,7 @@ const Card = styled.div`
   flex-direction: column;
   gap: ${({ theme }) => `${theme.spacing[2.5]}`};
   padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[3.5]}`};
-  border: 1px solid ${({ theme }) => theme.color.warning ?? '#CA8A04'}33;
+  border: 1px solid ${({ theme }) => `color-mix(in srgb, ${theme.color.warning} 20%, transparent)`};
   border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.card};
   margin: ${({ theme }) => `${theme.spacing[1]} 0`};
@@ -53,7 +53,7 @@ const IconWrap = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: ${({ theme }) => theme.color.warning ?? '#CA8A04'};
+  color: ${({ theme }) => theme.color.warning};
 `
 
 const TitleBlock = styled.div`

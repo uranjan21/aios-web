@@ -341,7 +341,9 @@ const MenuProfileInfo = styled.div`
 
   .menu-email {
     font-size: 0.75rem;
-    color: var(--ui-text-tertiary, #64748B);
+    /* Sidebar chrome is always dark, so this reads from the chrome foreground,
+       not the active-mode muted token (which is dark text in light mode). */
+    color: ${({ theme }) => `color-mix(in srgb, ${theme.chrome.fg} 55%, transparent)`};
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

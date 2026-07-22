@@ -300,7 +300,7 @@ function UserRow({ user, currentAdminId }: { user: AdminUser; currentAdminId: st
               if (confirm(`Permanently delete ${user.email}?`)) deleteUser.mutate()
             }}
             disabled={deleteUser.isPending}
-            style={{ color: 'var(--destructive, #b91c1c)' }}
+            style={{ color: 'var(--destructive)' }}
             title="Delete user"
           >
             <Trash2 size={14} />

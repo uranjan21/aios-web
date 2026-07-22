@@ -48,6 +48,8 @@ const THEME_FILES = [
   'packages/shared/src/theme/aiosTheme.ts',
   'packages/shared/src/theme/palettes.ts',
   'packages/shared/src/theme/layout.ts',
+  // User-facing swatch palette — persisted colour DATA, not theme styling.
+  'packages/shared/src/config/swatches.ts',
 ];
 
 /**

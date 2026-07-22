@@ -34,7 +34,7 @@ function DangerZone() {
 
   return (
     <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--destructive, #b91c1c)', marginBottom: 6 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--destructive)', marginBottom: 6 }}>
         Delete account
       </div>
       <div style={{ fontSize: 12, color: 'var(--muted-foreground)', marginBottom: 10 }}>

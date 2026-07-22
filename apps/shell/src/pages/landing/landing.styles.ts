@@ -113,7 +113,7 @@ export const HeroTitle = styled(motion.h1)`
   margin-bottom: 1.5rem;
   max-width: 840px;
   span.gold {
-    background: linear-gradient(135deg, ${({ theme }) => theme.color.accent}, #f59e0b, ${({ theme }) => theme.color.accent});
+    background: ${({ theme }) => `linear-gradient(135deg, ${theme.color.accent}, color-mix(in srgb, ${theme.color.accent} 70%, #FFFFFF), ${theme.color.accent})`};
     background-size: 200% auto;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
