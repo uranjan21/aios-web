@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 import { Badge, Input, Card, Select } from '@ledgr/ui'
 import dayjs from 'dayjs'
 import { Landmark } from 'lucide-react'
-import { formatCurrency } from '@aios/shared/lib/utils'
-import type { FinanceLoan } from '@aios/shared/types'
+import { formatCurrency } from '@ct/shared/lib/utils'
+import type { FinanceLoan } from '@ct/shared/types'
 import styled from 'styled-components'
 
 const ControlsGroup = styled.div`

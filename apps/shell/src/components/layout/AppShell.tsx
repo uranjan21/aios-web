@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import styled from "styled-components";
-import { BOTTOM_NAV_HEIGHT } from "@aios/shared/theme/layout";
+import { BOTTOM_NAV_HEIGHT } from "@ct/shared/theme/layout";
+import { trackOnce } from "@ct/shared/lib/analytics";
 
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
@@ -13,12 +14,12 @@ import { GlobalAddTaskDialog } from "@/components/GlobalAddTaskDialog";
 import { GlobalAssistant } from "@/components/assistant/GlobalAssistant";
 import { WelcomeWizard } from "@/components/onboarding/WelcomeWizard";
 
-import { useKeyboardShortcuts } from "@aios/shared/hooks/useKeyboardShortcuts";
+import { useKeyboardShortcuts } from "@ct/shared/hooks/useKeyboardShortcuts";
 import { GOTO_SHORTCUTS } from "@/config/navigation";
-import { useNotifications } from "@aios/shared/hooks/useNotifications";
-import { useSubscription } from "@aios/shared/hooks/useSubscription";
-import { useUIStore } from "@aios/shared/stores/uiStore";
-import { useAuthStore } from "@aios/shared/stores/authStore";
+import { useNotifications } from "@ct/shared/hooks/useNotifications";
+import { useSubscription } from "@ct/shared/hooks/useSubscription";
+import { useUIStore } from "@ct/shared/stores/uiStore";
+import { useAuthStore } from "@ct/shared/stores/authStore";
 import { EmailVerificationBanner } from "@/components/EmailVerificationBanner";
 
 const MobileBackdrop = styled.div<{ $show: boolean }>`
@@ -121,7 +122,7 @@ export function AppShell() {
   const { pushRecentPage, sidebarOpen, setSidebarOpen } = useUIStore();
 
   const [showWizard, setShowWizard] = useState(
-    () => localStorage.getItem("aios_onboarded") !== "true",
+    () => localStorage.getItem("ct_onboarded") !== "true",
   );
 
   useEffect(() => {
@@ -133,7 +134,8 @@ export function AppShell() {
   }, [location.pathname, pushRecentPage, sidebarOpen, setSidebarOpen]);
 
   const handleCompleteWizard = () => {
-    localStorage.setItem("aios_onboarded", "true");
+    localStorage.setItem("ct_onboarded", "true");
+    trackOnce("onboarding_completed");
     setShowWizard(false);
   };
 

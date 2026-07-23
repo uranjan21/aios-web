@@ -3,15 +3,16 @@ import { PAGE_NAMES } from '@/config/navigation'
 import { ArrowLeft, Sun, Moon, Search, Menu, ChevronRight, Home, Settings, LogOut } from 'lucide-react'
 import { NotificationBell } from '@/components/NotificationBell'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useUIStore } from '@aios/shared/stores/uiStore'
-import { useAuthStore } from '@aios/shared/stores/authStore'
-import { logoutAndRedirect } from '@aios/shared/lib/logout'
+import { useUIStore } from '@ct/shared/stores/uiStore'
+import { useAuthStore } from '@ct/shared/stores/authStore'
+import { logoutAndRedirect } from '@ct/shared/lib/logout'
+import { accountLabel } from '@ct/shared/lib/account'
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator, focusRing } from '@ledgr/ui'
 
 import styled from 'styled-components'
-import { TOPBAR_HEIGHT } from '@aios/shared/theme/layout'
+import { TOPBAR_HEIGHT } from '@ct/shared/theme/layout'
 
 const HeaderRoot = styled.header`
   position: relative;
@@ -290,7 +291,7 @@ const PopoverHeader = styled.div`
       margin-bottom: ${({ theme }) => `${theme.spacing[0.5]}`};
     }
     
-    .email {
+    .meta {
       font-size: ${({ theme }) => theme.typography.fontSize.sm};
       color: ${({ theme }) => theme.color.mutedForeground};
       white-space: nowrap;
@@ -312,7 +313,7 @@ export function TopBar() {
   // Build breadcrumbs as { label, to } — every non-leaf segment is a real route.
   // All authenticated routes live under /app, so strip that prefix before parsing segments.
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
-  const breadcrumbs: { label: string; to: string }[] = [{ label: 'AIOS', to: '/app' }]
+  const breadcrumbs: { label: string; to: string }[] = [{ label: 'Control Tower', to: '/app' }]
 
   if (canGoBack) {
     const appPath = path.startsWith('/app') ? path.slice(4) : path
@@ -390,7 +391,7 @@ export function TopBar() {
               )}
               <div className="info">
                 <span className="name">{user?.name || 'User'}</span>
-                <span className="role">{user?.auth_provider === 'google' ? user.email : 'Admin'}</span>
+                <span className="role">{accountLabel(user)}</span>
               </div>
             </UserMenuTrigger>
           </DropdownMenuTrigger>
@@ -403,7 +404,7 @@ export function TopBar() {
               )}
               <div className="user-details">
                 <span className="name">{user?.name || 'User'}</span>
-                <span className="email">{user?.email || 'user@example.com'}</span>
+                <span className="meta">{accountLabel(user)}</span>
               </div>
             </PopoverHeader>
             <DropdownMenuSeparator />

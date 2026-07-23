@@ -5,9 +5,9 @@ import {
   Button, Dialog, DialogFooter,
   Select, Label, Input,
 } from '@ledgr/ui'
-import { workspaceApi } from '@aios/shared/api/workspace'
-import { goalsApi } from '@aios/shared/api/goals'
-import { useUIStore } from '@aios/shared/stores/uiStore'
+import { workspaceApi } from '@ct/shared/api/workspace'
+import { goalsApi } from '@ct/shared/api/goals'
+import { useUIStore } from '@ct/shared/stores/uiStore'
 import styled from 'styled-components'
 import { toast } from 'sonner'
 

@@ -2,8 +2,8 @@ import styled, { useTheme } from 'styled-components'
 import { Card, Tooltip } from '@ledgr/ui'
 import { Activity, Flame } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { insightsApi } from '@aios/shared/api/insights'
-import { fmtDateKey } from '@aios/shared/stores/dayEventsStore'
+import { insightsApi } from '@ct/shared/api/insights'
+import { fmtDateKey } from '@ct/shared/stores/dayEventsStore'
 
 const HeatmapWrapper = styled.div`
   display: flex;

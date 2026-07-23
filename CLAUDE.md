@@ -1,13 +1,13 @@
 > **ALL AI tools (Claude/Codex/Antigravity): read `AGENTS.md` first — the end-of-session PROGRESS.md entry is mandatory.**
-> Business context, decisions & sync: Utsav's AI OS vault → `~/Library/Mobile Documents/com~apple~CloudDocs/2. Workspace/AI OS/04-business/products/aios-web/`
+> Business context, decisions & sync: Utsav's AI OS vault → `~/Library/Mobile Documents/com~apple~CloudDocs/2. Workspace/AI OS/04-business/products/control-tower/`
 
-# Project: AIOS Web
+# Project: Control Tower
 
 ## What this is
 
 A full-stack personal life-management OS — Finance, Health, Career, Business, Content — with AI agents, vault sync, and multi-LLM integration. **Transitioning from single-user to multi-tenant SaaS (decided 2026-06-21).** All new DB/backend work must be multi-user aware: `users` table, `user_id` FK on every user-data table, row-level isolation.
 
-**The frontend is a pnpm-workspace MONOREPO (converted 2026-07-20).** Each life domain is its own app package (`apps/finance`, `apps/health`, `apps/career` — **Business and Content were deleted 2026-07-21**, their tables deliberately kept; see `packages/shared/src/config/domains.ts` for ACTIVE vs RETIRED domain keys); `apps/shell` is the central app that owns the router, AppShell navigation (Sidebar/TopBar/BottomNav), and all cross-domain surfaces; `packages/shared` (`@aios/shared`) holds api/stores/hooks/lib/theme/types + shared components; `packages/ui` is `@ledgr/ui`. The shell composes the domain apps into ONE deployed SPA (they are workspace packages consumed from source via Vite aliases, not separately deployed micro-frontends).
+**The frontend is a pnpm-workspace MONOREPO (converted 2026-07-20).** Each life domain is its own app package (`apps/finance`, `apps/health`, `apps/career` — **Business and Content were deleted 2026-07-21**, their tables deliberately kept; see `packages/shared/src/config/domains.ts` for ACTIVE vs RETIRED domain keys); `apps/shell` is the central app that owns the router, AppShell navigation (Sidebar/TopBar/BottomNav), and all cross-domain surfaces; `packages/shared` (`@ct/shared`) holds api/stores/hooks/lib/theme/types + shared components; `packages/ui` is `@ledgr/ui`. The shell composes the domain apps into ONE deployed SPA (they are workspace packages consumed from source via Vite aliases, not separately deployed micro-frontends).
 
 ---
 
@@ -40,7 +40,7 @@ A full-stack personal life-management OS — Finance, Health, Career, Business, 
 - **AI/LLMs**: Anthropic Claude SDK, OpenAI SDK (default provider, `settings.openai_chat_model`)
 - **Real-time**: FastAPI native WebSockets (`/ws/sync`, `/ws/chat`, `/ws/agents`)
 - **State**: Zustand (global) + React Query / TanStack (server state)
-- **Auth**: JWT in httpOnly SameSite=Strict cookie (`aios_token`). Google OAuth added 2026-06-21.
+- **Auth**: JWT in httpOnly SameSite=Strict cookie (`ct_token`). Google OAuth added 2026-06-21.
 - **Package managers**: pnpm workspaces (frontend monorepo — install from repo root), uv (backend)
 - **Container**: Docker + docker-compose
 
@@ -51,9 +51,9 @@ A full-stack personal life-management OS — Finance, Health, Career, Business, 
 **Tailwind is fully removed.** All styling is styled-components + `@ledgr/ui` theme tokens.
 
 **`packages/ui/src/theme/tokens.ts` is THE authoritative token layer.** Until
-2026-07-21 it was shadowed by a second layer in `aiosTheme.ts` that overwrote
+2026-07-21 it was shadowed by a second layer in `ctTheme.ts` that overwrote
 the palette, radii, shadows and fonts at runtime, so most of what the file
-declared never rendered. `aiosTheme.ts` now only picks a palette + mode and
+declared never rendered. `ctTheme.ts` now only picks a palette + mode and
 calls `buildTheme()`.
 
 | Token | Value |
@@ -91,8 +91,8 @@ calls `buildTheme()`.
 
 ### Frontend (monorepo)
 
-- **Package graph:** `apps/shell` (`@aios/shell`) → depends on the 5 domain apps + `@aios/shared` + `@ledgr/ui`; each domain app (`@aios/finance|health|career|business|content`) → depends only on `@aios/shared` + `@ledgr/ui`. Domain apps NEVER import each other or the shell. Shell may deep-import a domain component (e.g. GoalsPage uses `@aios/finance/components/GoalsTab`).
-- **Import specifiers:** `@/` = shell-internal only (`apps/shell/src`); `@aios/shared/...`, `@aios/<domain>/...` everywhere else. Aliases live in `apps/shell/vite.config.ts` + root `tsconfig.json` paths + root `vitest.config.ts` — keep the three in sync when adding a package.
+- **Package graph:** `apps/shell` (`@ct/shell`) → depends on the 5 domain apps + `@ct/shared` + `@ledgr/ui`; each domain app (`@ct/finance|health|career|business|content`) → depends only on `@ct/shared` + `@ledgr/ui`. Domain apps NEVER import each other or the shell. Shell may deep-import a domain component (e.g. GoalsPage uses `@ct/finance/components/GoalsTab`).
+- **Import specifiers:** `@/` = shell-internal only (`apps/shell/src`); `@ct/shared/...`, `@ct/<domain>/...` everywhere else. Aliases live in `apps/shell/vite.config.ts` + root `tsconfig.json` paths + root `vitest.config.ts` — keep the three in sync when adding a package.
 - **Dependency policy:** all third-party deps are declared ONCE in the root `package.json` (single-version policy — guarantees one React/styled-components instance). Per-package manifests only declare the workspace graph (`workspace:*`).
 - SPA via React Router v6 (in `apps/shell/src/router.tsx`); `RequireAuth` guard on all area routes
 - Feature areas: Finance / Health / Career / Business / Content — each is an app package with `src/pages` + `src/components`, each page has `<AreaTabs>` sub-nav (never nest Tabs)
@@ -121,9 +121,9 @@ calls `buildTheme()`.
 ## Project Structure
 
 ```text
-aios-web/                      # pnpm workspace root (package.json = ALL third-party deps, tsconfig.json, vitest.config.ts)
+control-tower/                      # pnpm workspace root (package.json = ALL third-party deps, tsconfig.json, vitest.config.ts)
 ├── apps/
-│   ├── shell/                 # @aios/shell — THE deployable Vite app (central top layer)
+│   ├── shell/                 # @ct/shell — THE deployable Vite app (central top layer)
 │   │   ├── src/
 │   │   │   ├── router.tsx     # All routes + RequireAuth/RequireModule guards
 │   │   │   ├── components/
@@ -133,20 +133,20 @@ aios-web/                      # pnpm workspace root (package.json = ALL third-p
 │   │   │   ├── features/agents/
 │   │   │   └── pages/         # Dashboard, Chat, Agents, Goals, workspace/, settings/, guide/, legal/, landing…
 │   │   ├── index.html · public/ · vite.config.ts (workspace aliases) · Dockerfile
-│   ├── finance/               # @aios/finance — src/pages (FinancePage, FinanceSettingsPage) + src/components
-│   ├── health/                # @aios/health — same shape
-│   ├── career/                # @aios/career — same shape
-│   ├── business/              # @aios/business — same shape
-│   └── content/               # @aios/content — same shape
+│   ├── finance/               # @ct/finance — src/pages (FinancePage, FinanceSettingsPage) + src/components
+│   ├── health/                # @ct/health — same shape
+│   ├── career/                # @ct/career — same shape
+│   ├── business/              # @ct/business — same shape
+│   └── content/               # @ct/content — same shape
 │
 ├── packages/
 │   ├── ui/                    # @ledgr/ui component library (tsup build → dist/)
-│   └── shared/                # @aios/shared — code any app may use
+│   └── shared/                # @ct/shared — code any app may use
 │       └── src/
 │           ├── api/           # All HTTP calls — never call fetch/axios directly in components
 │           ├── stores/        # Zustand stores (authStore, uiStore, notificationStore, dayEventsStore)
 │           ├── hooks/ · lib/ · types/ · styled.d.ts
-│           ├── theme/         # aiosTheme.ts + layout.ts — all design tokens
+│           ├── theme/         # ctTheme.ts + layout.ts — all design tokens
 │           └── components/    # ui/ (AreaTabs…), layout/ (WorkspaceLayout, AreaSettingsPage, PageLayout, PageDivider),
 │                              # lumina/, widgets/, workspace/, UpgradeWall, AiInsightCard, CareerRadar
 │
@@ -201,7 +201,7 @@ aios-web/                      # pnpm workspace root (package.json = ALL third-p
 
 - **Navigation**: `apps/shell/src/config/navigation.ts` is the single source of truth. Sidebar, BottomNav, CommandPalette, breadcrumb labels and the `g`-goto shortcuts all read from it — never hand-write a nav list in a component. Sidebar is top-level links only: no accordions, no sub-menus.
 - **Routes have no `/areas/` prefix** — `/app/finance`, not `/app/areas/finance`. Goals/Projects/Sprints/Tasks live at `/app/plan?view=…&domain=…`; the old paths redirect.
-- **AreaTabs**: use `<AreaTabs>` from `@aios/shared/components/ui/AreaTabs`; never nest `<Tabs>`. Do NOT add a tab per life domain — that pattern produced 24 tabs across four workspace pages that were really one filter. Use a `Select` domain filter (see `PlanPage`).
+- **AreaTabs**: use `<AreaTabs>` from `@ct/shared/components/ui/AreaTabs`; never nest `<Tabs>`. Do NOT add a tab per life domain — that pattern produced 24 tabs across four workspace pages that were really one filter. Use a `Select` domain filter (see `PlanPage`).
 - **No page-level titles** rendered inside content — breadcrumbs only in TopBar
 - **Dashboard layout**: two-column shell, right column 300px fixed, left `1fr`
 - **Density**: body baseline is **16px** and cards breathe (`spacing[5]`–`spacing[6]`). The old "13–14px, tight padding" rule was retired on 2026-07-21 — it was the main reason the UI read as an admin panel rather than a product.
@@ -244,7 +244,7 @@ aios-web/                      # pnpm workspace root (package.json = ALL third-p
 ```bash
 # Frontend (run from repo root — pnpm workspace)
 pnpm install                     # installs ALL workspace packages (root, apps/*, packages/*)
-pnpm dev                         # shell dev server :5173 (= pnpm --filter @aios/shell dev)
+pnpm dev                         # shell dev server :5173 (= pnpm --filter @ct/shell dev)
 pnpm build                       # builds @ledgr/ui then the shell app
 pnpm test                        # vitest across apps/* + packages/*
 pnpm --filter @ledgr/ui build    # rebuild the component library after editing packages/ui
@@ -267,6 +267,27 @@ alembic upgrade head
 ```
 
 ---
+
+## Recent Updates (2026-07-23 — Agent roster audit: Content Strategist retired, Professional Pulse opt-in)
+
+Roster re-audited against the post-redesign product (Content area deleted 2026-07-21; plan centers Finance + Health).
+
+- **Content Strategist retired** (`aios-content-strategist`): removed from `DEFAULT_AGENTS` + `_ACTIVE_BY_DEFAULT` in `api/agents.py`; migration **`ag02_deactivate_content_agent`** (new head) deactivates existing rows. Rows kept + `runners.py` still handles the task (same precedent as weekly-refresh) so old rows can be triggered/deleted.
+- **Professional Pulse demoted to opt-in**: still seeded, no longer in `_ACTIVE_BY_DEFAULT`; existing rows keep the user's own on/off state.
+- Seed roster = **7**; active by default = **4** (morning-brief, monthly-finance, health-coach, vault-extractor) + the two Gmail tracker agents which auto-enable on Gmail connect.
+- Decision (no code): no "email router agent" or "calendar agent" — the 30-min `google_sync` job (free), the skip-if-empty email extractors, and Morning Brief's triage already cover that architecture. Backlog: intra-day important-mail push as a classifier step inside `gmail.sync_messages`.
+- **Cost optimization (same day):** agents default to the **small model tier** — new `agent_openai_model` (gpt-4o-mini) / `agent_claude_model` (claude-haiku-4-5) settings, passed as `base_openai_model`/`base_claude_model` to `generate_text` (replaces only the settings default; per-user prefs and per-agent overrides still win). Applied at both agent LLM sites (`runners.py`, `email_extraction.py`) — ~94% cheaper per scheduled run. **Morning Brief skips dormant days**: `_build_context` now returns `(context, has_signal)` (day activity or calendar events = signal; gmail/knowledge alone ≠ signal); no signal → no LLM, no metering, no push. Kills the ~30 credits/mo burn per dormant user.
+- Verified: full suite **205 passing** (+3 new tests: dormancy skip, runs-with-activity, base-model precedence); single alembic head `ag02`. Docker was down — migration applies on next `compose up`.
+
+## Recent Updates (2026-07-22 — Google OAuth signup audit + profile-display privacy)
+
+Audit of account creation via Google ("Continue with Google") plus the profile identity surfaces. All fixed + tested (backend 201 passing incl. new `tests/test_google_auth.py`; tsc clean; walked live in preview).
+
+- **Google callback hardening (`api/auth.py`):** rejects Google accounts whose email Google itself hasn't verified (`verified_email`/`email_verified` False → 401 — was a link-by-email account-takeover vector); an unverified email/password signup who signs in with Google is now promoted to `email_verified=True` (Google proved the mailbox — they no longer stay stuck behind `require_verified`); name falls back to the email local-part when Google sends `name: null/""` (was `.get("name", …)` which only defaults on a missing key); `/auth/google/url` is rate-limited (10/min) and opportunistically purges `oauth_states` rows older than 15 min (no cron owns that table; every consumer's TTL is 10 min).
+- **`GoogleAuthCallbackPage`:** single-submit `useRef` guard — StrictMode's double effect run used to POST the code exchange twice and the second call burned on the already-consumed state ("Sign-in failed" race); error card gained a "Back to sign in" button (was a dead end).
+- **Profile surfaces never show the email address** (TopBar trigger + popover, Sidebar footer + popover): new `@ct/shared/lib/account.ts` `accountLabel()` renders `Administrator` / `Google account` / `Personal account` as the secondary line instead. This also killed the TopBar bug that labeled every non-Google user "Admin", and the `user@example.com` placeholder fallbacks. Full email now appears only in Settings and the verification banner. Test harness: `oauth_states` added to conftest's table list.
+
+- **Gmail/Connections OAuth flow repaired (same day):** the redesign's orphan sweep (`41a6a7e`) had deleted `POST /api/integrations/{provider}/callback` (+ tracker auto-enable + initial sync helpers) — restored; SPA callback route moved from `/app/integrations/:provider/callback` to top-level `/integrations/:provider/callback` to match the backend's redirect_uri; `OAuthCallbackPage` got the single-submit guard and now returns to `/app/settings?section=connections`. **Scanner gotcha fixed:** `test_api_mappings` missed `api\n .post(...)` fluent chains (regex now `api\s*\.\s*(get|…)`) — that blind spot is what made the route look orphaned. Operator note: every deploy origin needs `<origin>/integrations/{gmail,gcal,gfit}/callback` AND `<origin>/auth/google/callback` registered in the Google Cloud OAuth client.
 
 ## Recent Updates (2026-07-21 — UI/UX audit + Expressive redesign, phases 0–5a)
 
@@ -304,7 +325,7 @@ The email transaction pipeline was rebuilt end-to-end (migration `t001_txn_track
 
 - **Multi-account Gmail**: `integration_credentials` unique is now `(user_id, provider, account_email)` — a user links N Gmail accounts (bank alerts often arrive in a different inbox than the sign-in account). Gmail OAuth uses `prompt="select_account consent"`; all gmail service/API paths are account-scoped (`google_oauth.get_valid_access_token(..., account_email=)`, `list_provider_credentials`). Settings → **Connections** section (`ConnectionsSection.tsx`) lists/links/unlinks accounts. Connecting Gmail **auto-enables the tracker agent + fires an immediate sync** (`api/integrations.py` callback).
 - **Sync fetches bodies for financial mail**: `gmail.sync_messages` iterates every connected account; besides the metadata sweep it runs a targeted query (curated Indian bank/UPI senders + subject keywords — `services/finance/email_sources.py`) and fetches `format=full`. `gmail_messages` gained `account_email`, `body_text`, `is_financial`, `extracted_at`; unique is `(user_id, account_email, gmail_id)`.
-- **Two finance email agents, one engine** (`services/finance/email_extraction.py`; runners.py delegates — they do NOT use `_build_context`/`_SPECS`): `aios-upi-tracker` = **"Transaction Tracker"** (cron `0 */6 * * *`, alert emails, still off by default until Gmail connects) and new `aios-statement-reconciler` (daily `30 8 * * *`, statement line items, reconciled against ledger ±3d at same amount so alert-captured txns don't double-queue). **Skip-if-empty: no unextracted financial emails → no LLM call → no AI credit metered** (that's what makes 6-hourly affordable). Each email is parsed exactly once (`extracted_at` set even on 0 txns). Dedupe: `FinancePendingTransaction.dedupe_key` (UPI ref, else hash of kind|date|amount|payee) checked against all pending rows + ledger before insert.
+- **Two finance email agents, one engine** (`services/finance/email_extraction.py`; runners.py delegates — they do NOT use `_build_context`/`_SPECS`): `ct-upi-tracker` = **"Transaction Tracker"** (cron `0 */6 * * *`, alert emails, still off by default until Gmail connects) and new `ct-statement-reconciler` (daily `30 8 * * *`, statement line items, reconciled against ledger ±3d at same amount so alert-captured txns don't double-queue). **Skip-if-empty: no unextracted financial emails → no LLM call → no AI credit metered** (that's what makes 6-hourly affordable). Each email is parsed exactly once (`extracted_at` set even on 0 txns). Dedupe: `FinancePendingTransaction.dedupe_key` (UPI ref, else hash of kind|date|amount|payee) checked against all pending rows + ledger before insert.
 - **Review-first**: `auto_commit_at` is nullable; NULL = wait for review (the default — migration nulled all existing pending clocks). Opt-in timed auto-commit via new `finance_settings.auto_commit_hours` (`GET/PATCH /api/areas/finance/settings`; UI in Finance Settings → Inbox Review; toggling re-clocks the existing queue).
 - **Unified commit paths** (`services/finance/pending.commit_pending_to_ledger`, used by approve + auto-commit): resolves BOTH `category` rollup name AND `category_id` via `_resolve_category`, **adjusts account balance** (this changed approve semantics — it used to skip balances), 409/skip on same-day-same-amount ledger duplicates. FinanceIncome.`source` is the CATEGORY name again (origin marker moved to `tags` — the old approve wrote "upi-tracker" into it). New `POST /pending/bulk-approve` + `/pending/bulk-dismiss`; pending list returns `suggested_account_id` (last account used per source inbox). Server-side `match_suggested_category` (`services/finance/categorize.py`) pre-fills `category_id` at insert.
 - **InboxTab**: source-account chip, pre-filled category/account, bulk Approve-all/Dismiss-all bar, "Waiting for your review" vs auto-commit countdown, empty-state "Fetch now" (triggers the tracker) + "Connect Gmail" CTAs.
@@ -314,8 +335,8 @@ The email transaction pipeline was rebuilt end-to-end (migration `t001_txn_track
 
 The frontend was converted from a single `frontend/` package into a pnpm-workspace monorepo (branch `monorepo`). **Zero logic changes — every file was `git mv`'d and only import specifiers were rewritten.**
 
-- **Layout:** `apps/shell` (central app: router, AppShell nav, dashboard, chat, agents, workspace, goals, settings, guide, legal, landing, admin) + one app package per domain (`apps/finance|health|career|business|content`, each `src/pages` + `src/components`) + `packages/shared` (`@aios/shared`: api, stores, hooks, lib, theme, types, shared components) + `packages/ui` (`@ledgr/ui`, moved from `ledgr-ui/`).
-- **Composition model:** ONE deployed SPA. The shell consumes domain apps + shared from **source** via Vite aliases (`apps/shell/vite.config.ts`), mirrored in root `tsconfig.json` `paths` and root `vitest.config.ts`. `@/` = shell-internal only; everything else imports `@aios/shared/...` / `@aios/<domain>/...`. Domain apps never import each other (verified — zero cross-domain imports existed).
+- **Layout:** `apps/shell` (central app: router, AppShell nav, dashboard, chat, agents, workspace, goals, settings, guide, legal, landing, admin) + one app package per domain (`apps/finance|health|career|business|content`, each `src/pages` + `src/components`) + `packages/shared` (`@ct/shared`: api, stores, hooks, lib, theme, types, shared components) + `packages/ui` (`@ledgr/ui`, moved from `ledgr-ui/`).
+- **Composition model:** ONE deployed SPA. The shell consumes domain apps + shared from **source** via Vite aliases (`apps/shell/vite.config.ts`), mirrored in root `tsconfig.json` `paths` and root `vitest.config.ts`. `@/` = shell-internal only; everything else imports `@ct/shared/...` / `@ct/<domain>/...`. Domain apps never import each other (verified — zero cross-domain imports existed).
 - **Dependency policy:** all third-party deps live in the ROOT `package.json` only (single-version, one React/styled-components instance guaranteed); per-package manifests declare `workspace:*` graph edges only. `@ledgr/ui` went from `file:../ledgr-ui` (copy semantics) to `workspace:*` (symlink) — the old copy-dist-into-pnpm-store gotcha is obsolete; rebuild + clear `apps/shell/node_modules/.vite` + restart dev server is now enough.
 - **Build/tooling:** root scripts `pnpm dev|build|test|lint`; shell build = `tsc -p ../../tsconfig.json && vite build` (one tsconfig typechecks the whole graph); vitest config at root covers `apps/*` + `packages/*`; frontend Dockerfile now at `apps/shell/Dockerfile` with repo-root build context (fixes the old "can't rebuild: ledgr-ui outside context" problem); `docker-compose.yml` frontend service + `run.sh` updated.
 - **Backend touch:** `tests/test_api_mappings.py` `get_frontend_endpoints()` now scans `apps/*/src` + `packages/shared/src` (was `frontend/src`).
@@ -323,7 +344,7 @@ The frontend was converted from a single `frontend/` package into a pnpm-workspa
 
 ## Recent Updates (2026-07-14 — Production audit follow-up: tool history, Redis confirmations, index migration)
 
-Continued from the production audit session (roadmap items from `aios-production-audit.html`):
+Continued from the production audit session (roadmap items from `ct-production-audit.html`):
 
 - **P1 — Tool call/result persistence:** `ChatMessage.tool_calls` + `tool_results` JSON columns (existed since initial schema) are now populated. `openai_agent.py` now includes `call_id` in both `tool_call` and `tool_result` events. The WS handler in `api/chat.py` accumulates `turn_tool_calls`/`turn_tool_results` during streaming and saves them on the assistant `ChatMessage`. History loader reconstructs OpenAI-format tool turns from stored data: assistant entry gets `tool_calls` array + each result emitted as `{"role":"tool","tool_call_id":...,"content":...}` when provider=="openai". Anthropic path gets plain text history (unchanged).
 - **P2 — Redis-backed pending_tool_calls:** `_pending_tool_set` / `_pending_tool_pop` helpers added to `api/chat.py`. When `REDIS_URL` is set, pending tool confirmations are stored in Redis at key `pending_tool:{user_id}:{call_id}` with 300s TTL. Falls back to the existing per-connection dict in dev. Confirmation flow now survives WS reconnects in production.
@@ -346,18 +367,18 @@ Full audit of the 8 scheduled agents (power / usefulness / token cost / necessit
 
 ## Recent Updates (2026-07-13 — Layout centralization + code-review fixes)
 
-- **Theme/spacing centralization (root-cause fix):** Removed `spacing: appSpacing` override from `buildTheme()` in `src/theme/aiosTheme.ts` — it was corrupting all 121 `@ledgr/ui` internal spacing usages (tripling them), causing huge gaps and broken scroll on GoalsPage. The 12pt structural scale (`1=12px … 24=288px`) now lives in `src/theme/layout.ts` as a standalone `spacing` export, completely separate from the DS 4pt component spacing.
+- **Theme/spacing centralization (root-cause fix):** Removed `spacing: appSpacing` override from `buildTheme()` in `src/theme/ctTheme.ts` — it was corrupting all 121 `@ledgr/ui` internal spacing usages (tripling them), causing huge gaps and broken scroll on GoalsPage. The 12pt structural scale (`1=12px … 24=288px`) now lives in `src/theme/layout.ts` as a standalone `spacing` export, completely separate from the DS 4pt component spacing.
 - **`layout.ts` is now the single source of truth** for all app structural dimensions: `TOPBAR_HEIGHT` (48px), `BOTTOM_NAV_HEIGHT` (60px), `SIDEBAR_NAV_WIDTH` (228px), `SIDEBAR_NAV_COLLAPSED_WIDTH` (60px), `SIDEBAR_WIDTH` (288px), `SETTINGS_RAIL_WIDTH` (264px), `PAGE_MAX_WIDTH`, `PAGE_PADDING`, `COMMAND_PALETTE_WIDTH`, `ASSISTANT` dims. All previous hardcoded px values in `TopBar`, `BottomNav`, `Sidebar`, `AreaSettingsPage`, `AppShell`, `WorkspaceLayout` migrated to these constants.
 - **Code-review bugs fixed:** `WorkspaceLayout Main` gap `16px→24px` (CLAUDE.md mandates 24px; gap+margin-top doubling); `AppShell ContentArea padding-bottom: 72px→${BOTTOM_NAV_HEIGHT}` (orphaned hardcode after layout.ts migration); `AreaTabs.tsx // @ts-nocheck` removed from line 1 (was suppressing all TS errors in a file rendered on every area page — tsc confirmed clean after removal).
 - **Polish:** `setTimeout(10)→requestAnimationFrame` in `AssistantChatInput.handleMention` (layout-timing correctness); deprecated `.substr(2,9)→.slice(2,11)` (×2) in same file.
 - **`layout.ts` usage rule:** `theme.spacing` = DS 4pt grid for component-internal spacing; `layout.spacing` (from `@/theme/layout`) = 12pt grid for app structural decisions (section gaps, page padding). Never conflate the two.
 - **Verified:** `tsc --noEmit` clean.
-- **Pending deletion (user-approved, blocked by classifier):** `backend/test_chat.py`, `frontend/update_progress.py`, `design-system/aios-web/`, `lessons.md`, `SAAS_IMPLEMENTATION_PLAN.md`, `docs/SHIP_READINESS_AUDIT.md`, `docs/DESIGN_SYSTEM_AUDIT.md` — delete manually.
+- **Pending deletion (user-approved, blocked by classifier):** `backend/test_chat.py`, `frontend/update_progress.py`, `design-system/control-tower/`, `lessons.md`, `SAAS_IMPLEMENTATION_PLAN.md`, `docs/SHIP_READINESS_AUDIT.md`, `docs/DESIGN_SYSTEM_AUDIT.md` — delete manually.
 
 ## Recent Updates (2026-07-13 — Design-system audit: assistant module de-God + ledgr-ui radii.xs)
 
 - **Assistant module split:** `AssistantChatInput.tsx` (1128→382 lines) and `GlobalAssistant.tsx` (650→391 lines) split into lean orchestrators. Extracted: `chatUtils.ts` (QUICK_PROMPTS + buildHiddenContext), `GlobalAssistant.styles.ts` (19 styled components), `AssistantChatInput.styles.ts` (keyframes + 16 styled components), `FilePreviewCard.tsx` (AttachedFile + FilePreviewCard + PastedContentCard), `ModelSelector.tsx` (Model + ModelSelector). `ChatPage.tsx` import of `buildHiddenContext` updated to `chatUtils`.
-- **`radii.xs` type gap closed:** added `xs: '4px'` to `ledgr-ui/src/theme/tokens.ts` — the token existed at runtime in `aiosTheme` but was absent from the TS type, causing tsc to reject `theme.radii.xs`. Rebuilt ledgr-ui and copied dist to pnpm store.
+- **`radii.xs` type gap closed:** added `xs: '4px'` to `ledgr-ui/src/theme/tokens.ts` — the token existed at runtime in `ctTheme` but was absent from the TS type, causing tsc to reject `theme.radii.xs`. Rebuilt ledgr-ui and copied dist to pnpm store.
 - **Verified:** `tsc --noEmit` + `pnpm build` clean.
 - **Deferred (by decision, not bugs):** TransactionsTab.tsx (@ts-nocheck, HIGH risk), CategoryPicker.tsx (portal flyout), CommandPalette.tsx (keyboard nav), IconButton ledgr-ui primitive, DS-bypass sweep (74 inline styled.button), retokenize 476 hardcoded hex literals.
 
@@ -384,7 +405,7 @@ Full-stack assistant pass (FE/BE/DB/Vault). Detailed ledger row in `docs/WORLD_C
 - **Removed:** `GlobalCapture.tsx` (orphaned), fake upload spinner (files encode at send, not before), dead "More models" item, decorative Extended-Thinking toggle (nothing read it), `monospaceFont` in UI chrome (mono = code blocks only), AgentsPage fake-terminal palette + traffic-light dots, AgentsToolbar raw `<select>`s → ledgr Input/Select/SegmentedControl. Root `test_chat.py` converted to a non-collected manual probe (was flaky-failing the suite against a live server).
 - **Deployment note:** the stack currently runs in **Docker** — backend :8000 (NOT the old local :8001 note), db :5434; frontend container stopped in favour of the host Vite dev server (the frontend image can't rebuild: `file:../ledgr-ui` is outside its build context, so the container predates remark-gfm). After backend Python edits: `docker compose build backend && docker compose up -d backend` when deps changed, plain `restart` otherwise.
 - **Live-verify follow-ups (same session):** `.env` still had legacy `LLM_PROVIDER=nvidia` — an unknown provider fell through both branches into an Anthropic client with no key and killed every chat turn; `stream_chat_response` now normalizes unknown providers and falls back to whichever provider has a key (friendly `no_api_key` error if neither). Session titles strip the hidden `[System: …]` prefix. ⌘K ask now also works when already ON /app/chat (prefill captured from `location.state` changes, not just mount). **openai SDK 1.47.0 → 1.109.1** so `prompt_tokens_details.cached_tokens` is visible in the usage logs.
-- Verified: backend **163 passing** on host (incl. `test_api_mappings` guarding `/api/chat/models`), `tsc --noEmit` + `pnpm build` clean, 2-worker leader test; live walk in preview — real chat turn (streamed answer + Thoughts block + pinned autoscroll + title in rail + quota ticking), ⌘K ask auto-sent on ChatPage, ⌘J drawer toggle, mobile BottomNav lands in-app, agents grid toggle `PATCH /api/agents/aios-vault-extractor → 200`, zero console errors. **Cache proof: `chat usage … input=2680 cached=2560` — 95% of the prompt served from the provider prefix cache.**
+- Verified: backend **163 passing** on host (incl. `test_api_mappings` guarding `/api/chat/models`), `tsc --noEmit` + `pnpm build` clean, 2-worker leader test; live walk in preview — real chat turn (streamed answer + Thoughts block + pinned autoscroll + title in rail + quota ticking), ⌘K ask auto-sent on ChatPage, ⌘J drawer toggle, mobile BottomNav lands in-app, agents grid toggle `PATCH /api/agents/ct-vault-extractor → 200`, zero console errors. **Cache proof: `chat usage … input=2680 cached=2560` — 95% of the prompt served from the provider prefix cache.**
 
 ## Recent Updates (2026-07-06 — Workspace & UI Consistency Polish)
 
@@ -428,7 +449,7 @@ Full per-tab card census + dedup pass (findings in `docs/WORLD_CLASS_REDESIGN_PL
 - **Forecasting is real now:** `services/ai/forecasting.py` (was an empty stub) — deterministic EOM-balance linear burn + least-squares weight slope, idempotent per day; `forecasts_nightly` job 02:30 UTC; `forecast_engine.py` (on-demand button; had fatal `Expense`/`Income` import bugs) rewired to the same pipeline; `/forecasts/generate` 422s (not 500) on thin data.
 - **Automation engine:** `services/automations/engine.py` — 5 tick templates (bill_reminder_3d, streak_save_evening, weekly_review_sunday, payday_snapshot → FinanceSnapshot upsert, idle_goal_nudge_7d), tz-aware local-time gates (tz from BriefingPreference), cooldowns via `last_fired_at`, hourly `automation_tick` (:05); `is_rule_enabled()` gates the budget-alert push channel (bell/WS always fires).
 - **Settings:** new Briefing section (enable/time/push; tz auto-captured on save); Automations section fixed (was hitting `/api/api/...` 404s, fake `--color-*` CSS vars, hand-rolled pill toggle → ledgr `Switch`; budget_80_push shown default-ON to match server).
-- **⌘K Command Bar 2.0 done:** GlobalCapture UNMOUNTED from AppShell — its duplicate ⌘L listener cancelled the palette's (⌘L was dead); palette owns nav + `>`/numeric log mode (parse → confirm card, verified) + `?` ask mode which hands off to Chat via `sessionStorage['aios.chat.prefill']` (ChatPage reads it with deferred removal — **StrictMode double-mount consumes one-shot storage keys**, defer cleanup ~1.5s). The old fake hardcoded ask answer is gone; `/chat` route bug → `/app/chat`.
+- **⌘K Command Bar 2.0 done:** GlobalCapture UNMOUNTED from AppShell — its duplicate ⌘L listener cancelled the palette's (⌘L was dead); palette owns nav + `>`/numeric log mode (parse → confirm card, verified) + `?` ask mode which hands off to Chat via `sessionStorage['ct.chat.prefill']` (ChatPage reads it with deferred removal — **StrictMode double-mount consumes one-shot storage keys**, defer cleanup ~1.5s). The old fake hardcoded ask answer is gone; `/chat` route bug → `/app/chat`.
 - **New Critical Gotcha:** after bumping/rebuilding ledgr-ui, `rm -rf node_modules && pnpm install` is NOT enough for the dev server — **also `rm -rf node_modules/.vite`** (or the optimizeDeps cache serves the old bundle and new exports crash the app at runtime while tsc stays green).
 - Verified: tsc + `pnpm build` clean, zero console errors; pulse/forecast/automations endpoints curl-tested; briefing/synergy/forecast/automation jobs run manually; Dashboard/Settings/palette/Chat-handoff walked in preview. Remaining nice-to-haves in plan §12 backlog row (chat tool-rows, agents drawer, Highcharts swap, contrast script, email channel).
 
@@ -437,7 +458,7 @@ Full per-tab card census + dedup pass (findings in `docs/WORLD_CLASS_REDESIGN_PL
 ### R1–R5 landed (Gemini implementation + Claude validation/fix pass)
 - **New surfaces:** Goals (`/app/goals`), Weekly Review (`/app/review`), Discoveries (`/app/discoveries`) + sidebar nav; Dashboard gained LifeHeatmap (real data via `GET /api/insights/heatmap`), DiscoveriesFeed, ActionCenterStrip. New backend: `api/insights.py` (briefing/discoveries/heatmap), `api/automations.py`, `services/insights/{briefing,synergy}.py` + APScheduler jobs (`insights_briefing` */15min tz-aware, `insights_synergy` 03:00 UTC). Migrations through `ecd685e0986e` applied. ledgr-ui **0.1.13** (InsightCard, Sparkline, PageHeader mobile overflow menu).
 - **Both LLM sites metered** (`ai_allowed` + `record_ai_usage`, sources `briefing`/`synergy`) with facts-only fallbacks; briefing honors `deliver_at`+`tz` (zoneinfo) and is idempotent per (user, date).
-- **Backend currently runs LOCALLY, not Docker**: uvicorn on **:8001** (Vite proxies `/api`→127.0.0.1:8001), no `--reload` → kill + relaunch after Python edits. **:8000 is a DIFFERENT project (Ledgr CA-desk)** — never assume it's AIOS.
+- **Backend currently runs LOCALLY, not Docker**: uvicorn on **:8001** (Vite proxies `/api`→127.0.0.1:8001), no `--reload` → kill + relaunch after Python edits. **:8000 is a DIFFERENT project (Ledgr CA-desk)** — never assume it's Control Tower.
 - **Gemini-code review gotchas (recur on any AI-generated code):** literal `\"\"\"` escaped docstrings (SyntaxError — backend won't boot); Tailwind classNames on new pages (Tailwind is removed → renders unstyled; rewrite in styled-components); mock/random data left in "wired" components; Radix idioms (`asChild`/`iconOnly`/`sideOffset`) passed to ledgr-ui's own Popover/Button (breaks tsup DTS build); missing `user_id` scoping/metering. Grep for all of these when validating generated code.
 - Remaining tail tracked in `docs/WORLD_CLASS_REDESIGN_PLAN.md` §12 (⬜ row): Dashboard briefing hero, Settings Briefing/Automations UI, automation trigger engine, Pulse Row, Command Bar 2.0, forecast scheduler job.
 
@@ -447,7 +468,7 @@ Full per-tab card census + dedup pass (findings in `docs/WORLD_CLASS_REDESIGN_PL
 - **`docs/WORLD_CLASS_REDESIGN_PLAN.md` is now the forward source of truth** for UI/UX redesign + AI features (Briefing, Synergy Engine, ⌘K Command Bar 2.0, Action Center, Life Heatmap, Weekly Review, Forecasts, automation templates). Phases R0–R5 with per-task files + verify steps; §12 status ledger must be updated every session.
 - **R0.1 shipped:** 12 pill-radius (`999px`) sites → `theme.radii.sm/md` across 8 files (OverviewInsightCard, GreetingHero, RelevantCards, TodaysTimeline, AgentsPage, GuideOverview, PipelineTab, CategoryManager); Transactions view switcher Select → `SegmentedControl size="sm"`; `formatCurrency` negative → `-₹5.94L`; Health "1 days" pluralized; stale "Use the rail" empty-state copy fixed (BodySleepTab/NutritionTab); Finance HomeTab fixed-380px cards → `AnalyticsCell` (auto-height on mobile); Phase-5 WIP `@/components/ui/card`→`ui/Card` casing fix.
 - **New Critical Gotcha — `KpiGrid` (ledgr-ui ≥0.1.9):** `overflow-x: auto` makes overflow-y computed `auto`, so inside a height-constrained flex column the grid silently shrank and vertically clipped KPI values (Health Body & Sleep showed label-only 66px cards). Fixed with `flex-shrink: 0` on `KpiGrid`. Also: after a ledgr-ui reinstall the running Vite dev server keeps serving the OLD optimized dep from memory — **restart the dev server** after `pnpm install`, and note `rm -rf node_modules/@ledgr && pnpm install --force` does NOT re-copy (full `rm -rf node_modules && pnpm install` does).
-- **`theme.radii.xs` exists at runtime (aiosTheme) but not in the ledgr-ui radii TS type** — using it fails tsc; use `sm` or extend the type (plan §3.1).
+- **`theme.radii.xs` exists at runtime (ctTheme) but not in the ledgr-ui radii TS type** — using it fails tsc; use `sm` or extend the type (plan §3.1).
 
 ## Recent Updates (2026-07-01)
 
@@ -547,7 +568,7 @@ The Content area was rebuilt from a single Kanban tab into a complete CMS with *
 - New endpoints: campaign CRUD (`/campaigns`), `/stats` (aggregations: by_status/platform/type/month, metric totals, top performers), richer `/items` filters (content_type, campaign_id, tag, `q` search). All user-scoped.
 - Obsolete components removed: `ColumnDropZone`, `ContentCaptureModal`, `DraftModal` (superseded by the new tabs + drawer). Shared meta in `components/areas/content/contentMeta.ts`.
 
-### Three security/quality audit rounds (all pushed to `claude/aios-web-audits-jywmwh`, PR #1)
+### Three security/quality audit rounds (all pushed to `claude/control-tower-audits-jywmwh`, PR #1)
 - **Round 1 — feature/UX**: Admin panel (5 endpoints + `is_admin` migration `h006` + `require_admin` + `RequireAdmin` guard), empty states on finance tabs, landing-page rewrite, AI feature gates (`require_plan("pro")` + `UpgradeWall`/`is402`), 4 missing finance tabs wired (Goals/Loans/Investments/Bills).
 - **Round 2 — security**: `OAuthState.user_id` FK (`h007`) so integration state tokens are user-scoped; push `subscribe` scoped to `(user_id, endpoint)` (no cross-user hijack); `RequireAdmin` null-user race fixed; admin mutations rate-limited; CSP `ws:/wss:` narrowed to the configured origin; HSTS in production; `decode_access_token` now logs failures.
 - **Round 3 — isolation + correctness** (`h008`): replaced **6 global unique constraints** with per-user composites (`finance_snapshots`, `finance_categories`, `skill_inventory`, `calendar_events`, `google_fit_metrics`, `push_subscriptions`) — two users could previously block each other's inserts. Fixed `/chat/token-budget` crash (called `get_token_budget_status()` with no `user_id`). Rate-limited `/auth/me`, `/auth/profile`, `/auth/change-password`, `/auth/me DELETE`, `/chat/sessions DELETE`, `/sync/status`, `/sync/conflicts`. Removed `@ts-nocheck` from 5 page/tab files — surfaced and fixed a real bug where CareerPage `<Select onValueChange>` (ignored prop) never fired the mutation; fixed `<Skeleton active>` and untyped `PublishedDropZone`. `tsc --noEmit` clean across the frontend.

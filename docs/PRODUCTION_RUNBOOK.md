@@ -1,4 +1,4 @@
-# AIOS Web — Production Runbook
+# Control Tower Web — Production Runbook
 
 **Audience:** On-call engineer. Assume you have SSH/kubectl access and the `.env.prod` file.
 
@@ -13,7 +13,7 @@ Set these in `.env.prod` before first deploy. Missing any will cause the backend
 | `ENVIRONMENT` | Must be `production` |
 | `APP_SECRET_KEY` | Min 32 chars, random. `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
 | `APP_PASSWORD` | Not a default value. Used only for the legacy env-credential login (dev-only anyway). |
-| `DATABASE_URL` | `postgresql+asyncpg://user:pass@db:5432/aios_web` |
+| `DATABASE_URL` | `postgresql+asyncpg://user:pass@db:5432/control_tower` |
 | `REDIS_URL` | `redis://redis:6379/0`. Required for distributed rate limiting. |
 | `RESEND_API_KEY` | For transactional email (verification). Get at resend.com. |
 | `ALLOWED_ORIGIN` | Your deployed frontend URL, no trailing slash. No `localhost`. |
@@ -30,7 +30,7 @@ Set these in `.env.prod` before first deploy. Missing any will cause the backend
 
 ```bash
 # 1. Pull the new image
-docker pull ghcr.io/your-org/aios-web:latest
+docker pull ghcr.io/your-org/control-tower:latest
 
 # 2. Bring up the stack (migrations run automatically via entrypoint.sh)
 docker compose -f docker-compose.prod.yml up -d
@@ -84,7 +84,7 @@ docker compose -f docker-compose.prod.yml up -d --no-deps backend
 
 ### Database password rotation
 
-1. Update the password in PostgreSQL: `ALTER USER aios_web WITH PASSWORD 'new_pass';`
+1. Update the password in PostgreSQL: `ALTER USER control_tower WITH PASSWORD 'new_pass';`
 2. Update `DATABASE_URL` in `.env.prod`.
 3. Restart backend (asyncpg reconnects using the new URL on next connection).
 
@@ -97,7 +97,7 @@ docker compose -f docker-compose.prod.yml up -d --no-deps backend
 ```bash
 # Dump to a timestamped file
 docker compose -f docker-compose.prod.yml exec db \
-  pg_dump -U aios_web aios_web | gzip > "aios_web_$(date +%Y%m%d_%H%M%S).sql.gz"
+  pg_dump -U control_tower control_tower | gzip > "control_tower_$(date +%Y%m%d_%H%M%S).sql.gz"
 ```
 
 Set up a daily cron or use managed DB snapshots (RDS, Supabase, Neon, etc.).
@@ -106,8 +106,8 @@ Set up a daily cron or use managed DB snapshots (RDS, Supabase, Neon, etc.).
 
 ```bash
 # Restore from a dump (DESTRUCTIVE — drops all existing data)
-gunzip -c aios_web_20260714_000000.sql.gz | \
-  docker compose -f docker-compose.prod.yml exec -T db psql -U aios_web aios_web
+gunzip -c control_tower_20260714_000000.sql.gz | \
+  docker compose -f docker-compose.prod.yml exec -T db psql -U control_tower control_tower
 ```
 
 ---
@@ -137,7 +137,7 @@ If Redis goes down:
 
 ```bash
 # Check top consumers this month
-docker compose -f docker-compose.prod.yml exec db psql -U aios_web aios_web -c \
+docker compose -f docker-compose.prod.yml exec db psql -U control_tower control_tower -c \
   "SELECT user_id, SUM(units) AS total FROM ai_usage_records
    WHERE created_at >= date_trunc('month', now()) GROUP BY user_id ORDER BY total DESC LIMIT 10;"
 ```
@@ -153,7 +153,7 @@ docker compose -f docker-compose.prod.yml exec db psql -U aios_web aios_web -c \
 
 ```bash
 curl -sf https://your-domain.com/api/health | jq .
-# Expected: {"status":"ok","service":"aios-web","db":true,"watcher":false}
+# Expected: {"status":"ok","service":"control-tower","db":true,"watcher":false}
 ```
 
 `db: false` means the backend cannot reach PostgreSQL. Check database container and connection string.

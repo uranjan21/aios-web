@@ -123,7 +123,7 @@ async def _sync_account(user_id: uuid.UUID, db, account_email: str) -> int:
         )).scalars().all()
     }
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()  # naive UTC — gmail_messages columns are tz-naive
     count = 0
     for msg, is_financial in [(m, False) for m in meta_msgs] + [(m, True) for m in full_msgs]:
         hdrs = {

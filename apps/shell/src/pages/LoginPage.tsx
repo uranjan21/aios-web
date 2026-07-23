@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import styled, { keyframes, useTheme } from 'styled-components'
-import { api } from '@aios/shared/api/client'
-import { useAuthStore } from '@aios/shared/stores/authStore'
-import { errorMessage } from '@aios/shared/lib/utils'
+import { api } from '@ct/shared/api/client'
+import { useAuthStore } from '@ct/shared/stores/authStore'
+import { errorMessage } from '@ct/shared/lib/utils'
+import { track, identify } from '@ct/shared/lib/analytics'
 import {
   IndianRupee, Heart, Briefcase,
   Eye, EyeOff, Sparkles, Shield, Zap,
@@ -30,7 +31,7 @@ const LINE = 'rgba(255,255,255,0.09)'
 const GLASS = 'rgba(255,255,255,0.035)'
 
 /* Domain identity comes from theme.chromeDomain — the dark-mode variants of
- * the single source of truth in aiosTheme. This page is always dark whatever
+ * the single source of truth in ctTheme. This page is always dark whatever
  * the user's mode, which is exactly what chromeDomain exists for.
  *
  * The colours here previously DISAGREED with the rest of the app: Finance was
@@ -51,7 +52,7 @@ const fadeUp = keyframes`
 /* ═══════════════════════════════════════════════════════════════════════
    AMBIENT HUD
    A ghosted picture of the product itself. Every layer maps to something
-   that actually exists in AIOS — nothing is decorative sci-fi:
+   that actually exists in Control Tower — nothing is decorative sci-fi:
      · core + 5 spokes   → the five life domains feeding one interface
      · vault node        → the Obsidian knowledge layer
      · outer ring, 7 ticks → the 7 scheduled agents
@@ -846,12 +847,16 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
         // so the endpoint can't be used to enumerate users. The verification
         // link in the inbox is what turns the account on.
         await api.post('/auth/signup', { name, email, password })
+        track('signup')
         setSignupSent(true)
         return
       }
       const { data } = await api.post('/auth/login', { email, password })
       setAuthenticated(true)
-      if (data.user) setUser(data.user)
+      if (data.user) {
+        setUser(data.user)
+        identify(data.user.id)
+      }
       navigate('/app')
     } catch (err) {
       setError(errorMessage(err, isSignup ? 'Could not create account' : 'Invalid email or password'))
@@ -872,7 +877,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
             <LogoBadge>
               <LogoBadgeText>AI</LogoBadgeText>
             </LogoBadge>
-            <BrandName>aios</BrandName>
+            <BrandName>Control Tower</BrandName>
           </LogoRow>
 
           <Eyebrow>AI Life Operating System</Eyebrow>
@@ -918,7 +923,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
         <Card>
           <MobileLogo>
             <LogoBadge $size={34}><LogoBadgeText $size={11}>AI</LogoBadgeText></LogoBadge>
-            <BrandName $size={18}>aios</BrandName>
+            <BrandName $size={18}>Control Tower</BrandName>
           </MobileLogo>
 
           {signupSent ? (
@@ -939,7 +944,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
           <>
           <CardTitle>{isSignup ? 'Create your account' : 'Welcome back'}</CardTitle>
           <CardSub>
-            {isSignup ? 'Start running your life on AIOS' : 'Sign in to continue to AIOS'}
+            {isSignup ? 'Start running your life on Control Tower' : 'Sign in to continue to Control Tower'}
           </CardSub>
 
           <form onSubmit={handleSubmit}>
@@ -1034,7 +1039,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
           </Ghost>
 
           <Toggle>
-            {isSignup ? 'Already have an account?' : 'New to AIOS?'}
+            {isSignup ? 'Already have an account?' : 'New to Control Tower?'}
             <button type="button" onClick={toggleMode}>
               {isSignup ? 'Sign in' : 'Create an account'}
             </button>

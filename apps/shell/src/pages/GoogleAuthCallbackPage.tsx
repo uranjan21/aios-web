@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import styled, { keyframes, css } from 'styled-components'
-import { api } from '@aios/shared/api/client'
-import { useAuthStore } from '@aios/shared/stores/authStore'
+import { api } from '@ct/shared/api/client'
+import { useAuthStore } from '@ct/shared/stores/authStore'
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react'
 
 const spin = keyframes`
@@ -89,6 +89,22 @@ const ContentWrapper = styled.div`
   animation: ${fadeInUp} 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 `
 
+const BackLink = styled.button`
+  margin-top: ${({ theme }) => theme.spacing[6]};
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[4]}`};
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  background: transparent;
+  color: ${({ theme }) => theme.color.foreground};
+  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms;
+
+  &:hover { background: ${({ theme }) => theme.color.muted}; }
+`
+
 export function GoogleAuthCallbackPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -96,8 +112,14 @@ export function GoogleAuthCallbackPage() {
   const setUser = useAuthStore(s => s.setUser)
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [errorMsg, setErrorMsg] = useState('')
+  const submitted = useRef(false)
 
   useEffect(() => {
+    // The state token is single-use on the server — StrictMode's double effect
+    // run (or any re-render) must not POST the exchange twice.
+    if (submitted.current) return
+    submitted.current = true
+
     const code = searchParams.get('code')
     const state = searchParams.get('state')
     const error = searchParams.get('error')
@@ -148,6 +170,12 @@ export function GoogleAuthCallbackPage() {
             {status === 'success' && 'Redirecting to your dashboard...'}
             {status === 'error' && errorMsg}
           </Detail>
+
+          {status === 'error' && (
+            <BackLink type="button" onClick={() => navigate('/login')}>
+              Back to sign in
+            </BackLink>
+          )}
         </ContentWrapper>
       </Card>
     </Root>

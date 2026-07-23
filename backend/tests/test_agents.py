@@ -78,21 +78,22 @@ async def test_build_context_scoped(user_a, db_session_factory):
     # For finance task, health facts should not be in the context.
     # (aios-upi-tracker no longer uses _build_context — it has a dedicated
     # email-extraction engine — so the finance-scoped case uses monthly-finance.)
-    context_finance = await _build_context("aios-monthly-finance", user_a.id)
+    context_finance, _ = await _build_context("aios-monthly-finance", user_a.id)
     assert "FINANCE" in context_finance
     assert "HEALTH" not in context_finance
 
     # For health task, finance facts should not be in the context
-    context_health = await _build_context("aios-health-coach", user_a.id)
+    context_health, _ = await _build_context("aios-health-coach", user_a.id)
     assert "HEALTH" in context_health
     assert "FINANCE" not in context_health
 
     # Morning brief now uses DAY-scoped facts (yesterday + today), not the 7-day
     # cross-domain recap — but it still surfaces both finance and health activity.
-    context_general = await _build_context("aios-morning-brief", user_a.id)
+    context_general, has_signal = await _build_context("aios-morning-brief", user_a.id)
     assert "Yesterday" in context_general           # day-scoped structure
     assert "Spent" in context_general               # finance activity present
     assert "Workouts" in context_general            # health activity present
+    assert has_signal is True                       # yesterday's data counts as signal
 
 
 @pytest.mark.asyncio
@@ -267,3 +268,83 @@ async def test_agent_executes_writeback_actions(user_a, db_session_factory, monk
     vault_path = Path("/tmp/vault-test/02-health/log/2026.md")
     assert vault_path.exists()
     assert "Book physio consult" in vault_path.read_text(encoding="utf-8")
+
+
+@pytest.mark.asyncio
+async def test_morning_brief_skips_llm_when_no_activity(user_a, monkeypatch):
+    """Dormant day/user: no yesterday activity, no bills, no priority tasks, no
+    calendar → the brief must return without touching the LLM or metering."""
+    llm_called = {"value": False}
+
+    async def mock_generate_text(*args, **kwargs):
+        llm_called["value"] = True
+        return "should never run"
+
+    monkeypatch.setattr("app.services.agents.runners.generate_text", mock_generate_text)
+
+    output = await run_agent_task("aios-morning-brief", user_a.id)
+    assert "brief skipped" in output
+    assert llm_called["value"] is False
+
+
+@pytest.mark.asyncio
+async def test_morning_brief_runs_when_activity_exists(user_a, db_session_factory, monkeypatch):
+    async def mock_generate_text(*args, **kwargs):
+        return "Your morning brief."
+
+    monkeypatch.setattr("app.services.agents.runners.generate_text", mock_generate_text)
+
+    async with db_session_factory() as db:
+        db.add(FinanceExpense(user_id=user_a.id, amount=250, category="Food",
+                              logged_at=datetime.utcnow() - timedelta(hours=5)))
+        await db.commit()
+
+    output = await run_agent_task("aios-morning-brief", user_a.id)
+    assert output == "Your morning brief."
+
+
+@pytest.mark.asyncio
+async def test_generate_text_agent_base_model_precedence(monkeypatch):
+    """base_openai_model replaces only the settings default; an explicit
+    override still wins over it."""
+    from app.core.config import get_settings
+    from app.services.ai import insights
+
+    s = get_settings()
+    monkeypatch.setattr(s, "llm_provider", "openai")
+    monkeypatch.setattr(s, "openai_api_key", "test-key")
+    monkeypatch.setattr(s, "openai_chat_model", "gpt-4o")
+
+    seen = {}
+
+    class _FakeCompletions:
+        async def create(self, **kwargs):
+            seen["model"] = kwargs["model"]
+
+            class _Msg:
+                content = "ok"
+
+            class _Choice:
+                message = _Msg()
+
+            class _Resp:
+                choices = [_Choice()]
+
+            return _Resp()
+
+    class _FakeClient:
+        class chat:
+            completions = _FakeCompletions()
+
+    monkeypatch.setattr(insights, "get_openai_client", lambda api_key: _FakeClient())
+
+    # Base model replaces the settings default (agents pass the cheap tier).
+    out = await insights.generate_text("sys", "user", base_openai_model="gpt-4o-mini")
+    assert out == "ok"
+    assert seen["model"] == "gpt-4o-mini"
+
+    # A per-agent override still beats the base model.
+    await insights.generate_text(
+        "sys", "user", base_openai_model="gpt-4o-mini", override_openai_model="gpt-4o"
+    )
+    assert seen["model"] == "gpt-4o"

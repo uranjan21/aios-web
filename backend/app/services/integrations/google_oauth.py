@@ -180,7 +180,9 @@ async def save_tokens(user_id: uuid.UUID, db, provider: str, token_data: dict) -
     )
     cred = result.scalar_one_or_none()
 
-    now = datetime.now(timezone.utc)
+    # Naive UTC: integration_credentials timestamps are TIMESTAMP WITHOUT TIME
+    # ZONE — asyncpg rejects tz-aware values (the project-wide NaiveDateTime rule).
+    now = datetime.utcnow()
     expires_at = now + timedelta(seconds=token_data["expires_in"])
 
     if not cred:
@@ -241,8 +243,8 @@ async def get_valid_access_token(
     if not cred or cred.status != "connected" or not cred.access_token_encrypted:
         return None
 
-    now = datetime.now(timezone.utc)
-    if cred.token_expires_at and cred.token_expires_at.replace(tzinfo=timezone.utc) <= now + timedelta(minutes=5):
+    now = datetime.utcnow()  # naive UTC — matches the stored naive timestamps
+    if cred.token_expires_at and cred.token_expires_at <= now + timedelta(minutes=5):
         if not cred.refresh_token_encrypted:
             cred.status = "expired"
             cred.updated_at = now

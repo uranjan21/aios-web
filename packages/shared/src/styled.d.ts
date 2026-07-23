@@ -1,11 +1,11 @@
 import 'styled-components';
 import type { Theme } from '@ledgr/ui';
-import type { DomainKey } from '@aios/shared/theme/aiosTheme';
+import type { DomainKey } from '@ct/shared/theme/ctTheme';
 
 /**
- * AIOS-local theme augmentation. Deliberately declared here and not in
+ * Control Tower-local theme augmentation. Deliberately declared here and not in
  * @ledgr/ui's own styled.d.ts — the library is shared with Ledgr, and domain
- * identity colours are an AIOS concept, not part of the library contract.
+ * identity colours are a Control Tower concept, not part of the library contract.
  *
  * The `hud` block that used to live here was removed on 2026-07-21: it
  * declared 13 tokens and 12 CSS variables that no component ever read. Its

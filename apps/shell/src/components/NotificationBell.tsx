@@ -5,9 +5,9 @@ import type { LucideIcon } from 'lucide-react'
 import { Bell, X, AlertTriangle, CheckCircle, Zap, Info, AlertCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import styled, { useTheme, type DefaultTheme } from 'styled-components'
-import { useNotificationStore, type Notification } from '@aios/shared/stores/notificationStore'
-import { useNotifications } from '@aios/shared/hooks/useNotifications'
-import { formatRelativeTime } from '@aios/shared/lib/utils'
+import { useNotificationStore, type Notification } from '@ct/shared/stores/notificationStore'
+import { useNotifications } from '@ct/shared/hooks/useNotifications'
+import { formatRelativeTime } from '@ct/shared/lib/utils'
 
 /** Notification-type colours, mapped to semantic theme tokens. */
 function typeColor(type: Notification['type'], theme: DefaultTheme): string {

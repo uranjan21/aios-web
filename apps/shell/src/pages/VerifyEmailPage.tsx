@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import styled from 'styled-components'
-import { api } from '@aios/shared/api/client'
+import { api } from '@ct/shared/api/client'
 
 const Wrap = styled.div`
   min-height: 100vh;
@@ -66,7 +66,7 @@ export function VerifyEmailPage() {
     <Wrap>
       <Card>
         <Title>Email verified!</Title>
-        <Message>Your email address has been verified. You now have full access to AIOS.</Message>
+        <Message>Your email address has been verified. You now have full access to Control Tower.</Message>
         <Btn onClick={() => navigate('/app')}>Go to dashboard</Btn>
       </Card>
     </Wrap>

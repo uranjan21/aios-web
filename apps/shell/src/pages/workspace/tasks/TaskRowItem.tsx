@@ -1,6 +1,6 @@
 import { Trash2, CheckCircle2, Circle, PencilLine, CalendarDays, Tag, AlertCircle } from 'lucide-react'
 import { Button } from '@ledgr/ui'
-import { Task, Sprint, Project } from '@aios/shared/api/workspace'
+import { Task, Sprint, Project } from '@ct/shared/api/workspace'
 import {
   TaskRow, TaskCheckBtn, TaskBody, TaskTitle, TaskDesc, TaskMeta, MetaBadge, TaskActions,
 } from './TasksPage.styles'

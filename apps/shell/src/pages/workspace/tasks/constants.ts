@@ -20,4 +20,4 @@ export const STATUS_FILTER_OPTIONS = [
 
 // Domain options come from the shared registry so the picker, the sidebar and
 // the goal tabs cannot drift apart again.
-export { DOMAIN_OPTIONS, domainLabel } from '@aios/shared/config/domains'
+export { DOMAIN_OPTIONS, domainLabel } from '@ct/shared/config/domains'

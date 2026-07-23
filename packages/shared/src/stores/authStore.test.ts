@@ -19,7 +19,7 @@ describe('authStore', () => {
         is_admin: true,
       })
 
-      const stored = JSON.parse(localStorage.getItem('aios-auth') ?? '{}')
+      const stored = JSON.parse(localStorage.getItem('ct-auth') ?? '{}')
       expect(stored.state).toEqual({ isAuthenticated: true })
       expect(stored.state?.user).toBeUndefined()
     })
@@ -28,7 +28,7 @@ describe('authStore', () => {
       useAuthStore.getState().setAuthenticated(true)
       useAuthStore.getState().logout()
 
-      const stored = JSON.parse(localStorage.getItem('aios-auth') ?? '{}')
+      const stored = JSON.parse(localStorage.getItem('ct-auth') ?? '{}')
       expect(stored.state).toEqual({ isAuthenticated: false })
     })
   })

@@ -2,7 +2,7 @@ import { PRIMARY_NAV } from '@/config/navigation'
 import { focusRing } from '@ledgr/ui'
 import { NavLink, useLocation } from 'react-router-dom'
 import styled from 'styled-components'
-import { BOTTOM_NAV_HEIGHT } from '@aios/shared/theme/layout'
+import { BOTTOM_NAV_HEIGHT } from '@ct/shared/theme/layout'
 
 const Nav = styled.nav`
   display: flex;

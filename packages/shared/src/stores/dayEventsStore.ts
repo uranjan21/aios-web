@@ -63,7 +63,7 @@ export const useDayEventsStore = create<DayEventsState>()(
         return map
       },
     }),
-    { name: 'aios-day-events' },
+    { name: 'ct-day-events' },
   ),
 )
 

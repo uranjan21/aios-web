@@ -54,7 +54,7 @@ export function PrivacyPolicyPage() {
       <Section>
         <Heading>1. Introduction</Heading>
         <Text>
-          Welcome to aios. We respect your privacy and are committed to protecting your personal data. 
+          Welcome to Control Tower. We respect your privacy and are committed to protecting your personal data. 
           This privacy policy will inform you as to how we look after your personal data when you visit our 
           website and tell you about your privacy rights and how the law protects you.
         </Text>
@@ -120,7 +120,7 @@ export function PrivacyPolicyPage() {
       <Section>
         <Heading>7. Contact Us</Heading>
         <Text>
-          If you have any questions about this privacy policy or our privacy practices, please contact us at support@aios.dev.
+          If you have any questions about this privacy policy or our privacy practices, please contact us at support@controltower.dev.
         </Text>
       </Section>
     </div>

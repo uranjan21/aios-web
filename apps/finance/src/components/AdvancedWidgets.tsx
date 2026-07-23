@@ -1,19 +1,19 @@
 import React from 'react';
 import styled, { useTheme } from 'styled-components';
-import { Popconfirm } from '@aios/shared/components/ui/Popconfirm';
+import { Popconfirm } from '@ct/shared/components/ui/Popconfirm';
 import { useState } from 'react';
 import { Button, Badge, EmptyState, DataTable, Select } from '@ledgr/ui';
 import { Sparkles, TrendingUp, AlertCircle, CheckCircle, Repeat } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip as ReTooltip, ResponsiveContainer } from 'recharts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChartTooltip } from '@aios/shared/components/ui/ChartTooltip';
+import { ChartTooltip } from '@ct/shared/components/ui/ChartTooltip';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { financeApi } from '@aios/shared/api/areas';
-import { formatCurrency } from '@aios/shared/lib/utils';
-import { Skeleton } from '@aios/shared/components/ui/skeleton';
+import { financeApi } from '@ct/shared/api/areas';
+import { formatCurrency } from '@ct/shared/lib/utils';
+import { Skeleton } from '@ct/shared/components/ui/skeleton';
 import { Card as GlassCard } from '@ledgr/ui';;
-import { TableFooter } from '@aios/shared/components/ui/Table';
+import { TableFooter } from '@ct/shared/components/ui/Table';
 
 const AIInsightWrapper = styled.div`
   display: flex;

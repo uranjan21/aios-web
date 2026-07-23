@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { ChatModelsInfo, ChatSession, TokenBudget } from '@aios/shared/types'
+import type { ChatModelsInfo, ChatSession, TokenBudget } from '@ct/shared/types'
 
 export const chatApi = {
   sessions: () => api.get<ChatSession[]>('/chat/sessions').then(r => r.data),

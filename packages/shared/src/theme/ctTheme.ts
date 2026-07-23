@@ -1,5 +1,5 @@
 /**
- * AIOS theme entry point.
+ * Control Tower theme entry point.
  *
  * This file used to be a second, competing token layer: it overrode the design
  * system's shadows, radii, font families and entire colour set at runtime, so
@@ -102,7 +102,7 @@ const chartDark = [
   '#e66767',
 ] as const;
 
-export interface AiosTheme extends Theme {
+export interface CtTheme extends Theme {
   domain: Record<DomainKey, string>;
   /** The sidebar is always dark, so anything domain-coloured inside it uses these. */
   chromeDomain: Record<DomainKey, string>;
@@ -112,7 +112,7 @@ export interface AiosTheme extends Theme {
 }
 
 /** Build the full theme object for a given palette id + light/dark mode. */
-export function getTheme(paletteId: string, mode: 'light' | 'dark'): AiosTheme {
+export function getTheme(paletteId: string, mode: 'light' | 'dark'): CtTheme {
   const palette = getPalette(paletteId);
   const color: PaletteColors = mode === 'dark' ? palette.dark : palette.light;
   // Sidebar chrome is intentionally always-dark regardless of the active mode,
@@ -133,4 +133,4 @@ export function getTheme(paletteId: string, mode: 'light' | 'dark'): AiosTheme {
 }
 
 /** Back-compat named export (default "monochrome" palette). */
-export const aiosLightTheme: AiosTheme = getTheme('monochrome', 'light');
+export const ctLightTheme: CtTheme = getTheme('monochrome', 'light');

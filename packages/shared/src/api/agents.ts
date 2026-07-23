@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { Agent } from '@aios/shared/types'
+import type { Agent } from '@ct/shared/types'
 
 export const agentsApi = {
   list: () => api.get<Agent[]>('/agents').then(r => r.data),

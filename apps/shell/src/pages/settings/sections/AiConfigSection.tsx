@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Save } from 'lucide-react'
 import { toast } from 'sonner'
-import { api } from '@aios/shared/api/client'
-import { useAuthStore } from '@aios/shared/stores/authStore'
+import { api } from '@ct/shared/api/client'
+import { useAuthStore } from '@ct/shared/stores/authStore'
 import { Select, Input, Button } from '@ledgr/ui'
 import { RowRoot, RowLabel, Section } from '../shared'
 

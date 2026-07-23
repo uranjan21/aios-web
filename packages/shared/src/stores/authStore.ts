@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { resetAnalytics } from '../lib/analytics'
 
 export interface UserProfile {
   id: string
@@ -31,10 +32,10 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       setAuthenticated: (v) => set({ isAuthenticated: v }),
       setUser: (user) => set({ user }),
-      logout: () => set({ isAuthenticated: false, user: null }),
+      logout: () => { resetAnalytics(); set({ isAuthenticated: false, user: null }) },
     }),
     {
-      name: 'aios-auth',
+      name: 'ct-auth',
       partialize: (s) => ({ isAuthenticated: s.isAuthenticated }),
     }
   )

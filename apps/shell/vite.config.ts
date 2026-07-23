@@ -9,10 +9,10 @@ export default defineConfig({
     // everything into one SPA, so each alias points at the package's src/.
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@aios/shared': path.resolve(__dirname, '../../packages/shared/src'),
-      '@aios/finance': path.resolve(__dirname, '../finance/src'),
-      '@aios/health': path.resolve(__dirname, '../health/src'),
-      '@aios/career': path.resolve(__dirname, '../career/src'),
+      '@ct/shared': path.resolve(__dirname, '../../packages/shared/src'),
+      '@ct/finance': path.resolve(__dirname, '../finance/src'),
+      '@ct/health': path.resolve(__dirname, '../health/src'),
+      '@ct/career': path.resolve(__dirname, '../career/src'),
     },
   },
   optimizeDeps: {

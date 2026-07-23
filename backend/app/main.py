@@ -187,6 +187,11 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     settings = get_settings()
 
+    # Error reporting — no-op unless SENTRY_DSN is set. Init before the app so
+    # exceptions during startup are captured too.
+    from app.core.observability import init_sentry
+    init_sentry()
+
     app = FastAPI(
         title="AIOS Web",
         description="Personal command center on top of AI OS",

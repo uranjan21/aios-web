@@ -1,5 +1,5 @@
-import { Task } from '@aios/shared/api/workspace'
-import { CollapsibleSection } from '@aios/shared/components/workspace/CollapsibleSection'
+import { Task } from '@ct/shared/api/workspace'
+import { CollapsibleSection } from '@ct/shared/components/workspace/CollapsibleSection'
 import { TaskGrid, TaskList } from './TasksPage.styles'
 
 /* ── Group wrapper (collapsible) ───────────────────────────────────── */

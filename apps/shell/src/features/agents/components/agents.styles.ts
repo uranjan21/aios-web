@@ -1,6 +1,6 @@
 import styled, { createGlobalStyle, keyframes } from "styled-components";
 import { Card } from "@ledgr/ui";
-import { Skeleton } from "@aios/shared/components/ui/skeleton";
+import { Skeleton } from "@ct/shared/components/ui/skeleton";
 
 export const SpinGlobal = createGlobalStyle`
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

@@ -1,13 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Popconfirm } from '@aios/shared/components/ui/Popconfirm'
+import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import { useState } from 'react'
 import { Button, Switch, Badge, Select } from '@ledgr/ui'
 import { Trash2, Zap, Receipt, Plus } from 'lucide-react'
-import { financeApi } from '@aios/shared/api/areas'
-import { Skeleton } from '@aios/shared/components/ui/skeleton'
-import type { FinanceBill } from '@aios/shared/types'
-import { Table } from '@aios/shared/components/ui/Table'
+import { financeApi } from '@ct/shared/api/areas'
+import { Skeleton } from '@ct/shared/components/ui/skeleton'
+import type { FinanceBill } from '@ct/shared/types'
+import { Table } from '@ct/shared/components/ui/Table'
 import styled from 'styled-components'
 
 const NameText = styled.div`

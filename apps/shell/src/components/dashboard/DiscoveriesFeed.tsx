@@ -2,7 +2,7 @@ import styled, { useTheme } from 'styled-components'
 import { Card, EmptyState, InsightCard } from '@ledgr/ui'
 import { Sparkles, Activity } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { insightsApi } from '@aios/shared/api/insights'
+import { insightsApi } from '@ct/shared/api/insights'
 
 const FeedWrapper = styled.div`
   display: flex;

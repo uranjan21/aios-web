@@ -1,4 +1,4 @@
-import { Skeleton } from '@aios/shared/components/ui/skeleton'
+import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { ToolbarIconBtn, focusRing } from '@ledgr/ui'
 import styled from 'styled-components'
 

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { api } from '@aios/shared/api/client'
+import { api } from '@ct/shared/api/client'
 import { Switch } from '@ledgr/ui'
 import { RowRoot, RowLabel, Section } from '../shared'
 

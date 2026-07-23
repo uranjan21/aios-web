@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import styled from 'styled-components'
 import { ChevronRight, ChevronLeft, Plus, Check } from 'lucide-react'
 import { toast } from 'sonner'
-import { financeApi } from '@aios/shared/api/areas'
+import { financeApi } from '@ct/shared/api/areas'
 
 export type Cat = { id: string; name: string; kind?: string; parent_id?: string | null; icon?: string | null }
 

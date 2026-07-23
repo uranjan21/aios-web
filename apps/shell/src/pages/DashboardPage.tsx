@@ -8,13 +8,13 @@ import {
 import { UnifiedSchedulePanel } from "@/components/dashboard/UnifiedSchedulePanel";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useMotion } from "@aios/shared/hooks/useMotion";
+import { useMotion } from "@ct/shared/hooks/useMotion";
 import styled, { keyframes } from "styled-components";
 import { DiscoveriesFeed } from "@/components/dashboard/DiscoveriesFeed";
 import { LifeHeatmap } from "@/components/dashboard/LifeHeatmap";
 import { BriefingCard } from "@/components/dashboard/BriefingCard";
 import { PulseRow } from "@/components/dashboard/PulseRow";
-import { PageContainer, PageContent } from "@aios/shared/components/layout/PageLayout";
+import { PageContainer, PageContent } from "@ct/shared/components/layout/PageLayout";
 const DashboardGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;

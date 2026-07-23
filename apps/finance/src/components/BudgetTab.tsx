@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { WorkspaceLayout } from '@aios/shared/components/layout/WorkspaceLayout'
+import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 import { BudgetsTab } from './BudgetsTab'
 import { BudgetTabModal } from './QuickAddBudget'
 

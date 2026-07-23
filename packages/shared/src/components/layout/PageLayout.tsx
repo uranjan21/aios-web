@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import { PAGE_MAX_WIDTH, PAGE_PADDING } from "@aios/shared/theme/layout";
+import { PAGE_MAX_WIDTH, PAGE_PADDING } from "@ct/shared/theme/layout";
 
 /**
  * Page shell.

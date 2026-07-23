@@ -30,7 +30,7 @@ export const GlobalStyles = createGlobalStyle`
 
   /*
    * Headings inherit the sans body face. They previously defaulted to the
-   * serif family here, which violated the AIOS "no serif in UI" rule and
+   * serif family here, which violated the Control Tower "no serif in UI" rule and
    * forced an equal-specificity override in the app's ThemeProvider that only
    * won by stylesheet injection order. Opt into the display face explicitly
    * (hero numerals, wordmark) rather than opting out of it everywhere.

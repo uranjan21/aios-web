@@ -23,7 +23,10 @@ _agent_subscribers: Set = set()
 DEFAULT_AGENTS = [
     {"task_id": "aios-morning-brief", "name": "Morning Brief", "cron_expression": "0 6 * * *", "description": "Daily briefing: calendar, priorities, inbox triage, and curated research topics"},
     {"task_id": "aios-professional-pulse", "name": "Professional Pulse", "cron_expression": "0 7 * * 1", "description": "Weekly career and business review, identifying blockers and highest leverage actions"},
-    {"task_id": "aios-content-strategist", "name": "Content Strategist", "cron_expression": "0 19 * * 0", "description": "Weekly content performance review and 7-day calendar planning"},
+    # aios-content-strategist retired from the default roster (2026-07-23): the
+    # Content area was deleted on 2026-07-21, so the agent summarized a domain
+    # with no UI. Existing rows were deactivated by migration ag02; runners.py
+    # still handles the task so old rows can be triggered/deleted at will.
     {"task_id": "aios-monthly-finance", "name": "Monthly Finance", "cron_expression": "0 9 1 * *", "description": "Monthly finance snapshot generation"},
     # aios-weekly-refresh retired from the default roster (2026-07-12): it
     # overlapped Professional Pulse + the Weekly Review page + Morning Brief and
@@ -35,9 +38,11 @@ DEFAULT_AGENTS = [
     {"task_id": "aios-vault-extractor", "name": "Vault Extractor", "cron_expression": "0 23 * * *", "description": "Daily bulk vault extraction sweep"},
 ]
 
+# aios-professional-pulse is seeded but opt-in (2026-07-23): Career was demoted
+# to one page and the plan centers Finance + Health. Existing rows keep the
+# user's own on/off choice.
 _ACTIVE_BY_DEFAULT = {
-    "aios-morning-brief", "aios-professional-pulse",
-    "aios-content-strategist", "aios-monthly-finance",
+    "aios-morning-brief", "aios-monthly-finance",
     "aios-health-coach", "aios-vault-extractor"
 }
 

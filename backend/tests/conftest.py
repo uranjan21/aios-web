@@ -173,7 +173,9 @@ def _isolation_tables():
     from app.models.insights import BriefingPreference, Briefing, Insight
     from app.models.quote import SavedQuote
     from app.models.vault import VaultFile, VaultConflict
+    from app.models.oauth_state import OAuthState
     return [m.__table__ for m in (
+        OAuthState,
         User, ChatSession, ChatMessage, Capture, IntegrationCredential, Agent, PushSubscription, Subscription, AIUsageRecord,
         FailedWebhook, AgentAction, Forecast, AutomationRule, AdminAuditLog,
         Project, Sprint, Task, MacroGoal, GoalProgress, ContentItem, ContentCampaign,

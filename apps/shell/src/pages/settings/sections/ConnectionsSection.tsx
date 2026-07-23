@@ -4,7 +4,7 @@ import { Button } from '@ledgr/ui'
 import { Mail, Plus, Trash2 } from 'lucide-react'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { integrationsApi } from '@aios/shared/api/integrations'
+import { integrationsApi } from '@ct/shared/api/integrations'
 import { RowRoot, Section } from '../shared'
 
 dayjs.extend(relativeTime)

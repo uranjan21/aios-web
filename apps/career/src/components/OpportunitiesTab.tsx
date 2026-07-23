@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Popconfirm } from '@aios/shared/components/ui/Popconfirm'
+import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import { Select, Button, Badge, SegmentedControl, HeaderActionPortal, focusRing } from '@ledgr/ui'
 import { Plus, ExternalLink, Trash2, Briefcase, XCircle } from 'lucide-react'
 import {
@@ -10,10 +10,10 @@ import {
   useSensor, useSensors, useDraggable, useDroppable,
   type DragStartEvent, type DragEndEvent,
 } from '@dnd-kit/core'
-import { careerApi } from '@aios/shared/api/areas'
-import { Skeleton } from '@aios/shared/components/ui/skeleton'
+import { careerApi } from '@ct/shared/api/areas'
+import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { EmptyState } from '@ledgr/ui'
-import type { JobOpportunity, OpportunityStatus } from '@aios/shared/types'
+import type { JobOpportunity, OpportunityStatus } from '@ct/shared/types'
 import { format } from 'date-fns'
 import { OpportunityForm } from './OpportunityForm'
 import styled from 'styled-components'

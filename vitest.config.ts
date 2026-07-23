@@ -7,10 +7,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './apps/shell/src'),
-      '@aios/shared': path.resolve(__dirname, './packages/shared/src'),
-      '@aios/finance': path.resolve(__dirname, './apps/finance/src'),
-      '@aios/health': path.resolve(__dirname, './apps/health/src'),
-      '@aios/career': path.resolve(__dirname, './apps/career/src'),
+      '@ct/shared': path.resolve(__dirname, './packages/shared/src'),
+      '@ct/finance': path.resolve(__dirname, './apps/finance/src'),
+      '@ct/health': path.resolve(__dirname, './apps/health/src'),
+      '@ct/career': path.resolve(__dirname, './apps/career/src'),
     },
   },
   test: {

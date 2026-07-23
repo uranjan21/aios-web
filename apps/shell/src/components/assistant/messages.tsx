@@ -14,7 +14,7 @@ import {
   ListTodo, Target, IndianRupee, HeartPulse, Mail,
 } from 'lucide-react'
 import { Button } from '@ledgr/ui'
-import type { LocalMessage } from '@aios/shared/hooks/useChat'
+import type { LocalMessage } from '@ct/shared/hooks/useChat'
 import { ToolConfirmationCard } from './ToolConfirmationCard'
 
 const codeFont = 'sfmono-regular, consolas, "liberation mono", menlo, courier, monospace'
@@ -652,14 +652,14 @@ export function Message({ message, onEdit, onRetry, onConfirmTool, onCancelTool 
   }
 
   let artifactContent = null
-  const artifactMatch = rawContent.match(/<aios-artifact type="([^"]*)" title="([^"]*)">([\s\S]*?)(?:<\/aios-artifact>|$)/)
+  const artifactMatch = rawContent.match(/<ct-artifact type="([^"]*)" title="([^"]*)">([\s\S]*?)(?:<\/ct-artifact>|$)/)
   if (artifactMatch) {
     artifactContent = {
       type: artifactMatch[1],
       title: artifactMatch[2],
       content: artifactMatch[3].trim()
     }
-    rawContent = rawContent.replace(/<aios-artifact[\s\S]*?(?:<\/aios-artifact>|$)/, "").trim()
+    rawContent = rawContent.replace(/<ct-artifact[\s\S]*?(?:<\/ct-artifact>|$)/, "").trim()
   }
 
   const hasContent = !!rawContent || !!thinkContent || !!artifactContent

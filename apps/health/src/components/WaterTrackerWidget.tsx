@@ -1,8 +1,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { healthApi } from '@aios/shared/api/areas'
-import { Skeleton } from '@aios/shared/components/ui/skeleton'
+import { healthApi } from '@ct/shared/api/areas'
+import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import styled from 'styled-components'
 
 import { Card } from '@ledgr/ui'

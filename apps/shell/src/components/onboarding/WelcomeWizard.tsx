@@ -3,7 +3,7 @@ import styled from 'styled-components'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@ledgr/ui'
 import { Rocket, Shield, TrendingUp, CheckCircle, ChevronRight, X } from 'lucide-react'
-import { useAuthStore } from '@aios/shared/stores/authStore'
+import { useAuthStore } from '@ct/shared/stores/authStore'
 
 const Overlay = styled(motion.div)`
   position: fixed;
@@ -95,8 +95,8 @@ const CloseBtn = styled.button`
 
 
 const STEPS = [
-  { id: 'welcome', title: 'Welcome to AiOs', icon: Rocket, desc: 'Your personal AI-powered operating system for money, health and career. Let’s get you set up in less than a minute.' },
-  { id: 'domains', title: 'Three Core Areas', icon: Shield, desc: 'AiOs unifies Finance, Health and Career into one dashboard, with a shared Plan for goals, projects and tasks.' },
+  { id: 'welcome', title: 'Welcome to Control Tower', icon: Rocket, desc: 'Your personal AI-powered operating system for money, health and career. Let’s get you set up in less than a minute.' },
+  { id: 'domains', title: 'Three Core Areas', icon: Shield, desc: 'Control Tower unifies Finance, Health and Career into one dashboard, with a shared Plan for goals, projects and tasks.' },
   { id: 'action', title: 'Take Action', icon: TrendingUp, desc: 'Ready to take control? Start by taking one high-value action right now.' },
   { id: 'finish', title: 'You\'re All Set', icon: CheckCircle, desc: 'Your personalized dashboard is ready. Dive in and start orchestrating your life.' }
 ]

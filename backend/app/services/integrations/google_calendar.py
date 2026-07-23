@@ -65,7 +65,7 @@ async def fetch_events(
 
 
 async def sync_events(user_id: uuid.UUID, db, days_ahead: int = 14) -> int:
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()  # naive UTC — calendar_events columns are tz-naive
     date_from = now.strftime("%Y-%m-%d")
     from datetime import timedelta
     date_to = (now + timedelta(days=days_ahead)).strftime("%Y-%m-%d")
@@ -150,21 +150,23 @@ async def get_stored_events(
 
 
 def _parse_dt(dt_str: str) -> datetime:
+    """Parse a Google event datetime to NAIVE UTC — start_time/end_time are
+    TIMESTAMP WITHOUT TIME ZONE and asyncpg rejects tz-aware values."""
     if not dt_str:
-        return datetime.now(timezone.utc)
+        return datetime.utcnow()
     for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S.%f%z", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d"):
         try:
             parsed = datetime.strptime(dt_str, fmt)
-            if parsed.tzinfo is None:
-                parsed = parsed.replace(tzinfo=timezone.utc)
+            if parsed.tzinfo is not None:
+                parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
             return parsed
         except ValueError:
             continue
     from dateutil.parser import isoparse
     try:
         parsed = isoparse(dt_str)
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
+        if parsed.tzinfo is not None:
+            parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
         return parsed
     except Exception:
-        return datetime.now(timezone.utc)
+        return datetime.utcnow()

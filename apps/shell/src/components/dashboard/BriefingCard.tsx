@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Card, Button, EmptyState } from '@ledgr/ui'
 import { Sunrise } from 'lucide-react'
-import { insightsApi } from '@aios/shared/api/insights'
+import { insightsApi } from '@ct/shared/api/insights'
 
 const Body = styled.div`
   font-size: ${({ theme }) => theme.typography.fontSize.sm};

@@ -1,6 +1,6 @@
 import { Briefcase, BookOpen } from 'lucide-react'
-import { AreaSettingsPage } from '@aios/shared/components/layout/AreaSettingsPage'
-import { SkillsManager } from '@aios/career/components/SkillsManager'
+import { AreaSettingsPage } from '@ct/shared/components/layout/AreaSettingsPage'
+import { SkillsManager } from '@ct/career/components/SkillsManager'
 
 export function CareerSettingsPage() {
   return (

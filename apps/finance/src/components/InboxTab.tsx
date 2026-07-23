@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, Button, Input, Select } from '@ledgr/ui'
 import { Check, X, Inbox as InboxIcon, Receipt, Mail, RefreshCw } from 'lucide-react'
-import { financeApi, type FinancePendingTransaction } from '@aios/shared/api/areas'
-import { agentsApi } from '@aios/shared/api/agents'
-import type { Account, Category } from '@aios/shared/types'
+import { financeApi, type FinancePendingTransaction } from '@ct/shared/api/areas'
+import { agentsApi } from '@ct/shared/api/agents'
+import { track } from '@ct/shared/lib/analytics'
+import type { Account, Category } from '@ct/shared/types'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -241,6 +242,7 @@ export function InboxTab() {
     setSubmitting(prev => ({ ...prev, [tx.id]: true }))
     try {
       await financeApi.approvePending(tx.id, edit)
+      track('pending_txn_approved')
       toast.success('Transaction approved')
       setTransactions(prev => prev.filter(t => t.id !== tx.id))
     } catch (e: any) {
@@ -254,6 +256,7 @@ export function InboxTab() {
   const onApproveAll = async () => {
     try {
       const result = await financeApi.bulkApprovePending(transactions.map(t => t.id))
+      if (result.approved > 0) track('pending_txn_approved', { bulk: true, count: result.approved })
       const msg = result.skipped.length
         ? `Approved ${result.approved} — skipped ${result.skipped.length} (duplicates or missing data)`
         : `Approved ${result.approved} transaction(s)`
@@ -276,7 +279,7 @@ export function InboxTab() {
 
   const onFetchNow = async () => {
     try {
-      await agentsApi.trigger('aios-upi-tracker')
+      await agentsApi.trigger('ct-upi-tracker')
       toast.success('Transaction Tracker is running — new items appear here shortly')
       setTimeout(loadData, 6000)
     } catch (e) {

@@ -2,7 +2,7 @@
  * Palette catalog — Appearance → Settings lets the user pick one of these.
  * Each palette supplies a full light + dark color set; mode (light/dark) stays
  * an orthogonal toggle. Shadows, radii, and typography are shared across all
- * palettes (see aiosTheme.ts) so switching palette only repaints color.
+ * palettes (see ctTheme.ts) so switching palette only repaints color.
  */
 export interface PaletteColors {
   background: string

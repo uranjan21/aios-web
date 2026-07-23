@@ -5,8 +5,8 @@ import customParseFormat from 'dayjs/plugin/customParseFormat'
 import { Dialog, Button, Select, Textarea, Badge } from '@ledgr/ui'
 import { toast } from 'sonner'
 import { Upload } from 'lucide-react'
-import { financeApi } from '@aios/shared/api/areas'
-import { formatCurrency } from '@aios/shared/lib/utils'
+import { financeApi } from '@ct/shared/api/areas'
+import { formatCurrency } from '@ct/shared/lib/utils'
 import styled from 'styled-components'
 
 dayjs.extend(customParseFormat)

@@ -4,11 +4,11 @@ import { Shield, Users, Search, ChevronLeft, ChevronRight, Trash2, Crown, Refres
 import { toast } from 'sonner'
 import styled, { useTheme } from 'styled-components'
 import { PageHeader, Card as GlassCard, Select, Button } from '@ledgr/ui'
-import { Skeleton } from '@aios/shared/components/ui/skeleton'
-import { adminApi, AdminUser } from '@aios/shared/api/admin'
-import { useAuthStore } from '@aios/shared/stores/authStore'
-import { PageContainer, PageContent } from '@aios/shared/components/layout/PageLayout'
-import { PageDivider } from '@aios/shared/components/layout/PageDivider'
+import { Skeleton } from '@ct/shared/components/ui/skeleton'
+import { adminApi, AdminUser } from '@ct/shared/api/admin'
+import { useAuthStore } from '@ct/shared/stores/authStore'
+import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
+import { PageDivider } from '@ct/shared/components/layout/PageDivider'
 
 // ── Stat cards ───────────────────────────────────────────────────────────────
 

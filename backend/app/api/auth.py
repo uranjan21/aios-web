@@ -151,19 +151,27 @@ class SignupRequest(BaseModel):
         return v
 
 
-@router.post("/signup")
+@router.post("/signup", status_code=202)
 @limiter.limit("5/minute")
 async def signup(
     request: Request,
     body: SignupRequest,
-    response: Response,
     background_tasks: BackgroundTasks,
     db=Depends(get_db),
 ):
+    """Create an account and email a verification link.
+
+    Always answers 202 with the same body whether or not the address is already
+    registered — a distinguishable response here is a user-enumeration oracle.
+    The account holder learns about the attempt by email instead. No session
+    cookie is issued: every area router is behind `require_verified` anyway, so
+    auto-login would only drop the user into a wall of 403s.
+    """
     email = body.email.strip().lower()
     result = await db.execute(select(User).where(User.email == email))
     if result.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail="An account with this email already exists")
+        background_tasks.add_task(_send_existing_account, email)
+        return {"status": "accepted"}
 
     verification_token = secrets.token_urlsafe(32)
     user = User(
@@ -183,8 +191,7 @@ async def signup(
     # After the response — a slow mail provider must not delay signup.
     background_tasks.add_task(_send_verification, email, verification_token)
 
-    _issue_cookie(response, str(user.id), user.token_version)
-    return {"status": "ok", "user": _user_dict(user)}
+    return {"status": "accepted"}
 
 
 def _hash_verification_token(token: str) -> str:
@@ -206,6 +213,21 @@ async def _send_verification(email: str, token: str) -> None:
     except Exception:
         import logging
         logging.getLogger(__name__).warning("Failed to send verification email to %s", email, exc_info=True)
+
+
+async def _send_existing_account(email: str) -> None:
+    from app.services.email import send_existing_account_email
+    settings = get_settings()
+    try:
+        await send_existing_account_email(
+            to=email,
+            origin=settings.allowed_origin,
+            from_addr=settings.email_from,
+            api_key=settings.resend_api_key,
+        )
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning("Failed to send existing-account email to %s", email, exc_info=True)
 
 
 async def _seed_new_user(user_id) -> None:
@@ -439,7 +461,8 @@ async def delete_account(
 # ── Google OAuth login ──────────────────────────────────────────────────
 
 @router.get("/google/url")
-async def google_login_url(db=Depends(get_db)):
+@limiter.limit("10/minute")
+async def google_login_url(request: Request, db=Depends(get_db)):
     settings = get_settings()
     client_id = settings.gcal_client_id
     if not client_id:
@@ -449,6 +472,12 @@ async def google_login_url(db=Depends(get_db)):
     redirect_uri = f"{settings.allowed_origin}/auth/google/callback"
 
     # Store state in DB so it survives multi-worker / pod-restart scenarios (H3).
+    # Abandoned flows leave rows behind and no cron owns this table, so purge
+    # anything already past every consumer's 10-minute TTL while we're here.
+    from sqlalchemy import delete as sa_delete
+    await db.execute(
+        sa_delete(OAuthState).where(OAuthState.created_at < datetime.utcnow() - timedelta(minutes=15))
+    )
     db.add(OAuthState(state=state, provider="auth", created_at=datetime.utcnow()))
     await db.commit()
 
@@ -515,6 +544,12 @@ async def google_login_callback(
     if not google_email:
         raise HTTPException(status_code=401, detail="Google account has no email")
 
+    # Google reports whether IT verified the address (v2 userinfo: `verified_email`,
+    # OIDC: `email_verified`). Linking on an unverified address would let anyone
+    # who registers that address at Google take over the matching account here.
+    if guser.get("verified_email", guser.get("email_verified")) is False:
+        raise HTTPException(status_code=401, detail="Google account email is not verified")
+
     # Find or create user
     result = await db.execute(select(User).where(User.email == google_email))
     user = result.scalar_one_or_none()
@@ -523,10 +558,10 @@ async def google_login_callback(
     if not user:
         user = User(
             email=google_email,
-            name=guser.get("name", google_email.split("@")[0]),
+            name=guser.get("name") or google_email.split("@")[0],
             picture_url=guser.get("picture"),
             auth_provider="google",
-            email_verified=True,  # Google verifies emails
+            email_verified=True,
             created_at=now,
             updated_at=now,
         )
@@ -541,6 +576,12 @@ async def google_login_callback(
             user.name = guser["name"]
         if user.auth_provider == "email":
             user.auth_provider = "google"
+        # Google vouched for this mailbox — an unverified email/password signup
+        # signing in with Google must not stay stuck behind require_verified.
+        if not user.email_verified:
+            user.email_verified = True
+            user.email_verification_token = None
+            user.email_verification_sent_at = None
         user.updated_at = now
         db.add(user)
         await db.commit()
@@ -583,6 +624,109 @@ async def verify_email(token: str, db=Depends(get_db)):
     await db.commit()
 
     return {"status": "ok"}
+
+
+# ── Password reset ──────────────────────────────────────────────────────
+
+# Deliberately much shorter than the 24h verification window: a reset link is a
+# live credential, a verification link is not.
+_PASSWORD_RESET_TTL = timedelta(hours=1)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+    @field_validator("email")
+    @classmethod
+    def _email(cls, v: str) -> str:
+        return _validate_email(v)
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def _password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
+
+
+@router.post("/forgot-password", status_code=202)
+@limiter.limit("5/hour")
+async def forgot_password(
+    request: Request,
+    body: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db=Depends(get_db),
+):
+    """Start a password reset. Always 202 — the response must not reveal whether
+    the address has an account (that's the same enumeration hole /signup had)."""
+    email = body.email.strip().lower()
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    # OAuth-only users have no password to reset; telling them so would also leak
+    # existence, so they get the same silent 202.
+    if user and user.password_hash:
+        token = secrets.token_urlsafe(32)
+        user.password_reset_token = _hash_verification_token(token)
+        user.password_reset_sent_at = datetime.utcnow()
+        user.updated_at = datetime.utcnow()
+        db.add(user)
+        await db.commit()
+        background_tasks.add_task(_send_password_reset, email, token)
+
+    return {"status": "accepted"}
+
+
+@router.post("/reset-password")
+@limiter.limit("10/hour")
+async def reset_password(request: Request, body: ResetPasswordRequest, db=Depends(get_db)):
+    if not body.token:
+        raise HTTPException(status_code=400, detail="Missing reset token")
+
+    hashed = _hash_verification_token(body.token)
+    result = await db.execute(select(User).where(User.password_reset_token == hashed))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+
+    if not user.password_reset_sent_at or datetime.utcnow() - user.password_reset_sent_at > _PASSWORD_RESET_TTL:
+        raise HTTPException(status_code=400, detail="Reset link has expired — request a new one")
+
+    user.password_hash = hash_password(body.password)
+    # Single-use: clear the token so a forwarded/prefetched link can't be replayed.
+    user.password_reset_token = None
+    user.password_reset_sent_at = None
+    # Kill every outstanding session — a reset is how you recover a compromised
+    # account, so the attacker's cookie must stop working.
+    user.token_version += 1
+    # Reaching the mailbox proves the address, so an unverified user is now verified.
+    user.email_verified = True
+    user.updated_at = datetime.utcnow()
+    db.add(user)
+    await db.commit()
+
+    return {"status": "ok"}
+
+
+async def _send_password_reset(email: str, token: str) -> None:
+    from app.services.email import send_password_reset_email
+    settings = get_settings()
+    try:
+        await send_password_reset_email(
+            to=email,
+            token=token,
+            origin=settings.allowed_origin,
+            from_addr=settings.email_from,
+            api_key=settings.resend_api_key,
+        )
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning("Failed to send reset email to %s", email, exc_info=True)
 
 
 @router.post("/refresh")

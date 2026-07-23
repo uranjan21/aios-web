@@ -7,8 +7,8 @@ import {
   Button, Card, EmptyState, Input, Dialog, DialogFooter,
   Select, Label, SegmentedControl, } from '@ledgr/ui'
 
-import { workspaceApi, Task, TaskPayload } from '@aios/shared/api/workspace'
-import { goalsApi } from '@aios/shared/api/goals'
+import { workspaceApi, Task, TaskPayload } from '@ct/shared/api/workspace'
+import { goalsApi } from '@ct/shared/api/goals'
 import { toast } from 'sonner'
 
 import { PRIORITY_OPTIONS, STATUS_OPTIONS, STATUS_FILTER_OPTIONS, DOMAIN_OPTIONS, domainLabel } from './tasks/constants'

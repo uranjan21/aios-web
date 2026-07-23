@@ -103,7 +103,7 @@ async def fetch_fitness_data(
 
 
 async def sync_fitness(user_id: uuid.UUID, db, days_back: int = 7) -> int:
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()  # naive UTC — google_fit_metrics columns are tz-naive
     date_from = (now - timedelta(days=days_back)).strftime("%Y-%m-%d")
     date_to = now.strftime("%Y-%m-%d")
 

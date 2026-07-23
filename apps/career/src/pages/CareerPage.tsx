@@ -18,11 +18,11 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, BookOpen, Briefcase, Plus, Settings } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { PageContainer, PageContent } from '@aios/shared/components/layout/PageLayout'
+import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
 import { Button, KpiCard, KpiGrid, PageHeader } from '@ledgr/ui'
-import { OpportunitiesTab } from '@aios/career/components/OpportunitiesTab'
-import { CareerLogModal } from '@aios/career/components/CareerLogModal'
-import { careerApi } from '@aios/shared/api/areas'
+import { OpportunitiesTab } from '@ct/career/components/OpportunitiesTab'
+import { CareerLogModal } from '@ct/career/components/CareerLogModal'
+import { careerApi } from '@ct/shared/api/areas'
 
 export function CareerPage() {
   const [isLogModalOpen, setIsLogModalOpen] = useState(false)

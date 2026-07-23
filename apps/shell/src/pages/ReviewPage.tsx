@@ -2,13 +2,13 @@ import { useState } from 'react'
 import styled from 'styled-components'
 import { useQuery } from '@tanstack/react-query'
 import { Card, PageHeader, Button, Input, EmptyState, focusRing } from '@ledgr/ui'
-import { goalsApi } from '@aios/shared/api/goals'
-import { capturesApi } from '@aios/shared/api/areas'
-import { insightsApi } from '@aios/shared/api/insights'
+import { goalsApi } from '@ct/shared/api/goals'
+import { capturesApi } from '@ct/shared/api/areas'
+import { insightsApi } from '@ct/shared/api/insights'
 import { CheckCircle2, XCircle, ArrowRight, CalendarCheck } from 'lucide-react'
 import { toast } from 'sonner'
-import { PageDivider } from '@aios/shared/components/layout/PageDivider'
-import { PageContainer, PageContent } from '@aios/shared/components/layout/PageLayout'
+import { PageDivider } from '@ct/shared/components/layout/PageDivider'
+import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
 
 const ReviewContainer = styled.div`
   display: flex;

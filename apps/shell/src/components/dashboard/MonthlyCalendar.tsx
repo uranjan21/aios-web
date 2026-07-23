@@ -5,7 +5,7 @@ import {
   useDayEventsStore,
   type DayEvent,
   type EventCategory,
-} from "@aios/shared/stores/dayEventsStore";
+} from "@ct/shared/stores/dayEventsStore";
 import { Button, Dialog, Input, Select, Textarea } from "@ledgr/ui";
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { useMemo, useState } from "react";

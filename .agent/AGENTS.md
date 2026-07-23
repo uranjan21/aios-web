@@ -8,7 +8,7 @@ When asked for color palettes, suggest the following color combinations:
 4. french vanilla, noir marble
 5. smoky blue, warm ivory
 
-# AIOS Web Project Rules
+# Control Tower Web Project Rules
 ## Central Memory & Source of Truth
 - **ALWAYS refer to `CLAUDE.md` in the project root** before making any architectural or codebase changes. It is the central memory file and source of truth for architecture, conventions, and recent updates.
 - **Review `SAAS_IMPLEMENTATION_PLAN.md`** for the roadmap and upcoming features (e.g., Dynamic/Modular Pricing, Engagement features, Synergies, Multi-tenancy).

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { DEFAULT_PALETTE_ID } from '@aios/shared/theme/palettes'
+import { DEFAULT_PALETTE_ID } from '@ct/shared/theme/palettes'
 
 type Theme = 'dark' | 'light'
 
@@ -86,7 +86,7 @@ export const useUIStore = create<UIState>()(
         collapsedSections: { ...s.collapsedSections, [key]: !s.collapsedSections[key] }
       })),
     }),
-    { name: 'aios-ui', partialize: (s) => ({ theme: s.theme, palette: s.palette, collapsedSections: s.collapsedSections }) }  // don't persist sidebarOpen — desktop always shows; mobile always starts closed
+    { name: 'ct-ui', partialize: (s) => ({ theme: s.theme, palette: s.palette, collapsedSections: s.collapsedSections }) }  // don't persist sidebarOpen — desktop always shows; mobile always starts closed
   )
 )
 

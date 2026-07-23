@@ -5,9 +5,9 @@ import { Bot, Wifi, WifiOff, X, Settings, History } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
 import { useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { useChat } from '@aios/shared/hooks/useChat'
-import { useUIStore } from '@aios/shared/stores/uiStore'
-import { chatApi } from '@aios/shared/api/chat'
+import { useChat } from '@ct/shared/hooks/useChat'
+import { useUIStore } from '@ct/shared/stores/uiStore'
+import { chatApi } from '@ct/shared/api/chat'
 import { AssistantChatInput, AttachedFile } from './AssistantChatInput'
 import { Message } from './messages'
 import { SessionList } from './SessionList'
@@ -233,7 +233,7 @@ export function GlobalAssistant() {
                   <History size={16} />
                 </HeaderActionButton>
                 <Bot size={16} color={theme.color.primary} />
-                <HeaderTitle>AIOS Assistant</HeaderTitle>
+                <HeaderTitle>Control Tower Assistant</HeaderTitle>
               </HeaderLeft>
               <HeaderRight>
                 {connected

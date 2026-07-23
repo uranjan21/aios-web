@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Card, Select, Switch } from '@ledgr/ui'
 import { Inbox } from 'lucide-react'
-import { financeApi } from '@aios/shared/api/areas'
+import { financeApi } from '@ct/shared/api/areas'
 
 const HOUR_OPTIONS = [
   { label: 'After 6 hours', value: '6' },

@@ -1,6 +1,6 @@
-import { aiApi } from "@aios/shared/api/areas";
-import { Skeleton } from "@aios/shared/components/ui/skeleton";
-import { UpgradeWall, is402 } from "@aios/shared/components/UpgradeWall";
+import { aiApi } from "@ct/shared/api/areas";
+import { Skeleton } from "@ct/shared/components/ui/skeleton";
+import { UpgradeWall, is402 } from "@ct/shared/components/UpgradeWall";
 import { Button, Card, EmptyState } from "@ledgr/ui";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -16,7 +16,7 @@ import styled, { keyframes, useTheme } from "styled-components";
 
 // ─────────────────────────── Cache utils ───────────────────────────
 
-const OVERVIEW_KEY = "aios-dashboard-overview-cache";
+const OVERVIEW_KEY = "ct-dashboard-overview-cache";
 
 type InsightSnapshot = { finance: string | null; health: string | null; date?: string };
 

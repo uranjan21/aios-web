@@ -1,5 +1,5 @@
 # =============================================================================
-# AIOS Web — Production Docker Compose
+# Control Tower — Production Docker Compose
 # =============================================================================
 # OPERATOR CHECKLIST — complete before first deploy:
 #
@@ -27,12 +27,12 @@ services:
     restart: always
     environment:
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD required}
-      POSTGRES_USER: ${DB_USER:-aios}
-      POSTGRES_DB: ${DB_NAME:-aios_web}
+      POSTGRES_USER: ${DB_USER:-control_tower}
+      POSTGRES_DB: ${DB_NAME:-control_tower}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-aios}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-control_tower}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -63,7 +63,7 @@ services:
         condition: service_healthy
     environment:
       # Override DATABASE_URL to use internal service name
-      DATABASE_URL: postgresql+asyncpg://${DB_USER:-aios}:${DB_PASSWORD}@db:5432/${DB_NAME:-aios_web}
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-control_tower}:${DB_PASSWORD}@db:5432/${DB_NAME:-control_tower}
       REDIS_URL: redis://redis:6379/0
     deploy:
       replicas: 2

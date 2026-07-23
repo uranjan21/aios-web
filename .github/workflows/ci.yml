@@ -14,9 +14,9 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg15
         env:
-          POSTGRES_USER: aios
-          POSTGRES_PASSWORD: aios
-          POSTGRES_DB: aios_test
+          POSTGRES_USER: control_tower
+          POSTGRES_PASSWORD: control_tower
+          POSTGRES_DB: control_tower_test
         ports: ["5432:5432"]
         options: >-
           --health-cmd pg_isready
@@ -25,7 +25,7 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: postgresql+asyncpg://aios:aios@localhost:5432/aios_test
+      DATABASE_URL: postgresql+asyncpg://control_tower:control_tower@localhost:5432/control_tower_test
       APP_SECRET_KEY: ci-test-secret-key-32-chars-minimum
       APP_PASSWORD: ci-test-password
       ANTHROPIC_API_KEY: sk-placeholder

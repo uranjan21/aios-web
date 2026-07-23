@@ -10,7 +10,7 @@ export interface CurrencyInfo {
 }
 
 export const USD: CurrencyInfo = { code: 'USD', rate: 1, country: '', locale: 'en-US' }
-export const SESSION_KEY = 'aios_pricing_currency'
+export const SESSION_KEY = 'ct_pricing_currency'
 
 export const LOCALE_MAP: Record<string, string> = {
   USD: 'en-US', EUR: 'en-DE', GBP: 'en-GB', INR: 'en-IN', JPY: 'ja-JP',

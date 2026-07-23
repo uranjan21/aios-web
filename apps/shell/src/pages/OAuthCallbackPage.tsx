@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { api } from '@aios/shared/api/client'
+import { api } from '@ct/shared/api/client'
+import { track } from '@ct/shared/lib/analytics'
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
 import styled, { useTheme } from 'styled-components'
 
@@ -52,8 +53,14 @@ export function OAuthCallbackPage() {
   const [searchParams] = useSearchParams()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState('Connecting your account...')
+  const submitted = useRef(false)
 
   useEffect(() => {
+    // The state token is single-use on the server — StrictMode's double effect
+    // run must not POST the exchange twice.
+    if (submitted.current) return
+    submitted.current = true
+
     const code = searchParams.get('code')
     const state = searchParams.get('state')
     const error = searchParams.get('error')
@@ -61,14 +68,14 @@ export function OAuthCallbackPage() {
     if (error) {
       setStatus('error')
       setMessage(error === 'access_denied' ? 'You declined the connection.' : `OAuth error: ${error}`)
-      setTimeout(() => navigate('/app/integrations'), 3000)
+      setTimeout(() => navigate('/app/settings?section=connections'), 3000)
       return
     }
 
     if (!code || !state || !provider) {
       setStatus('error')
       setMessage('Missing OAuth parameters.')
-      setTimeout(() => navigate('/app/integrations'), 3000)
+      setTimeout(() => navigate('/app/settings?section=connections'), 3000)
       return
     }
 
@@ -77,18 +84,20 @@ export function OAuthCallbackPage() {
       .then((resp) => {
         setStatus('success')
         setMessage(`Connected as ${resp.data.email || provider}`)
+        // Gmail is the transaction-capture wedge — track it distinctly.
+        if (provider === 'gmail') track('gmail_connected')
         const providerLabels: Record<string, string> = {
           gcal: 'Google Calendar', gfit: 'Google Fit', gmail: 'Gmail', notion: 'Notion',
         }
         toast.success(`${providerLabels[provider] ?? provider} connected!`)
-        setTimeout(() => navigate('/app/integrations'), 2000)
+        setTimeout(() => navigate('/app/settings?section=connections'), 2000)
       })
       .catch((err) => {
         setStatus('error')
         const detail = err?.response?.data?.detail || 'Connection failed. Please try again.'
         setMessage(detail)
         toast.error(detail)
-        setTimeout(() => navigate('/app/integrations'), 4000)
+        setTimeout(() => navigate('/app/settings?section=connections'), 4000)
       })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 

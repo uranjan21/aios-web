@@ -8,8 +8,8 @@ import styled, { useTheme } from 'styled-components'
 import { toast } from 'sonner'
 import { Plus, MoreHorizontal, MessageSquare } from 'lucide-react'
 import { Button, ConfirmDialog, Dialog, DialogFooter, Input } from '@ledgr/ui'
-import { chatApi } from '@aios/shared/api/chat'
-import type { ChatSession } from '@aios/shared/types'
+import { chatApi } from '@ct/shared/api/chat'
+import type { ChatSession } from '@ct/shared/types'
 
 const List = styled.ul`
   flex: 1;

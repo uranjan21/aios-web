@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Save, RefreshCw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { knowledgeApi } from '@aios/shared/api/knowledge'
+import { knowledgeApi } from '@ct/shared/api/knowledge'
 import { Select, Switch, Input, SegmentedControl, Button } from '@ledgr/ui'
 import { RowRoot, RowLabel, Section } from '../shared'
 
@@ -83,7 +83,7 @@ export function KnowledgeSection() {
     <Section title="Knowledge Base">
       <div style={{ padding: '0 20px 20px' }}>
         <p style={{ fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 20 }}>
-          Point AIOS at your source of truth — an Obsidian vault folder (self-hosted) or your
+          Point Control Tower at your source of truth — an Obsidian vault folder (self-hosted) or your
           Notion workspace. Notes are pulled on a schedule and become searchable by chat and your agents.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

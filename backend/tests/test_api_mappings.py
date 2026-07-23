@@ -32,16 +32,19 @@ def parse_frontend_file(file_content: str):
     # Find all api.<method>
     pos = 0
     while True:
-        match = re.search(r'api\.(get|post|put|patch|delete)\b', file_content[pos:])
+        # \s* between `api` and `.method`: fluent chains split across lines
+        # (`api\n  .post(...)`) are real call sites too — missing them once got
+        # a live route deleted as "orphaned" (POST /integrations/{}/callback).
+        match = re.search(r'api\s*\.\s*(get|post|put|patch|delete)\b', file_content[pos:])
         if not match:
             break
-        
+
         method = match.group(1)
         api_idx = pos + match.start()
-        
+
         # 1. Walk forwards to find the call arguments
         call_end = -1
-        call_start = api_idx + len("api.") + len(method)
+        call_start = pos + match.end()
         # Find the first '(' after api.method
         first_paren = file_content.find('(', call_start)
         if first_paren == -1:

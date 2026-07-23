@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useUIStore } from '@aios/shared/stores/uiStore'
+import { useUIStore } from '@ct/shared/stores/uiStore'
 
 /**
  * Global keyboard shortcuts.

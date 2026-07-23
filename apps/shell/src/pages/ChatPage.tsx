@@ -12,10 +12,10 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Bot, MessageSquare, Wifi, WifiOff } from 'lucide-react'
 import { PageHeader, Spinner } from '@ledgr/ui'
-import { PageContainer, PageContent } from '@aios/shared/components/layout/PageLayout'
-import { PageDivider } from '@aios/shared/components/layout/PageDivider'
-import { useChat } from '@aios/shared/hooks/useChat'
-import { chatApi } from '@aios/shared/api/chat'
+import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
+import { PageDivider } from '@ct/shared/components/layout/PageDivider'
+import { useChat } from '@ct/shared/hooks/useChat'
+import { chatApi } from '@ct/shared/api/chat'
 import { AssistantChatInput, AttachedFile } from '@/components/assistant/AssistantChatInput'
 import { buildHiddenContext } from '@/components/assistant/chatUtils'
 import { Message } from '@/components/assistant/messages'
@@ -204,7 +204,7 @@ export function ChatPage() {
           icon={<MessageSquare />}
           eyebrow="Assistant"
           title="Chat"
-          subtitle="Talk to AIOS — it can log data, search your knowledge, and act across every area"
+          subtitle="Talk to Control Tower — it can log data, search your knowledge, and act across every area"
         />
         <PageDivider />
 

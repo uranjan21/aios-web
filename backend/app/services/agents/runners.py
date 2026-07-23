@@ -195,10 +195,14 @@ async def _knowledge_section(user_id: uuid.UUID, query: str) -> str:
     return "## From your knowledge base\n" + "\n".join(lines)
 
 
-async def _morning_facts(session, user_id: uuid.UUID) -> str:
+async def _morning_facts(session, user_id: uuid.UUID) -> tuple[str, bool]:
     """Day-scoped facts for the morning brief: yesterday's activity + today's
     obligations + open priorities. A *daily* brief doesn't need a 7-day recap —
     this is both cheaper and fresher than the cross-domain week-facts.
+
+    Returns (facts, day_signal). day_signal is False when there is nothing to
+    brief (no activity yesterday, no bills due, no open priority tasks) — the
+    runner uses it to skip the LLM entirely for dormant days/users.
 
     Each pull is best-effort: one failing data source degrades that line rather
     than crashing the whole agent run (mirrors the integration-section pattern).
@@ -261,19 +265,26 @@ async def _morning_facts(session, user_id: uuid.UUID) -> str:
         ]
     else:
         lines.append("• No high-priority tasks open")
-    return "\n".join(lines)
+    day_signal = bool(expenses or logs or captures or bills or open_tasks)
+    return "\n".join(lines), day_signal
 
 
-async def _build_context(task_id: str, user_id: uuid.UUID) -> str:
-    """Builds a domain-scoped context containing only relevant facts and integrations."""
+async def _build_context(task_id: str, user_id: uuid.UUID) -> tuple[str, bool]:
+    """Builds a domain-scoped context containing only relevant facts and integrations.
+
+    Returns (context, has_signal). has_signal is False only for a morning brief
+    with no day activity AND no upcoming calendar events — the one high-frequency
+    agent where a run over nothing still costs a daily LLM call per user.
+    """
     domain = _AGENT_DOMAINS.get(task_id, "general")
     now = datetime.utcnow()
     week_start = now - timedelta(days=7)
+    day_signal = True
 
     async with AsyncSessionLocal() as session:
         if task_id == "aios-morning-brief":
             # Daily brief → day-scoped facts (not the 7-day cross-domain recap).
-            facts = await _morning_facts(session, user_id)
+            facts, day_signal = await _morning_facts(session, user_id)
         elif domain == "finance":
             from app.services.insights.digest import _week_facts_finance
             facts = await _week_facts_finance(session, user_id, week_start)
@@ -310,7 +321,11 @@ async def _build_context(task_id: str, user_id: uuid.UUID) -> str:
     if "knowledge" in kinds:
         await _try("knowledge", _knowledge_section(user_id, _KNOWLEDGE_QUERIES.get(task_id, "goals and plans")))
 
-    return "\n\n".join(sections)
+    # Calendar events count as signal for the brief (schedule/conflict prep is
+    # its job); gmail highlights and knowledge snippets alone do not — they
+    # exist for any connected account regardless of whether the user is active.
+    has_signal = day_signal or any(s.startswith("## Calendar") for s in sections[1:])
+    return "\n\n".join(sections), has_signal
 
 
 def _extract_actions(text: str) -> tuple[str, list[dict]]:
@@ -388,7 +403,14 @@ async def run_agent_task(task_id: str, user_id: uuid.UUID) -> str:
     if task_id in EMAIL_EXTRACTION_TASKS:
         return await run_email_extraction_agent(task_id, user_id)
 
-    facts = await _build_context(task_id, user_id)
+    facts, has_signal = await _build_context(task_id, user_id)
+
+    # Nothing to brief (morning brief only): skip the LLM, the metering AND the
+    # push — a dormant user must not burn ~30 credits/month on briefs about
+    # nothing. Data resumes → briefs resume, no state to manage.
+    if not has_signal:
+        logger.info("Agent %s skipped for user %s — no activity to brief", task_id, user_id)
+        return "No activity yesterday and nothing on the calendar — brief skipped (no AI credit used)."
 
     # Respect the AI quota — same hard-cap rule as chat: a user over the free
     # monthly cap who doesn't own a metered module gets facts-only (no LLM spend),
@@ -407,6 +429,8 @@ async def run_agent_task(task_id: str, user_id: uuid.UUID) -> str:
         text = f"{FALLBACK_WARNING_PREFIX}{facts}"
     else:
         try:
+            from app.core.config import get_settings
+            settings = get_settings()
             effective_system = system + (_WRITEBACK_INSTRUCTIONS if task_id in _WRITEBACK_ENABLED_TASKS else "")
             text = await generate_text(
                 effective_system,
@@ -416,6 +440,8 @@ async def run_agent_task(task_id: str, user_id: uuid.UUID) -> str:
                 override_provider=agent.llm_provider if agent else None,
                 override_openai_model=agent.openai_chat_model if agent else None,
                 override_claude_model=agent.claude_model if agent else None,
+                base_openai_model=settings.agent_openai_model,
+                base_claude_model=settings.agent_claude_model,
             )
 
             narrative, actions = _extract_actions(text)

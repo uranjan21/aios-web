@@ -4,7 +4,8 @@ import { Button, Dialog, DialogFooter, Input, Select, SegmentedControl } from '@
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import { Plus } from 'lucide-react'
-import { financeApi } from '@aios/shared/api/areas'
+import { financeApi } from '@ct/shared/api/areas'
+import { trackOnce } from '@ct/shared/lib/analytics'
 import { CategoryPicker } from '../CategoryPicker'
 import styled from 'styled-components'
 import type { Txn, Kind } from './types'
@@ -143,6 +144,7 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
         logged_at })
     },
     onSuccess: () => {
+      if (!isEdit) trackOnce('first_entry_logged', { domain: 'finance' })
       queryClient.invalidateQueries({ queryKey: ['finance'] })
       toast.success(isEdit ? 'Transaction updated' : `${effectiveKind} saved`)
       onClose()

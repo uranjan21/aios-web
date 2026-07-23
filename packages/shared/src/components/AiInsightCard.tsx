@@ -3,10 +3,10 @@ import { useMutation } from '@tanstack/react-query'
 import { Button } from '@ledgr/ui'
 import { toast } from 'sonner'
 import { Sparkles, RefreshCw } from 'lucide-react'
-import { aiApi } from '@aios/shared/api/areas'
-import { Skeleton } from '@aios/shared/components/ui/skeleton'
+import { aiApi } from '@ct/shared/api/areas'
+import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { Card as GlassCard } from '@ledgr/ui';
-import { UpgradeWall, is402 } from '@aios/shared/components/UpgradeWall'
+import { UpgradeWall, is402 } from '@ct/shared/components/UpgradeWall'
 import styled from 'styled-components'
 
 const ThemedSparkles = styled(Sparkles)`

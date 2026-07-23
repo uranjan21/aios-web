@@ -1,13 +1,13 @@
 import type { ReactNode } from 'react'
-import { TrendingUp, Activity, Briefcase, Building2, PenTool } from 'lucide-react'
+import { TrendingUp, Activity, Briefcase } from 'lucide-react'
 
 // framer-motion variant shared by the hero's animated blocks
 export const fade = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }
 
 export const STATS = [
-  { num: '5', label: 'Life domains' },
-  { num: '41+', label: 'Data tables tracked' },
-  { num: '8', label: 'AI agent types' },
+  { num: '3', label: 'Life domains' },
+  { num: 'Auto', label: 'UPI txns from Gmail' },
+  { num: '8', label: 'AI agents on schedule' },
   { num: '100%', label: 'Data isolation' },
 ]
 
@@ -23,7 +23,7 @@ export const DOMAINS: DomainCardData[] = [
     icon: <TrendingUp size={22} />,
     name: 'Finance',
     desc: 'Your complete money command center.',
-    feats: ['Transactions & categories', 'Budgets & spending alerts', 'Investment portfolio', 'Loan EMI tracker', 'Goals & savings plans'],
+    feats: ['Auto-capture UPI & bank txns from Gmail', 'Categories, budgets & spending alerts', 'Investment portfolio', 'Loan EMI tracker', 'Goals & savings plans'],
   },
   {
     icon: <Activity size={22} />,
@@ -35,38 +35,26 @@ export const DOMAINS: DomainCardData[] = [
     icon: <Briefcase size={22} />,
     name: 'Career',
     desc: 'Own your professional trajectory.',
-    feats: ['Job application tracker', 'AI skill-gap analysis', 'Career roadmap planner', 'Interview prep notes', 'Salary progression'],
-  },
-  {
-    icon: <Building2 size={22} />,
-    name: 'Business',
-    desc: 'Run your side hustle or startup.',
-    feats: ['Clients & contacts CRM', 'Revenue & expense view', 'Project milestones', 'Business journal', 'Event calendar'],
-  },
-  {
-    icon: <PenTool size={22} />,
-    name: 'Content',
-    desc: 'Manage your creator pipeline.',
-    feats: ['Kanban idea board', 'AI draft generation', 'Published archive', 'Twitter / X queue', 'Content calendar'],
+    feats: ['Job application tracker', 'AI skill-gap analysis', 'Skills inventory', 'Career journal & notes'],
   },
 ]
 
 export const AI_FEATURES = [
+  { title: 'Auto Transaction Capture', desc: 'Connect Gmail and Control Tower reads your UPI and bank alerts, parses each one, and queues it for a one-tap review into your ledger.' },
   { title: 'Daily AI Brief', desc: 'Wake up to a personalised summary of your finances, health stats, and upcoming priorities.' },
   { title: 'Spending Anomaly Detection', desc: 'AI flags unusual transactions or overspend before they become a problem.' },
-  { title: 'Skill Gap Analysis', desc: 'Upload your CV; get a precise breakdown of skills to learn next for your target role.' },
+  { title: 'Skill Gap Analysis', desc: 'Point at a target role; get a precise breakdown of the skills to learn next.' },
   { title: 'Smart Chat Assistant', desc: 'Ask anything about your data — "how much did I spend on food last month?" — and get a real answer.' },
   { title: 'Autonomous Agents', desc: 'Schedule AI tasks that run in the background: weekly digests, budget reviews, health check-ins.' },
-  { title: 'AI Content Drafts', desc: 'Turn bullet points into polished LinkedIn posts, tweets, or blog articles in seconds.' },
 ]
 
 export const COMPARE_ROWS = [
   { label: 'Dashboard + 1 area of your choice', free: true, paid: true },
-  { label: 'All 5 life areas (Finance, Health, Career, Business, Content)', free: false, paid: true },
-  { label: 'Unlimited entries & bank connections', free: false, paid: true },
+  { label: 'All 3 life areas (Finance, Health, Career)', free: false, paid: true },
+  { label: 'Auto transaction capture from Gmail', free: false, paid: true },
+  { label: 'Unlimited entries & connected accounts', free: false, paid: true },
   { label: 'AI Chat Assistant', free: false, paid: true },
   { label: 'Autonomous Agents', free: false, paid: true },
-  { label: 'Integrations (Google, banks & syncs)', free: false, paid: true },
+  { label: 'Integrations (Google, Gmail & syncs)', free: false, paid: true },
   { label: 'Pay only for the modules you enable', free: false, paid: true },
-  { label: 'Switch modules anytime — prorated', free: false, paid: true },
 ]

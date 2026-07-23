@@ -128,7 +128,7 @@ export function SupportPage() {
           <CardText>
             Get in touch with our support team directly. We aim to respond to all inquiries within 24 hours.
           </CardText>
-          <CardLink href="mailto:support@aios.dev">support@aios.dev</CardLink>
+          <CardLink href="mailto:support@controltower.dev">support@controltower.dev</CardLink>
         </Card>
 
         <Card>
@@ -151,7 +151,7 @@ export function SupportPage() {
         <FaqItem>
           <FaqQuestion>How do I reset my passphrase?</FaqQuestion>
           <FaqAnswer>
-            Currently, since aios operates as a single-user instance that is locally hosted and end-to-end encrypted, password resets must be done directly through your deployment environment configuration. Check the documentation for recovery keys.
+            Currently, since Control Tower operates as a single-user instance that is locally hosted and end-to-end encrypted, password resets must be done directly through your deployment environment configuration. Check the documentation for recovery keys.
           </FaqAnswer>
         </FaqItem>
 

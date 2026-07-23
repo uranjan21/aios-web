@@ -7,11 +7,11 @@ import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts'
-import { financeApi, type SimulationParams } from '@aios/shared/api/areas'
-import { WorkspaceLayout, RailHeading } from '@aios/shared/components/layout/WorkspaceLayout'
-import { ForecastWidget } from '@aios/shared/components/widgets/ForecastWidget'
+import { financeApi, type SimulationParams } from '@ct/shared/api/areas'
+import { WorkspaceLayout, RailHeading } from '@ct/shared/components/layout/WorkspaceLayout'
+import { ForecastWidget } from '@ct/shared/components/widgets/ForecastWidget'
 import { CashflowForecasting } from './AdvancedWidgets'
-import { formatCurrency } from '@aios/shared/lib/utils'
+import { formatCurrency } from '@ct/shared/lib/utils'
 
 const RailStack = styled.div`
   display: flex;

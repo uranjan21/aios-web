@@ -12,8 +12,8 @@ import {
   ChevronLeft, ChevronRight, ArrowLeftRight,
   Search, Upload as UploadIcon, Plus, Tag as TagIcon, FolderInput, Trash2, ArrowUpDown,
 } from 'lucide-react'
-import { financeApi } from '@aios/shared/api/areas'
-import { WorkspaceLayout } from '@aios/shared/components/layout/WorkspaceLayout'
+import { financeApi } from '@ct/shared/api/areas'
+import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 import { TransactionCalendar } from './TransactionCalendar'
 import { ImportCsvModal } from './ImportCsvModal'
 
@@ -55,9 +55,9 @@ export function TransactionsTab() {
   const [filterRange, setFilterRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [filterTag, setFilterTag] = useState('')
 
-  const [sortBy, setSortBy] = useState<SortBy>(() => (localStorage.getItem('aios.txn.sortBy') as SortBy) || 'date')
-  const [sortDir, setSortDir] = useState<SortDir>(() => (localStorage.getItem('aios.txn.sortDir') as SortDir) || 'desc')
-  const [compact, setCompact] = useState<boolean>(() => localStorage.getItem('aios.txn.density') === 'compact')
+  const [sortBy, setSortBy] = useState<SortBy>(() => (localStorage.getItem('ct.txn.sortBy') as SortBy) || 'date')
+  const [sortDir, setSortDir] = useState<SortDir>(() => (localStorage.getItem('ct.txn.sortDir') as SortDir) || 'desc')
+  const [compact, setCompact] = useState<boolean>(() => localStorage.getItem('ct.txn.density') === 'compact')
   const [selected, setSelected] = useState<Record<string, Txn>>({})
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -67,9 +67,9 @@ export function TransactionsTab() {
   const [tagTargets, setTagTargets] = useState<Txn[] | null>(null)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
 
-  useEffect(() => { localStorage.setItem('aios.txn.sortBy', sortBy) }, [sortBy])
-  useEffect(() => { localStorage.setItem('aios.txn.sortDir', sortDir) }, [sortDir])
-  useEffect(() => { localStorage.setItem('aios.txn.density', compact ? 'compact' : 'comfortable') }, [compact])
+  useEffect(() => { localStorage.setItem('ct.txn.sortBy', sortBy) }, [sortBy])
+  useEffect(() => { localStorage.setItem('ct.txn.sortDir', sortDir) }, [sortDir])
+  useEffect(() => { localStorage.setItem('ct.txn.density', compact ? 'compact' : 'comfortable') }, [compact])
 
   useEffect(() => {
     const handleOpen = () => { setEditing(null); setModalOpen(true) }

@@ -18,10 +18,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["apps/shell/src/*"],
-      "@aios/shared/*": ["packages/shared/src/*"],
-      "@aios/finance/*": ["apps/finance/src/*"],
-      "@aios/health/*": ["apps/health/src/*"],
-      "@aios/career/*": ["apps/career/src/*"]
+      "@ct/shared/*": ["packages/shared/src/*"],
+      "@ct/finance/*": ["apps/finance/src/*"],
+      "@ct/health/*": ["apps/health/src/*"],
+      "@ct/career/*": ["apps/career/src/*"]
     }
   },
   "include": [

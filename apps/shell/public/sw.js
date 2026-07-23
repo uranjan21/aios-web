@@ -1,14 +1,14 @@
-/* AIOS service worker — web push notifications */
+/* Control Tower service worker — web push notifications */
 
 self.addEventListener('push', (event) => {
   let data = {}
   try {
     data = event.data ? event.data.json() : {}
   } catch (e) {
-    data = { title: 'AIOS', body: event.data ? event.data.text() : '' }
+    data = { title: 'Control Tower', body: event.data ? event.data.text() : '' }
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || 'AIOS', {
+    self.registration.showNotification(data.title || 'Control Tower', {
       body: data.body || '',
       icon: '/favicon.svg',
       badge: '/favicon.svg',

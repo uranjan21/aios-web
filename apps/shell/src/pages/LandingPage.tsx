@@ -6,9 +6,9 @@ import { Button } from '@ledgr/ui'
 import {
   Zap, ChevronRight, Bot, Check, Star, ArrowRight, Globe, Lock, Layers,
 } from 'lucide-react'
-import { useAuthStore } from '@aios/shared/stores/authStore'
-import { usePricingCurrency } from '@aios/shared/hooks/usePricingCurrency'
-import { MODULE_PRICE, BUNDLE_PRICE, TOTAL_MODULES, FREE_BASE_BLURB } from '@aios/shared/lib/pricing'
+import { useAuthStore } from '@ct/shared/stores/authStore'
+import { usePricingCurrency } from '@ct/shared/hooks/usePricingCurrency'
+import { MODULE_PRICE, BUNDLE_PRICE, TOTAL_MODULES, FREE_BASE_BLURB } from '@ct/shared/lib/pricing'
 import { DOMAINS, AI_FEATURES, COMPARE_ROWS, STATS, fade } from './landing/landing.data'
 import {
   PageWrapper, Header, Logo, HeaderNav,
@@ -33,10 +33,10 @@ export function LandingPage() {
     <PageWrapper>
       {/* ── Header ── */}
       <Header>
-        <Logo to="/">ai<span className="accent">os</span></Logo>
+        <Logo to="/">control <span className="accent">tower</span></Logo>
         <HeaderNav>
           <Link to="/pricing">Pricing</Link>
-          <Link to="/app/guide">Guide</Link>
+          <Link to="/support">Support</Link>
           {isAuthenticated ? (
             <Button variant="primary" onClick={() => navigate('/app')}>Go to App</Button>
           ) : (
@@ -51,13 +51,13 @@ export function LandingPage() {
       {/* ── Hero ── */}
       <HeroSection>
         <HeroEyebrow initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <Zap size={13} /> Your AI-powered life OS
+          <Zap size={13} /> Your money, health & career — one AI workspace
         </HeroEyebrow>
         <HeroTitle initial="hidden" animate="show" variants={fade} transition={{ duration: 0.55, delay: 0.1 }}>
-          Every area of your life,<br /><span className="gold">mastered by AI.</span>
+          Your spending, tracked<br /><span className="gold">the moment it happens.</span>
         </HeroTitle>
         <HeroSubtitle initial="hidden" animate="show" variants={fade} transition={{ duration: 0.55, delay: 0.2 }}>
-          Finance, health, career, business, and content — all in one premium workspace, orchestrated by intelligent agents that actually know your data.
+          Connect Gmail and Control Tower turns your UPI and bank alerts into a reviewed ledger automatically — then adds health, career and AI agents that actually know your data. No manual entry, no Plaid.
         </HeroSubtitle>
         <CTARow initial="hidden" animate="show" variants={fade} transition={{ duration: 0.55, delay: 0.3 }}>
           <Button variant="primary" size="lg" onClick={() => navigate('/signup')}>
@@ -92,7 +92,7 @@ export function LandingPage() {
         <SectionLabel>Domains</SectionLabel>
         <SectionTitle>Everything in one place. Finally.</SectionTitle>
         <SectionSubtitle>
-          Stop juggling five apps. AIOS gives you a unified workspace with deep, purpose-built tools for every major life domain.
+          Stop juggling separate apps. Control Tower gives you a unified workspace with deep, purpose-built tools for every major life domain.
         </SectionSubtitle>
         <DomainGrid>
           {DOMAINS.map((d, i) => (
@@ -231,7 +231,7 @@ export function LandingPage() {
 
       {/* ── Footer ── */}
       <Footer>
-        <div>© {new Date().getFullYear()} AIOS Web · Built for humans, powered by AI.</div>
+        <div>© {new Date().getFullYear()} Control Tower · Built for humans, powered by AI.</div>
         <div className="links">
           <Link to="/pricing">Pricing</Link>
           <Link to="/privacy-policy">Privacy</Link>

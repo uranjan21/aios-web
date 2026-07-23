@@ -1,6 +1,6 @@
 import { focusRing } from '@ledgr/ui'
-import { goalsApi, type MacroGoal } from "@aios/shared/api/goals";
-import { DOMAIN_OPTIONS, domainLabel } from "@aios/shared/config/domains";
+import { goalsApi, type MacroGoal } from "@ct/shared/api/goals";
+import { DOMAIN_OPTIONS, domainLabel } from "@ct/shared/config/domains";
 import {
   Button,
   Card,
@@ -19,13 +19,13 @@ import { useState } from "react";
 import { toast } from "sonner";
 import styled from "styled-components";
 
-import { GoalsTab as FinanceGoalsTab } from "@aios/finance/components/GoalsTab";
-import { DomainGoalsCard } from "@aios/shared/components/workspace/DomainGoalsCard";
+import { GoalsTab as FinanceGoalsTab } from "@ct/finance/components/GoalsTab";
+import { DomainGoalsCard } from "@ct/shared/components/workspace/DomainGoalsCard";
 import {
   BodyGoalsSection,
   FitnessGoalsSection,
   NutritionGoalsSection,
-} from "@aios/health/pages/HealthSettingsPage";
+} from "@ct/health/pages/HealthSettingsPage";
 
 
 

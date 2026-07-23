@@ -1,10 +1,10 @@
 {
-  "name": "@aios/health",
+  "name": "@ct/health",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "dependencies": {
-    "@aios/shared": "workspace:*",
+    "@ct/shared": "workspace:*",
     "@ledgr/ui": "workspace:*"
   }
 }

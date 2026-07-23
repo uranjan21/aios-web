@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Input, Select, Button } from '@ledgr/ui'
 import { toast } from 'sonner'
-import { careerApi } from '@aios/shared/api/areas'
-import type { OpportunityStatus } from '@aios/shared/types'
+import { careerApi } from '@ct/shared/api/areas'
+import type { OpportunityStatus } from '@ct/shared/types'
 import styled from 'styled-components'
 
 const STATUS_ORDER: OpportunityStatus[] = ['prospect', 'applied', 'screening', 'interview', 'offer', 'rejected', 'closed']

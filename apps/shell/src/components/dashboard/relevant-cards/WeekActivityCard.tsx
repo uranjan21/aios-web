@@ -3,9 +3,9 @@ import styled, { useTheme } from 'styled-components'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, AlertCircle } from 'lucide-react'
 import { Card } from '@ledgr/ui'
-import { capturesApi } from '@aios/shared/api/areas'
-import { fmtDateKey } from '@aios/shared/stores/dayEventsStore'
-import { Skeleton } from '@aios/shared/components/ui/skeleton'
+import { capturesApi } from '@ct/shared/api/areas'
+import { fmtDateKey } from '@ct/shared/stores/dayEventsStore'
+import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { Empty } from './shared'
 
 /* ───────────────── 2. WeekActivityCard ───────────────── */

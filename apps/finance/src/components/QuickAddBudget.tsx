@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { SWATCH_COLORS_REQUIRED } from '@aios/shared/config/swatches'
+import { SWATCH_COLORS_REQUIRED } from '@ct/shared/config/swatches'
 import { Button, Input, Select, Dialog, SegmentedControl } from '@ledgr/ui'
-import { financeApi } from '@aios/shared/api/areas'
+import { financeApi } from '@ct/shared/api/areas'
 import styled from 'styled-components'
 
 const FormStack = styled.form`

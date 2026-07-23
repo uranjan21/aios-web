@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { WorkspaceLayout } from '@aios/shared/components/layout/WorkspaceLayout'
+import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 import { InvestmentsTab } from './InvestmentsTab'
 import { AccountsTabModal } from './QuickAddAccounts'
 

@@ -1,8 +1,8 @@
 import { Sun, Moon } from 'lucide-react'
 import { Button, focusRing } from '@ledgr/ui'
 import styled from 'styled-components'
-import { useUIStore } from '@aios/shared/stores/uiStore'
-import { PALETTES } from '@aios/shared/theme/palettes'
+import { useUIStore } from '@ct/shared/stores/uiStore'
+import { PALETTES } from '@ct/shared/theme/palettes'
 import { Row, Section } from '../shared'
 
 // ── Theme toggle ──────────────────────────────────────────────────────────────

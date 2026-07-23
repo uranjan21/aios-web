@@ -14,9 +14,9 @@
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Button, PageHeader, SegmentedControl, Select } from '@ledgr/ui';
-import { PageContainer, PageContent } from '@aios/shared/components/layout/PageLayout';
-import { PageDivider } from '@aios/shared/components/layout/PageDivider';
-import { DOMAIN_OPTIONS } from '@aios/shared/config/domains';
+import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout';
+import { PageDivider } from '@ct/shared/components/layout/PageDivider';
+import { DOMAIN_OPTIONS } from '@ct/shared/config/domains';
 import { Settings, Target } from 'lucide-react';
 
 import { GoalsSection } from '@/pages/GoalsPage';

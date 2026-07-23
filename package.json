@@ -1,12 +1,12 @@
 {
-  "name": "aios-web",
+  "name": "control-tower",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @aios/shell dev",
-    "build": "pnpm --filter @ledgr/ui build && pnpm --filter @aios/shell build",
-    "preview": "pnpm --filter @aios/shell preview",
+    "dev": "pnpm --filter @ct/shell dev",
+    "build": "pnpm --filter @ledgr/ui build && pnpm --filter @ct/shell build",
+    "preview": "pnpm --filter @ct/shell preview",
     "lint": "eslint apps packages/shared --ext ts,tsx",
     "test": "vitest"
   },
@@ -14,6 +14,7 @@
     "@dnd-kit/core": "^6.3.1",
     "@ledgr/ui": "workspace:*",
     "@radix-ui/react-progress": "^1.1.0",
+    "@sentry/react": "^8.0.0",
     "@tanstack/react-query": "^5.56.2",
     "axios": "^1.7.7",
     "clsx": "^2.1.1",
@@ -22,6 +23,7 @@
     "dayjs": "^1.11.21",
     "framer-motion": "^12.40.0",
     "lucide-react": "^0.446.0",
+    "posthog-js": "^1.150.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^9.0.1",

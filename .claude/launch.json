@@ -3,11 +3,11 @@
   "autoPort": true,
   "configurations": [
     {
-      "name": "aios-shell",
+      "name": "ct-shell",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev"],
       "cwd": "apps/shell",
-      "port": 5173,
+      "port": 5174,
       "autoPort": true
     }
   ]

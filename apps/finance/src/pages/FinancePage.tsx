@@ -4,17 +4,17 @@ import {
   IndianRupee, LayoutDashboard, ArrowLeftRight,
   PiggyBank, BarChart2, Gem, Settings, TrendingUp,
 } from 'lucide-react'
-import { AreaTabs } from '@aios/shared/components/ui/AreaTabs'
+import { AreaTabs } from '@ct/shared/components/ui/AreaTabs'
 import { PageHeader, Button } from '@ledgr/ui'
-import { HomeTab } from '@aios/finance/components/HomeTab'
-import { TransactionsTab } from '@aios/finance/components/TransactionsTab'
-import { BudgetTab } from '@aios/finance/components/BudgetTab'
-import { WealthTab } from '@aios/finance/components/WealthTab'
-import { AnalyticsTab } from '@aios/finance/components/AnalyticsTab'
-import { SimulatorTab } from '@aios/finance/components/SimulatorTab'
-import { InboxTab } from '@aios/finance/components/InboxTab'
-import { AccountsTabModal } from '@aios/finance/components/QuickAddAccounts'
-import { PageContainer, PageContent } from '@aios/shared/components/layout/PageLayout'
+import { HomeTab } from '@ct/finance/components/HomeTab'
+import { TransactionsTab } from '@ct/finance/components/TransactionsTab'
+import { BudgetTab } from '@ct/finance/components/BudgetTab'
+import { WealthTab } from '@ct/finance/components/WealthTab'
+import { AnalyticsTab } from '@ct/finance/components/AnalyticsTab'
+import { SimulatorTab } from '@ct/finance/components/SimulatorTab'
+import { InboxTab } from '@ct/finance/components/InboxTab'
+import { AccountsTabModal } from '@ct/finance/components/QuickAddAccounts'
+import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
 
 export function FinancePage() {
   const navigate = useNavigate()

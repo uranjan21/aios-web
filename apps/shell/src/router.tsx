@@ -4,8 +4,9 @@ import { AppShell } from '@/components/layout/AppShell'
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 import { PageTransition } from '@/components/PageTransition'
 import { Spinner } from '@ledgr/ui'
-import { useAuthStore } from '@aios/shared/stores/authStore'
-import { api } from '@aios/shared/api/client'
+import { useAuthStore } from '@ct/shared/stores/authStore'
+import { api } from '@ct/shared/api/client'
+import { identify } from '@ct/shared/lib/analytics'
 
 // Lazy-load all pages for code splitting
 const LoginPage = lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })))
@@ -14,12 +15,12 @@ const AgentsPage = lazy(() => import('@/pages/AgentsPage').then(m => ({ default:
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const OAuthCallbackPage = lazy(() => import('@/pages/OAuthCallbackPage').then(m => ({ default: m.OAuthCallbackPage })))
 const GoogleAuthCallbackPage = lazy(() => import('@/pages/GoogleAuthCallbackPage').then(m => ({ default: m.GoogleAuthCallbackPage })))
-const FinancePage = lazy(() => import('@aios/finance/pages/FinancePage').then(m => ({ default: m.FinancePage })))
-const FinanceSettingsPage = lazy(() => import('@aios/finance/pages/FinanceSettingsPage').then(m => ({ default: m.FinanceSettingsPage })))
-const HealthPage = lazy(() => import('@aios/health/pages/HealthPage').then(m => ({ default: m.HealthPage })))
-const HealthSettingsPage = lazy(() => import('@aios/health/pages/HealthSettingsPage').then(m => ({ default: m.HealthSettingsPage })))
-const CareerPage = lazy(() => import('@aios/career/pages/CareerPage').then(m => ({ default: m.CareerPage })))
-const CareerSettingsPage = lazy(() => import('@aios/career/pages/CareerSettingsPage').then(m => ({ default: m.CareerSettingsPage })))
+const FinancePage = lazy(() => import('@ct/finance/pages/FinancePage').then(m => ({ default: m.FinancePage })))
+const FinanceSettingsPage = lazy(() => import('@ct/finance/pages/FinanceSettingsPage').then(m => ({ default: m.FinanceSettingsPage })))
+const HealthPage = lazy(() => import('@ct/health/pages/HealthPage').then(m => ({ default: m.HealthPage })))
+const HealthSettingsPage = lazy(() => import('@ct/health/pages/HealthSettingsPage').then(m => ({ default: m.HealthSettingsPage })))
+const CareerPage = lazy(() => import('@ct/career/pages/CareerPage').then(m => ({ default: m.CareerPage })))
+const CareerSettingsPage = lazy(() => import('@ct/career/pages/CareerSettingsPage').then(m => ({ default: m.CareerSettingsPage })))
 const ReviewPage = lazy(() => import('@/pages/ReviewPage').then(m => ({ default: m.ReviewPage })))
 
 const PlanPage = lazy(() => import('@/pages/PlanPage').then(m => ({ default: m.PlanPage })))
@@ -27,6 +28,8 @@ const PlanPage = lazy(() => import('@/pages/PlanPage').then(m => ({ default: m.P
 const ChatPage = lazy(() => import('@/pages/ChatPage').then(m => ({ default: m.ChatPage })))
 const LandingPage = lazy(() => import('@/pages/LandingPage').then(m => ({ default: m.LandingPage })))
 const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmailPage').then(m => ({ default: m.VerifyEmailPage })))
+const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })))
+const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage })))
 const PricingPage = lazy(() => import('@/pages/PricingPage').then(m => ({ default: m.PricingPage })))
 const AdminPage = lazy(() => import('@/pages/AdminPage').then(m => ({ default: m.AdminPage })))
 
@@ -66,7 +69,7 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-import { useSubscription } from '@aios/shared/hooks/useSubscription'
+import { useSubscription } from '@ct/shared/hooks/useSubscription'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
@@ -76,7 +79,10 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isAuthenticated) return
     api.get('/auth/me')
-      .then(({ data }) => setUser(data))
+      .then(({ data }) => {
+        setUser(data)
+        if (data?.id) identify(String(data.id))
+      })
       .catch((err) => {
         if (err?.response?.status === 401) logout()
       })
@@ -121,7 +127,12 @@ export const router = createBrowserRouter([
 
   { path: '/signup', element: <Page><LoginPage initialMode="signup" /></Page>, errorElement: <RouteErrorBoundary /> },
   { path: '/verify-email', element: <Page><VerifyEmailPage /></Page>, errorElement: <RouteErrorBoundary /> },
+  { path: '/forgot-password', element: <Page><ForgotPasswordPage /></Page>, errorElement: <RouteErrorBoundary /> },
+  { path: '/reset-password', element: <Page><ResetPasswordPage /></Page>, errorElement: <RouteErrorBoundary /> },
   { path: '/auth/google/callback', element: <Page><GoogleAuthCallbackPage /></Page>, errorElement: <RouteErrorBoundary /> },
+  // Google redirects here after a Connections (gmail/gcal/gfit/notion) consent —
+  // must match the backend's redirect_uri exactly, which has no /app prefix.
+  { path: '/integrations/:provider/callback', element: <Page><OAuthCallbackPage /></Page>, errorElement: <RouteErrorBoundary /> },
   {
     element: <Page><LegalLayout /></Page>,
     errorElement: <RouteErrorBoundary />,
@@ -165,7 +176,6 @@ export const router = createBrowserRouter([
       { path: 'career/settings', element: <Page><RequireModule module="career"><CareerSettingsPage /></RequireModule></Page> },
 
       // System
-      { path: 'integrations/:provider/callback', element: <Page><OAuthCallbackPage /></Page> },
       { path: 'settings', element: <Page><SettingsPage /></Page> },
       { path: 'admin', element: <Page><RequireAdmin><AdminPage /></RequireAdmin></Page> },
       

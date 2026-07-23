@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Dialog, Select, Input, Card } from '@ledgr/ui'
-import { Popconfirm } from '@aios/shared/components/ui/Popconfirm'
+import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import { Trash2, Edit, Plus, PlusCircle, ChevronRight, ChevronDown, Tags } from 'lucide-react'
 import { toast } from 'sonner'
 import styled from 'styled-components'
-import { financeApi } from '@aios/shared/api/areas'
-import { Skeleton } from '@aios/shared/components/ui/skeleton'
+import { financeApi } from '@ct/shared/api/areas'
+import { Skeleton } from '@ct/shared/components/ui/skeleton'
 
 // ── Styled ────────────────────────────────────────────────────────────────────
 

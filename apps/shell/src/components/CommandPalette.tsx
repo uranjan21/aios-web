@@ -10,9 +10,9 @@ import {
   Clock, Play, Sparkles, Check, Loader2, ArrowRight
 } from 'lucide-react'
 
-import { useUIStore } from '@aios/shared/stores/uiStore'
-import { agentsApi } from '@aios/shared/api/agents'
-import { capturesApi, financeApi, healthApi, type ParsedCapture } from '@aios/shared/api/areas'
+import { useUIStore } from '@ct/shared/stores/uiStore'
+import { agentsApi } from '@ct/shared/api/agents'
+import { capturesApi, financeApi, healthApi, type ParsedCapture } from '@ct/shared/api/areas'
 import { Button } from '@ledgr/ui'
 
 // Built from the shared nav config, so the palette can no longer offer a
@@ -428,7 +428,7 @@ export function CommandPalette() {
               {isAskMode && (
                 <StreamOutput>
                   {askQuestion
-                    ? <>Press <kbd>↵</kbd> to ask AIOS: “{askQuestion}”</>
+                    ? <>Press <kbd>↵</kbd> to ask Control Tower: “{askQuestion}”</>
                     : 'Type your question after the "?" — it opens in Chat with full access to your data.'}
                 </StreamOutput>
               )}

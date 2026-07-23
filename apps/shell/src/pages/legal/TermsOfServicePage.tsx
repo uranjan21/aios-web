@@ -54,7 +54,7 @@ export function TermsOfServicePage() {
       <Section>
         <Heading>1. Agreement to Terms</Heading>
         <Text>
-          These Terms of Service constitute a legally binding agreement made between you, whether personally or on behalf of an entity ("you") and aios ("we," "us" or "our"), concerning your access to and use of our application and website.
+          These Terms of Service constitute a legally binding agreement made between you, whether personally or on behalf of an entity ("you") and Control Tower ("we," "us" or "our"), concerning your access to and use of our application and website.
           You agree that by accessing the site, you have read, understood, and agreed to be bound by all of these Terms of Service. If you do not agree with all of these terms, then you are expressly prohibited from using the site and you must discontinue use immediately.
         </Text>
       </Section>
@@ -111,7 +111,7 @@ export function TermsOfServicePage() {
       <Section>
         <Heading>7. Contact Us</Heading>
         <Text>
-          In order to resolve a complaint regarding the site or to receive further information regarding use of the site, please contact us at: support@aios.dev.
+          In order to resolve a complaint regarding the site or to receive further information regarding use of the site, please contact us at: support@controltower.dev.
         </Text>
       </Section>
     </div>

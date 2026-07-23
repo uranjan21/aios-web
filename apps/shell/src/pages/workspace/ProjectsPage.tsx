@@ -1,14 +1,14 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { SWATCH_COLORS } from '@aios/shared/config/swatches'
+import { SWATCH_COLORS } from '@ct/shared/config/swatches'
 import { Plus, FolderKanban, Trash2, PencilLine, CalendarDays, Tag } from 'lucide-react'
 import { Button, Card, EmptyState, Input, Dialog, DialogFooter, Select, Label } from '@ledgr/ui'
-import { workspaceApi, Project, ProjectPayload } from '@aios/shared/api/workspace'
-import { goalsApi } from '@aios/shared/api/goals'
+import { workspaceApi, Project, ProjectPayload } from '@ct/shared/api/workspace'
+import { goalsApi } from '@ct/shared/api/goals'
 import styled from 'styled-components'
 import { toast } from 'sonner'
-import { DOMAIN_OPTIONS, domainLabel } from '@aios/shared/config/domains'
-import { CollapsibleSection } from '@aios/shared/components/workspace/CollapsibleSection'
+import { DOMAIN_OPTIONS, domainLabel } from '@ct/shared/config/domains'
+import { CollapsibleSection } from '@ct/shared/components/workspace/CollapsibleSection'
 
 const Grid = styled.div`
   display: grid;

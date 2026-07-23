@@ -58,7 +58,7 @@ async def save_tokens(user_id: uuid.UUID, db, token_data: dict) -> IntegrationCr
         .where(IntegrationCredential.provider == "notion")
     )
     cred = result.scalar_one_or_none()
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()  # naive UTC — integration_credentials columns are tz-naive
     meta = {"workspace_name": token_data.get("workspace_name", ""), "workspace_id": token_data.get("workspace_id", "")}
 
     if not cred:

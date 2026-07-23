@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     claude_model: str = "claude-sonnet-4-5"
     openai_chat_model: str = "gpt-4o"
     openai_api_key: str = ""
+    # Scheduled agent runs (briefs, digests, email extraction) are structured
+    # summarize/parse tasks — they default to the small tier (~16x cheaper than
+    # the chat default). Per-user and per-agent model overrides still win.
+    agent_openai_model: str = "gpt-4o-mini"
+    agent_claude_model: str = "claude-haiku-4-5"
     claude_daily_token_limit: int = 200000
     claude_session_token_limit: int = 50000
     # Models clients may request (chat WS payload / agent overrides). Anything
@@ -76,6 +81,11 @@ class Settings(BaseSettings):
     vapid_public_key: str = ""
     vapid_private_key: str = ""
     vapid_subject: str = "mailto:utsavranjan.sk@gmail.com"
+
+    # Observability (Sentry). Unset → no error reporting (dev/test stay silent).
+    sentry_dsn: str = ""
+    # Fraction of transactions traced for performance. Keep low in prod.
+    sentry_traces_sample_rate: float = 0.0
 
     # Rate limiting
     rate_limit_chat_per_min: int = 20

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { useUIStore } from '@aios/shared/stores/uiStore'
+import { useUIStore } from '@ct/shared/stores/uiStore'
 import { NAV_GROUP_ORDER, navItemsForGroup } from '@/config/navigation'
-import { useAuthStore } from '@aios/shared/stores/authStore'
-import { logoutAndRedirect } from '@aios/shared/lib/logout'
+import { useAuthStore } from '@ct/shared/stores/authStore'
+import { logoutAndRedirect } from '@ct/shared/lib/logout'
+import { accountLabel } from '@ct/shared/lib/account'
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel, focusRing } from '@ledgr/ui'
@@ -14,7 +15,7 @@ import {
 
 
 import styled, { css } from 'styled-components'
-import { SIDEBAR_NAV_WIDTH, SIDEBAR_NAV_COLLAPSED_WIDTH } from '@aios/shared/theme/layout'
+import { SIDEBAR_NAV_WIDTH, SIDEBAR_NAV_COLLAPSED_WIDTH } from '@ct/shared/theme/layout'
 
 const SidebarRoot = styled.aside<{ $collapsed: boolean; $mobileOpen?: boolean }>`
   position: relative;
@@ -307,7 +308,7 @@ const UserInfo = styled.div<{ $collapsed: boolean }>`
     max-width: 100%;
   }
 
-  .email {
+  .meta {
     font-size: ${({ theme }) => theme.typography.fontSize.xs};
     font-weight: 500;
     color: ${({ theme }) => theme.chrome.fg}99;
@@ -339,7 +340,7 @@ const MenuProfileInfo = styled.div`
     text-overflow: ellipsis;
   }
 
-  .menu-email {
+  .menu-meta {
     font-size: 0.75rem;
     /* Sidebar chrome is always dark, so this reads from the chrome foreground,
        not the active-mode muted token (which is dark text in light mode). */
@@ -433,7 +434,7 @@ export function Sidebar() {
               )}
               <UserInfo $collapsed={collapsed}>
                 <span className="name">{user?.name || 'User'}</span>
-                <span className="email">{user?.email || 'user@example.com'}</span>
+                <span className="meta">{accountLabel(user)}</span>
               </UserInfo>
               {!collapsed && (
                 <DropdownIconWrapper>
@@ -453,7 +454,7 @@ export function Sidebar() {
                   )}
                   <MenuProfileInfo>
                     <span className="menu-name">{user?.name || 'Account'}</span>
-                    <span className="menu-email">{user?.email || 'user@example.com'}</span>
+                    <span className="menu-meta">{accountLabel(user)}</span>
                   </MenuProfileInfo>
                 </MenuProfileCard>
               </DropdownMenuLabel>

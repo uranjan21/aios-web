@@ -45,7 +45,7 @@ const THEME_FILES = [
   'packages/ui/src/theme/ThemeProvider.tsx',
   // Style recipes (visually-hidden clip values, focus offsets) are definitions.
   'packages/ui/src/theme/mixins.ts',
-  'packages/shared/src/theme/aiosTheme.ts',
+  'packages/shared/src/theme/ctTheme.ts',
   'packages/shared/src/theme/palettes.ts',
   'packages/shared/src/theme/layout.ts',
   // User-facing swatch palette — persisted colour DATA, not theme styling.

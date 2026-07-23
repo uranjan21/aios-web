@@ -1,5 +1,5 @@
 {
-  "name": "@aios/shell",
+  "name": "@ct/shell",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,10 +10,10 @@
     "lint": "eslint src --ext ts,tsx"
   },
   "dependencies": {
-    "@aios/career": "workspace:*",
-    "@aios/finance": "workspace:*",
-    "@aios/health": "workspace:*",
-    "@aios/shared": "workspace:*",
+    "@ct/career": "workspace:*",
+    "@ct/finance": "workspace:*",
+    "@ct/health": "workspace:*",
+    "@ct/shared": "workspace:*",
     "@ledgr/ui": "workspace:*"
   }
 }

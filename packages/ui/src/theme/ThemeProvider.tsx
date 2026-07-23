@@ -14,8 +14,8 @@ export interface ThemeProviderProps {
 
 /**
  * Neutral fallback so the package is usable standalone. Applications supply
- * their own palette — aios-web builds one per palette+mode in
- * `@aios/shared/theme/aiosTheme`.
+ * their own palette — control-tower builds one per palette+mode in
+ * `@ct/shared/theme/ctTheme`.
  */
 const defaultTheme: Theme = buildTheme({
   name: 'default-light',

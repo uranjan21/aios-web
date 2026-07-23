@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 from sqlmodel import SQLModel, Field, Column
 from sqlalchemy import Text, UniqueConstraint
@@ -19,8 +19,8 @@ class CalendarEvent(SQLModel, table=True):
     location: Optional[str] = Field(default=None)
     status: str = Field(default="confirmed")
     html_link: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)  # naive UTC: columns are tz-naive
+    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)  # naive UTC: columns are tz-naive
 
 
 class GmailMessage(SQLModel, table=True):
@@ -46,8 +46,8 @@ class GmailMessage(SQLModel, table=True):
     extracted_at: Optional[datetime] = None
     received_at: Optional[datetime] = None
     is_unread: bool = Field(default=False, nullable=False)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)  # naive UTC: columns are tz-naive
+    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)  # naive UTC: columns are tz-naive
 
 
 class GoogleFitMetric(SQLModel, table=True):
@@ -62,5 +62,5 @@ class GoogleFitMetric(SQLModel, table=True):
     distance_m: Optional[float] = None
     weight_kg: Optional[float] = None
     heart_rate_bpm: Optional[float] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)  # naive UTC: columns are tz-naive
+    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)  # naive UTC: columns are tz-naive

@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Popconfirm } from '@aios/shared/components/ui/Popconfirm'
+import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import { Button, Input, Select, Dialog, SegmentedControl } from '@ledgr/ui'
-import { financeApi } from '@aios/shared/api/areas'
+import { financeApi } from '@ct/shared/api/areas'
 import styled from 'styled-components'
 
 const FormStack = styled.form`

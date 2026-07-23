@@ -174,6 +174,8 @@ async def run_email_extraction_agent(task_id: str, user_id: uuid.UUID) -> str:
         logger.info("Agent %s skipped for user %s — AI quota exceeded", task_id, user_id)
         return f"{len(messages)} transaction email(s) are waiting, but the AI quota is exhausted this month."
 
+    from app.core.config import get_settings
+    settings = get_settings()
     facts = _email_context(messages, _BODY_CHARS[task_id])
     try:
         text = await generate_text(
@@ -184,6 +186,8 @@ async def run_email_extraction_agent(task_id: str, user_id: uuid.UUID) -> str:
             override_provider=agent.llm_provider if agent else None,
             override_openai_model=agent.openai_chat_model if agent else None,
             override_claude_model=agent.claude_model if agent else None,
+            base_openai_model=settings.agent_openai_model,
+            base_claude_model=settings.agent_claude_model,
         )
         transactions = _parse_llm_array(text)
     except Exception as e:

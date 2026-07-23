@@ -1,6 +1,6 @@
 import type { DefaultTheme } from 'styled-components'
-import type { EventCategory } from '@aios/shared/stores/dayEventsStore'
-import type { DomainKey } from './aiosTheme'
+import type { EventCategory } from '@ct/shared/stores/dayEventsStore'
+import type { DomainKey } from './ctTheme'
 
 /**
  * Day-event categories borrow the five life domains' identity colours, so a

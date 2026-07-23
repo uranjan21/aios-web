@@ -13,19 +13,26 @@ logger = logging.getLogger(__name__)
 async def generate_text(
     system: str, 
     user_content: str, 
-    max_tokens: int = 600, 
+    max_tokens: int = 600,
     user_id: str | None = None,
     override_provider: str | None = None,
     override_openai_model: str | None = None,
     override_claude_model: str | None = None,
+    base_openai_model: str | None = None,
+    base_claude_model: str | None = None,
 ) -> str:
-    """One-shot completion. Raises RuntimeError when the LLM is unavailable."""
+    """One-shot completion. Raises RuntimeError when the LLM is unavailable.
+
+    base_*_model replaces only the settings-level default (lowest precedence) —
+    per-user prefs and per-call overrides still win. Agent runs pass the cheap
+    tier here so a scheduled parse/summary never silently bills the chat model.
+    """
     settings = get_settings()
     provider = settings.llm_provider
     openai_api_key = settings.openai_api_key
     anthropic_api_key = settings.anthropic_api_key
-    openai_model = settings.openai_chat_model
-    claude_model = settings.claude_model
+    openai_model = base_openai_model or settings.openai_chat_model
+    claude_model = base_claude_model or settings.claude_model
 
     if user_id:
         from app.db.session import AsyncSessionLocal

@@ -1,6 +1,6 @@
 import { KpiCard } from '@ledgr/ui'
 import { TrendingUp, TrendingDown, Wallet } from 'lucide-react'
-import { formatCurrency } from '@aios/shared/lib/utils'
+import { formatCurrency } from '@ct/shared/lib/utils'
 import styled from 'styled-components'
 
 const KpiGrid = styled.div`

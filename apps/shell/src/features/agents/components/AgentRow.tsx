@@ -5,9 +5,9 @@ import { Button, Switch, Tooltip } from "@ledgr/ui";
 import { Activity, Calendar, CheckCircle, Clock3, Info, Play, RefreshCw, TerminalSquare, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import styled, { useTheme } from "styled-components";
-import { agentsApi } from "@aios/shared/api/agents";
-import { formatRelativeTime } from "@aios/shared/lib/utils";
-import type { Agent } from "@aios/shared/types";
+import { agentsApi } from "@ct/shared/api/agents";
+import { formatRelativeTime } from "@ct/shared/lib/utils";
+import type { Agent } from "@ct/shared/types";
 import { formatScheduleLabel } from "../lib/cron";
 import { getAgentLongDescription } from "../constants/domains";
 import {

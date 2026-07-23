@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import type { ChatEvent } from '@aios/shared/types'
-import { chatApi } from '@aios/shared/api/chat'
+import type { ChatEvent } from '@ct/shared/types'
+import { chatApi } from '@ct/shared/api/chat'
 
 export interface LocalMessage {
   id: string

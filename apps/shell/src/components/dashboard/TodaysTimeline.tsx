@@ -4,11 +4,11 @@ import {
   parseLocalDate,
   useDayEventsStore,
   type DayEvent,
-} from "@aios/shared/stores/dayEventsStore";
+} from "@ct/shared/stores/dayEventsStore";
 import { CalendarDays, Check, Clock, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 import styled, { css, useTheme } from "styled-components";
-import { categoryColor } from "@aios/shared/theme/domains";
+import { categoryColor } from "@ct/shared/theme/domains";
 
 interface TodaysTimelineProps {
   date: Date;

@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Wallet, Tags, Target, Briefcase, Receipt, IndianRupee, Inbox } from 'lucide-react'
-import { AreaSettingsPage } from '@aios/shared/components/layout/AreaSettingsPage'
-import { AccountManager } from '@aios/finance/components/AccountManager'
-import { CategoryManager } from '@aios/finance/components/CategoryManager'
-import { GoalsTab } from '@aios/finance/components/GoalsTab'
-import { LoansTab } from '@aios/finance/components/LoansTab'
-import { BillsTab } from '@aios/finance/components/BillsTab'
-import { AccountsTabModal } from '@aios/finance/components/QuickAddAccounts'
-import { BudgetTabModal } from '@aios/finance/components/QuickAddBudget'
-import { InboxSettingsTab } from '@aios/finance/components/InboxSettingsTab'
+import { AreaSettingsPage } from '@ct/shared/components/layout/AreaSettingsPage'
+import { AccountManager } from '@ct/finance/components/AccountManager'
+import { CategoryManager } from '@ct/finance/components/CategoryManager'
+import { GoalsTab } from '@ct/finance/components/GoalsTab'
+import { LoansTab } from '@ct/finance/components/LoansTab'
+import { BillsTab } from '@ct/finance/components/BillsTab'
+import { AccountsTabModal } from '@ct/finance/components/QuickAddAccounts'
+import { BudgetTabModal } from '@ct/finance/components/QuickAddBudget'
+import { InboxSettingsTab } from '@ct/finance/components/InboxSettingsTab'
 
 export function FinanceSettingsPage() {
   const [accountsModal, setAccountsModal] = useState<{ open: boolean; tab: 'Account' | 'Loan' }>({ open: false, tab: 'Account' })

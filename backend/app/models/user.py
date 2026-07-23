@@ -37,5 +37,10 @@ class User(SQLModel, table=True):
     email_verification_token: Optional[str] = Field(default=None, index=True)
     email_verification_sent_at: Optional[datetime] = Field(default=None)
 
+    # Password reset — same contract as verification above (sha256 of the emailed
+    # token, never the raw value); sent_at drives the 1h expiry window.
+    password_reset_token: Optional[str] = Field(default=None, index=True)
+    password_reset_sent_at: Optional[datetime] = Field(default=None)
+
     created_at: datetime = Field(default_factory=_utcnow, nullable=False)
     updated_at: datetime = Field(default_factory=_utcnow, nullable=False)

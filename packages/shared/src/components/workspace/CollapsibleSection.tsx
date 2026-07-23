@@ -1,5 +1,5 @@
 import styled from 'styled-components'
-import { useUIStore } from '@aios/shared/stores/uiStore'
+import { useUIStore } from '@ct/shared/stores/uiStore'
 
 const Section = styled.div`
   display: flex;

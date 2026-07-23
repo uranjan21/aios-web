@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { billingApi } from '@aios/shared/api/billing'
-import { useAuthStore } from '@aios/shared/stores/authStore'
+import { billingApi } from '@ct/shared/api/billing'
+import { useAuthStore } from '@ct/shared/stores/authStore'
 
 export function useSubscription() {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)

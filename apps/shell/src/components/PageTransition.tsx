@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { useMotion } from '@aios/shared/hooks/useMotion'
+import { useMotion } from '@ct/shared/hooks/useMotion'
 
 /**
  * Route transition.

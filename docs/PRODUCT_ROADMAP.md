@@ -1,14 +1,14 @@
-# AIOS Web — Product Vision & Roadmap
+# Control Tower Web — Product Vision & Roadmap
 
 **Date:** 2026-06-21 · **Owner:** Utsav · **Horizon:** 6 months to credible paid launch
 
-This document defines *what AIOS becomes* and *how it gets there*. It assumes the ship-blockers documented in `CLAUDE.md` § "ship-readiness audit" are fixed first — none of the growth work below matters while the app leaks tenant data and can't take a payment.
+This document defines *what Control Tower becomes* and *how it gets there*. It assumes the ship-blockers documented in `CLAUDE.md` § "ship-readiness audit" are fixed first — none of the growth work below matters while the app leaks tenant data and can't take a payment.
 
 ---
 
-## 1. The thesis — why AIOS is worth paying for
+## 1. The thesis — why Control Tower is worth paying for
 
-Every category AIOS touches already has a great single-purpose app: Monarch/Copilot for money, Whoop/Apple Health for the body, Notion for work, Linear for tasks. **AIOS does not win by being a better budget app.** It wins on the one thing none of them can do:
+Every category Control Tower touches already has a great single-purpose app: Monarch/Copilot for money, Whoop/Apple Health for the body, Notion for work, Linear for tasks. **Control Tower does not win by being a better budget app.** It wins on the one thing none of them can do:
 
 > **Cross-domain intelligence — connecting your money, body, work, and content into a single model of your life, and surfacing the patterns no single-purpose app can see.**
 

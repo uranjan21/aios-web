@@ -1,7 +1,7 @@
 import styled from 'styled-components'
 import dayjs, { Dayjs } from 'dayjs'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { formatCurrency } from '@aios/shared/lib/utils'
+import { formatCurrency } from '@ct/shared/lib/utils'
 
 interface DayData { date: string; income: number; expense: number }
 

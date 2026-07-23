@@ -3,9 +3,9 @@ import styled, { useTheme } from 'styled-components'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Flame, Check } from 'lucide-react'
 import { Card, Stack, focusRing } from '@ledgr/ui'
-import { healthApi } from '@aios/shared/api/areas'
-import { fmtDateKey } from '@aios/shared/stores/dayEventsStore'
-import { Skeleton } from '@aios/shared/components/ui/skeleton'
+import { healthApi } from '@ct/shared/api/areas'
+import { fmtDateKey } from '@ct/shared/stores/dayEventsStore'
+import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { Empty } from './shared'
 
 const StatRow = styled.div`

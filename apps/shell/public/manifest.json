@@ -1,6 +1,6 @@
 {
-  "name": "AIOS — Personal Command Center",
-  "short_name": "AIOS",
+  "name": "Control Tower — Personal Command Center",
+  "short_name": "Control Tower",
   "description": "AI-powered personal life operating system",
   "start_url": "/",
   "display": "standalone",

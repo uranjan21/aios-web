@@ -1,10 +1,10 @@
 import { focusRing } from '@ledgr/ui'
-import { useUIStore } from "@aios/shared/stores/uiStore";
+import { useUIStore } from "@ct/shared/stores/uiStore";
 import { Button, Card } from "@ledgr/ui";
 import { Heart, RefreshCcw, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import styled, { keyframes } from "styled-components";
-import { api } from "@aios/shared/api/client";
+import { api } from "@ct/shared/api/client";
 import { toast } from "sonner";
 
 const QUOTES: Array<{ text: string; author: string }> = [

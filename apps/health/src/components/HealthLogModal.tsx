@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Dialog, SegmentedControl, Input, Button } from '@ledgr/ui'
 import { toast } from 'sonner'
-import { healthApi } from '@aios/shared/api/areas'
+import { healthApi } from '@ct/shared/api/areas'
 import { Plus } from 'lucide-react'
 import styled from 'styled-components'
 

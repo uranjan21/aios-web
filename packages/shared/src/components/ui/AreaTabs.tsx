@@ -1,7 +1,7 @@
 import React from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@ledgr/ui'
 import styled from 'styled-components'
-import { spacing } from '@aios/shared/theme/layout'
+import { spacing } from '@ct/shared/theme/layout'
 
 const StyledTabsWrapper = styled.div`
   /* Ensure the tabs list matches the exact spacing requested */

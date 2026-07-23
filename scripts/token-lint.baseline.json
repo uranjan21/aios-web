@@ -1,5 +1,5 @@
 {
-  "generated": "2026-07-22",
+  "generated": "2026-07-23",
   "counts": {
     "hardcoded-font-size": 0,
     "hardcoded-radius": 2,
@@ -9,7 +9,7 @@
     "rgba-in-shadow": 1,
     "hardcoded-font-family": 0,
     "adhoc-breakpoint": 0,
-    "inline-style-static-value": 49,
+    "inline-style-static-value": 48,
     "undefined-css-var": 0
   }
 }

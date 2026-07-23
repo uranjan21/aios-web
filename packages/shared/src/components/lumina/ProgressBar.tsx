@@ -1,4 +1,4 @@
-import { Progress } from '@aios/shared/components/ui/progress'
+import { Progress } from '@ct/shared/components/ui/progress'
 
 export interface ProgressBarProps {
   value: number

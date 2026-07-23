@@ -2,15 +2,15 @@ services:
   db:
     image: pgvector/pgvector:pg15
     environment:
-      POSTGRES_USER: aios
-      POSTGRES_PASSWORD: aios_dev_password
-      POSTGRES_DB: aios_web
+      POSTGRES_USER: control_tower
+      POSTGRES_PASSWORD: control_tower_dev_password
+      POSTGRES_DB: control_tower
     ports:
       - "5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U aios -d aios_web"]
+      test: ["CMD-SHELL", "pg_isready -U control_tower -d control_tower"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -21,7 +21,7 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://aios:aios_dev_password@db:5432/aios_web
+      DATABASE_URL: postgresql+asyncpg://control_tower:control_tower_dev_password@db:5432/control_tower
     ports:
       - "8000:8000"
     volumes:

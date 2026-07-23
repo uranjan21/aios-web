@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Popconfirm } from '@aios/shared/components/ui/Popconfirm'
+import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import { Dumbbell, Trash2 } from 'lucide-react'
-import { healthApi } from '@aios/shared/api/areas'
-import type { WorkoutSessionItem } from '@aios/shared/types'
+import { healthApi } from '@ct/shared/api/areas'
+import type { WorkoutSessionItem } from '@ct/shared/types'
 import { Card as GlassCard } from '@ledgr/ui'
 import styled from 'styled-components'
 

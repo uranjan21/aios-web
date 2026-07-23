@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Zap, Trash2, PencilLine, CalendarRange, Target } from 'lucide-react'
 import { Button, Card, EmptyState, Input, Dialog, DialogFooter, Select, Label } from '@ledgr/ui'
-import { workspaceApi, Sprint, SprintPayload } from '@aios/shared/api/workspace'
+import { workspaceApi, Sprint, SprintPayload } from '@ct/shared/api/workspace'
 import styled from 'styled-components'
 import { toast } from 'sonner'
-import { domainLabel } from '@aios/shared/config/domains'
-import { CollapsibleSection } from '@aios/shared/components/workspace/CollapsibleSection'
+import { domainLabel } from '@ct/shared/config/domains'
+import { CollapsibleSection } from '@ct/shared/components/workspace/CollapsibleSection'
 
 const Grid = styled.div`
   display: grid;

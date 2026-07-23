@@ -128,6 +128,89 @@ class OAuthCallbackBody(BaseModel):
     state: str
 
 
+# Restored 2026-07-22: commit 41a6a7e removed this as an "orphaned route", but it
+# is the completion half of the Connections OAuth flow (OAuthCallbackPage posts
+# here) — without it no provider can ever finish linking.
+@router.post("/{provider}/callback")
+async def oauth_callback(
+    provider: str,
+    body: OAuthCallbackBody,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    if provider not in GOOGLE_PROVIDERS and provider != "notion":
+        raise HTTPException(status_code=400, detail="Callback not supported for this provider")
+
+    validated_provider = await validate_state(body.state, db, user_id=current_user.id)
+    if not validated_provider or validated_provider != provider:
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
+
+    if provider == "notion":
+        from app.services.integrations import notion
+        try:
+            token_data = await notion.exchange_code(body.code)
+        except Exception:
+            logger.exception("Notion token exchange failed")
+            raise HTTPException(status_code=400, detail="Token exchange failed")
+        await notion.save_tokens(current_user.id, db, token_data)
+        return {
+            "status": "connected",
+            "email": token_data.get("workspace_name", ""),
+            "provider": provider,
+        }
+
+    try:
+        token_data = await exchange_code(provider, body.code)
+    except Exception:
+        logger.exception("OAuth token exchange failed for %s", provider)
+        raise HTTPException(status_code=400, detail="Token exchange failed")
+
+    cred = await save_tokens(current_user.id, db, provider, token_data)
+
+    if provider == "gmail":
+        # A linked inbox is the tracker's prerequisite — turn the agent on so
+        # the user isn't left with a seeded-but-dormant tracker, and pull this
+        # inbox right away instead of waiting for the next 30-min sync tick.
+        await _activate_transaction_tracker(current_user.id, db)
+        task = asyncio.create_task(_initial_gmail_sync(current_user.id))
+        task.add_done_callback(lambda t: t.exception())
+
+    return {
+        "status": "connected",
+        "email": token_data.get("email", ""),
+        "provider": provider,
+    }
+
+
+async def _activate_transaction_tracker(user_id, db) -> None:
+    try:
+        from app.models.agent import Agent
+        result = await db.execute(
+            select(Agent).where(Agent.user_id == user_id, Agent.task_id == "aios-upi-tracker")
+        )
+        agent = result.scalar_one_or_none()
+        if not agent or agent.is_active:
+            return
+        agent.is_active = True
+        agent.updated_at = datetime.utcnow()
+        db.add(agent)
+        await db.commit()
+        from app.services.agents.scheduler import reschedule_agent
+        reschedule_agent(agent.task_id, agent.cron_expression, True, agent.user_id, agent.tz)
+    except Exception:
+        logger.exception("Could not auto-enable transaction tracker")
+
+
+async def _initial_gmail_sync(user_id) -> None:
+    from app.db.session import AsyncSessionLocal
+    from app.services.integrations.gmail import sync_messages
+    try:
+        async with AsyncSessionLocal() as db:
+            await sync_messages(user_id, db)
+    except Exception:
+        logger.exception("Initial gmail sync after connect failed")
+
+
 @router.get("/{provider}/status")
 async def get_status(
     provider: str,
@@ -185,7 +268,7 @@ async def disconnect(
         cred.status = "disconnected"
         cred.access_token_encrypted = None
         cred.refresh_token_encrypted = None
-        cred.updated_at = datetime.now(timezone.utc)
+        cred.updated_at = datetime.utcnow()  # naive UTC — column is tz-naive
         db.add(cred)
     if creds:
         await db.commit()
@@ -227,7 +310,7 @@ async def sync_provider(
         logger.exception("Sync failed for %s", provider)
         raise HTTPException(status_code=500, detail="Sync failed — check server logs")
 
-    cred.updated_at = datetime.now(timezone.utc)
+    cred.updated_at = datetime.utcnow()  # naive UTC — column is tz-naive
     db.add(cred)
     await db.commit()
 

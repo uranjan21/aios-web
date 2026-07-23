@@ -3,12 +3,12 @@
  *
  * Until 2026-07-21 this file was mostly dead: it declared a palette, radii,
  * shadows and font families that `buildTheme()` in
- * `packages/shared/src/theme/aiosTheme.ts` overwrote wholesale at runtime. The
+ * `packages/shared/src/theme/ctTheme.ts` overwrote wholesale at runtime. The
  * live radii scale collapsed `lg`, `xl` and `2xl` to a single 10px, `mono`
  * resolved to a proportional font, and `shadow.ring` was a hardcoded blue that
  * never matched the gold focus colour it was supposed to express.
  *
- * That indirection is gone. `aiosTheme.ts` now only swaps the active palette
+ * That indirection is gone. `ctTheme.ts` now only swaps the active palette
  * and light/dark mode; every scale below is what actually renders.
  *
  * Direction is "Expressive" — layered depth, gradients, glass and spring
@@ -181,7 +181,7 @@ export const border = {
 
 /* ── Motion ──────────────────────────────────────────────────────────────
  * Springs are framer-motion transition configs. Consume them through the
- * `useMotion()` hook in `@aios/shared/hooks/useMotion`, never directly —
+ * `useMotion()` hook in `@ct/shared/hooks/useMotion`, never directly —
  * the hook is what honours `prefers-reduced-motion`. The global CSS rule in
  * GlobalStyles cannot reach JS-driven animation.
  * ------------------------------------------------------------------- */

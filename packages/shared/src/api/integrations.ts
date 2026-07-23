@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { Integration } from '@aios/shared/types'
+import type { Integration } from '@ct/shared/types'
 
 export const integrationsApi = {
   list: () => api.get<Integration[]>('/integrations').then(r => r.data),

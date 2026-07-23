@@ -4,13 +4,13 @@ import { motion } from 'framer-motion'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, focusRing } from '@ledgr/ui'
 import { Check, Globe, Sparkles, Zap, Info } from 'lucide-react'
-import { useAuthStore } from '@aios/shared/stores/authStore'
-import { usePricingCurrency } from '@aios/shared/hooks/usePricingCurrency'
-import { billingApi } from '@aios/shared/api/billing'
+import { useAuthStore } from '@ct/shared/stores/authStore'
+import { usePricingCurrency } from '@ct/shared/hooks/usePricingCurrency'
+import { billingApi } from '@ct/shared/api/billing'
 import {
   PRICING_MODULES, MODULE_PRICE, BUNDLE_PRICE, TOTAL_MODULES,
   BUNDLE_SAVINGS, FREE_BASE_BLURB, computeMonthly, isBundlePriced,
-} from '@aios/shared/lib/pricing'
+} from '@ct/shared/lib/pricing'
 
 // ── Styled components ─────────────────────────────────────────────────────────
 
@@ -76,6 +76,20 @@ const CurrencyBadge = styled.div`
   border-radius: ${({ theme }) => theme.radii.sm};
   padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[3]}`};
   margin-top: ${({ theme }) => `${theme.spacing[3]}`};
+`
+
+const BetaBadge = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
+  font-weight: 500;
+  color: ${({ theme }) => theme.color.foreground};
+  background: ${({ theme }) => theme.color.accent}1A;
+  border: 1px solid ${({ theme }) => theme.color.accent}40;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[3]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
 const FreeBanner = styled.div`
@@ -332,8 +346,9 @@ export function PricingPage() {
 
       <Content>
         <TitleSection>
+          <BetaBadge><Sparkles size={13} /> Free during beta — everything below is a preview of pricing</BetaBadge>
           <h1>Pay only for what you use</h1>
-          <p>Start free with one area. Add modules at {loading ? `$${MODULE_PRICE}` : format(MODULE_PRICE)}/mo each — or unlock everything for {loading ? `$${BUNDLE_PRICE}` : format(BUNDLE_PRICE)}/mo.</p>
+          <p>Control Tower is in free beta right now — every module is on us while we build. The prices below are the planned model so you can see how it'll work.</p>
           {!loading && !isUSD && currency.country && (
             <CurrencyBadge>
               <Globe size={13} />

@@ -2,9 +2,9 @@
  * Semantic theme — the single build step from tokens to what components read.
  *
  * This used to be a pair of hardcoded Ledgr-branded objects (`lightTheme` /
- * `darkTheme`) that `aiosTheme.ts` imported purely to spread and then
+ * `darkTheme`) that `ctTheme.ts` imported purely to spread and then
  * overwrite. Every colour in them was dead. It is now a builder: pass a
- * palette and a mode, get the complete theme. `aiosTheme.ts` is the only
+ * palette and a mode, get the complete theme. `ctTheme.ts` is the only
  * caller, and its whole job is choosing which palette to pass.
  *
  * Derived layers (elevation, gradient, glass, chart) are computed from the

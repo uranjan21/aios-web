@@ -3,8 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button, Input, Select, Dialog, SegmentedControl, HeaderActionPortal, focusRing } from '@ledgr/ui'
 import { Scale, Percent, Ruler, Moon, Clock, Plus, LineChart as LineChartIcon, BarChart3, BedDouble } from 'lucide-react'
-import { healthApi } from '@aios/shared/api/areas'
-import { Skeleton } from '@aios/shared/components/ui/skeleton'
+import { healthApi } from '@ct/shared/api/areas'
+import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { format } from 'date-fns'
 import {
   ComposedChart, Area, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
@@ -12,7 +12,7 @@ import {
 } from 'recharts'
 import { KpiCard, KpiGrid } from '@ledgr/ui';
 import { Card as SectionCard } from '@ledgr/ui'
-import { WorkspaceLayout } from '@aios/shared/components/layout/WorkspaceLayout'
+import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 
 import styled, { useTheme } from 'styled-components'
 

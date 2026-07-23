@@ -6,8 +6,8 @@ import { Input, EmptyState, Badge, Checkbox,
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import { PencilLine, Trash2, Check, X, Tag as TagIcon, FolderInput, MoreHorizontal, Split } from 'lucide-react'
-import { financeApi } from '@aios/shared/api/areas'
-import { formatCurrency } from '@aios/shared/lib/utils'
+import { financeApi } from '@ct/shared/api/areas'
+import { formatCurrency } from '@ct/shared/lib/utils'
 import styled from 'styled-components'
 
 import type { Txn, SortBy, SortDir } from './types'

@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Popconfirm } from '@aios/shared/components/ui/Popconfirm'
+import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import { Button, Dialog, Input, DataTable, Select, Card } from '@ledgr/ui'
 import { Trash2, PencilLine, TrendingUp, Plus } from 'lucide-react'
-import { financeApi } from '@aios/shared/api/areas'
-import { Skeleton } from '@aios/shared/components/ui/skeleton'
-import type { FinanceInvestment } from '@aios/shared/types'
+import { financeApi } from '@ct/shared/api/areas'
+import { Skeleton } from '@ct/shared/components/ui/skeleton'
+import type { FinanceInvestment } from '@ct/shared/types'
 import styled from 'styled-components'
 
 const AssetCell = styled.div`

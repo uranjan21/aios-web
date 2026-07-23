@@ -4,9 +4,9 @@ import { Button, Input, Badge, Dialog, SegmentedControl, HeaderActionPortal, Sel
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import { Plus, Dumbbell, Trophy, X, Target, CheckCircle2, Flame, Repeat } from 'lucide-react'
-import { healthApi } from '@aios/shared/api/areas'
-import { Skeleton } from '@aios/shared/components/ui/skeleton'
-import { WorkspaceLayout } from '@aios/shared/components/layout/WorkspaceLayout'
+import { healthApi } from '@ct/shared/api/areas'
+import { Skeleton } from '@ct/shared/components/ui/skeleton'
+import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 
 import { COMMON_EXERCISES } from './fitness/constants'
 import { GOALS } from './fitness/goals'

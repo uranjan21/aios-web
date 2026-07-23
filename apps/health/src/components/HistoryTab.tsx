@@ -3,10 +3,10 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Select, Badge, Button, Card as GlassCard, DataTable } from '@ledgr/ui'
 import { Download, Activity, History, Plus } from 'lucide-react'
-import { healthApi } from '@aios/shared/api/areas'
-import { exportToCsv, formatRelativeTime } from '@aios/shared/lib/utils'
+import { healthApi } from '@ct/shared/api/areas'
+import { exportToCsv, formatRelativeTime } from '@ct/shared/lib/utils'
 import { format } from 'date-fns'
-import { WorkspaceLayout } from '@aios/shared/components/layout/WorkspaceLayout'
+import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 import styled from 'styled-components'
 
 const TYPE_COLORS: Record<string, "success" | "info" | "warning" | "accent" | "neutral" | "primary" | "destructive"> = {

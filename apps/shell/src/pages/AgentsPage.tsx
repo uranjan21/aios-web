@@ -1,8 +1,8 @@
-import { agentsApi } from "@aios/shared/api/agents";
+import { agentsApi } from "@ct/shared/api/agents";
 import { EmptyState, ErrorState, Button, PageHeader } from "@ledgr/ui";
-import { PageContainer, PageContent } from "@aios/shared/components/layout/PageLayout";
-import { PageDivider } from "@aios/shared/components/layout/PageDivider";
-import { AreaTabs } from "@aios/shared/components/ui/AreaTabs";
+import { PageContainer, PageContent } from "@ct/shared/components/layout/PageLayout";
+import { PageDivider } from "@ct/shared/components/layout/PageDivider";
+import { AreaTabs } from "@ct/shared/components/ui/AreaTabs";
 import { AgentsToolbar, AgentsFilters } from "@/features/agents/components/AgentsToolbar";
 import { AgentRow } from "@/features/agents/components/AgentRow";
 import { AgentCard } from "@/features/agents/components/AgentCard";
@@ -17,7 +17,7 @@ import {
 import { getAgentDomain } from "@/features/agents/constants/domains";
 import { useAgentFilters } from "@/features/agents/hooks/useAgentFilters";
 import { getNextCronRun, getScheduleSortValue } from "@/features/agents/lib/cron";
-import type { Agent } from "@aios/shared/types";
+import type { Agent } from "@ct/shared/types";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Activity,

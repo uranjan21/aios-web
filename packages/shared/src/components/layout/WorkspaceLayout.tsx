@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import styled from "styled-components";
 import { Card } from "@ledgr/ui";
 import { LayoutDashboard } from "lucide-react";
-import { SIDEBAR_WIDTH, TOPBAR_HEIGHT } from "@aios/shared/theme/layout";
+import { SIDEBAR_WIDTH, TOPBAR_HEIGHT } from "@ct/shared/theme/layout";
 
 interface WorkspaceLayoutProps {
   /**

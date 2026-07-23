@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "aios-web-backend"
+name = "control-tower-backend"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
@@ -35,6 +35,7 @@ dependencies = [
     "stripe>=10,<13",
     "redis[asyncio]>=5.0",
     "python-json-logger>=2.0",
+    "sentry-sdk[fastapi]>=2.0",
 ]
 
 [project.optional-dependencies]

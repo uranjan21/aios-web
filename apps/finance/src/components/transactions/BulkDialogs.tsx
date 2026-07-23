@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Dialog, DialogFooter, Input } from '@ledgr/ui'
 import { toast } from 'sonner'
 import { FolderInput, Tag as TagIcon } from 'lucide-react'
-import { financeApi } from '@aios/shared/api/areas'
+import { financeApi } from '@ct/shared/api/areas'
 import { CategoryPicker } from '../CategoryPicker'
 import type { Txn } from './types'
 

@@ -6,9 +6,9 @@
 > `SAAS_IMPLEMENTATION_PLAN.md`, which does not exist. Those claims are
 > removed. The Business and Content areas were deleted on 2026-07-21.
 
-# AIOS Web Features
+# Control Tower Web Features
 
-This document provides a categorized list of all features currently implemented in the AIOS Web platform, as well as planned capabilities.
+This document provides a categorized list of all features currently implemented in the Control Tower Web platform, as well as planned capabilities.
 
 **Note:** This file is automatically maintained. Whenever a new feature is added to the application, this document must be updated to reflect the change.
 

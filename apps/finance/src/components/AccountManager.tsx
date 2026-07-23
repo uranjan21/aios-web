@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Popconfirm } from '@aios/shared/components/ui/Popconfirm'
+import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import { Button, EmptyState, DataTable, Select, Card, Input, Sheet } from '@ledgr/ui'
 import { Trash2, Wallet, PencilLine, ArrowLeftRight, TrendingUp, TrendingDown, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import styled from 'styled-components'
 import dayjs from 'dayjs'
-import { financeApi } from '@aios/shared/api/areas'
-import { formatCurrency } from '@aios/shared/lib/utils'
-import { Skeleton } from '@aios/shared/components/ui/skeleton'
+import { financeApi } from '@ct/shared/api/areas'
+import { formatCurrency } from '@ct/shared/lib/utils'
+import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { TransactionModal, type Txn, type Kind } from './TransactionsTab'
-import type { LedgerEntry } from '@aios/shared/types'
+import type { LedgerEntry } from '@ct/shared/types'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 

@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Input, Select, Button } from '@ledgr/ui'
 import { toast } from 'sonner'
-import { careerApi } from '@aios/shared/api/areas'
-import type { SkillInventory } from '@aios/shared/types'
+import { careerApi } from '@ct/shared/api/areas'
+import type { SkillInventory } from '@ct/shared/types'
 import styled from 'styled-components'
 
 export const LEVEL_LABELS: Record<SkillInventory['level'], string> = {

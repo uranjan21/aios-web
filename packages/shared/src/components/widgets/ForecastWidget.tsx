@@ -1,7 +1,7 @@
 import styled from 'styled-components'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, Button } from '@ledgr/ui'
-import { forecastsApi } from '@aios/shared/api/forecasts'
+import { forecastsApi } from '@ct/shared/api/forecasts'
 import { TrendingUp } from 'lucide-react'
 
 interface Props {

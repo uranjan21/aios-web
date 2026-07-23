@@ -1,7 +1,7 @@
-import { useUIStore } from '@aios/shared/stores/uiStore'
+import { useUIStore } from '@ct/shared/stores/uiStore'
 import { ThemeProvider as LedgrProvider, GlobalStyles } from '@ledgr/ui'
 import { createGlobalStyle } from 'styled-components'
-import { getTheme } from '@aios/shared/theme/aiosTheme'
+import { getTheme } from '@ct/shared/theme/ctTheme'
 
 /** "#1C1917" → "28, 25, 23" (for rgba(var(--primary-rgb), a) usages) */
 function hexToRgbChannels(hex: string): string {

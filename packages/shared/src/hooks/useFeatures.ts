@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { api } from '@aios/shared/api/client'
+import { api } from '@ct/shared/api/client'
 
 interface Features {
   vault_sync: boolean

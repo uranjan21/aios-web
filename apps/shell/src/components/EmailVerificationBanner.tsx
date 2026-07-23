@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import styled from 'styled-components'
-import { api } from '@aios/shared/api/client'
+import { api } from '@ct/shared/api/client'
 
 const Banner = styled.div`
   display: flex;

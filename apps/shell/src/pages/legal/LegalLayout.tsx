@@ -97,7 +97,7 @@ export function LegalLayout() {
           <LogoBadge>
             <LogoBadgeText>AI</LogoBadgeText>
           </LogoBadge>
-          <BrandText>aios</BrandText>
+          <BrandText>Control Tower</BrandText>
         </LogoLink>
         <NavLink to="/login">Back to Login</NavLink>
       </Header>
@@ -112,7 +112,7 @@ export function LegalLayout() {
           <NavLink to="/terms-of-service">Terms of Service</NavLink>
           <NavLink to="/support">Support</NavLink>
         </FooterNav>
-        <Copyright>© {new Date().getFullYear()} aios. All rights reserved.</Copyright>
+        <Copyright>© {new Date().getFullYear()} Control Tower. All rights reserved.</Copyright>
       </Footer>
     </Root>
   )

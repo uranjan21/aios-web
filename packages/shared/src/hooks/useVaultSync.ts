@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { api } from '@aios/shared/api/client'
-import { useFeatures } from '@aios/shared/hooks/useFeatures'
-import type { VaultSyncStatus } from '@aios/shared/types'
+import { api } from '@ct/shared/api/client'
+import { useFeatures } from '@ct/shared/hooks/useFeatures'
+import type { VaultSyncStatus } from '@ct/shared/types'
 
 type SyncState = 'synced' | 'syncing' | 'conflict' | 'error' | 'disconnected'
 

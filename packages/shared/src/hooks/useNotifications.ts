@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useNotificationStore } from '@aios/shared/stores/notificationStore'
+import { useNotificationStore } from '@ct/shared/stores/notificationStore'
 import { useVaultSync } from './useVaultSync'
 
 /**

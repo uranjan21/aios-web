@@ -4,13 +4,13 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { Select, Badge, EmptyState, KpiCard } from '@ledgr/ui'
-import { financeApi } from '@aios/shared/api/areas'
-import { formatCurrency } from '@aios/shared/lib/utils'
-import { Skeleton } from '@aios/shared/components/ui/skeleton'
+import { financeApi } from '@ct/shared/api/areas'
+import { formatCurrency } from '@ct/shared/lib/utils'
+import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { ErrorState } from '@ledgr/ui'
-import { ProgressBar } from '@aios/shared/components/lumina';
+import { ProgressBar } from '@ct/shared/components/lumina';
 import { Card as GlassCard } from '@ledgr/ui';
-import { WorkspaceLayout } from '@aios/shared/components/layout/WorkspaceLayout'
+import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 import styled, { useTheme, type DefaultTheme } from 'styled-components'
 import { TrendingDown, TrendingUp, Wallet, PiggyBank, CalendarClock, HeartPulse } from 'lucide-react'
 
@@ -257,7 +257,7 @@ function scoreBand(score: number): string {
   return score >= 80 ? 'excellent' : score >= 60 ? 'good' : score >= 40 ? 'fair' : 'attention'
 }
 
-function HealthScoreCard({ data, delay = 0 }: { data: import('@aios/shared/types').FinanceHealthScore | undefined; delay?: 0 | 100 | 200 | 300 }) {
+function HealthScoreCard({ data, delay = 0 }: { data: import('@ct/shared/types').FinanceHealthScore | undefined; delay?: 0 | 100 | 200 | 300 }) {
   const theme = useTheme()
   const [healthPeriod, setHealthPeriod] = useState('current')
 

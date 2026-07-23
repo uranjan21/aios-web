@@ -1,4 +1,4 @@
-# AIOS Web — Dynamic / Modular Pricing Plan
+# Control Tower Web — Dynamic / Modular Pricing Plan
 
 **Date:** 2026-06-22
 **Author:** Claude (Opus 4.8)

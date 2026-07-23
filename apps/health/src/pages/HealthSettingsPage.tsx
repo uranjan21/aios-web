@@ -3,9 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Heart, Scale, Dumbbell, Apple } from 'lucide-react'
 import { Card, Input, Button } from '@ledgr/ui'
-import { healthApi } from '@aios/shared/api/areas'
-import type { HealthGoal } from '@aios/shared/types'
-import { AreaSettingsPage } from '@aios/shared/components/layout/AreaSettingsPage'
+import { healthApi } from '@ct/shared/api/areas'
+import type { HealthGoal } from '@ct/shared/types'
+import { AreaSettingsPage } from '@ct/shared/components/layout/AreaSettingsPage'
 import styled from 'styled-components'
 
 const FormBody = styled.div`

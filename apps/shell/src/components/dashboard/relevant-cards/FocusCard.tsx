@@ -2,8 +2,8 @@ import { useMemo } from 'react'
 import styled, { useTheme } from 'styled-components'
 import { Target, Clock } from 'lucide-react'
 import { Card } from '@ledgr/ui'
-import { useDayEventsStore, fmtDateKey, parseLocalDate } from '@aios/shared/stores/dayEventsStore'
-import { categoryColor } from '@aios/shared/theme/domains'
+import { useDayEventsStore, fmtDateKey, parseLocalDate } from '@ct/shared/stores/dayEventsStore'
+import { categoryColor } from '@ct/shared/theme/domains'
 import { Empty } from './shared'
 
 /* ─────────────────── 3. FocusCard ─────────────────── */

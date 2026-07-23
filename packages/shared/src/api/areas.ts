@@ -7,7 +7,7 @@ import type {
   WorkoutSessionItem, WorkoutPR, FoodDbItem,
   FinanceTransfer, BudgetStatus, LedgerEntry, NetWorth, TxnSearchResult, FinanceHealthScore,
   Account, Category, Capture,
-} from '@aios/shared/types'
+} from '@ct/shared/types'
 
 // Finance
 export interface SimulationResult {

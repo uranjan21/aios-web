@@ -7,7 +7,7 @@ import { ArrowLeft, Plus } from "lucide-react";
 
 import { PageContainer, PageContent } from "./PageLayout";
 import { PageDivider } from "./PageDivider";
-import { SETTINGS_RAIL_WIDTH, TOPBAR_HEIGHT } from "@aios/shared/theme/layout";
+import { SETTINGS_RAIL_WIDTH, TOPBAR_HEIGHT } from "@ct/shared/theme/layout";
 
 export interface SettingsItem {
   key: string;

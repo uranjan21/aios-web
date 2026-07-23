@@ -3,9 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Sparkline, focusRing } from '@ledgr/ui'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
-import { api } from '@aios/shared/api/client'
-import { formatCurrency } from '@aios/shared/lib/utils'
-import { ACTIVE_DOMAIN_KEYS, isActiveDomain } from '@aios/shared/config/domains'
+import { api } from '@ct/shared/api/client'
+import { formatCurrency } from '@ct/shared/lib/utils'
+import { ACTIVE_DOMAIN_KEYS, isActiveDomain } from '@ct/shared/config/domains'
 
 interface PulseTile {
   domain: string

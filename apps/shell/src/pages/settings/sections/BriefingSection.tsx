@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { insightsApi } from '@aios/shared/api/insights'
+import { insightsApi } from '@ct/shared/api/insights'
 import { Switch, Input } from '@ledgr/ui'
 import { RowRoot, RowLabel, Section } from '../shared'
 
