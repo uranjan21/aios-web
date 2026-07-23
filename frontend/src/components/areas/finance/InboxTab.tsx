@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Card, Button, Input, Select } from '@ledgr/ui'
-import { Check, X, Inbox as InboxIcon, Receipt } from 'lucide-react'
+import { Check, X, Inbox as InboxIcon, Receipt, RefreshCw } from 'lucide-react'
 import { financeApi, type FinancePendingTransaction } from '@/api/areas'
 import type { Account, Category } from '@/types'
 import { toast } from 'sonner'
@@ -165,6 +165,7 @@ export function InboxTab() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [expenseCategories, setExpenseCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
   const [submitting, setSubmitting] = useState<Record<string, boolean>>({})
 
   // Editable fields per transaction
@@ -207,6 +208,20 @@ export function InboxTab() {
     setEdits(prev => ({ ...prev, [id]: { ...prev[id], [field]: val } }))
   }
 
+  const onSync = async () => {
+    setSyncing(true)
+    try {
+      const res = await financeApi.ingestRun()
+      const queued = res.txns_queued + res.cc_bills_queued
+      toast.success(queued > 0 ? `Synced — ${queued} new item(s) to review` : 'Synced — nothing new')
+      await loadData()
+    } catch (e) {
+      toast.error('Email sync failed — is Gmail connected?')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   const onApprove = async (tx: FinancePendingTransaction) => {
     const edit = edits[tx.id]
     if (!edit.account_id) {
@@ -247,7 +262,10 @@ export function InboxTab() {
         <EmptyStateContainer>
           <InboxIcon size={56} style={{ opacity: 0.3 }} />
           <EmptyStateTitle>Inbox is empty</EmptyStateTitle>
-          <EmptyStateDesc>No pending UPI transactions from your emails.</EmptyStateDesc>
+          <EmptyStateDesc>No pending transactions from your bank/credit-card emails.</EmptyStateDesc>
+          <Button variant="primary" onClick={onSync} disabled={syncing} style={{ marginTop: 20 }}>
+            <RefreshCw size={16} style={{ marginRight: 6 }} /> {syncing ? 'Syncing…' : 'Sync emails now'}
+          </Button>
         </EmptyStateContainer>
       </Card>
     )
@@ -280,6 +298,12 @@ export function InboxTab() {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <MetaText>{transactions.length} transaction(s) to review</MetaText>
+        <Button variant="outline" size="sm" onClick={onSync} disabled={syncing}>
+          <RefreshCw size={14} style={{ marginRight: 6 }} /> {syncing ? 'Syncing…' : 'Sync emails'}
+        </Button>
+      </div>
       {transactions.map(tx => {
         const edit = edits[tx.id]
         if (!edit) return null

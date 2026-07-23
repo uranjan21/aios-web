@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   IndianRupee, LayoutDashboard, ArrowLeftRight,
-  PiggyBank, BarChart2, Gem, Settings, FlaskConical,
+  PiggyBank, BarChart2, Gem, Settings, FlaskConical, ListChecks, Wand2,
 } from 'lucide-react'
 import { AreaTabs } from '@/components/ui/AreaTabs'
 import { PageHeader, Button } from '@ledgr/ui'
@@ -13,6 +13,8 @@ import { WealthTab } from '@/components/areas/finance/WealthTab'
 import { AnalyticsTab } from '@/components/areas/finance/AnalyticsTab'
 import { SimulatorTab } from '@/components/areas/finance/SimulatorTab'
 import { InboxTab } from '@/components/areas/finance/InboxTab'
+import { PayablesTab } from '@/components/areas/finance/PayablesTab'
+import { RulesTab } from '@/components/areas/finance/RulesTab'
 import { AccountsTabModal } from '@/components/areas/finance/QuickAddAccounts'
 import { PageContainer, PageContent } from '@/components/layout/PageLayout'
 
@@ -61,8 +63,18 @@ export function FinancePage() {
     },
     {
       key: '7',
+      label: <><ListChecks size={14} /> Payables</>,
+      children: <PayablesTab />,
+    },
+    {
+      key: '8',
       label: <><IndianRupee size={14} /> Inbox</>,
       children: <InboxTab />,
+    },
+    {
+      key: '9',
+      label: <><Wand2 size={14} /> Rules</>,
+      children: <RulesTab />,
     },
   ]
 
