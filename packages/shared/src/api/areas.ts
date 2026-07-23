@@ -41,9 +41,67 @@ export interface FinancePendingTransaction {
   source_account_email: string | null
   /** Account last used for this source inbox — pre-fills the account picker. */
   suggested_account_id: string | null
+  raw_text?: string | null
+  source_email_id?: string | null
+  parser?: string | null
   /** null = auto-commit off (review required) */
   auto_commit_at: string | null
   status: string
+}
+
+export interface PayableItem {
+  type: 'bill' | 'loan' | 'cc_bill'
+  id: string
+  name: string
+  amount: number
+  category: string
+  due_day: number | null
+  due_date: string | null
+  min_due?: number | null
+  account_id: string | null
+  account_name: string | null
+  is_auto_debit: boolean
+  paid: boolean
+  paid_at: string | null
+  paid_from_account_id: string | null
+}
+
+export interface PayablesResponse {
+  month: string
+  items: PayableItem[]
+  total: number
+  total_paid: number
+  total_unpaid: number
+}
+
+export interface CCBillItem {
+  id: string
+  account_id: string | null
+  card_name: string | null
+  statement_date: string | null
+  due_date: string | null
+  total_due: number
+  min_due: number | null
+  unbilled: number | null
+  paid_at: string | null
+  paid_amount: number | null
+}
+
+export interface MerchantRuleItem {
+  id: string
+  match_type: 'contains' | 'equals' | 'regex'
+  pattern: string
+  category_id: string | null
+  account_id: string | null
+  priority: number
+  is_active: boolean
+}
+
+export interface IngestResult {
+  fetched: number
+  txns_queued: number
+  cc_bills_queued: number
+  skipped_dupes: number
 }
 
 export interface SimulationParams {
@@ -75,6 +133,30 @@ export const financeApi = {
   settings: () => api.get<{ auto_commit_hours: number | null }>('/areas/finance/settings').then(r => r.data),
   updateSettings: (d: { auto_commit_hours: number | null }) =>
     api.patch<{ auto_commit_hours: number | null }>('/areas/finance/settings', d).then(r => r.data),
+
+  // Email ingestion (Finance OS)
+  ingestRun: (newer_than_days = 3) =>
+    api.post<IngestResult>('/areas/finance/ingest/run', null, { params: { newer_than_days } }).then(r => r.data),
+
+  // Payables checklist
+  payables: (month?: string) =>
+    api.get<PayablesResponse>('/areas/finance/payables', { params: { month } }).then(r => r.data),
+  togglePaid: (data: { obligation_type: string; obligation_id: string; period: string; paid: boolean; account_id?: string | null; paid_amount?: number | null }) =>
+    api.post('/areas/finance/payables/pay', data).then(r => r.data),
+
+  // Credit-card bills
+  ccBills: () => api.get<CCBillItem[]>('/areas/finance/cc-bills').then(r => r.data),
+  createCCBill: (d: { account_id?: string | null; card_name?: string; statement_date?: string | null; due_date?: string | null; total_due: number; min_due?: number | null; unbilled?: number | null }) =>
+    api.post<CCBillItem>('/areas/finance/cc-bills', d).then(r => r.data),
+  patchCCBill: (id: string, d: Partial<CCBillItem>) => api.patch<CCBillItem>(`/areas/finance/cc-bills/${id}`, d).then(r => r.data),
+  deleteCCBill: (id: string) => api.delete(`/areas/finance/cc-bills/${id}`).then(r => r.data),
+
+  // Merchant rules
+  rules: () => api.get<MerchantRuleItem[]>('/areas/finance/rules').then(r => r.data),
+  createRule: (d: { match_type: string; pattern: string; category_id?: string | null; account_id?: string | null; priority?: number; is_active?: boolean }) =>
+    api.post<MerchantRuleItem>('/areas/finance/rules', d).then(r => r.data),
+  patchRule: (id: string, d: Partial<MerchantRuleItem>) => api.patch<MerchantRuleItem>(`/areas/finance/rules/${id}`, d).then(r => r.data),
+  deleteRule: (id: string) => api.delete(`/areas/finance/rules/${id}`).then(r => r.data),
   searchTransactions: (p: { q?: string; kind?: string; account_id?: string; category?: string; tag?: string; min_amount?: number; max_amount?: number; date_from?: string; date_to?: string; limit?: number; offset?: number }) =>
     api.get<TxnSearchResult>('/areas/finance/transactions/search', { params: p }).then(r => r.data),
   snapshots: () => api.get<FinanceSnapshot[]>('/areas/finance/snapshots').then(r => r.data),

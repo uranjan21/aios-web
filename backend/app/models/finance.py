@@ -163,6 +163,8 @@ class FinanceInvestment(SQLModel, table=True):
     current_value: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     units: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(14, 4)))
     purchase_date: Optional[date] = None
+    # Monthly SIP / commitment target — lets the summary compare committed vs actually-invested.
+    committed_monthly: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2)))
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
     updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
@@ -191,8 +193,13 @@ class FinanceLoan(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
 class FinancePendingTransaction(SQLModel, table=True):
-    """Transactions fetched by AI agents (e.g. UPI) awaiting user review."""
+    """Transactions ingested from bank/CC email alerts (or AI agents) awaiting user review."""
     __tablename__ = "finance_pending_transactions"
+    # Idempotent ingestion: one email → at most one pending row per user. NULL source_email_id
+    # (manual / agent-queued rows) is exempt — Postgres treats NULLs as distinct.
+    __table_args__ = (
+        UniqueConstraint("user_id", "source_email_id", name="uq_pending_user_email"),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
@@ -211,20 +218,86 @@ class FinancePendingTransaction(SQLModel, table=True):
     logged_at: datetime = Field(nullable=False)
     raw_email_snippet: str = Field(sa_column=Column(Text, nullable=False))
 
-    # Idempotency: bank txn ref when the email carries one, else a hash of
-    # kind|date|amount|payee. Re-runs and statement lines matching an
-    # already-queued transaction are skipped.
+    # Idempotency (main's Gmail flow): bank txn ref when present, else a hash of
+    # kind|date|amount|payee. Re-runs / statement lines matching a queued txn are skipped.
     dedupe_key: Optional[str] = Field(default=None, index=True)
     txn_ref: Optional[str] = Field(default=None)
     # Provenance: which email (and which linked Gmail account) produced this.
     gmail_message_id: Optional[str] = Field(default=None)
     source_account_email: Optional[str] = Field(default=None)
+    # Regex-ingestion (Finance OS) provenance: Gmail message id it was parsed from (also unique
+    # per user via __table_args__), the full body for re-parse on drift, and the bank parser slug.
+    source_email_id: Optional[str] = Field(default=None, index=True)
+    raw_text: Optional[str] = Field(default=None, sa_column=Column(Text))
+    parser: Optional[str] = Field(default=None)
 
-    # NULL = never auto-commit (review required — the default). Set only when
-    # the user opts into timed auto-commit via finance_settings.
+    # NULL = never auto-commit (review required — the default). Set to a time only when the user
+    # opts into timed auto-commit; the regex runner sets now+24h.
     auto_commit_at: Optional[datetime] = Field(default=None, nullable=True)
     status: str = Field(default="pending", nullable=False) # pending / approved / dismissed
 
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
+
+
+class MerchantRule(SQLModel, table=True):
+    """User-defined auto-categorisation rule applied to ingested transactions."""
+    __tablename__ = "finance_merchant_rules"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    match_type: str = Field(default="contains", nullable=False)  # contains | equals | regex
+    pattern: str = Field(nullable=False)  # matched against payee_name/description (case-insensitive)
+    category_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_categories.id")
+    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
+    priority: int = Field(default=0, nullable=False)  # higher priority wins on tie
+    is_active: bool = Field(default=True, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
+
+
+class CCBill(SQLModel, table=True):
+    """Credit-card statement summary — a payable, not a ledger line (avoids double-counting spends)."""
+    __tablename__ = "finance_cc_bills"
+    __table_args__ = (
+        UniqueConstraint("user_id", "source_email_id", name="uq_cc_bill_email"),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
+    card_name: Optional[str] = Field(default=None)  # label when no account is linked
+    statement_date: Optional[date] = Field(default=None)
+    due_date: Optional[date] = Field(default=None)
+    total_due: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    min_due: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2)))
+    unbilled: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2)))
+    paid_at: Optional[datetime] = Field(default=None)
+    paid_amount: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2)))
+    source_email_id: Optional[str] = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
+
+
+class ObligationPayment(SQLModel, table=True):
+    """Per-(obligation, month) paid state driving the month-end payables checklist.
+
+    obligation_type ∈ {bill, loan, cc_bill}; obligation_id points at the source row.
+    """
+    __tablename__ = "finance_obligation_payments"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "obligation_type", "obligation_id", "period",
+            name="uq_obligation_payment",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    obligation_type: str = Field(nullable=False)  # bill | loan | cc_bill
+    obligation_id: uuid.UUID = Field(nullable=False)
+    period: str = Field(nullable=False)  # "YYYY-MM"
+    paid: bool = Field(default=False, nullable=False)
+    paid_at: Optional[datetime] = Field(default=None)
+    paid_amount: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2)))
+    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
 
 

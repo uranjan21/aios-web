@@ -14,6 +14,12 @@ router = APIRouter(prefix="/api/areas/finance", tags=["finance"])
 from app.api.finance_pending import router as finance_pending_router
 router.include_router(finance_pending_router, prefix="/pending", tags=["finance-pending"])
 
+from app.api.finance_payables import router as finance_payables_router
+router.include_router(finance_payables_router, tags=["finance-payables"])
+
+from app.api.finance_rules import router as finance_rules_router
+router.include_router(finance_rules_router, tags=["finance-rules"])
+
 
 def _to_naive_utc(v: Optional[datetime]) -> Optional[datetime]:
     """Normalize an incoming datetime to naive UTC. The `logged_at` columns are
@@ -1526,6 +1532,10 @@ async def investments_summary(current_user=Depends(get_current_user), db=Depends
     total_current = sum(float(i.current_value) for i in investments)
     returns_amount = total_current - total_invested
     returns_pct = round((returns_amount / total_invested) * 100, 2) if total_invested > 0 else 0.0
+    # Committed vs actual: sum of monthly SIP commitments across holdings that declare one.
+    total_committed_monthly = sum(
+        float(i.committed_monthly) for i in investments if i.committed_monthly is not None
+    )
 
     by_type: dict[str, float] = {}
     for i in investments:
@@ -1537,6 +1547,7 @@ async def investments_summary(current_user=Depends(get_current_user), db=Depends
         "current_value": total_current,
         "returns_amount": returns_amount,
         "returns_pct": returns_pct,
+        "committed_monthly": total_committed_monthly,
         "allocation": allocation,
     }
 
@@ -1548,6 +1559,7 @@ class InvestmentCreate(BaseModel):
     current_value: float = Field(ge=0)
     units: Optional[float] = None
     purchase_date: Optional[str] = None  # ISO date YYYY-MM-DD
+    committed_monthly: Optional[float] = Field(default=None, ge=0)  # SIP commitment
     notes: Optional[str] = None
 
 
@@ -1562,6 +1574,7 @@ async def create_investment(body: InvestmentCreate, current_user=Depends(get_cur
         current_value=body.current_value,
         units=body.units,
         purchase_date=date_type.fromisoformat(body.purchase_date) if body.purchase_date else None,
+        committed_monthly=body.committed_monthly,
         notes=body.notes,
     )
     db.add(investment)
@@ -1577,6 +1590,7 @@ class InvestmentUpdate(BaseModel):
     current_value: Optional[float] = None
     units: Optional[float] = None
     purchase_date: Optional[str] = None
+    committed_monthly: Optional[float] = None
     notes: Optional[str] = None
 
 
