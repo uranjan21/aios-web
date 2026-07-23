@@ -202,6 +202,17 @@ async def start_scheduler() -> None:
             misfire_grace_time=1800,
         )
 
+        # Every 6h at :20 — poll bank/CC alert emails and queue transactions for review.
+        # newer_than window (3d) overlaps runs; dedup on source_email_id makes that safe.
+        _safe_add_job(
+            "finance_email_ingest",
+            func=_run_global_job,
+            trigger=CronTrigger(hour="*/6", minute=20, timezone="UTC"),
+            args=["app.services.finance.email_ingest.runner", "run_ingestion"],
+            replace_existing=True,
+            misfire_grace_time=1800,
+        )
+
         # Hourly at :50 — auto-commit pending agent actions that have passed their 24h review window
         _safe_add_job(
             "agent_action_auto_commit",
