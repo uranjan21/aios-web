@@ -213,6 +213,26 @@ async def start_scheduler() -> None:
             misfire_grace_time=1800,
         )
 
+        # 1st of month 05:00 UTC — write each owner's monthly finance summary into the vault.
+        _safe_add_job(
+            "finance_vault_summary",
+            func=_run_global_job,
+            trigger=CronTrigger(day=1, hour=5, minute=0, timezone="UTC"),
+            args=["app.services.finance.vault_summary", "run_finance_vault_summary"],
+            replace_existing=True,
+            misfire_grace_time=7200,
+        )
+
+        # 1st of month 05:30 UTC — CSV backup of all finance tables per user.
+        _safe_add_job(
+            "finance_csv_backup",
+            func=_run_global_job,
+            trigger=CronTrigger(day=1, hour=5, minute=30, timezone="UTC"),
+            args=["app.services.finance.backup", "run_finance_backup"],
+            replace_existing=True,
+            misfire_grace_time=7200,
+        )
+
         # Hourly at :50 — auto-commit pending agent actions that have passed their 24h review window
         _safe_add_job(
             "agent_action_auto_commit",

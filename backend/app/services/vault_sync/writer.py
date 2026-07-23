@@ -18,6 +18,7 @@ ALLOWED_WRITE_PATHS = {
     ],
     "update_context": [
         "01-finance/context.md",
+        "01-finance/monthly-summary.md",
         "02-health/context.md",
         "03-career/context.md",
         "04-business/context.md",
