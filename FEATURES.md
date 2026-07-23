@@ -10,6 +10,11 @@ This document provides a categorized list of all features currently implemented 
 *   **Multi-Account Tracking:** Track balances and transactions across multiple user-defined accounts.
 *   **Analytics & Reporting:** Dedicated sections for tracking Budgets, Goals, Loans, Investments, and Bills.
 *   **Real-time Balances:** Live balance recalculation with row-level locking to prevent race conditions.
+*   **Email Ingestion (Finance OS):** Deterministic parsers read bank/credit-card alert emails from Gmail (HDFC/Axis/ICICI/SBI/CRED, read-only) and queue transactions idempotently into the review Inbox; a manual "Sync emails" trigger plus a 6-hourly poller.
+*   **Auto-categorisation Rules:** Merchant rules (contains/equals/regex) that set category + account on ingested transactions automatically.
+*   **Month-end Payables Checklist:** Unified view of rent, subscriptions, EMIs, and credit-card bills — how much, to whom, from which account — with per-month paid/unpaid tracking.
+*   **Investment Commitment:** Track committed monthly SIP vs actually invested, alongside planned-vs-actual spend via budgets.
+*   **Vault Summary & Backup:** Owner-only monthly finance summary written to the Obsidian vault, plus monthly CSV backup of all finance tables.
 
 ## 2. Health & Wellness 🏃‍♂️
 *   **Fitness & Workouts:** Log workouts, exercises, and fitness goals.
