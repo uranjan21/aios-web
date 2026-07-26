@@ -36,6 +36,8 @@ export interface DropdownMenuContentProps {
   side?: PopoverSide;
   align?: PopoverAlign;
   children: ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
 const MenuSurface = styled.div`
@@ -46,7 +48,7 @@ const MenuSurface = styled.div`
   padding: ${({ theme }) => theme.spacing[1]};
 `;
 
-export function DropdownMenuContent({ side = 'bottom', align = 'start', children }: DropdownMenuContentProps) {
+export function DropdownMenuContent({ side = 'bottom', align = 'start', children, className, style }: DropdownMenuContentProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   // Roving keyboard nav inside menu
@@ -79,7 +81,7 @@ export function DropdownMenuContent({ side = 'bottom', align = 'start', children
   }, []);
 
   return (
-    <PopoverContent side={side} align={align} gap={4}>
+    <PopoverContent side={side} align={align} gap={4} className={className} style={style}>
       <MenuSurface ref={ref} role="menu">
         {children}
       </MenuSurface>
@@ -105,7 +107,7 @@ const ItemButton = styled.button<{ $destructive: boolean; $disabled: boolean }>`
   outline: none;
 
   &:hover:not(:disabled), &:focus-visible {
-    background: ${({ theme, $destructive }) => $destructive ? theme.color.destructive + '15' : theme.color.muted};
+    background: ${({ theme, $destructive }) => $destructive ? theme.color.destructive + '15' : theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'};
   }
 
   & > svg { width: 16px; height: 16px; flex-shrink: 0; }
@@ -116,9 +118,10 @@ export interface DropdownMenuItemProps {
   destructive?: boolean;
   disabled?: boolean;
   children: ReactNode;
+  className?: string;
 }
 
-export function DropdownMenuItem({ onSelect, destructive = false, disabled = false, children }: DropdownMenuItemProps) {
+export function DropdownMenuItem({ onSelect, destructive = false, disabled = false, children, className }: DropdownMenuItemProps) {
   const ctx = useContext(MenuCtx);
   const handle = (e: MouseEvent | KeyboardEvent) => {
     if (disabled) return;
@@ -135,6 +138,7 @@ export function DropdownMenuItem({ onSelect, destructive = false, disabled = fal
       disabled={disabled}
       onClick={handle}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handle(e); }}
+      className={className}
     >
       {children}
     </ItemButton>

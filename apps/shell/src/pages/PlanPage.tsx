@@ -12,38 +12,21 @@
  * was component-local and reset on every navigation.
  */
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
-import { Button, PageHeader, SegmentedControl, Select } from '@ledgr/ui';
-import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout';
+import { Button, PageHeader, Select } from '@ledgr/ui';
+import { ModuleLayout } from '@ct/shared/components/layout/ModuleLayout';
+import { ModuleSidebar } from '@ct/shared/components/layout/ModuleSidebar';
 import { PageDivider } from '@ct/shared/components/layout/PageDivider';
 import { DOMAIN_OPTIONS } from '@ct/shared/config/domains';
-import { Settings, Target } from 'lucide-react';
+import { Settings, Target, Briefcase, Activity, ListChecks } from 'lucide-react';
 
 import { GoalsSection } from '@/pages/GoalsPage';
 import { ProjectsSection } from '@/pages/workspace/ProjectsPage';
 import { SprintsSection } from '@/pages/workspace/SprintsPage';
 import { TasksSection } from '@/pages/workspace/TasksPage';
 
-const ENTITIES = [
-  { label: 'Goals', value: 'goals' },
-  { label: 'Projects', value: 'projects' },
-  { label: 'Sprints', value: 'sprints' },
-  { label: 'Tasks', value: 'tasks' },
-] as const;
+type Entity = 'goals' | 'projects' | 'sprints' | 'tasks';
 
-type Entity = (typeof ENTITIES)[number]['value'];
-
-/** "All domains" is the absence of a filter, not a domain of its own. */
 const DOMAIN_FILTER_OPTIONS = [{ label: 'All domains', value: 'all' }, ...DOMAIN_OPTIONS];
-
-const Toolbar = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: ${({ theme }) => theme.spacing[3]};
-  flex-wrap: wrap;
-  margin-bottom: ${({ theme }) => theme.spacing[5]};
-`;
 
 export function PlanPage() {
   const navigate = useNavigate();
@@ -60,46 +43,65 @@ export function PlanPage() {
     setParams(next, { replace: true });
   };
 
-  const current = ENTITIES.find((e) => e.value === entity) ?? ENTITIES[0];
+  const groups = [
+    {
+      label: 'Planning',
+      items: [
+        { key: 'goals', label: 'Goals', icon: <Target size={14} /> },
+        { key: 'projects', label: 'Projects', icon: <Briefcase size={14} /> },
+        { key: 'sprints', label: 'Sprints', icon: <Activity size={14} /> },
+        { key: 'tasks', label: 'Tasks', icon: <ListChecks size={14} /> },
+      ]
+    }
+  ]
+
+  const renderContent = () => {
+    switch (entity) {
+      case 'goals': return <GoalsSection domainFilter={domainFilter} />;
+      case 'projects': return <ProjectsSection domainFilter={domainFilter} />;
+      case 'sprints': return <SprintsSection domainFilter={domainFilter} />;
+      case 'tasks': return <TasksSection domainFilter={domainFilter} />;
+      default: return <GoalsSection domainFilter={domainFilter} />;
+    }
+  };
 
   return (
-    <PageContainer>
-      <PageContent>
-        <PageHeader
-          icon={<Target />}
-          eyebrow="Workspace"
-          title="Plan"
-          subtitle="Goals, projects, sprints and tasks across every life area"
-          actions={
-            <Button variant="outline" size="sm" onClick={() => navigate('/app/settings')}>
-              <Settings size={14} style={{ marginRight: 6 }} /> Settings
-            </Button>
-          }
+    <ModuleLayout
+      header={
+        <>
+          <PageHeader
+            icon={<Target />}
+            eyebrow="Workspace"
+            title="Plan"
+            subtitle="Goals, projects, sprints and tasks across every life area"
+            actions={
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <Select
+                  size="sm"
+                  fullWidth={false}
+                  value={domainParam}
+                  onChange={(v) => setParam('domain', String(v))}
+                  options={DOMAIN_FILTER_OPTIONS}
+                  aria-label="Filter by life area"
+                />
+                <Button variant="outline" size="sm" onClick={() => navigate('/app/settings')}>
+                  <Settings size={14} style={{ marginRight: 6 }} /> Settings
+                </Button>
+              </div>
+            }
+          />
+          <PageDivider />
+        </>
+      }
+      sidebar={
+        <ModuleSidebar
+          groups={groups}
+          activeKey={entity}
+          onChange={(key) => setParam('view', key)}
         />
-        <PageDivider />
-
-        <Toolbar>
-          <SegmentedControl
-            size="sm"
-            value={current.value}
-            onChange={(v) => setParam('view', String(v))}
-            options={ENTITIES.map((e) => ({ label: e.label, value: e.value }))}
-          />
-          <Select
-            size="sm"
-            fullWidth={false}
-            value={domainParam}
-            onChange={(v) => setParam('domain', String(v))}
-            options={DOMAIN_FILTER_OPTIONS}
-            aria-label="Filter by life area"
-          />
-        </Toolbar>
-
-        {entity === 'goals' && <GoalsSection domainFilter={domainFilter} />}
-        {entity === 'projects' && <ProjectsSection domainFilter={domainFilter} />}
-        {entity === 'sprints' && <SprintsSection domainFilter={domainFilter} />}
-        {entity === 'tasks' && <TasksSection domainFilter={domainFilter} />}
-      </PageContent>
-    </PageContainer>
+      }
+    >
+      {renderContent()}
+    </ModuleLayout>
   );
 }

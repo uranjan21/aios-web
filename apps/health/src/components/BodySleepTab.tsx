@@ -12,9 +12,13 @@ import {
 } from 'recharts'
 import { KpiCard, KpiGrid } from '@ledgr/ui';
 import { Card as SectionCard } from '@ledgr/ui'
-import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
-
 import styled, { useTheme } from 'styled-components'
+
+const TabContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing[6]};
+`
 
 const QUALITY_OPTIONS = ['poor', 'fair', 'good', 'excellent']
 
@@ -221,7 +225,6 @@ export function BodySleepTab() {
 
   const target = sleep?.target ?? 8
   const lastNight = sleep?.last_night
-  const weeklyAvg = sleep?.weekly_avg ?? 0
   const sleepChartData = sleep?.daily ?? []
 
   const filteredSleepChartData = useMemo(() => {
@@ -253,7 +256,7 @@ export function BodySleepTab() {
 
   return (
     <>
-    <WorkspaceLayout rail={undefined}>
+    <TabContent>
       <HeaderActionPortal>
         <Button size="sm" variant="primary" onClick={() => setLogModalOpen(true)}>
           <Plus size={12} style={{ marginRight: 4 }} /> Log Body Stats / Sleep
@@ -262,16 +265,16 @@ export function BodySleepTab() {
       <StyledContainer>
         <KpiGrid $cols={5}>
           <KpiCard
-            label="Weight" icon={Scale} color="primary" sub="Latest body weight"
+            label="Weight" icon={Scale} color="primary"
             loading={loadingWeight} value={latestWeight != null ? `${latestWeight} kg` : '—'}
             spark={weightLogs && weightLogs.length > 1
               ? [...weightLogs].slice(0, 30).reverse().map(l => Number(l.value) || 0)
               : undefined}
           />
-          <KpiCard label="Body Fat" icon={Percent} color="purple" sub="Estimated body fat %" loading={loadingBodyFat} value={latestBodyFat != null ? `${latestBodyFat}%` : '—'} />
-          <KpiCard label="BMI" icon={Ruler} color="emerald" sub={bmi != null ? 'Body mass index' : 'Set height & weight in Settings'} loading={loadingGoals} value={bmi != null ? bmi.toFixed(1) : '—'} />
-          <KpiCard label="Last Night" icon={Moon} color="indigo" sub="Last logged sleep duration" loading={loadingSleep} value={lastNight != null ? `${lastNight}h` : '—'} />
-          <KpiCard label="7-Day Avg" icon={Clock} color="primary" sub="Average sleep this week" loading={loadingSleep} value={`${weeklyAvg}h`} />
+          <KpiCard label="Body Fat" icon={Percent} color="purple" loading={loadingBodyFat} value={latestBodyFat != null ? `${latestBodyFat}%` : '—'} />
+          <KpiCard label="BMI" icon={Ruler} color="emerald" loading={loadingGoals} value={bmi != null ? bmi.toFixed(1) : '—'} />
+          <KpiCard label="Last Night" icon={Moon} color="indigo" loading={loadingSleep} value={lastNight != null ? `${lastNight}h` : '—'} />
+          <KpiCard label="7-Day Avg" icon={Clock} color="primary" loading={loadingSleep} value={sleep?.weekly_avg != null ? `${sleep.weekly_avg}h` : '—'} />
         </KpiGrid>
 
         <StyledChartsGrid>
@@ -428,7 +431,7 @@ export function BodySleepTab() {
           )}
         </SectionCard>
       </StyledContainer>
-    </WorkspaceLayout>
+    </TabContent>
 
     <Dialog open={logModalOpen} onOpenChange={(v) => !v && setLogModalOpen(false)} title="Log Health Event">
       <StyledModalContent>

@@ -73,7 +73,13 @@ const Dot = styled.span<{ $color: string }>`
   border-radius: 50%;
   background: ${({ theme }) => theme.color.background};
   border: 2px solid ${({ $color }) => $color};
-  box-shadow: 0 0 0 3px ${({ theme }) => theme.color.background};
+  box-shadow: 0 0 0 3px ${({ theme }) => theme.color.background}, 0 0 8px ${({ $color }) => $color}80;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    box-shadow: 0 0 0 3px ${({ theme }) => theme.color.background}, 0 0 12px ${({ $color }) => $color};
+    transform: scale(1.2);
+  }
 `;
 
 const Time = styled.div`

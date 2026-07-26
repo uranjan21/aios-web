@@ -5,7 +5,7 @@ import { Plus, FolderKanban, Trash2, PencilLine, CalendarDays, Tag } from 'lucid
 import { Button, Card, EmptyState, Input, Dialog, DialogFooter, Select, Label } from '@ledgr/ui'
 import { workspaceApi, Project, ProjectPayload } from '@ct/shared/api/workspace'
 import { goalsApi } from '@ct/shared/api/goals'
-import styled from 'styled-components'
+import styled, { useTheme } from 'styled-components'
 import { toast } from 'sonner'
 import { DOMAIN_OPTIONS, domainLabel } from '@ct/shared/config/domains'
 import { CollapsibleSection } from '@ct/shared/components/workspace/CollapsibleSection'
@@ -71,6 +71,28 @@ const ColorDot = styled.span<{ $color: string }>`
 `
 
 
+
+const StyledCard = styled(Card)`
+  position: relative;
+  overflow: hidden;
+  border: 1px solid ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : theme.color.border};
+  background: ${({ theme }) =>
+    theme.mode === 'dark'
+      ? 'linear-gradient(180deg, rgba(30, 32, 40, 0.8) 0%, rgba(20, 21, 26, 0.6) 100%)'
+      : 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 250, 252, 0.8) 100%)'};
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+`
+
+const ProjectCard = styled(StyledCard)`
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+    border-color: ${({ theme }) => theme.color.accent}80;
+  }
+`
 
 const STATUS_OPTIONS = [
   { label: 'Active', value: 'active' },
@@ -214,6 +236,7 @@ export function ProjectsSection({ domainFilter }: { domainFilter?: string }) {
   }
 
   const isOpen = isAddOpen || !!editingProject
+  const theme = useTheme()
 
   const renderProjectsList = (list: Project[], loading: boolean) => {
     if (!loading && list.length === 0) {
@@ -222,7 +245,11 @@ export function ProjectsSection({ domainFilter }: { domainFilter?: string }) {
           icon={<FolderKanban size={24} />}
           title="No projects yet"
           description="Create a project to organise your sprints and tasks."
-          action={<Button variant="primary" onClick={() => setIsAddOpen(true)}>Create Project</Button>}
+          action={<Button variant="primary" onClick={() => setIsAddOpen(true)} style={{
+            background: `linear-gradient(135deg, ${theme.color.accent} 0%, color-mix(in srgb, ${theme.color.accent} 80%, black) 100%)`,
+            border: 'none',
+            boxShadow: `0 4px 12px ${theme.color.accent}40`
+          }}>Create Project</Button>}
         />
       )
     }
@@ -243,7 +270,7 @@ export function ProjectsSection({ domainFilter }: { domainFilter?: string }) {
         >
           <Grid>
             {items.map((p) => (
-              <Card
+              <ProjectCard
                 key={p.id}
                 title={p.name}
                 subtitle={p.domain ? p.domain.charAt(0).toUpperCase() + p.domain.slice(1) : 'General'}
@@ -278,7 +305,7 @@ export function ProjectsSection({ domainFilter }: { domainFilter?: string }) {
                     <MetaChip key={l}><Tag size={9} /> {l.trim()}</MetaChip>
                   ))}
                 </CardMeta>
-              </Card>
+              </ProjectCard>
             ))}
           </Grid>
         </CollapsibleSection>
@@ -310,7 +337,7 @@ export function ProjectsSection({ domainFilter }: { domainFilter?: string }) {
     const subtitle = `${count} project${count !== 1 ? 's' : ''}`
 
     return (
-      <Card
+      <StyledCard
         icon={<FolderKanban size={16} />}
         title={cardTitle}
         subtitle={subtitle}
@@ -323,14 +350,18 @@ export function ProjectsSection({ domainFilter }: { domainFilter?: string }) {
               onChange={v => setStatusFilter(v as string)}
               options={STATUS_FILTER_OPTIONS}
             />
-            <Button variant="primary" size="sm" onClick={() => setIsAddOpen(true)}>
+            <Button variant="primary" size="sm" onClick={() => setIsAddOpen(true)} style={{
+              background: `linear-gradient(135deg, ${theme.color.accent} 0%, color-mix(in srgb, ${theme.color.accent} 80%, black) 100%)`,
+              border: 'none',
+              boxShadow: `0 4px 12px ${theme.color.accent}40`
+            }}>
               <Plus size={14} style={{ marginRight: 6 }} /> New Project
             </Button>
           </div>
         }
       >
         {renderProjectsList(byStatus, isLoading)}
-      </Card>
+      </StyledCard>
     )
   }
 

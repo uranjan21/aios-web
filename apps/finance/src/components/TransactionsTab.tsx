@@ -12,8 +12,8 @@ import {
   ChevronLeft, ChevronRight, ArrowLeftRight,
   Search, Upload as UploadIcon, Plus, Tag as TagIcon, FolderInput, Trash2, ArrowUpDown,
 } from 'lucide-react'
-import { financeApi } from '@ct/shared/api/areas'
 import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
+import { financeApi } from '@ct/shared/api/areas'
 import { TransactionCalendar } from './TransactionCalendar'
 import { ImportCsvModal } from './ImportCsvModal'
 
@@ -35,7 +35,7 @@ export { TransactionModal }
 
 dayjs.extend(isoWeek)
 
-export function TransactionsTab() {
+export function TransactionsTab({ navMenu }: { navMenu?: React.ReactNode } = {}) {
   const queryClient = useQueryClient()
   const [view, setView] = useState<'Daily' | 'Calendar' | 'Weekly' | 'Monthly'>('Monthly')
   const [month, setMonth] = useState(() => dayjs().startOf('month'))
@@ -458,7 +458,7 @@ export function TransactionsTab() {
 
   return (
     <>
-      <WorkspaceLayout rail={undefined}>
+      <WorkspaceLayout rail={navMenu}>
         {toolbar}
         {summaryElement}
         <GlassCard

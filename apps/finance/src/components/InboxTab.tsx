@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Card, Button, Input, Select } from '@ledgr/ui'
+import { Card, Button, Input, Select, EmptyState } from '@ledgr/ui'
 import { Check, X, Inbox as InboxIcon, Receipt, Mail, RefreshCw } from 'lucide-react'
 import { financeApi, type FinancePendingTransaction } from '@ct/shared/api/areas'
 import { agentsApi } from '@ct/shared/api/agents'
@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import styled from 'styled-components'
+import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 
 dayjs.extend(relativeTime)
 
@@ -162,28 +163,8 @@ const SnippetRaw = styled.div`
   line-height: 1.5;
 `
 
-const EmptyStateContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 0;
-  color: var(--ui-text-tertiary);
-`
 
-const EmptyStateTitle = styled.div`
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--ui-text-primary);
-  margin-top: ${({ theme }) => `${theme.spacing[4]}`};
-  margin-bottom: ${({ theme }) => `${theme.spacing[2]}`};
-`
-
-const EmptyStateDesc = styled.div`
-  font-size: 0.9375rem;
-`
-
-export function InboxTab() {
+export function InboxTab({ navMenu }: { navMenu?: React.ReactNode }) {
   const [transactions, setTransactions] = useState<FinancePendingTransaction[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [expenseCategories, setExpenseCategories] = useState<Category[]>([])
@@ -300,27 +281,33 @@ export function InboxTab() {
     }
   }
 
-  if (loading) return <div>Loading inbox...</div>
+  if (loading) return (
+    <WorkspaceLayout rail={navMenu}>
+      <div>Loading inbox...</div>
+    </WorkspaceLayout>
+  )
 
   if (transactions.length === 0) {
     return (
-      <Card>
-        <EmptyStateContainer>
-          <InboxIcon size={56} style={{ opacity: 0.3 }} />
-          <EmptyStateTitle>Inbox is empty</EmptyStateTitle>
-          <EmptyStateDesc>No pending transactions from your emails.</EmptyStateDesc>
-          <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-            <Button variant="outline" size="sm" onClick={onFetchNow}>
-              <RefreshCw size={14} style={{ marginRight: 6 }} /> Fetch now
-            </Button>
-            <Link to="/app/settings">
-              <Button variant="outline" size="sm">
-                <Mail size={14} style={{ marginRight: 6 }} /> Connect Gmail
+      <WorkspaceLayout rail={navMenu}>
+        <EmptyState
+          icon={<InboxIcon size={32} />}
+          title="Inbox is empty"
+          description="No pending transactions from your emails."
+          action={
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button variant="outline" size="sm" onClick={onFetchNow}>
+                <RefreshCw size={14} style={{ marginRight: 6 }} /> Fetch now
               </Button>
-            </Link>
-          </div>
-        </EmptyStateContainer>
-      </Card>
+              <Link to="/app/settings">
+                <Button variant="outline" size="sm">
+                  <Mail size={14} style={{ marginRight: 6 }} /> Connect Gmail
+                </Button>
+              </Link>
+            </div>
+          }
+        />
+      </WorkspaceLayout>
     )
   }
 
@@ -350,7 +337,8 @@ export function InboxTab() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24 }}>
+    <WorkspaceLayout rail={navMenu}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24 }}>
       {transactions.length > 1 && (
         <BulkBar>
           <MetaText>{transactions.length} transactions waiting for review</MetaText>
@@ -449,6 +437,7 @@ export function InboxTab() {
           </TransactionCard>
         )
       })}
-    </div>
+      </div>
+    </WorkspaceLayout>
   )
 }

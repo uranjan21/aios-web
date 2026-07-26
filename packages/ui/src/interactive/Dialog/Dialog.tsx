@@ -44,9 +44,10 @@ const Overlay = styled.div`
   position: fixed;
   inset: 0;
   z-index: ${({ theme }) => theme.zIndex.overlay};
-  background: ${({ theme }) => theme.color.overlay};
+  background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.3)'};
   animation: ${fadeIn} ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.enter};
-  backdrop-filter: blur(3px);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
 `;
 
 const Surface = styled.div<{ $size: DialogSize }>`
@@ -60,11 +61,13 @@ const Surface = styled.div<{ $size: DialogSize }>`
   max-height: 88vh;
   display: flex;
   flex-direction: column;
-  background: ${({ theme }) => theme.color.card};
+  background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(20, 24, 34, 0.85)' : 'rgba(255, 255, 255, 0.85)'};
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   color: ${({ theme }) => theme.color.cardForeground};
-  border-radius: ${({ theme }) => theme.radii.md};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  box-shadow: none;
+  border-radius: ${({ theme }) => theme.radii.xl};
+  border: 1px solid ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : theme.color.border};
+  box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   outline: none;
   overflow: hidden;
   animation: ${popIn} ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.enter};

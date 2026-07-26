@@ -74,24 +74,35 @@ const pulse = keyframes`
 const HeroCard = styled(Card)`
   position: relative;
   overflow: hidden;
-  border: 1px solid ${({ theme }) => theme.color.border};
+  border: 1px solid ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.5)'};
   background:
     radial-gradient(
-      120% 130% at 100% 0%,
-      ${({ theme }) => theme.color.accent}14 0%,
-      transparent 46%
+      100% 120% at 100% 0%,
+      ${({ theme }) => theme.color.accent}20 0%,
+      transparent 70%
     ),
-    ${({ theme }) => theme.color.card};
+    radial-gradient(
+      80% 80% at 0% 100%,
+      ${({ theme }) => theme.color.accent}0A 0%,
+      transparent 60%
+    ),
+    ${({ theme }) =>
+      theme.mode === 'dark' ? 'rgba(20, 24, 34, 0.65)' : 'rgba(255, 255, 255, 0.75)'};
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: 0 12px 40px -10px rgba(0, 0, 0, 0.08);
+  border-radius: ${({ theme }) => theme.radii.xl};
 
   &::before {
     content: "";
     position: absolute;
     inset: 0 0 auto 0;
-    height: 2px;
+    height: 1px;
     background: linear-gradient(
       90deg,
-      ${({ theme }) => theme.color.accent} 0%,
-      ${({ theme }) => theme.color.accent}40 28%,
+      ${({ theme }) => theme.color.accent}80 0%,
+      ${({ theme }) => theme.color.accent}20 28%,
       transparent 60%
     );
     pointer-events: none;
@@ -186,10 +197,12 @@ const Chip = styled.span`
   display: inline-flex;
   align-items: center;
   gap: ${({ theme }) => `${theme.spacing[1.5]}`};
-  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[2.5]}`};
-  border-radius: ${({ theme }) => theme.radii.sm};
-  background: ${({ theme }) => theme.color.muted};
-  border: 1px solid ${({ theme }) => theme.color.border};
+  padding: 4px 10px;
+  border-radius: ${({ theme }) => theme.radii.md};
+  background: ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)'};
+  border: 1px solid ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : theme.color.border};
   color: ${({ theme }) => theme.color.foreground};
   font-size: ${({ theme }) => theme.typography.fontSize.xs};
   font-weight: 600;
@@ -208,10 +221,16 @@ const QuotePanel = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => `${theme.spacing[4]}`};
-  padding: ${({ theme }) => `${theme.spacing[4.5]}`};
-  border-radius: ${({ theme }) => theme.radii.lg};
-  background: ${({ theme }) => theme.color.muted};
-  border: 1px solid ${({ theme }) => theme.color.border};
+  padding: ${({ theme }) => `${theme.spacing[5]}`};
+  border-radius: ${({ theme }) => theme.radii.xl};
+  background: ${({ theme }) =>
+    theme.mode === 'dark'
+      ? `linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)`
+      : `linear-gradient(145deg, ${theme.color.accent}12 0%, ${theme.color.accent}04 100%)`};
+  border: 1px solid ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.5)'};
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255,255,255,0.4);
 `;
 
 const QuoteLabel = styled.span`
@@ -253,6 +272,21 @@ const CaptureBtn = styled(Button)`
   align-self: stretch;
   justify-content: center;
   border-radius: ${({ theme }) => theme.radii.md};
+  background: linear-gradient(
+    135deg,
+    ${({ theme }) => theme.color.accent} 0%,
+    ${({ theme }) => theme.color.accent}DD 100%
+  ) !important;
+  color: ${({ theme }) => theme.color.accentForeground} !important;
+  border: none !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px ${({ theme }) => theme.color.accent}3D;
+  transition: all 160ms ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px ${({ theme }) => theme.color.accent}55;
+  }
 `;
 
 const QuoteActions = styled.div`

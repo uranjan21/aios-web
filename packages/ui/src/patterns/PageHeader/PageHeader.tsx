@@ -23,6 +23,8 @@ const Root = styled.header`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[2]};
+  padding: ${({ theme }) => `${theme.spacing[1]} 0`};
+  margin-bottom: ${({ theme }) => theme.spacing[4]};
 `;
 
 const MainRow = styled.div`

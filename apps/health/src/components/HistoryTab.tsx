@@ -6,8 +6,14 @@ import { Download, Activity, History, Plus } from 'lucide-react'
 import { healthApi } from '@ct/shared/api/areas'
 import { exportToCsv, formatRelativeTime } from '@ct/shared/lib/utils'
 import { format } from 'date-fns'
-import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
+
 import styled from 'styled-components'
+
+const TabContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing[6]};
+`
 
 const TYPE_COLORS: Record<string, "success" | "info" | "warning" | "accent" | "neutral" | "primary" | "destructive"> = {
   gym: 'success',
@@ -129,7 +135,7 @@ export function HistoryTab({ onLogClick }: { onLogClick?: () => void }) {
 
   return (
     <>
-      <WorkspaceLayout rail={undefined}>
+      <TabContent>
         <GlassCard
           title="History Logs"
           subtitle="Recent entries and health logs history"
@@ -179,7 +185,7 @@ export function HistoryTab({ onLogClick }: { onLogClick?: () => void }) {
             }}
           />
         </GlassCard>
-      </WorkspaceLayout>
+      </TabContent>
     </>
   )
 }

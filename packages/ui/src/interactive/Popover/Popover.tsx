@@ -1,4 +1,4 @@
-import { createContext, useContext, useId, useRef, useState, useLayoutEffect, cloneElement, isValidElement } from 'react';
+import { createContext, useContext, useId, useRef, useState, useLayoutEffect, useCallback, cloneElement, isValidElement } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { Portal } from '../../utils/Portal';
@@ -46,17 +46,26 @@ export interface PopoverTriggerProps {
 export function PopoverTrigger({ children }: PopoverTriggerProps) {
   const { open, setOpen, triggerRef, contentId } = useCtx();
   if (!isValidElement(children)) return children;
+  
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const childProps = (children.props ?? {}) as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const origRef = (children as any).ref;
+
+  const handleRef = useCallback((node: HTMLElement | null) => {
+    triggerRef.current = node;
+    if (typeof origRef === 'function') origRef(node);
+    else if (origRef && typeof origRef === 'object') origRef.current = node;
+  }, [origRef, triggerRef]);
+
+  const handleClick = useCallback((e: unknown) => {
+    setOpen(!open);
+    childProps.onClick?.(e);
+  }, [open, setOpen, childProps.onClick]);
+
   return cloneElement(children as ReactElement<Record<string, unknown>>, {
-    ref: (node: HTMLElement | null) => {
-      triggerRef.current = node;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const orig = (children as any).ref;
-      if (typeof orig === 'function') orig(node);
-      else if (orig && typeof orig === 'object') orig.current = node;
-    },
-    onClick: (e: unknown) => { setOpen(!open); childProps.onClick?.(e); },
+    ref: handleRef,
+    onClick: handleClick,
     'aria-expanded': open,
     'aria-haspopup': 'dialog',
     'aria-controls': open ? contentId : undefined,
@@ -72,17 +81,25 @@ const Surface = styled.div<{ $top: number; $left: number; $minWidth: number }>`
   position: fixed;
   top: ${({ $top }) => `${$top}px`};
   left: ${({ $left }) => `${$left}px`};
-  z-index: ${({ theme }) => theme.zIndex.popover};
+  z-index: ${({ theme }) => theme.zIndex?.popover ?? 1000};
   min-width: ${({ $minWidth }) => `${$minWidth}px`};
-  background: ${({ theme }) => theme.color.popover};
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(20, 24, 34, 0.85)' : 'rgba(255, 255, 255, 0.95)'};
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
   color: ${({ theme }) => theme.color.popoverForeground};
-  border: 1px solid ${({ theme }) => theme.color.border};
+  border: 1px solid ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : theme.color.border};
   border-radius: ${({ theme }) => theme.radii.lg};
-  box-shadow: ${({ theme }) => theme.shadow.lg};
+  box-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   padding: ${({ theme }) => theme.spacing[3]};
   outline: none;
   transform-origin: top left;
   animation: ${popIn} ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.enter};
+
+  /* Hide scrollbar for clean visual unless scroll is necessary */
+  scrollbar-width: thin;
+  scrollbar-color: ${({ theme }) => theme.color.border} transparent;
 `;
 
 export interface PopoverContentProps {
@@ -93,6 +110,8 @@ export interface PopoverContentProps {
   /** Match trigger width as min-width. */
   matchTriggerWidth?: boolean;
   children: ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
 function computePos(
@@ -135,6 +154,8 @@ export function PopoverContent({
   gap = 6,
   matchTriggerWidth = false,
   children,
+  className,
+  style,
 }: PopoverContentProps) {
   const { open, setOpen, triggerRef, contentId } = useCtx();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -143,13 +164,32 @@ export function PopoverContent({
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    setMinWidth(matchTriggerWidth ? rect.width : 0);
-    // Compute after paint so content is measured
-    const id = requestAnimationFrame(() => {
+
+    const updatePosition = () => {
+      if (!triggerRef.current || !contentRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      if (matchTriggerWidth) setMinWidth(rect.width);
       setPos(computePos(rect, side, align, gap, contentRef.current));
+    };
+
+    updatePosition();
+
+    // Re-measure position when content size changes (e.g. images load, async data arrives)
+    const observer = new ResizeObserver(() => {
+      updatePosition();
     });
-    return () => cancelAnimationFrame(id);
+
+    if (contentRef.current) observer.observe(contentRef.current);
+    if (triggerRef.current) observer.observe(triggerRef.current);
+
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
   }, [open, side, align, gap, matchTriggerWidth, triggerRef]);
 
   useOnClickOutside(contentRef, (e) => {
@@ -162,7 +202,7 @@ export function PopoverContent({
   if (!open) return null;
   return (
     <Portal>
-      <Surface ref={contentRef} id={contentId} role="dialog" $top={pos.top} $left={pos.left} $minWidth={minWidth}>
+      <Surface ref={contentRef} id={contentId} role="dialog" $top={pos.top} $left={pos.left} $minWidth={minWidth} className={className} style={style}>
         {children}
       </Surface>
     </Portal>

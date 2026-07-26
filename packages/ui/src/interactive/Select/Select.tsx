@@ -74,13 +74,30 @@ const Trigger = styled.button<{ $size: SelectSize; $invalid: boolean; $fullWidth
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   color: ${({ theme }) => theme.color.foreground};
   border-radius: ${({ theme }) => theme.radii.md};
-  background: ${({ theme }) => theme.color.card};
-  border: 1px solid ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.border)};
+  background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'};
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid ${({ theme, $invalid }) => $invalid ? theme.color.destructive : theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'};
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04);
   cursor: pointer;
   text-align: left;
   white-space: nowrap;
-  transition: border-color ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
-  ${focusRing}
+  transition: all ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
+  
+  &:hover {
+    background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.03)'};
+    border-color: ${({ theme, $invalid }) => $invalid ? theme.color.destructive : theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)'};
+  }
+
+  &:focus-visible {
+    outline: none;
+    background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'};
+    border-color: ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.accent)};
+    box-shadow: 
+      inset 0 2px 4px rgba(0, 0, 0, 0.04),
+      0 0 0 1px ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.accent)},
+      0 0 12px ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.accent)}40;
+  }
 
   &:disabled {
     opacity: 0.6;
@@ -118,10 +135,12 @@ const Surface = styled.div<{ $top: number; $left: number; $width: number }>`
   max-height: 280px;
   overflow-y: auto;
   z-index: ${({ theme }) => theme.zIndex.popover};
-  background: ${({ theme }) => theme.color.popover};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.md};
-  box-shadow: ${({ theme }) => theme.shadow.lg};
+  background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(20, 24, 34, 0.85)' : 'rgba(255, 255, 255, 0.95)'};
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : theme.color.border};
+  border-radius: ${({ theme }) => theme.radii.lg};
+  box-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   padding: ${({ theme }) => theme.spacing[1]};
   animation: ${popIn} ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.enter};
   outline: none;
@@ -145,7 +164,7 @@ const Item = styled.button<{ $selected: boolean; $disabled: boolean }>`
   transition: background-color ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
 
   &:hover:not(:disabled), &:focus-visible {
-    background: ${({ theme }) => theme.color.muted};
+    background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'};
   }
 
   & > svg { width: 14px; height: 14px; flex-shrink: 0; }

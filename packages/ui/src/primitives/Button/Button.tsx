@@ -75,67 +75,85 @@ const sizeStyles = {
 
 const variantStyles = {
   primary: css`
-    background: ${({ theme }) => theme.color.primary};
+    background: linear-gradient(135deg, ${({ theme }) => theme.color.primary} 0%, ${({ theme }) => theme.color.primaryHover} 100%);
     color: ${({ theme }) => theme.color.primaryForeground};
     border: none;
-    box-shadow: ${({ theme }) => theme.shadow.clay};
+    box-shadow: 
+      inset 0 1px 0 rgba(255, 255, 255, 0.2), 
+      inset 0 -1px 0 rgba(0, 0, 0, 0.1), 
+      0 4px 12px ${({ theme }) => theme.color.primary}40;
     &:hover:not(:disabled) {
-      background: ${({ theme }) => theme.color.primaryHover};
+      background: linear-gradient(135deg, ${({ theme }) => theme.color.primaryHover} 0%, ${({ theme }) => theme.color.primary} 100%);
+      box-shadow: 
+        inset 0 1px 0 rgba(255, 255, 255, 0.3), 
+        inset 0 -1px 0 rgba(0, 0, 0, 0.1), 
+        0 6px 16px ${({ theme }) => theme.color.primary}50;
+      transform: translateY(-1px);
     }
     &:active:not(:disabled) {
-      box-shadow: ${({ theme }) => theme.shadow.clayActive};
+      box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.2), 
+        0 2px 4px ${({ theme }) => theme.color.primary}30;
       transform: translateY(1px);
     }
   `,
   secondary: css`
-    background: ${({ theme }) => theme.color.muted};
+    background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)'};
     color: ${({ theme }) => theme.color.foreground};
-    border: none;
-    box-shadow: ${({ theme }) => theme.shadow.clay};
+    border: 1px solid ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'};
+    backdrop-filter: blur(12px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     &:hover:not(:disabled) {
-      background: ${({ theme }) => theme.color.border};
+      background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.09)' : 'rgba(0, 0, 0, 0.06)'};
+      border-color: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)'};
     }
     &:active:not(:disabled) {
-      box-shadow: ${({ theme }) => theme.shadow.clayActive};
+      box-shadow: none;
       transform: translateY(1px);
     }
   `,
   outline: css`
     background: transparent;
     color: ${({ theme }) => theme.color.foreground};
-    border: none;
-    box-shadow: ${({ theme }) => theme.shadow.claySunken};
+    border: 1px solid ${({ theme }) => theme.color.border};
+    box-shadow: none;
     &:hover:not(:disabled) {
-      background: ${({ theme }) => theme.color.muted};
+      background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)'};
+      border-color: ${({ theme }) => theme.color.foreground}30;
     }
     &:active:not(:disabled) {
-      box-shadow: ${({ theme }) => theme.shadow.clayActive};
       transform: translateY(1px);
     }
   `,
   ghost: css`
     background: transparent;
     color: ${({ theme }) => theme.color.foreground};
-    border: none;
+    border: 1px solid transparent;
     box-shadow: none;
     &:hover:not(:disabled) {
-      background: ${({ theme }) => theme.color.muted};
+      background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)'};
     }
     &:active:not(:disabled) {
-      box-shadow: ${({ theme }) => theme.shadow.clayActive};
       transform: translateY(1px);
     }
   `,
   destructive: css`
-    background: ${({ theme }) => theme.color.destructive};
+    background: linear-gradient(135deg, ${({ theme }) => theme.color.destructive} 0%, #B91C1C 100%);
     color: ${({ theme }) => theme.color.destructiveForeground};
     border: none;
-    box-shadow: ${({ theme }) => theme.shadow.clay};
+    box-shadow: 
+      inset 0 1px 0 rgba(255, 255, 255, 0.2), 
+      inset 0 -1px 0 rgba(0, 0, 0, 0.1), 
+      0 4px 12px ${({ theme }) => theme.color.destructive}40;
     &:hover:not(:disabled) {
-      filter: brightness(0.92);
+      background: linear-gradient(135deg, #EF4444 0%, ${({ theme }) => theme.color.destructive} 100%);
+      box-shadow: 
+        inset 0 1px 0 rgba(255, 255, 255, 0.3), 
+        0 6px 16px ${({ theme }) => theme.color.destructive}50;
+      transform: translateY(-1px);
     }
     &:active:not(:disabled) {
-      box-shadow: ${({ theme }) => theme.shadow.clayActive};
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
       transform: translateY(1px);
     }
   `,

@@ -2,11 +2,10 @@ import { useMemo } from 'react'
 import styled, { useTheme } from 'styled-components'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, AlertCircle } from 'lucide-react'
-import { Card } from '@ledgr/ui'
 import { capturesApi } from '@ct/shared/api/areas'
 import { fmtDateKey } from '@ct/shared/stores/dayEventsStore'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
-import { Empty } from './shared'
+import { Empty, StyledCard } from './shared'
 
 /* ───────────────── 2. WeekActivityCard ───────────────── */
 
@@ -34,6 +33,7 @@ const Bar = styled.div<{ $heightPct: number; $today: boolean }>`
   background: ${({ theme, $today }) => $today ? theme.color.accent : theme.color.foreground + 'AA'};
   border-radius: 4px 4px 2px 2px;
   transition: height 220ms ease-out;
+  box-shadow: ${({ theme, $today, $heightPct }) => $today && $heightPct > 4 ? `0 0 12px ${theme.color.accent}60` : 'none'};
 `
 
 const DowSm = styled.span<{ $today: boolean }>`
@@ -97,7 +97,7 @@ export function WeekActivityCard() {
   const todayKey = fmtDateKey(new Date())
 
   return (
-    <Card title="This Week" subtitle="Captures per day" icon={<Activity size={14} style={{ color: theme.domain.career }} />}>
+    <StyledCard title="This Week" subtitle="Captures per day" icon={<Activity size={14} style={{ color: theme.domain.career }} />}>
       {isError ? (
         <Empty style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <AlertCircle size={13} /> Failed to load captures.
@@ -123,6 +123,7 @@ export function WeekActivityCard() {
           </Total>
         </>
       )}
-    </Card>
+    </StyledCard>
   )
 }
+

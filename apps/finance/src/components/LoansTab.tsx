@@ -9,6 +9,7 @@ import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import type { FinanceLoan } from '@ct/shared/types'
 import { PayoffPlanner } from './PayoffPlanner'
 import styled from 'styled-components'
+import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 
 const RootContainer = styled.div`
   display: flex;
@@ -152,7 +153,7 @@ const EMPTY_LOAN_FORM: LoanForm = {
   interest_rate: '0', emi_amount: '0', emi_day: '1', tenure_months: '', notes: '',
 }
 
-export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
+export function LoansTab({ onAdd, navMenu }: { onAdd?: () => void, navMenu?: React.ReactNode } = {}) {
   const queryClient = useQueryClient()
   const [updatingLoan, setUpdatingLoan] = useState<FinanceLoan | null>(null)
   const [loanForm, setLoanForm] = useState<LoanForm>(EMPTY_LOAN_FORM)
@@ -351,119 +352,125 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
     statusFilter === 'all' ? true : statusFilter === 'active' ? l.is_active : !l.is_active
   )
 
-  if (isLoading) return <LoadingContainer><LoadHead /><LoadBody /></LoadingContainer>;
+  if (isLoading) return (
+    <WorkspaceLayout rail={navMenu}>
+      <LoadingContainer><LoadHead /><LoadBody /></LoadingContainer>
+    </WorkspaceLayout>
+  )
 
   return (
-    <RootContainer>
-      <Card
-        title="Loans & EMIs"
-        subtitle="Outstanding balances and monthly EMI obligations"
-        icon={<Landmark size={16} />}
-        action={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Select
-              size="sm"
-              fullWidth={false}
-              aria-label="Filter loans by status"
-              value={statusFilter}
-              onChange={(v: any) => setStatusFilter(v as typeof statusFilter)}
-              options={[
-                { value: 'all', label: 'All Loans' },
-                { value: 'active', label: 'Active' },
-                { value: 'paid', label: 'Paid off' },
-              ]}
-            />
-            {onAdd && (
-              <Button size="sm" variant="primary" onClick={onAdd}>
-                <Plus size={12} style={{ marginRight: 4 }} /> Add Loan
-              </Button>
-            )}
-          </div>
-        }
-      >
-        <DataTable
-          rows={visibleLoans}
-          columns={columns}
-          getRowKey={(row: any) => row.id}
-          empty={{ icon: <Landmark size={20} />, title: 'No loans tracked', description: 'Add a home loan, car loan, or personal loan to monitor your EMI and payoff progress.' }}
-        />
-        {summary && (
-          <SummaryRow>
-            <div>Active Total</div>
-            <div>Outstanding: ₹{summary.total_outstanding.toLocaleString('en-IN')}</div>
-            <div>EMI: ₹{summary.total_emi.toLocaleString('en-IN')}/mo</div>
-          </SummaryRow>
-        )}
-
-        <Dialog
-          open={!!updatingLoan}
-          title={<span style={{ color: 'var(--foreground)' }}>Edit Loan{updatingLoan?.name ? ` — ${updatingLoan.name}` : ''}</span>}
-          onOpenChange={(open) => { if (!open) closeEdit() }}
-          size="md"
+    <WorkspaceLayout rail={navMenu}>
+      <RootContainer>
+        <Card
+          title="Loans & EMIs"
+          subtitle="Outstanding balances and monthly EMI obligations"
+          icon={<Landmark size={16} />}
+          action={
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Select
+                size="sm"
+                fullWidth={false}
+                aria-label="Filter loans by status"
+                value={statusFilter}
+                onChange={(v: any) => setStatusFilter(v as typeof statusFilter)}
+                options={[
+                  { value: 'all', label: 'All Loans' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'paid', label: 'Paid off' },
+                ]}
+              />
+              {onAdd && (
+                <Button size="sm" variant="primary" onClick={onAdd}>
+                  <Plus size={12} style={{ marginRight: 4 }} /> Add Loan
+                </Button>
+              )}
+            </div>
+          }
         >
-          <UpdateForm onSubmit={e => { e.preventDefault(); handleSave() }}>
-            <div>
-              <FieldLabel>Loan name</FieldLabel>
-              <Input value={loanForm.name} onChange={(e: any) => setLoanForm(f => ({ ...f, name: e.target.value }))} placeholder="Home Loan — SBI" autoFocus required />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div>
-                <FieldLabel>Type</FieldLabel>
-                <Select fullWidth value={loanForm.loan_type} onChange={(v: any) => setLoanForm(f => ({ ...f, loan_type: String(v) }))} options={[
-                  { value: 'home', label: 'Home loan' },
-                  { value: 'personal', label: 'Personal loan' },
-                  { value: 'car', label: 'Car loan' },
-                  { value: 'education', label: 'Education loan' },
-                  { value: 'credit_card', label: 'Credit card' },
-                  { value: 'other', label: 'Other' },
-                ]} />
-              </div>
-              <div>
-                <FieldLabel>Lender</FieldLabel>
-                <Input value={loanForm.lender} onChange={(e: any) => setLoanForm(f => ({ ...f, lender: e.target.value }))} placeholder="SBI" />
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div>
-                <FieldLabel>Principal amount</FieldLabel>
-                <Input type="number" startAdornment="₹" min="0" value={loanForm.principal_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, principal_amount: e.target.value }))} required />
-              </div>
-              <div>
-                <FieldLabel>Outstanding amount</FieldLabel>
-                <Input type="number" startAdornment="₹" min="0" value={loanForm.outstanding_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, outstanding_amount: e.target.value }))} required />
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-              <div>
-                <FieldLabel>Interest rate (%)</FieldLabel>
-                <Input type="number" min="0" step="0.01" value={loanForm.interest_rate} onChange={(e: any) => setLoanForm(f => ({ ...f, interest_rate: e.target.value }))} required />
-              </div>
-              <div>
-                <FieldLabel>EMI amount</FieldLabel>
-                <Input type="number" startAdornment="₹" min="0" value={loanForm.emi_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, emi_amount: e.target.value }))} required />
-              </div>
-              <div>
-                <FieldLabel>EMI day</FieldLabel>
-                <Input type="number" min="1" max="31" value={loanForm.emi_day} onChange={(e: any) => setLoanForm(f => ({ ...f, emi_day: e.target.value }))} required />
-              </div>
-            </div>
-            <div>
-              <FieldLabel>Tenure (months, optional)</FieldLabel>
-              <Input type="number" min="1" value={loanForm.tenure_months} onChange={(e: any) => setLoanForm(f => ({ ...f, tenure_months: e.target.value }))} placeholder="e.g. 240" />
-            </div>
-            <div>
-              <FieldLabel>Notes</FieldLabel>
-              <Input value={loanForm.notes} onChange={(e: any) => setLoanForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional" />
-            </div>
-            <FormActions>
-              <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save changes</Button>
-              <Button variant="ghost" type="button" onClick={closeEdit} disabled={updateMutation.isPending}>Cancel</Button>
-            </FormActions>
-          </UpdateForm>
-        </Dialog>
-      </Card>
+          <DataTable
+            rows={visibleLoans}
+            columns={columns}
+            getRowKey={(row: any) => row.id}
+            empty={{ icon: <Landmark size={20} />, title: 'No loans tracked', description: 'Add a home loan, car loan, or personal loan to monitor your EMI and payoff progress.' }}
+          />
+          {summary && (
+            <SummaryRow>
+              <div>Active Total</div>
+              <div>Outstanding: ₹{summary.total_outstanding.toLocaleString('en-IN')}</div>
+              <div>EMI: ₹{summary.total_emi.toLocaleString('en-IN')}/mo</div>
+            </SummaryRow>
+          )}
 
-      {loans && loans.some(l => l.is_active) && <PayoffPlanner loans={loans} />}
-    </RootContainer>
+          <Dialog
+            open={!!updatingLoan}
+            title={<span style={{ color: 'var(--foreground)' }}>Edit Loan{updatingLoan?.name ? ` — ${updatingLoan.name}` : ''}</span>}
+            onOpenChange={(open) => { if (!open) closeEdit() }}
+            size="md"
+          >
+            <UpdateForm onSubmit={e => { e.preventDefault(); handleSave() }}>
+              <div>
+                <FieldLabel>Loan name</FieldLabel>
+                <Input value={loanForm.name} onChange={(e: any) => setLoanForm(f => ({ ...f, name: e.target.value }))} placeholder="Home Loan — SBI" autoFocus required />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <FieldLabel>Type</FieldLabel>
+                  <Select fullWidth value={loanForm.loan_type} onChange={(v: any) => setLoanForm(f => ({ ...f, loan_type: String(v) }))} options={[
+                    { value: 'home', label: 'Home loan' },
+                    { value: 'personal', label: 'Personal loan' },
+                    { value: 'car', label: 'Car loan' },
+                    { value: 'education', label: 'Education loan' },
+                    { value: 'credit_card', label: 'Credit card' },
+                    { value: 'other', label: 'Other' },
+                  ]} />
+                </div>
+                <div>
+                  <FieldLabel>Lender</FieldLabel>
+                  <Input value={loanForm.lender} onChange={(e: any) => setLoanForm(f => ({ ...f, lender: e.target.value }))} placeholder="SBI" />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <FieldLabel>Principal amount</FieldLabel>
+                  <Input type="number" startAdornment="₹" min="0" value={loanForm.principal_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, principal_amount: e.target.value }))} required />
+                </div>
+                <div>
+                  <FieldLabel>Outstanding amount</FieldLabel>
+                  <Input type="number" startAdornment="₹" min="0" value={loanForm.outstanding_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, outstanding_amount: e.target.value }))} required />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <div>
+                  <FieldLabel>Interest rate (%)</FieldLabel>
+                  <Input type="number" min="0" step="0.01" value={loanForm.interest_rate} onChange={(e: any) => setLoanForm(f => ({ ...f, interest_rate: e.target.value }))} required />
+                </div>
+                <div>
+                  <FieldLabel>EMI amount</FieldLabel>
+                  <Input type="number" startAdornment="₹" min="0" value={loanForm.emi_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, emi_amount: e.target.value }))} required />
+                </div>
+                <div>
+                  <FieldLabel>EMI day</FieldLabel>
+                  <Input type="number" min="1" max="31" value={loanForm.emi_day} onChange={(e: any) => setLoanForm(f => ({ ...f, emi_day: e.target.value }))} required />
+                </div>
+              </div>
+              <div>
+                <FieldLabel>Tenure (months, optional)</FieldLabel>
+                <Input type="number" min="1" value={loanForm.tenure_months} onChange={(e: any) => setLoanForm(f => ({ ...f, tenure_months: e.target.value }))} placeholder="e.g. 240" />
+              </div>
+              <div>
+                <FieldLabel>Notes</FieldLabel>
+                <Input value={loanForm.notes} onChange={(e: any) => setLoanForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional" />
+              </div>
+              <FormActions>
+                <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save changes</Button>
+                <Button variant="ghost" type="button" onClick={closeEdit} disabled={updateMutation.isPending}>Cancel</Button>
+              </FormActions>
+            </UpdateForm>
+          </Dialog>
+        </Card>
+
+        {loans && loans.some(l => l.is_active) && <PayoffPlanner loans={loans} />}
+      </RootContainer>
+    </WorkspaceLayout>
   )
 }

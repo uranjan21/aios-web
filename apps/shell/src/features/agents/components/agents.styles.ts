@@ -105,9 +105,6 @@ export const SubValue = styled.span`
 
 export const RosterCard = styled(Card)`
   overflow: hidden;
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.md};
-  box-shadow: none;
 
   h2 {
     font-size: ${({ theme }) => theme.typography.fontSize.lg};

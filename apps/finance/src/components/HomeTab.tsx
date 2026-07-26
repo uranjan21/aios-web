@@ -9,10 +9,10 @@ import { formatCurrency } from '@ct/shared/lib/utils'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { ErrorState } from '@ledgr/ui'
 import { ProgressBar } from '@ct/shared/components/lumina';
-import { Card as GlassCard } from '@ledgr/ui';
-import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
+import { Card } from '@ledgr/ui';
 import styled, { useTheme, type DefaultTheme } from 'styled-components'
 import { TrendingDown, TrendingUp, Wallet, PiggyBank, CalendarClock, HeartPulse } from 'lucide-react'
+
 
 const StyledSkeleton = styled(Skeleton)<{ $height: string }>`
   height: ${({ $height }) => $height};
@@ -263,14 +263,14 @@ function HealthScoreCard({ data, delay = 0 }: { data: import('@ct/shared/types')
 
   if (!data) {
     return (
-      <GlassCard title="Financial Health" subtitle="Your overall financial score" icon={<HeartPulse size={16} />} hoverable fadeIn="up" delay={delay} style={{ height: '100%' }}>
+      <Card title="Financial Health" subtitle="Your overall financial score" icon={<HeartPulse size={16} />} hoverable style={{ height: '100%' }}>
         <StyledSkeleton $height="10rem" />
-      </GlassCard>
+      </Card>
     )
   }
   const currentData = (healthPeriod === 'prev' && data.prev) ? data.prev : data
   return (
-    <GlassCard
+    <Card
       title="Financial Health"
       subtitle="Your overall financial score"
       icon={<HeartPulse size={16} />}
@@ -289,8 +289,6 @@ function HealthScoreCard({ data, delay = 0 }: { data: import('@ct/shared/types')
         </div>
       }
       hoverable
-      fadeIn="up"
-      delay={delay}
       style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
     >
       <HealthScoreTop>
@@ -313,7 +311,7 @@ function HealthScoreCard({ data, delay = 0 }: { data: import('@ct/shared/types')
           </div>
         ))}
       </HealthScoreComponents>
-    </GlassCard>
+    </Card>
   )
 }
 
@@ -412,91 +410,83 @@ export function HomeTab() {
 
   return (
     <>
-      <WorkspaceLayout>
-        {/* KPI lead row */}
-        <KpiGrid>
-          <KpiCard
-            label="Net Worth"
-            value={formatCurrency(Number(netWorth?.net_worth ?? 0))}
-            color={Number(netWorth?.net_worth ?? 0) < 0 ? 'rose' : undefined}
-            icon={Wallet}
-          />
-          <KpiCard
-            label="Spent"
-            value={formatCurrency(totalExpenses)}
-            color="rose"
-            icon={TrendingDown}
-          />
-          <KpiCard
-            label="Income"
-            value={formatCurrency(totalIncome)}
-            color="primary"
-            icon={TrendingUp}
-          />
-          <KpiCard
-            label="Savings Rate"
-            value={savingsRate === null ? '—' : `${savingsRate}%`}
-            color={savingsRate !== null && savingsRate >= 20 ? 'primary' : undefined}
-            icon={PiggyBank}
-          />
-        </KpiGrid>
+      <KpiGrid>
+        <KpiCard
+          label="Net Worth"
+          value={formatCurrency(Number(netWorth?.net_worth ?? 0))}
+          color={Number(netWorth?.net_worth ?? 0) < 0 ? 'rose' : undefined}
+          icon={Wallet}
+        />
+        <KpiCard
+          label="Spent"
+          value={formatCurrency(totalExpenses)}
+          color="rose"
+          icon={TrendingDown}
+        />
+        <KpiCard
+          label="Income"
+          value={formatCurrency(totalIncome)}
+          color="primary"
+          icon={TrendingUp}
+        />
+        <KpiCard
+          label="Savings Rate"
+          value={savingsRate === null ? '—' : `${savingsRate}%`}
+          color={savingsRate !== null && savingsRate >= 20 ? 'primary' : undefined}
+          icon={PiggyBank}
+        />
+      </KpiGrid>
 
-        {/* Analytics: 2×2 */}
-        <AnalyticsGrid>
-          {/* Upcoming Payments */}
-          <AnalyticsCell>
-            <GlassCard
-              title="Upcoming Payments"
-              subtitle="Upcoming bills and EMIs"
-              icon={<CalendarClock size={16} />}
-              action={
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Select
-                    size="sm"
-                    fullWidth={false}
-                    options={[
-                      { label: 'All Due', value: 'all' },
-                      { label: 'Next 7 Days', value: '7d' },
-                    ]}
-                    value={upcomingFilter}
-                    onChange={(val) => setUpcomingFilter(val as string)}
-                  />
-                  <NavButton onClick={() => navigate('/app/finance/settings?section=bills')} />
-                </div>
-              } 
-              hoverable fadeIn="up" delay={100} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
-            >
-              <div style={{ flex: 1, overflowY: 'auto' }}>
-                {upcoming.length === 0 ? (
-                  <EmptyState title="No bills or EMIs due" />
-                ) : (
-                  <ListContainer>
-                    {upcoming.map(item => (
-                      <ListItem key={item.id}>
-                        <div>
-                          <ItemTitle>{item.name}</ItemTitle>
-                          <ItemSubtitle>{item.type} · due {ordinal(item.dueDay)}</ItemSubtitle>
-                        </div>
-                        <AmountContainer>
-                          <ItemAmountText>{formatCurrency(item.amount)}</ItemAmountText>
-                          <Badge tone={urgencyColor(item.days)} style={{ fontSize: '10px', lineHeight: '1.2', padding: '0 4px', margin: 0 }}>{item.days === 0 ? 'Today' : `${item.days}d`}</Badge>
-                        </AmountContainer>
-                      </ListItem>
-                    ))}
-                  </ListContainer>
-                )}
+      <AnalyticsGrid>
+        <AnalyticsCell>
+          <Card
+            title="Upcoming Payments"
+            subtitle="Upcoming bills and EMIs"
+            icon={<CalendarClock size={16} />}
+            action={
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Select
+                  size="sm"
+                  fullWidth={false}
+                  options={[
+                    { label: 'All Due', value: 'all' },
+                    { label: 'Next 7 Days', value: '7d' },
+                  ]}
+                  value={upcomingFilter}
+                  onChange={(val) => setUpcomingFilter(val as string)}
+                />
+                <NavButton onClick={() => navigate('/app/finance/settings?section=bills')} />
               </div>
-            </GlassCard>
-          </AnalyticsCell>
+            } 
+            hoverable style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+          >
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              {upcoming.length === 0 ? (
+                <EmptyState title="No bills or EMIs due" />
+              ) : (
+                <ListContainer>
+                  {upcoming.map(item => (
+                    <ListItem key={item.id}>
+                      <div>
+                        <ItemTitle>{item.name}</ItemTitle>
+                        <ItemSubtitle>{item.type} · due {ordinal(item.dueDay)}</ItemSubtitle>
+                      </div>
+                      <AmountContainer>
+                        <ItemAmountText>{formatCurrency(item.amount)}</ItemAmountText>
+                        <Badge tone={urgencyColor(item.days)} style={{ fontSize: '10px', lineHeight: '1.2', padding: '0 4px', margin: 0 }}>{item.days === 0 ? 'Today' : `${item.days}d`}</Badge>
+                      </AmountContainer>
+                    </ListItem>
+                  ))}
+                </ListContainer>
+              )}
+            </div>
+          </Card>
+        </AnalyticsCell>
 
-          {/* Financial Health Score */}
-          <AnalyticsCell>
-            <HealthScoreCard data={healthScore} delay={300} />
-          </AnalyticsCell>
-        </AnalyticsGrid>
-
-
-      </WorkspaceLayout>
+        <AnalyticsCell>
+          <HealthScoreCard data={healthScore} delay={300} />
+        </AnalyticsCell>
+      </AnalyticsGrid>
     </>
   )
 }

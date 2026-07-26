@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useTheme } from 'styled-components'
+import styled, { useTheme } from 'styled-components'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
@@ -8,7 +8,6 @@ import { healthApi } from '@ct/shared/api/areas'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { format } from 'date-fns'
 import type { FoodDbItem } from '@ct/shared/types'
-import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 import { Dialog, Button, Input, Select, Card, HeaderActionPortal } from '@ledgr/ui'
 
 import { MacroBar } from './nutrition/MacroBar'
@@ -42,6 +41,12 @@ import {
   StyledLabel,
   StyledFormGrid,
 } from './nutrition/NutritionTab.styles'
+
+const TabContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing[6]};
+`
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Dinner', 'Snack']
 
@@ -150,7 +155,7 @@ export function NutritionTab() {
 
   return (
     <>
-    <WorkspaceLayout rail={undefined}>
+    <TabContent>
       <HeaderActionPortal>
         <Button size="sm" variant="primary" onClick={() => setLogModalOpen(true)}>
           <Plus size={12} style={{ marginRight: 4 }} /> Log Food
@@ -244,7 +249,7 @@ export function NutritionTab() {
           )}
         </Card>
       </StyledContainer>
-    </WorkspaceLayout>
+    </TabContent>
 
     <Dialog open={logModalOpen} onOpenChange={setLogModalOpen} title="Log Meal">
       <StyledModalContent>

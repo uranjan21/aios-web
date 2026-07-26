@@ -6,7 +6,7 @@ import { spacing } from '@ct/shared/theme/layout'
 const StyledTabsWrapper = styled.div`
   /* Ensure the tabs list matches the exact spacing requested */
   [role="tablist"] {
-    margin-bottom: ${({ theme }) => theme.spacing[6]};
+    margin-bottom: ${({ theme }) => theme.spacing[4]};
   }
 
   [role="tab"] {
@@ -37,35 +37,46 @@ export interface AreaTabsProps {
 const StyledTabsList = styled(TabsList)`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing[6]};
-  border-bottom: 1px solid ${({ theme }) => theme.color.border};
-  width: 100%;
+  gap: ${({ theme }) => theme.spacing[2]};
+  padding: ${({ theme }) => theme.spacing[1]};
+  border-radius: ${({ theme }) => theme.radii.lg};
+  background: ${({ theme }) =>
+    theme.mode === 'dark'
+      ? 'rgba(255, 255, 255, 0.03)'
+      : 'rgba(0, 0, 0, 0.03)'};
+  border: 1px solid ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'};
+  width: max-content;
+  max-width: 100%;
   overflow-x: auto;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   &::-webkit-scrollbar {
-    display: none; /* Chrome, Safari and Opera */
+    display: none;
   }
 `
 
 const StyledTabsTrigger = styled(TabsTrigger)`
   position: relative;
-  padding: ${({ theme }) => theme.spacing[3]} 0;
+  padding: ${({ theme }) => theme.spacing[2]} ${({ theme }) => theme.spacing[4]};
   font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: ${({ theme }) => theme.typography.fontWeight.medium};
   white-space: nowrap;
   transition: all ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
-  border-bottom: 2px solid transparent;
+  border-radius: ${({ theme }) => theme.radii.md};
   color: ${({ theme }) => theme.color.mutedForeground};
   background: transparent;
   
   &[data-state="active"] {
-    border-color: ${({ theme }) => theme.color.primary};
-    color: ${({ theme }) => theme.color.primary};
+    color: ${({ theme }) => theme.mode === 'dark' ? '#fff' : '#000'};
+    background: ${({ theme }) => theme.color.card};
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   }
   
   &[data-state="inactive"]:hover {
     color: ${({ theme }) => theme.color.foreground};
+    background: ${({ theme }) =>
+      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'};
   }
 `
 

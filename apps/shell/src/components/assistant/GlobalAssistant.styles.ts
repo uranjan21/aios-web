@@ -5,26 +5,50 @@ export const FAB = styled(motion.button).attrs({ type: 'button' })`
   position: fixed;
   bottom: 24px;
   right: 24px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background-color: ${({ theme }) => theme.color.primary};
-  color: ${({ theme }) => theme.color.primaryForeground};
-  border: none;
-  box-shadow: ${({ theme }) => theme.shadow.lg};
+  height: 48px;
+  padding: 0 18px 0 14px;
+  border-radius: 9999px;
+  background: ${({ theme }) =>
+    theme.mode === 'dark'
+      ? 'rgba(20, 24, 34, 0.88)'
+      : 'rgba(255, 255, 255, 0.92)'};
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  color: ${({ theme }) => theme.color.foreground};
+  border: 1px solid ${({ theme }) => theme.color.accent}55;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.15), 0 0 12px ${({ theme }) => theme.color.accent}22;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
   z-index: 50;
+  transition: all 180ms cubic-bezier(0.16, 1, 0.3, 1);
 
   @media ${({ theme }) => theme.media.belowMd} {
-    bottom: 88px; /* clear the mobile BottomNav (64px + margin) */
+    bottom: 88px;
+  }
+
+  &:hover {
+    transform: translateY(-2px) scale(1.03);
+    border-color: ${({ theme }) => theme.color.accent};
+    box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.2), 0 0 20px ${({ theme }) => theme.color.accent}44;
   }
 
   &:focus-visible {
     outline: none;
     box-shadow: ${({ theme }) => theme.shadow.ring};
+  }
+
+  .sparkle-icon {
+    width: 18px;
+    height: 18px;
+    color: ${({ theme }) => theme.color.accent};
+  }
+
+  .fab-label {
+    letter-spacing: -0.01em;
   }
 `
 

@@ -1,16 +1,13 @@
-import React from 'react'
-import { PAGE_NAMES } from '@/config/navigation'
-import { ArrowLeft, Sun, Moon, Search, Menu, ChevronRight, Home, Settings, LogOut } from 'lucide-react'
+import { NAV_ITEMS } from '@/config/navigation'
+import { Sun, Moon, Search, Menu, Sparkles } from 'lucide-react'
 import { NotificationBell } from '@/components/NotificationBell'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useUIStore } from '@ct/shared/stores/uiStore'
 import { useAuthStore } from '@ct/shared/stores/authStore'
-import { logoutAndRedirect } from '@ct/shared/lib/logout'
-import { accountLabel } from '@ct/shared/lib/account'
-import {
-  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
-  DropdownMenuItem, DropdownMenuSeparator, focusRing } from '@ledgr/ui'
-
+import { useSubscription } from '@ct/shared/hooks/useSubscription'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@ledgr/ui'
+import { ChevronDown } from 'lucide-react'
+import { AccountMenuBody } from './AccountMenu'
 import styled from 'styled-components'
 import { TOPBAR_HEIGHT } from '@ct/shared/theme/layout'
 
@@ -19,37 +16,25 @@ const HeaderRoot = styled.header`
   height: ${TOPBAR_HEIGHT};
   flex-shrink: 0;
   z-index: 30;
-  border-bottom: 1px solid ${({ theme }) => theme.color.border};
-  background: color-mix(in srgb, ${({ theme }) => theme.color.card} 80%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: ${({ theme }) => theme.shadow.sm};
+  border-bottom: 1px solid ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'};
+  background: ${({ theme }) =>
+    theme.mode === 'dark'
+      ? 'linear-gradient(180deg, rgba(15, 17, 23, 0.85) 0%, rgba(15, 17, 23, 0.75) 100%)'
+      : 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%)'};
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[3]}`};
-  padding: ${({ theme }) => `0 ${theme.spacing[4]}`};
+  justify-content: space-between;
+  padding: 0 ${({ theme }) => theme.spacing[5]};
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
 `
 
-const BackButton = styled.button`
-  display: inline-flex;
+const LeftSide = styled.div`
+  display: flex;
   align-items: center;
-  justify-content: center;
-  padding: ${({ theme }) => `${theme.spacing[1.5]}`};
-  border-radius: ${({ theme }) => theme.radii.sm};
-  background: transparent;
-  border: none;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  cursor: pointer;
-  transition: background-color 120ms, color 120ms;
-  
-  &:hover {
-    background: ${({ theme }) => theme.color.muted};
-    color: ${({ theme }) => theme.color.foreground};
-  }
-
-  ${focusRing}
-  
-  svg { width: 16px; height: 16px; }
+  gap: ${({ theme }) => theme.spacing[4]};
 `
 
 const Hamburger = styled.button`
@@ -59,100 +44,215 @@ const Hamburger = styled.button`
   border: none;
   color: ${({ theme }) => theme.color.foreground};
   cursor: pointer;
-  border-radius: ${({ theme }) => theme.radii.md};
+  border-radius: ${({ theme }) => theme.radii.full};
   
-  &:hover { background: ${({ theme }) => theme.color.muted}; }
-
-  ${focusRing}
+  &:hover { background: ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'}; }
   
   @media ${({ theme }) => theme.media.md} {
     display: none;
   }
 `
 
-const BreadcrumbNav = styled.nav`
+const TopNavLinks = styled.nav`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
-  font-size: ${({ theme }) => theme.typography.fontSize.base};
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
   
   @media ${({ theme }) => theme.media.belowMd} {
     display: none;
   }
   
-  .crumb {
+  .nav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 9999px;
     color: ${({ theme }) => theme.color.mutedForeground};
     text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    background: none;
-    border: none;
-    padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1]}`};
-    margin: -2px -4px;
-    border-radius: ${({ theme }) => theme.radii.xs};
-    font: inherit;
-  }
-
-  .crumb.link {
-    cursor: pointer;
-    &:hover { color: ${({ theme }) => theme.color.foreground}; }
-  ${focusRing}
-  }
-
-  .crumb.active {
+    font-size: 13px;
     font-weight: 500;
-    color: ${({ theme }) => theme.color.foreground};
-  }
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
 
-  .separator {
-    width: 12px;
-    height: 12px;
-    color: ${({ theme }) => theme.color.mutedForeground};
-    flex-shrink: 0;
+    &:hover, &[data-state="open"] {
+      color: ${({ theme }) => theme.color.foreground};
+      background: ${({ theme }) =>
+        theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'};
+    }
+
+    &:hover {
+      transform: scale(1.02);
+    }
+
+    &.active {
+      color: ${({ theme }) => theme.color.foreground};
+      background: ${({ theme }) =>
+        theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'};
+      border-color: ${({ theme }) =>
+        theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.06)'};
+      font-weight: 600;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+    }
+
+    svg {
+      width: 14px;
+      height: 14px;
+      opacity: 0.8;
+      transition: transform 200ms ease;
+    }
   }
 `
 
-const GlobalSearchContainer = styled.div`
-  flex: 1;
-  max-width: 28rem;
+const StyledDropdownContent = styled(DropdownMenuContent)`
+  min-width: 200px;
+  border-radius: ${({ theme }) => theme.radii.lg};
+  background: ${({ theme }) =>
+    theme.mode === 'dark'
+      ? 'rgba(15, 17, 23, 0.72)'
+      : 'rgba(255, 255, 255, 0.75)'};
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.04);
+  padding: 6px;
+`
+
+const StyledDropdownItem = styled(DropdownMenuItem)<{ $active?: boolean }>`
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[3]}`};
+  margin: 2px;
+  cursor: pointer;
+  border-radius: ${({ theme }) => theme.radii.md};
+  transition: all 150ms ease;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: ${({ theme }) => theme.color.foreground};
+  font-size: 13px;
+  font-weight: 500;
+
+  &:hover {
+    background: ${({ theme }) =>
+      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)'};
+  }
+
+  ${({ $active, theme }) => $active && `
+    background: ${theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+    font-weight: 600;
+  `}
+
+  svg {
+    width: 15px;
+    height: 15px;
+    color: ${({ theme }) => theme.color.mutedForeground};
+  }
+  
+  &:hover svg, ${({ $active }) => $active && '& svg'} {
+    color: ${({ theme }) => theme.color.foreground};
+  }
+`
+
+const LogoBadge = styled.div`
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: ${({ theme }) => theme.radii.lg};
+  background: linear-gradient(135deg, ${({ theme }) => theme.color.accent}33 0%, ${({ theme }) => theme.color.accent}10 100%);
+  color: ${({ theme }) => theme.color.accent};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: ${({ theme }) => theme.typography.fontFamily.display};
+  font-size: 1rem;
+  font-weight: 800;
+  box-shadow: 0 4px 16px ${({ theme }) => theme.color.accent}2A;
+  border: 1px solid ${({ theme }) => theme.color.accent}44;
   position: relative;
-  margin-left: ${({ theme }) => `${theme.spacing[6]}`};
+  transition: transform 200ms ease;
+  margin-right: 12px;
+
+  &:hover {
+    transform: scale(1.05);
+  }
+
+  .sparkle {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+    color: ${({ theme }) => theme.color.accent};
+  }
+`
+
+const GlobalSearchContainer = styled.button`
+  flex: 1;
+  max-width: 24rem;
+  height: 34px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+  border-radius: 9999px;
+  background: ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'};
+  backdrop-filter: blur(12px);
+  border: 1px solid ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'};
+  color: ${({ theme }) => theme.color.mutedForeground};
+  cursor: pointer;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
+  margin-left: auto;
+
+  &:hover {
+    background: ${({ theme }) =>
+      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'};
+    border-color: ${({ theme }) => theme.color.accent}66;
+    box-shadow: 0 4px 16px ${({ theme }) => theme.color.accent}15;
+    color: ${({ theme }) => theme.color.foreground};
+    transform: translateY(-1px);
+  }
 
   @media ${({ theme }) => theme.media.belowSm} {
     display: none;
     margin-left: 0;
   }
-  
-  input {
-    width: 100%;
-    height: 36px;
-    padding: ${({ theme }) => `0 ${theme.spacing[8]}`};
-    border-radius: ${({ theme }) => theme.radii.md};
-    border: 1px solid ${({ theme }) => theme.color.input};
-    background: ${({ theme }) => theme.color.background};
-    color: ${({ theme }) => theme.color.foreground};
-    font-size: ${({ theme }) => theme.typography.fontSize.base};
-    
-    &:focus {
-      outline: none;
-      border-color: ${({ theme }) => theme.color.ring};
-      box-shadow: 0 0 0 3px ${({ theme }) => theme.color.ring}33;
-    }
-    
-    &::placeholder {
-      color: ${({ theme }) => theme.color.mutedForeground};
-    }
-  }
-  
-  .icon-left {
-    position: absolute;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
+
+  .icon-search {
     width: 14px;
     height: 14px;
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  .placeholder {
+    font-size: 13px;
+    font-weight: 400;
+    flex: 1;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .shortcut-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: ${({ theme }) =>
+      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
     color: ${({ theme }) => theme.color.mutedForeground};
-    pointer-events: none;
+    border: 1px solid ${({ theme }) =>
+      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)'};
+    letter-spacing: 0.05em;
   }
 `
 
@@ -160,264 +260,189 @@ const RightCluster = styled.div`
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[1]}`};
+  gap: 12px;
 `
 
 const IconButton = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: ${({ theme }) => `${theme.spacing[1.5]}`};
-  border-radius: ${({ theme }) => theme.radii.md};
-  background: transparent;
-  border: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  background: ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)'};
+  border: 1px solid ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)'};
   color: ${({ theme }) => theme.color.mutedForeground};
   cursor: pointer;
-  transition: background-color 120ms, color 120ms;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
   
   &:hover {
-    background: ${({ theme }) => theme.color.muted};
+    background: ${({ theme }) =>
+      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'};
     color: ${({ theme }) => theme.color.foreground};
+    border-color: ${({ theme }) => theme.color.accent}44;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   }
-
-  ${focusRing}
   
   svg {
-    width: 16px;
-    height: 16px;
-  }
-  
-  @media (pointer: coarse) {
-    min-width: 40px;
-    min-height: 40px;
+    width: 15px;
+    height: 15px;
   }
 `
 
-const UserMenuTrigger = styled.button`
-  display: flex;
+const AssistantPill = styled.button`
+  display: inline-flex;
   align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[2]}`};
-  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[2]}`};
-  border-radius: ${({ theme }) => theme.radii.md};
-  background: transparent;
-  border: none;
+  gap: 8px;
+  padding: 0 12px;
+  height: 34px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, ${({ theme }) => theme.color.accent}1A 0%, ${({ theme }) => theme.color.accent}05 100%);
+  border: 1px solid ${({ theme }) => theme.color.accent}33;
+  color: ${({ theme }) => theme.color.accent};
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 120ms;
-  
-  &:hover { background: ${({ theme }) => theme.color.muted}; }
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 10px ${({ theme }) => theme.color.accent}11;
 
-  ${focusRing}
-  
-  .avatar {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: ${({ theme }) => theme.color.primaryHover};
-    color: ${({ theme }) => theme.color.primaryForeground};
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: ${({ theme }) => theme.typography.fontSize.xs};
-    font-weight: 600;
+  &:hover {
+    background: linear-gradient(135deg, ${({ theme }) => theme.color.accent}2A 0%, ${({ theme }) => theme.color.accent}0F 100%);
+    box-shadow: 0 6px 20px ${({ theme }) => theme.color.accent}33;
+    transform: translateY(-1px) scale(1.02);
+    border-color: ${({ theme }) => theme.color.accent}55;
   }
-  
-  .info {
-    display: none;
-    flex-direction: column;
-    text-align: left;
 
-    @media ${({ theme }) => theme.media.sm} {
-      display: flex;
-    }
-    
-    .name {
-      font-size: ${({ theme }) => theme.typography.fontSize.sm};
-      font-weight: 500;
-      color: ${({ theme }) => theme.color.foreground};
-      line-height: 1.2;
-    }
-    
-    .role {
-      font-size: ${({ theme }) => theme.typography.fontSize.xs};
-      text-transform: capitalize;
-      color: ${({ theme }) => theme.color.mutedForeground};
-      line-height: 1.2;
-    }
-  }
-`
-
-
-const AccountMenuContent = styled(DropdownMenuContent)`
-  min-width: 260px;
-`
-
-const PopoverHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[3.5]}`};
-  padding: ${({ theme }) => `${theme.spacing[3]}`};
-  margin-bottom: ${({ theme }) => `${theme.spacing[1]}`};
-  border-radius: ${({ theme }) => theme.radii.sm};
-  background: linear-gradient(145deg, ${({ theme }) => theme.color.muted}, transparent);
-  
-  .avatar-large {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    background: ${({ theme }) => theme.color.primary};
-    color: ${({ theme }) => theme.color.primaryForeground};
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: ${({ theme }) => theme.typography.fontSize.md};
-    font-weight: 600;
-    flex-shrink: 0;
-    box-shadow: ${({ theme }) => theme.elevation[2]};
-  }
-  
-  .user-details {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    
-    .name {
-      font-size: ${({ theme }) => theme.typography.fontSize.base};
-      font-weight: 600;
-      color: ${({ theme }) => theme.color.foreground};
-      white-space: nowrap;
-      text-overflow: ellipsis;
-      overflow: hidden;
-      letter-spacing: -0.01em;
-      margin-bottom: ${({ theme }) => `${theme.spacing[0.5]}`};
-    }
-    
-    .meta {
-      font-size: ${({ theme }) => theme.typography.fontSize.sm};
-      color: ${({ theme }) => theme.color.mutedForeground};
-      white-space: nowrap;
-      text-overflow: ellipsis;
-      overflow: hidden;
-    }
+  svg {
+    width: 14px;
+    height: 14px;
+    filter: drop-shadow(0 2px 4px ${({ theme }) => theme.color.accent}66);
   }
 `
 
 export function TopBar() {
-  const { theme, toggleTheme, setCmdPaletteOpen, toggleSidebar } = useUIStore()
-  const user = useAuthStore(s => s.user)
+  const { theme, toggleTheme, setCmdPaletteOpen, toggleSidebar, toggleAssistant } = useUIStore()
   const location = useLocation()
   const navigate = useNavigate()
+  const user = useAuthStore(s => s.user)
 
-  const path = location.pathname
-  const canGoBack = path !== '/app' && path !== '/' && path !== '/login'
+  // Use the same entitled logic as Sidebar to filter modules
+  const { data: sub } = useSubscription()
+  const entitled = sub?.entitled ?? []
+  
+  const visibleItems = NAV_ITEMS.filter(item => {
+    if (item.adminOnly && !user?.is_admin) return false
+    if (item.module && !user?.is_admin && !entitled.includes(item.module)) return false
+    return true
+  })
 
-  // Build breadcrumbs as { label, to } — every non-leaf segment is a real route.
-  // All authenticated routes live under /app, so strip that prefix before parsing segments.
-  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
-  const breadcrumbs: { label: string; to: string }[] = [{ label: 'Control Tower', to: '/app' }]
+  const mainItems = visibleItems.filter(item => item.group === 'Main')
+  const areaItems = visibleItems.filter(item => item.group === 'Areas')
+  
+  // Dashboard is always the first Main item (Today)
+  const dashboardItem = mainItems.find(item => item.to === '/app')
+  const workflowItems = mainItems.filter(item => item.to !== '/app')
 
-  if (canGoBack) {
-    const appPath = path.startsWith('/app') ? path.slice(4) : path
-    const parts = appPath.split('/').filter(Boolean)
-    if (parts[0] === 'areas') {
-      // "Areas" has no index route — point it at the first area so the link resolves.
-      breadcrumbs.push({ label: 'Areas', to: '/app/finance' })
-      if (parts[1]) breadcrumbs.push({ label: cap(parts[1]), to: `/app/${parts[1]}` })
-      if (parts[2]) breadcrumbs.push({ label: cap(parts[2]), to: `/app/${parts[1]}/${parts[2]}` })
-    } else if (parts.length) {
-      const fullPath = `/app/${parts.join('/')}`
-      breadcrumbs.push({ label: PAGE_NAMES[fullPath] || cap(parts[0]), to: fullPath })
-    }
+  const isGroupActive = (items: typeof visibleItems) => {
+    return items.some(item => location.pathname.startsWith(item.to) && (item.to !== '/app' || location.pathname === '/app'))
+  }
+
+  const renderDropdownGroup = (label: string, items: typeof visibleItems) => {
+    const isActive = isGroupActive(items)
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger>
+          <button type="button" className={`nav-link ${isActive ? 'active' : ''}`}>
+            {label}
+            <ChevronDown size={14} style={{ opacity: 0.6 }} />
+          </button>
+        </DropdownMenuTrigger>
+        <StyledDropdownContent align="start">
+          {items.map(item => {
+            const Icon = item.icon
+            const isItemActive = location.pathname.startsWith(item.to) && (item.to !== '/app' || location.pathname === '/app')
+            return (
+              <StyledDropdownItem 
+                key={item.to}
+                $active={isItemActive}
+                onSelect={() => navigate(item.to)}
+              >
+                <Icon />
+                <span>{item.label}</span>
+              </StyledDropdownItem>
+            )
+          })}
+        </StyledDropdownContent>
+      </DropdownMenu>
+    )
   }
 
   return (
     <HeaderRoot>
-      <Hamburger aria-label="Open mobile menu" onClick={toggleSidebar}>
-        <Menu size={20} />
-      </Hamburger>
+      <LeftSide>
+        <LogoBadge>
+          <Sparkles className="sparkle" />
+          C
+        </LogoBadge>
 
-      {canGoBack && (
-        <BackButton onClick={() => navigate(-1)} aria-label="Go back">
-          <ArrowLeft />
-        </BackButton>
-      )}
+        <Hamburger aria-label="Open mobile menu" onClick={toggleSidebar}>
+          <Menu size={18} />
+        </Hamburger>
 
-      <BreadcrumbNav aria-label="Breadcrumb">
-        <button type="button" className="crumb link" onClick={() => navigate('/app')} aria-label="Home">
-          <Home size={14} />
-        </button>
-        <ChevronRight className="separator" />
-        {breadcrumbs.map((bc, i) => {
-          const isLast = i === breadcrumbs.length - 1
-          return (
-            <React.Fragment key={i}>
-              {isLast ? (
-                <span className="crumb active" aria-current="page">{bc.label}</span>
-              ) : (
-                <button type="button" className="crumb link" onClick={() => navigate(bc.to)}>
-                  {bc.label}
-                </button>
-              )}
-              {!isLast && <ChevronRight className="separator" />}
-            </React.Fragment>
-          )
-        })}
-      </BreadcrumbNav>
-
-      <GlobalSearchContainer onClick={() => setCmdPaletteOpen(true)}>
-        <Search className="icon-left" />
-        <input 
-          type="text" 
-          placeholder="Search anything (⌘K)..." 
-          readOnly 
-          aria-label="Global search"
-        />
-      </GlobalSearchContainer>
+        <TopNavLinks aria-label="Main App Navigation">
+          {dashboardItem && (
+            <button
+              type="button"
+              className={`nav-link ${location.pathname === '/app' ? 'active' : ''}`}
+              onClick={() => navigate(dashboardItem.to)}
+            >
+              <dashboardItem.icon />
+              {dashboardItem.label}
+            </button>
+          )}
+          
+          {renderDropdownGroup('Areas', areaItems)}
+          {renderDropdownGroup('Workflow', workflowItems)}
+        </TopNavLinks>
+      </LeftSide>
 
       <RightCluster>
-        <IconButton onClick={toggleTheme} aria-label="Toggle theme">
+        <GlobalSearchContainer onClick={() => setCmdPaletteOpen(true)} type="button" aria-label="Global search">
+          <Search className="icon-search" />
+          <span className="placeholder">Search anything...</span>
+          <kbd className="shortcut-badge">⌘K</kbd>
+        </GlobalSearchContainer>
+
+        <AssistantPill onClick={toggleAssistant} title="Open AI Assistant (⌘J)">
+          <Sparkles />
+          <span>Ask AI</span>
+        </AssistantPill>
+
+        <IconButton onClick={toggleTheme} aria-label="Toggle theme" title="Toggle theme">
           {theme === 'dark' ? <Sun /> : <Moon />}
         </IconButton>
         
-        {/* We can use the custom NotificationBell but wrap it conceptually if needed */}
         <NotificationBell />
-        
-        <DropdownMenu>
-          <DropdownMenuTrigger>
-            <UserMenuTrigger aria-label={`User menu: ${user?.name || 'User'}`}>
-              {user?.picture_url ? (
-                <img className="avatar" src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
-              ) : (
-                <div className="avatar">{(user?.name || 'U')[0].toUpperCase()}</div>
-              )}
-              <div className="info">
-                <span className="name">{user?.name || 'User'}</span>
-                <span className="role">{accountLabel(user)}</span>
-              </div>
-            </UserMenuTrigger>
-          </DropdownMenuTrigger>
-          <AccountMenuContent side="bottom" align="end">
-            <PopoverHeader>
-              {user?.picture_url ? (
-                <img className="avatar-large" src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ objectFit: 'cover' }} />
-              ) : (
-                <div className="avatar-large">{(user?.name || 'U')[0].toUpperCase()}</div>
-              )}
-              <div className="user-details">
-                <span className="name">{user?.name || 'User'}</span>
-                <span className="meta">{accountLabel(user)}</span>
-              </div>
-            </PopoverHeader>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => navigate('/app/settings')}>
-              <Settings size={16} style={{ marginRight: '8px' }} /> Profile & settings
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem destructive onSelect={() => logoutAndRedirect(navigate)}>
-              <LogOut size={16} style={{ marginRight: '8px' }} /> Log out
-            </DropdownMenuItem>
-          </AccountMenuContent>
-        </DropdownMenu>
+
+        <div style={{ marginLeft: 8 }}>
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <IconButton style={{ borderRadius: '50%', overflow: 'hidden', padding: 0 }} aria-label="User Menu">
+                {user?.picture_url ? (
+                  <img src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span style={{ fontSize: 14, fontWeight: 600 }}>{(user?.name || 'U')[0].toUpperCase()}</span>
+                )}
+              </IconButton>
+            </DropdownMenuTrigger>
+            <AccountMenuBody side="bottom" align="end" />
+          </DropdownMenu>
+        </div>
       </RightCluster>
     </HeaderRoot>
   )
 }
+

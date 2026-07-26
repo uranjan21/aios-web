@@ -233,13 +233,43 @@ function OverviewSkeleton() {
 
 // ─────────────────────────── Root component ───────────────────────────
 
+const AnalyseButton = styled(Button)`
+  border-radius: 9999px !important;
+  background: linear-gradient(
+    135deg,
+    ${({ theme }) => theme.color.accent} 0%,
+    ${({ theme }) => theme.color.accent}DD 100%
+  ) !important;
+  color: ${({ theme }) => theme.color.accentForeground} !important;
+  border: none !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px ${({ theme }) => theme.color.accent}3D;
+  transition: all 160ms ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px ${({ theme }) => theme.color.accent}55;
+  }
+`;
+
+const StyledCard = styled(Card)`
+  position: relative;
+  overflow: hidden;
+  border: 1px solid ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : theme.color.border};
+  background: ${({ theme }) =>
+    theme.mode === 'dark'
+      ? 'rgba(20, 24, 34, 0.85)'
+      : 'rgba(255, 255, 255, 0.85)'};
+  backdrop-filter: blur(16px);
+  border-radius: ${({ theme }) => theme.radii.xl};
+  box-shadow: 0 8px 30px -6px rgba(0, 0, 0, 0.05);
+`;
+
 export function OverviewInsightCard() {
-  // Daily Brief lives in its own BriefingCard now (persisted, auto-generated) —
-  // this card is the cross-domain "Life Overview" synthesis only.
   const theme = useTheme();
   const [planBlocked, setPlanBlocked] = useState(false);
 
-  // Life Overview — invalidate if cached from a different day
   const [overviewCache, setOverviewCache] = useState<InsightSnapshot | null>(() => {
     const c = readJson<InsightSnapshot>(OVERVIEW_KEY);
     return c?.date === todayIso() ? c : null;
@@ -268,22 +298,30 @@ export function OverviewInsightCard() {
   const overviewData    = overviewMutation.data ?? overviewCache;
   const overviewPending = overviewMutation.isPending;
 
-  const actionBtn = (
+  const actionBtn = overviewData ? (
     <Button
       size="sm"
-      variant={overviewData ? "ghost" : "primary"}
-      startIcon={overviewData ? <RefreshCw size={12} /> : <Sparkles size={12} />}
+      variant="ghost"
+      startIcon={<RefreshCw size={12} />}
       loading={overviewPending}
       onClick={() => overviewMutation.mutate()}
     >
-      {overviewData ? "Refresh" : "Analyse"}
+      Refresh
     </Button>
+  ) : (
+    <AnalyseButton
+      size="sm"
+      startIcon={<Sparkles size={12} />}
+      loading={overviewPending}
+      onClick={() => overviewMutation.mutate()}
+    >
+      Analyse
+    </AnalyseButton>
   );
 
   return (
-    <Card
+    <StyledCard
       size="lg"
-      variant="glass"
       title="Life Overview"
       subtitle="AI-synthesised cross-domain status across your logs"
       icon={<Sparkles size={14} style={{ color: theme.color.accent }} />}
@@ -311,6 +349,6 @@ export function OverviewInsightCard() {
                 : "One click reads your Finance + Health logs and gives you a plain-English snapshot of where you stand."}
           />
         ))}
-    </Card>
+    </StyledCard>
   );
 }

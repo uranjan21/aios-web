@@ -94,7 +94,7 @@ function useDebounced<T>(value: T, ms: number): T {
   return v
 }
 
-export function SimulatorTab() {
+export function SimulatorTab({ navMenu }: { navMenu?: React.ReactNode }) {
   const theme = useTheme()
   const [months, setMonths] = useState(12)
   const [incomeDelta, setIncomeDelta] = useState(0)
@@ -137,6 +137,12 @@ export function SimulatorTab() {
 
   const rail = (
     <RailStack>
+      {navMenu && (
+        <div style={{ marginBottom: 8 }}>
+          {navMenu}
+        </div>
+      )}
+      
       <RailHeading>What-if levers</RailHeading>
 
       <LeverBlock>

@@ -34,7 +34,7 @@ export interface TabsProps {
 const Root = styled.div<{ $orientation: 'horizontal' | 'vertical' }>`
   display: flex;
   flex-direction: ${({ $orientation }) => ($orientation === 'vertical' ? 'row' : 'column')};
-  gap: ${({ theme }) => theme.spacing[5]};
+  gap: ${({ theme }) => theme.spacing[3]};
   width: 100%;
 `;
 

@@ -39,7 +39,11 @@ const Row = styled.div`
   }
 `
 
+
+
 const Tile = styled.button`
+  position: relative;
+  overflow: hidden;
   flex: 0 0 auto;
   min-width: 150px;
   scroll-snap-align: start;
@@ -48,17 +52,26 @@ const Tile = styled.button`
   align-items: flex-start;
   gap: ${({ theme }) => `${theme.spacing[1.5]}`};
   padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[3.5]}`};
-  background: ${({ theme }) => theme.color.card};
-  border: 1px solid ${({ theme }) => theme.color.border};
+  
+  border: 1px solid ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : theme.color.border};
+  background: ${({ theme }) =>
+    theme.mode === 'dark'
+      ? 'linear-gradient(180deg, rgba(30, 32, 40, 0.8) 0%, rgba(20, 21, 26, 0.6) 100%)'
+      : 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 250, 252, 0.8) 100%)'};
+  backdrop-filter: blur(12px);
   border-radius: ${({ theme }) => theme.radii.md};
-  box-shadow: ${({ theme }) => theme.shadow.xs};
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+
   cursor: pointer;
   text-align: left;
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  transition: box-shadow ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
+  transition: all 0.3s ease;
 
   &:hover {
-    box-shadow: ${({ theme }) => theme.shadow.sm};
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+    border-color: ${({ theme }) => theme.color.accent}80;
   }
   ${focusRing}
 `

@@ -3,7 +3,7 @@ import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 import { BudgetsTab } from './BudgetsTab'
 import { BudgetTabModal } from './QuickAddBudget'
 
-export function BudgetTab() {
+export function BudgetTab({ navMenu }: { navMenu?: React.ReactNode }) {
   const [modalOpen, setModalOpen] = useState(false)
 
   useEffect(() => {
@@ -14,10 +14,9 @@ export function BudgetTab() {
 
   return (
     <>
-      <WorkspaceLayout rail={undefined}>
+      <WorkspaceLayout rail={navMenu}>
         <BudgetsTab onAddClick={() => setModalOpen(true)} />
       </WorkspaceLayout>
-
       <BudgetTabModal open={modalOpen} onClose={() => setModalOpen(false)} defaultTab="Budget" />
     </>
   )

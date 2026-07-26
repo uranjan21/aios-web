@@ -8,6 +8,7 @@ import { financeApi } from '@ct/shared/api/areas'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import type { FinanceInvestment } from '@ct/shared/types'
 import styled from 'styled-components'
+import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 
 const AssetCell = styled.div`
   display: flex;
@@ -131,7 +132,7 @@ const TYPE_META: Record<string, { label: string; icon: string }> = {
   other: { label: 'Other', icon: '📦' },
 }
 
-export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void }) {
+export function InvestmentsTab({ onAddClick, navMenu }: { onAddClick?: () => void, navMenu?: React.ReactNode }) {
   type HoldingForm = {
     name: string
     type: string
@@ -297,99 +298,105 @@ export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void }) {
   const holdingTypes = Array.from(new Set((holdings ?? []).map(h => h.type))) as string[]
   const visibleHoldings = (holdings ?? []).filter(h => typeFilter === 'all' || h.type === typeFilter)
 
-  if (isLoading) return <LoadingContainer><LoadingHeader /><LoadingBody /></LoadingContainer>;
+  if (isLoading) return (
+    <WorkspaceLayout rail={navMenu}>
+      <LoadingContainer><LoadingHeader /><LoadingBody /></LoadingContainer>
+    </WorkspaceLayout>
+  )
 
   return (
-    <Card
-      title="Portfolio Holdings"
-      subtitle="Your investments and their current returns"
-      icon={<TrendingUp size={16} />}
-      action={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Select
-            size="sm"
-            fullWidth={false}
-            aria-label="Filter holdings by asset type"
-            value={typeFilter}
-            onChange={(v) => setTypeFilter(String(v))}
-            options={[
-              { value: 'all', label: 'All assets' },
-              ...holdingTypes.map(t => ({ value: t, label: TYPE_META[t]?.label ?? t })),
-            ]}
-          />
-          {onAddClick && (
-            <Button size="sm" variant="primary" onClick={onAddClick}>
-              <Plus size={12} style={{ marginRight: 4 }} /> Add Investment
-            </Button>
-          )}
-        </div>
-      }
-    >
-      <DataTable
-        rows={visibleHoldings}
-        columns={columns}
-        getRowKey={row => row.id}
-        empty={{ icon: <TrendingUp size={20} />, title: 'No holdings yet', description: 'Track stocks, mutual funds, and crypto to monitor your portfolio performance.' }}
-      />
-      {summary && (
-        <SummaryGrid>
-          <div>Total</div>
-          <div>Invested: ₹{summary.total_invested.toLocaleString('en-IN')}</div>
-          <div>Current: ₹{summary.current_value.toLocaleString('en-IN')}</div>
-          <div>
-            Returns: <SummaryReturnText $positive={summary.returns_amount >= 0}>
-              {summary.returns_amount >= 0 ? '+' : ''}₹{Math.abs(summary.returns_amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-              <SummaryReturnPctText>({summary.returns_amount >= 0 ? '+' : ''}{summary.returns_pct.toFixed(1)}%)</SummaryReturnPctText>
-            </SummaryReturnText>
+    <WorkspaceLayout rail={navMenu}>
+      <Card
+        title="Portfolio Holdings"
+        subtitle="Your investments and their current returns"
+        icon={<TrendingUp size={16} />}
+        action={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Select
+              size="sm"
+              fullWidth={false}
+              aria-label="Filter holdings by asset type"
+              value={typeFilter}
+              onChange={(v) => setTypeFilter(String(v))}
+              options={[
+                { value: 'all', label: 'All assets' },
+                ...holdingTypes.map(t => ({ value: t, label: TYPE_META[t]?.label ?? t })),
+              ]}
+            />
+            {onAddClick && (
+              <Button size="sm" variant="primary" onClick={onAddClick}>
+                <Plus size={12} style={{ marginRight: 4 }} /> Add Investment
+              </Button>
+            )}
           </div>
-        </SummaryGrid>
-      )}
-
-      <Dialog
-        open={!!updatingHolding}
-        title={<ModalTitle>Edit Holding{updatingHolding?.name ? ` — ${updatingHolding.name}` : ''}</ModalTitle>}
-        onOpenChange={(open) => { if (!open) closeEdit() }}
-        size="md"
+        }
       >
-        <FormContainer onSubmit={e => { e.preventDefault(); handleSave() }}>
-          <FormGroup>
-            <Label>Name</Label>
-            <Input value={holdingForm.name} onChange={(e: any) => setHoldingForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. HDFC Top 100" autoFocus required />
-          </FormGroup>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <DataTable
+          rows={visibleHoldings}
+          columns={columns}
+          getRowKey={row => row.id}
+          empty={{ icon: <TrendingUp size={20} />, title: 'No holdings yet', description: 'Track stocks, mutual funds, and crypto to monitor your portfolio performance.' }}
+        />
+        {summary && (
+          <SummaryGrid>
+            <div>Total</div>
+            <div>Invested: ₹{summary.total_invested.toLocaleString('en-IN')}</div>
+            <div>Current: ₹{summary.current_value.toLocaleString('en-IN')}</div>
+            <div>
+              Returns: <SummaryReturnText $positive={summary.returns_amount >= 0}>
+                {summary.returns_amount >= 0 ? '+' : ''}₹{Math.abs(summary.returns_amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                <SummaryReturnPctText>({summary.returns_amount >= 0 ? '+' : ''}{summary.returns_pct.toFixed(1)}%)</SummaryReturnPctText>
+              </SummaryReturnText>
+            </div>
+          </SummaryGrid>
+        )}
+
+        <Dialog
+          open={!!updatingHolding}
+          title={<ModalTitle>Edit Holding{updatingHolding?.name ? ` — ${updatingHolding.name}` : ''}</ModalTitle>}
+          onOpenChange={(open) => { if (!open) closeEdit() }}
+          size="md"
+        >
+          <FormContainer onSubmit={e => { e.preventDefault(); handleSave() }}>
             <FormGroup>
-              <Label>Type</Label>
-              <Select fullWidth value={holdingForm.type} onChange={(v: any) => setHoldingForm(f => ({ ...f, type: String(v) }))} options={Object.entries(TYPE_META).map(([value, meta]) => ({ value, label: meta.label }))} />
+              <Label>Name</Label>
+              <Input value={holdingForm.name} onChange={(e: any) => setHoldingForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. HDFC Top 100" autoFocus required />
+            </FormGroup>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <FormGroup>
+                <Label>Type</Label>
+                <Select fullWidth value={holdingForm.type} onChange={(v: any) => setHoldingForm(f => ({ ...f, type: String(v) }))} options={Object.entries(TYPE_META).map(([value, meta]) => ({ value, label: meta.label }))} />
+              </FormGroup>
+              <FormGroup>
+                <Label>Units (optional)</Label>
+                <Input type="number" min="0" step="0.0001" value={holdingForm.units} onChange={(e: any) => setHoldingForm(f => ({ ...f, units: e.target.value }))} placeholder="0" />
+              </FormGroup>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <FormGroup>
+                <Label>Invested amount</Label>
+                <Input type="number" startAdornment="₹" min="0" value={holdingForm.invested_amount} onChange={(e: any) => setHoldingForm(f => ({ ...f, invested_amount: e.target.value }))} required />
+              </FormGroup>
+              <FormGroup>
+                <Label>Current value</Label>
+                <Input type="number" startAdornment="₹" min="0" value={holdingForm.current_value} onChange={(e: any) => setHoldingForm(f => ({ ...f, current_value: e.target.value }))} required />
+              </FormGroup>
+            </div>
+            <FormGroup>
+              <Label>Purchase date</Label>
+              <Input type="date" value={holdingForm.purchase_date} onChange={(e: any) => setHoldingForm(f => ({ ...f, purchase_date: e.target.value }))} />
             </FormGroup>
             <FormGroup>
-              <Label>Units (optional)</Label>
-              <Input type="number" min="0" step="0.0001" value={holdingForm.units} onChange={(e: any) => setHoldingForm(f => ({ ...f, units: e.target.value }))} placeholder="0" />
+              <Label>Notes</Label>
+              <Input value={holdingForm.notes} onChange={(e: any) => setHoldingForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional" />
             </FormGroup>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <FormGroup>
-              <Label>Invested amount</Label>
-              <Input type="number" startAdornment="₹" min="0" value={holdingForm.invested_amount} onChange={(e: any) => setHoldingForm(f => ({ ...f, invested_amount: e.target.value }))} required />
-            </FormGroup>
-            <FormGroup>
-              <Label>Current value</Label>
-              <Input type="number" startAdornment="₹" min="0" value={holdingForm.current_value} onChange={(e: any) => setHoldingForm(f => ({ ...f, current_value: e.target.value }))} required />
-            </FormGroup>
-          </div>
-          <FormGroup>
-            <Label>Purchase date</Label>
-            <Input type="date" value={holdingForm.purchase_date} onChange={(e: any) => setHoldingForm(f => ({ ...f, purchase_date: e.target.value }))} />
-          </FormGroup>
-          <FormGroup>
-            <Label>Notes</Label>
-            <Input value={holdingForm.notes} onChange={(e: any) => setHoldingForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional" />
-          </FormGroup>
-          <ActionsContainer>
-            <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save changes</Button>
-            <Button variant="ghost" type="button" onClick={closeEdit} disabled={updateMutation.isPending}>Cancel</Button>
-          </ActionsContainer>
-        </FormContainer>
-      </Dialog>
-    </Card>
+            <ActionsContainer>
+              <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save changes</Button>
+              <Button variant="ghost" type="button" onClick={closeEdit} disabled={updateMutation.isPending}>Cancel</Button>
+            </ActionsContainer>
+          </FormContainer>
+        </Dialog>
+      </Card>
+    </WorkspaceLayout>
   )
 }

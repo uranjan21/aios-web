@@ -1,9 +1,28 @@
-import styled, { useTheme } from 'styled-components'
+import styled, { useTheme, keyframes } from 'styled-components'
 import { Card, Tooltip } from '@ledgr/ui'
 import { Activity, Flame } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { insightsApi } from '@ct/shared/api/insights'
 import { fmtDateKey } from '@ct/shared/stores/dayEventsStore'
+
+const pulseGlow = keyframes`
+  0% { box-shadow: 0 0 0 0 ${({ theme }) => theme.color.accent}40; }
+  70% { box-shadow: 0 0 0 6px ${({ theme }) => theme.color.accent}00; }
+  100% { box-shadow: 0 0 0 0 ${({ theme }) => theme.color.accent}00; }
+`
+
+const StyledCard = styled(Card)`
+  position: relative;
+  overflow: hidden;
+  border: 1px solid ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : theme.color.border};
+  background: ${({ theme }) =>
+    theme.mode === 'dark'
+      ? 'linear-gradient(180deg, rgba(30, 32, 40, 0.8) 0%, rgba(20, 21, 26, 0.6) 100%)'
+      : 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 250, 252, 0.8) 100%)'};
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+`
 
 const HeatmapWrapper = styled.div`
   display: flex;
@@ -35,16 +54,20 @@ const Cell = styled.div<{ $intensity: number }>`
   height: 10px;
   border-radius: ${({ theme }) => theme.radii.xs};
   background: ${({ theme, $intensity }) => {
-    if ($intensity === 0) return theme.color.muted
+    if ($intensity === 0) return theme.mode === 'dark' ? 'rgba(255,255,255,0.05)' : theme.color.muted
     const opacities = ['0.3', '0.6', '0.8', '1.0']
     const op = opacities[Math.min($intensity - 1, 3)]
     return `color-mix(in srgb, ${theme.color.accent} ${Number(op) * 100}%, transparent)`
   }};
-  transition: transform 100ms;
+  transition: all 200ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: ${({ theme, $intensity }) => 
+    $intensity > 2 ? `0 0 ${$intensity * 2}px color-mix(in srgb, ${theme.color.accent} 40%, transparent)` : 'none'};
+
   &:hover {
-    transform: scale(1.2);
+    transform: scale(1.4);
     z-index: 1;
-    outline: 1px solid ${({ theme }) => theme.color.border};
+    border: 1px solid ${({ theme }) => theme.color.accent};
+    box-shadow: 0 0 8px ${({ theme }) => theme.color.accent};
   }
 `
 
@@ -60,7 +83,7 @@ const Footer = styled.div`
 const LegendCell = styled(Cell)`
   width: 8px;
   height: 8px;
-  &:hover { transform: none; outline: none; }
+  &:hover { transform: none; border: none; box-shadow: none; }
 `
 
 const StreakChip = styled.span`
@@ -74,6 +97,7 @@ const StreakChip = styled.span`
   padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
   white-space: nowrap;
+  animation: ${pulseGlow} 2s infinite;
 `
 
 // Bucket a raw per-day log count into 0–4 intensity levels.
@@ -116,7 +140,7 @@ export function LifeHeatmap() {
   }
 
   return (
-    <Card
+    <StyledCard
       title="Life Heatmap"
       subtitle="Your logging consistency"
       icon={<Activity size={14} style={{ color: theme.color.accent }} />}
@@ -138,6 +162,7 @@ export function LifeHeatmap() {
         <LegendCell $intensity={4} />
         More
       </Footer>
-    </Card>
+    </StyledCard>
   )
 }
+

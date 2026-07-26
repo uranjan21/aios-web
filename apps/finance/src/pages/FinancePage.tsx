@@ -1,105 +1,118 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import {
-  IndianRupee, LayoutDashboard, ArrowLeftRight,
-  PiggyBank, BarChart2, Gem, Settings, TrendingUp, ListChecks, Wand2,
+  LayoutDashboard, ArrowLeftRight,
+  PiggyBank, BarChart2, Gem
 } from 'lucide-react'
-import { AreaTabs } from '@ct/shared/components/ui/AreaTabs'
-import { PageHeader, Button } from '@ledgr/ui'
+import { PageHeader } from '@ledgr/ui'
+
 import { HomeTab } from '@ct/finance/components/HomeTab'
 import { TransactionsTab } from '@ct/finance/components/TransactionsTab'
-import { BudgetTab } from '@ct/finance/components/BudgetTab'
-import { WealthTab } from '@ct/finance/components/WealthTab'
-import { AnalyticsTab } from '@ct/finance/components/AnalyticsTab'
-import { SimulatorTab } from '@ct/finance/components/SimulatorTab'
 import { InboxTab } from '@ct/finance/components/InboxTab'
-import { PayablesTab } from '@ct/finance/components/PayablesTab'
 import { RulesTab } from '@ct/finance/components/RulesTab'
+import { BudgetTab } from '@ct/finance/components/BudgetTab'
+import { PayablesTab } from '@ct/finance/components/PayablesTab'
+import { SimulatorTab } from '@ct/finance/components/SimulatorTab'
+import { InvestmentsTab } from '@ct/finance/components/InvestmentsTab'
+import { LoansTab } from '@ct/finance/components/LoansTab'
+import { AnalyticsTab } from '@ct/finance/components/AnalyticsTab'
 import { AccountsTabModal } from '@ct/finance/components/QuickAddAccounts'
-import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
+import { ModuleLayout } from '@ct/shared/components/layout/ModuleLayout'
+import { ModuleSidebar } from '@ct/shared/components/layout/ModuleSidebar'
+import { Inbox, Wand2, ListChecks, TrendingUp, Landmark } from 'lucide-react'
 
 export function FinancePage() {
-  const navigate = useNavigate()
-  const [activeKey, setActiveKey] = useState('1')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeKey = searchParams.get('tab') || 'overview'
+  
+  const setActiveKey = (key: string) => {
+    setSearchParams(prev => {
+      prev.set('tab', key)
+      return prev
+    })
+  }
+
   const [accountModalOpen, setAccountModalOpen] = useState(false)
 
-  // TransactionsTab's "add an account first" prompt dispatches this regardless of active sub-tab
   useEffect(() => {
     const handler = () => setAccountModalOpen(true)
     window.addEventListener('open-new-account', handler)
     return () => window.removeEventListener('open-new-account', handler)
   }, [])
 
-  const items = [
+  const groups = [
     {
-      key: '1',
-      label: <><LayoutDashboard size={14} /> Overview</>,
-      children: <HomeTab />,
+      label: 'Finance',
+      items: [
+        { key: 'overview', label: 'Overview', icon: <LayoutDashboard size={14} /> },
+        { key: 'analytics', label: 'Analytics', icon: <BarChart2 size={14} /> },
+      ]
     },
     {
-      key: '2',
-      label: <><ArrowLeftRight size={14} /> Transactions</>,
-      children: <TransactionsTab />,
+      label: 'Ledger',
+      items: [
+        { key: 'transactions', label: 'Transactions', icon: <ArrowLeftRight size={14} /> },
+        { key: 'inbox', label: 'Inbox', icon: <Inbox size={14} /> },
+        { key: 'rules', label: 'Rules', icon: <Wand2 size={14} /> },
+      ]
     },
     {
-      key: '3',
-      label: <><PiggyBank size={14} /> Budgets</>,
-      children: <BudgetTab />,
+      label: 'Planning',
+      items: [
+        { key: 'budgets', label: 'Budgets', icon: <PiggyBank size={14} /> },
+        { key: 'payables', label: 'Payables', icon: <ListChecks size={14} /> },
+        { key: 'projections', label: 'Projections', icon: <TrendingUp size={14} /> },
+      ]
     },
     {
-      key: '4',
-      label: <><Gem size={14} /> Investments</>,
-      children: <WealthTab />,
-    },
-    {
-      key: '5',
-      label: <><BarChart2 size={14} /> Analytics</>,
-      children: <AnalyticsTab />,
-    },
-    {
-      key: '6',
-      label: <><TrendingUp size={14} /> Projections</>,
-      children: <SimulatorTab />,
-    },
-    {
-      key: '7',
-      label: <><ListChecks size={14} /> Payables</>,
-      children: <PayablesTab />,
-    },
-    {
-      key: '8',
-      label: <><IndianRupee size={14} /> Inbox</>,
-      children: <InboxTab />,
-    },
-    {
-      key: '9',
-      label: <><Wand2 size={14} /> Rules</>,
-      children: <RulesTab />,
-    },
+      label: 'Wealth',
+      items: [
+        { key: 'investments', label: 'Investments', icon: <Gem size={14} /> },
+        { key: 'loans', label: 'Loans', icon: <Landmark size={14} /> },
+      ]
+    }
   ]
 
+  const renderContent = () => {
+    switch (activeKey) {
+      case 'overview': return <HomeTab />
+      case 'analytics': return <AnalyticsTab />
+      
+      case 'transactions': return <TransactionsTab />
+      case 'inbox': return <InboxTab />
+      case 'rules': return <RulesTab />
+      
+      case 'budgets': return <BudgetTab />
+      case 'payables': return <PayablesTab />
+      case 'projections': return <SimulatorTab />
+      
+      case 'investments': return <InvestmentsTab onAddClick={() => setAccountModalOpen(true)} />
+      case 'loans': return <LoansTab onAdd={() => setAccountModalOpen(true)} />
+      
+      default: return <HomeTab />
+    }
+  }
+
   return (
-    <PageContainer>
-      <PageContent>
+    <ModuleLayout
+      header={
         <PageHeader
-          icon={<IndianRupee />}
-          eyebrow="Money"
-          title="Finance"
-          subtitle="Transactions, budgets, investments, and analytics — all your money in one place."
-          actions={
-            <Button variant="outline" size="sm" onClick={() => navigate('/app/finance/settings')}>
-              <Settings size={14} style={{ marginRight: 6 }} /> Settings
-            </Button>
-          }
+          icon={<LayoutDashboard size={24} />}
+          eyebrow="Finance"
+          title="Finance Center"
+          subtitle="Manage your transactions, budgets, investments, and financial health in one place."
         />
-        <AreaTabs
+      }
+      sidebar={
+        <ModuleSidebar
+          groups={groups}
           activeKey={activeKey}
           onChange={setActiveKey}
-          items={items}
         />
-      </PageContent>
-
+      }
+    >
+      {renderContent()}
       <AccountsTabModal open={accountModalOpen} onClose={() => setAccountModalOpen(false)} defaultTab="Account" />
-    </PageContainer>
+    </ModuleLayout>
   )
 }

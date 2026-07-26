@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
-import { Select, Button, Badge, SegmentedControl, HeaderActionPortal, focusRing } from '@ledgr/ui'
+import { Select, Button, Badge, SegmentedControl, focusRing } from '@ledgr/ui'
 import { Plus, ExternalLink, Trash2, Briefcase, XCircle } from 'lucide-react'
 import {
   DndContext, DragOverlay, PointerSensor, KeyboardSensor,
@@ -484,16 +484,16 @@ export function OpportunitiesTab() {
 
   return (
     <Root $pipeline={view === 'Pipeline'}>
-      <SegmentedControl
-        options={[{ label: 'Pipeline', value: 'Pipeline' }, { label: 'List', value: 'List' }]}
-        value={view}
-        onChange={v => setView(v as typeof view)}
-      />
-      <HeaderActionPortal>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <SegmentedControl
+          options={[{ label: 'Pipeline', value: 'Pipeline' }, { label: 'List', value: 'List' }]}
+          value={view}
+          onChange={v => setView(v as typeof view)}
+        />
         <AddBtn onClick={() => setShowForm(s => !s)}>
           <Plus size={12} /> Add
         </AddBtn>
-      </HeaderActionPortal>
+      </div>
 
       {showForm && <AddForm onClose={() => setShowForm(false)} />}
 

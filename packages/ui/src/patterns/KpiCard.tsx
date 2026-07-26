@@ -139,10 +139,33 @@ function renderIcon(icon: KpiCardProps['icon']): ReactNode {
   return icon as ReactNode
 }
 
+const StyledCard = styled(Card)`
+  position: relative;
+  overflow: hidden;
+  border: 1px solid ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : theme.color.border};
+  background: ${({ theme }) =>
+    theme.mode === 'dark'
+      ? 'linear-gradient(180deg, rgba(30, 32, 40, 0.8) 0%, rgba(20, 21, 26, 0.6) 100%)'
+      : 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 250, 252, 0.8) 100%)'};
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+  transition:
+    box-shadow ${({ theme }) => `${theme.motion.duration.normal} ${theme.motion.easing.standard}`},
+    transform  ${({ theme }) => `${theme.motion.duration.normal} ${theme.motion.easing.standard}`},
+    border-color ${({ theme }) => `${theme.motion.duration.normal} ${theme.motion.easing.standard}`};
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+    border-color: ${({ theme }) => theme.color.accent}80;
+  }
+`
+
 export function KpiCard({ label, value, icon, sub, action, delta, spark, loading, className }: KpiCardProps) {
   const theme = useTheme()
   return (
-    <Card
+    <StyledCard
       size="lg"
       className={className}
       title={label}
@@ -167,6 +190,6 @@ export function KpiCard({ label, value, icon, sub, action, delta, spark, loading
           </TrendPill>
         </FooterRow>
       )}
-    </Card>
+    </StyledCard>
   )
 }

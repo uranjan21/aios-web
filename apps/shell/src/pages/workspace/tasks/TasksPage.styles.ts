@@ -26,12 +26,25 @@ export const TaskRow = styled.div<{ $done: boolean }>`
   align-items: flex-start;
   gap: ${({ theme }) => `${theme.spacing[2.5]}`};
   padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[3.5]}`};
-  background: ${({ theme }) => theme.color.card};
   border-radius: ${({ theme }) => theme.radii.md};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  box-shadow: ${({ theme }) => theme.shadow.xs};
+  
+  border: 1px solid ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : theme.color.border};
+  background: ${({ theme }) =>
+    theme.mode === 'dark'
+      ? 'linear-gradient(180deg, rgba(30, 32, 40, 0.8) 0%, rgba(20, 21, 26, 0.6) 100%)'
+      : 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 250, 252, 0.8) 100%)'};
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+  
   opacity: ${({ $done }) => $done ? 0.6 : 1};
-  transition: opacity 150ms;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+    border-color: ${({ theme }) => theme.color.accent}60;
+  }
 `
 
 export const TaskCheckBtn = styled.button<{ $done: boolean }>`

@@ -1,10 +1,9 @@
 import { useMemo } from 'react'
 import styled, { useTheme } from 'styled-components'
 import { Target, Clock } from 'lucide-react'
-import { Card } from '@ledgr/ui'
 import { useDayEventsStore, fmtDateKey, parseLocalDate } from '@ct/shared/stores/dayEventsStore'
 import { categoryColor } from '@ct/shared/theme/domains'
-import { Empty } from './shared'
+import { Empty, StyledCard } from './shared'
 
 /* ─────────────────── 3. FocusCard ─────────────────── */
 
@@ -74,7 +73,7 @@ export function FocusCard() {
   }, [events, todayKey])
 
   return (
-    <Card title="Focus" subtitle="Next 3 things on deck" icon={<Target size={14} style={{ color: theme.color.destructive }} />}>
+    <StyledCard title="Focus" subtitle="Next 3 things on deck" icon={<Target size={14} style={{ color: theme.color.destructive }} />}>
       {top3.length === 0 ? (
         <Empty>Nothing scheduled yet. Add an event on the calendar to set your focus.</Empty>
       ) : (
@@ -99,6 +98,7 @@ export function FocusCard() {
           })}
         </ul>
       )}
-    </Card>
+    </StyledCard>
   )
 }
+

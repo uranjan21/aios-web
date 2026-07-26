@@ -38,12 +38,26 @@ const TimelineSection = styled(Section)`
   padding: ${({ theme }) => `${theme.spacing[3]} 0 0`};
 `;
 
+const StyledCard = styled(Card)`
+  position: relative;
+  overflow: hidden;
+  border: 1px solid ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : theme.color.border};
+  background: ${({ theme }) =>
+    theme.mode === 'dark'
+      ? 'rgba(20, 24, 34, 0.85)'
+      : 'rgba(255, 255, 255, 0.85)'};
+  backdrop-filter: blur(16px);
+  border-radius: ${({ theme }) => theme.radii.xl};
+  box-shadow: 0 8px 30px -6px rgba(0, 0, 0, 0.05);
+`;
+
 export function UnifiedSchedulePanel({
   selectedDate,
   onSelectDate,
 }: UnifiedSchedulePanelProps) {
   return (
-    <Card 
+    <StyledCard 
       title="Schedule" 
       subtitle="Monthly calendar and daily agenda" 
       icon={<Calendar size={14} />} 
@@ -60,6 +74,6 @@ export function UnifiedSchedulePanel({
           <TodaysTimeline date={selectedDate} />
         </TimelineSection>
       </PanelBody>
-    </Card>
+    </StyledCard>
   );
 }

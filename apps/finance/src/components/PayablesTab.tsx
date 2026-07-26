@@ -8,6 +8,7 @@ import styled from 'styled-components'
 import { financeApi, type PayableItem } from '@ct/shared/api/areas'
 import { formatCurrency } from '@ct/shared/lib/utils'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
+import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 
 const KpiRow = styled.div`
   display: grid;
@@ -85,7 +86,7 @@ function suffix(n: number): string {
   return ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'
 }
 
-export function PayablesTab() {
+export function PayablesTab({ navMenu }: { navMenu?: React.ReactNode }) {
   const queryClient = useQueryClient()
   const [month, setMonth] = useState(dayjs().format('YYYY-MM'))
 
@@ -127,68 +128,74 @@ export function PayablesTab() {
 
   const shift = (delta: number) => setMonth(dayjs(month + '-01').add(delta, 'month').format('YYYY-MM'))
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isLoading) return (
+    <WorkspaceLayout rail={navMenu}>
+      <Skeleton style={{ height: 320 }} />
+    </WorkspaceLayout>
+  )
 
   const items = data?.items ?? []
 
   return (
-    <Card
-      title="Month-end payables"
-      subtitle="Everything you owe this month — rent, EMIs, subscriptions, credit-card bills"
-      icon={<ListChecks size={16} />}
-      action={
-        <MonthNav>
-          <Button variant="ghost" size="icon" aria-label="Previous month" onClick={() => shift(-1)}>
-            <ChevronLeft size={16} />
-          </Button>
-          <MonthLabel>{dayjs(month + '-01').format('MMM YYYY')}</MonthLabel>
-          <Button variant="ghost" size="icon" aria-label="Next month" onClick={() => shift(1)}>
-            <ChevronRight size={16} />
-          </Button>
-        </MonthNav>
-      }
-    >
-      <KpiRow>
-        <Kpi>
-          <KpiLabel>Total payable</KpiLabel>
-          <KpiValue>{formatCurrency(data?.total ?? 0)}</KpiValue>
-        </Kpi>
-        <Kpi>
-          <KpiLabel>Paid</KpiLabel>
-          <KpiValue $tone="success">{formatCurrency(data?.total_paid ?? 0)}</KpiValue>
-        </Kpi>
-        <Kpi>
-          <KpiLabel>Still due</KpiLabel>
-          <KpiValue $tone="danger">{formatCurrency(data?.total_unpaid ?? 0)}</KpiValue>
-        </Kpi>
-      </KpiRow>
+    <WorkspaceLayout rail={navMenu}>
+      <Card
+        title="Month-end payables"
+        subtitle="Everything you owe this month — rent, EMIs, subscriptions, credit-card bills"
+        icon={<ListChecks size={16} />}
+        action={
+          <MonthNav>
+            <Button variant="ghost" size="icon" aria-label="Previous month" onClick={() => shift(-1)}>
+              <ChevronLeft size={16} />
+            </Button>
+            <MonthLabel>{dayjs(month + '-01').format('MMM YYYY')}</MonthLabel>
+            <Button variant="ghost" size="icon" aria-label="Next month" onClick={() => shift(1)}>
+              <ChevronRight size={16} />
+            </Button>
+          </MonthNav>
+        }
+      >
+        <KpiRow>
+          <Kpi>
+            <KpiLabel>Total payable</KpiLabel>
+            <KpiValue>{formatCurrency(data?.total ?? 0)}</KpiValue>
+          </Kpi>
+          <Kpi>
+            <KpiLabel>Paid</KpiLabel>
+            <KpiValue $tone="success">{formatCurrency(data?.total_paid ?? 0)}</KpiValue>
+          </Kpi>
+          <Kpi>
+            <KpiLabel>Still due</KpiLabel>
+            <KpiValue $tone="danger">{formatCurrency(data?.total_unpaid ?? 0)}</KpiValue>
+          </Kpi>
+        </KpiRow>
 
-      {items.length === 0 ? (
-        <Meta style={{ padding: '32px 0', textAlign: 'center' }}>
-          Nothing due this month. Add bills, loans (EMIs), or credit-card bills to see them here.
-        </Meta>
-      ) : (
-        items.map((item) => (
-          <Row key={`${item.type}-${item.id}`} $paid={item.paid}>
-            <Switch
-              checked={item.paid}
-              onChange={() => payMutation.mutate(item)}
-              aria-label={`Mark ${item.name} ${item.paid ? 'unpaid' : 'paid'}`}
-            />
-            {item.type === 'cc_bill' ? <CreditCard size={16} /> : <Wallet size={16} />}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <Name>{item.name}</Name>
-              <Meta>
-                {dueLabel(item)}
-                {item.account_name ? ` · from ${item.account_name}` : ' · no account set'}
-                {item.is_auto_debit ? ' · auto-debit' : ''}
-              </Meta>
-            </div>
-            <TypeBadge $type={item.type}>{item.type === 'cc_bill' ? 'CC' : item.type}</TypeBadge>
-            <Amount $paid={item.paid}>{formatCurrency(item.amount)}</Amount>
-          </Row>
-        ))
-      )}
-    </Card>
+        {items.length === 0 ? (
+          <Meta style={{ padding: '32px 0', textAlign: 'center' }}>
+            Nothing due this month. Add bills, loans (EMIs), or credit-card bills to see them here.
+          </Meta>
+        ) : (
+          items.map((item) => (
+            <Row key={`${item.type}-${item.id}`} $paid={item.paid}>
+              <Switch
+                checked={item.paid}
+                onChange={() => payMutation.mutate(item)}
+                aria-label={`Mark ${item.name} ${item.paid ? 'unpaid' : 'paid'}`}
+              />
+              {item.type === 'cc_bill' ? <CreditCard size={16} /> : <Wallet size={16} />}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Name>{item.name}</Name>
+                <Meta>
+                  {dueLabel(item)}
+                  {item.account_name ? ` · from ${item.account_name}` : ' · no account set'}
+                  {item.is_auto_debit ? ' · auto-debit' : ''}
+                </Meta>
+              </div>
+              <TypeBadge $type={item.type}>{item.type === 'cc_bill' ? 'CC' : item.type}</TypeBadge>
+              <Amount $paid={item.paid}>{formatCurrency(item.amount)}</Amount>
+            </Row>
+          ))
+        )}
+      </Card>
+    </WorkspaceLayout>
   )
 }

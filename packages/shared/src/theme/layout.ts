@@ -41,7 +41,7 @@ export const SIDEBAR_WIDTH = '288px'        // 24 × 12pt
 export const SETTINGS_RAIL_WIDTH = '264px'  // 22 × 12pt
 
 /** Global top bar height */
-export const TOPBAR_HEIGHT = '48px'         // 4 × 12pt
+export const TOPBAR_HEIGHT = '60px'         // 5 × 12pt
 
 /** Mobile bottom nav height */
 export const BOTTOM_NAV_HEIGHT = '60px'     // 5 × 12pt

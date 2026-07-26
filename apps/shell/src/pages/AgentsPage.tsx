@@ -1,8 +1,9 @@
 import { agentsApi } from "@ct/shared/api/agents";
 import { EmptyState, ErrorState, Button, PageHeader } from "@ledgr/ui";
-import { PageContainer, PageContent } from "@ct/shared/components/layout/PageLayout";
+import { ModuleLayout } from "@ct/shared/components/layout/ModuleLayout";
+import { ModuleSidebar } from "@ct/shared/components/layout/ModuleSidebar";
 import { PageDivider } from "@ct/shared/components/layout/PageDivider";
-import { AreaTabs } from "@ct/shared/components/ui/AreaTabs";
+import { useSearchParams } from "react-router-dom";
 import { AgentsToolbar, AgentsFilters } from "@/features/agents/components/AgentsToolbar";
 import { AgentRow } from "@/features/agents/components/AgentRow";
 import { AgentCard } from "@/features/agents/components/AgentCard";
@@ -27,6 +28,10 @@ import {
   Filter,
   RefreshCw,
   Zap,
+  LayoutDashboard,
+  PlayCircle,
+  PauseCircle,
+  AlertCircle
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -112,7 +117,7 @@ const EmptyWrap = styled.div`
 `;
 
 function AgentsContent({ agents }: { agents: Agent[] }) {
-  const { tab, search, domain, schedule, status, sort, view, setFilter } = useAgentFilters();
+  const { tab, search, domain, schedule, status, sort, view } = useAgentFilters();
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
   const processedAgents = useMemo(() => {
@@ -262,14 +267,7 @@ function AgentsContent({ agents }: { agents: Agent[] }) {
     </Stack>
   );
 
-  const tabs = [
-    { key: "all", label: `All (${agents.length})`, children: tableRender },
-    { key: "active", label: `Active (${agents.filter((agent) => agent.is_active).length})`, children: tableRender },
-    { key: "paused", label: `Paused (${agents.filter((agent) => !agent.is_active).length})`, children: tableRender },
-    { key: "error", label: `Needs Attention (${agents.filter((agent) => agent.last_run_status === "error").length})`, children: tableRender },
-  ];
-
-  return <AreaTabs activeKey={tab} onChange={(key) => setFilter("tab", key)} items={tabs} />;
+  return tableRender;
 }
 
 export function AgentsPage() {
@@ -287,41 +285,70 @@ export function AgentsPage() {
     onError: () => toast.error("Failed to seed agents"),
   });
 
-  return (
-    <PageContainer>
-      <PageContent>
-        <SpinGlobal />
-        <PageHeader
-          title="Agents"
-          subtitle="A compact control room for autonomous workflows across your life OS."
-          icon={<Bot />}
-          eyebrow="Automation"
-        />
-        <PageDivider />
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') || 'all';
+  
+  const groups = [
+    {
+      label: 'Status',
+      items: [
+        { key: "all", label: `All (${agents?.length ?? 0})`, icon: <LayoutDashboard size={14} /> },
+        { key: "active", label: `Active (${agents?.filter((agent) => agent.is_active).length ?? 0})`, icon: <PlayCircle size={14} /> },
+        { key: "paused", label: `Paused (${agents?.filter((agent) => !agent.is_active).length ?? 0})`, icon: <PauseCircle size={14} /> },
+        { key: "error", label: `Needs Attention (${agents?.filter((agent) => agent.last_run_status === "error").length ?? 0})`, icon: <AlertCircle size={14} /> },
+      ]
+    }
+  ];
 
-        {isError ? (
-          <ErrorState title="Could not load agents" onRetry={() => refetch()} />
-        ) : isLoading ? (
-          <Stack>
-            {Array.from({ length: 6 }).map((_, index) => (
-              <AgentSkeleton key={index} />
-            ))}
-          </Stack>
-        ) : agents?.length === 0 ? (
-          <EmptyState
-            icon={<Zap size={24} />}
-            title="No agents yet"
-            description="Seed the default roster, then refine with filters as your setup grows."
-            action={
-              <Button variant="secondary" size="sm" onClick={() => seedMutation.mutate()}>
-                {seedMutation.isPending ? "Seeding..." : "Seed Agents"}
-              </Button>
-            }
+  return (
+    <ModuleLayout
+      header={
+        <>
+          <PageHeader
+            title="Agents"
+            subtitle="A compact control room for autonomous workflows across your life OS."
+            icon={<Bot />}
+            eyebrow="Automation"
           />
-        ) : (
-          <AgentsContent agents={agents ?? []} />
-        )}
-      </PageContent>
-    </PageContainer>
+          <PageDivider />
+        </>
+      }
+      sidebar={
+        <ModuleSidebar
+          groups={groups}
+          activeKey={tab}
+          onChange={(key) => {
+            const next = new URLSearchParams(params);
+            if (key === 'all') next.delete('tab');
+            else next.set('tab', key);
+            setParams(next, { replace: true });
+          }}
+        />
+      }
+    >
+      <SpinGlobal />
+      {isError ? (
+        <ErrorState title="Could not load agents" onRetry={() => refetch()} />
+      ) : isLoading ? (
+        <Stack>
+          {Array.from({ length: 6 }).map((_, index) => (
+            <AgentSkeleton key={index} />
+          ))}
+        </Stack>
+      ) : agents?.length === 0 ? (
+        <EmptyState
+          icon={<Zap size={24} />}
+          title="No agents yet"
+          description="Seed the default roster, then refine with filters as your setup grows."
+          action={
+            <Button variant="secondary" size="sm" onClick={() => seedMutation.mutate()}>
+              {seedMutation.isPending ? "Seeding..." : "Seed Agents"}
+            </Button>
+          }
+        />
+      ) : (
+        <AgentsContent agents={agents ?? []} />
+      )}
+    </ModuleLayout>
   );
 }

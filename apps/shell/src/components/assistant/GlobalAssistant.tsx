@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import { useTheme } from 'styled-components'
 import { Spinner, Select } from '@ledgr/ui'
-import { Bot, Wifi, WifiOff, X, Settings, History } from 'lucide-react'
+import { Bot, Wifi, WifiOff, X, Settings, History, Sparkles } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
 import { useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -381,11 +381,12 @@ export function GlobalAssistant() {
           onClick={() => setIsOpen(true)}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          whileHover={{ scale: 1.05 }}
+          whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.95 }}
           aria-label="Open AI Assistant (⌘J)"
         >
-          <Bot size={24} />
+          <Sparkles className="sparkle-icon" />
+          <span className="fab-label">Ask AI</span>
         </FAB>
       )}
     </>

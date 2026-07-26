@@ -17,7 +17,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Flag, Plus, Target, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import styled from "styled-components";
+import styled, { useTheme } from "styled-components";
 
 import { GoalsTab as FinanceGoalsTab } from "@ct/finance/components/GoalsTab";
 import { DomainGoalsCard } from "@ct/shared/components/workspace/DomainGoalsCard";
@@ -70,6 +70,28 @@ const IconBtn = styled.button`
   ${focusRing}
 `;
 
+const StyledCard = styled(Card)`
+  position: relative;
+  overflow: hidden;
+  border: 1px solid ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : theme.color.border};
+  background: ${({ theme }) =>
+    theme.mode === 'dark'
+      ? 'linear-gradient(180deg, rgba(30, 32, 40, 0.8) 0%, rgba(20, 21, 26, 0.6) 100%)'
+      : 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 250, 252, 0.8) 100%)'};
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+`
+
+const GoalCard = styled(StyledCard)`
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+    border-color: ${({ theme }) => theme.color.accent}80;
+  }
+`
+
 const CategoryChip = styled.span`
   display: inline-flex;
   font-size: ${({ theme }) => theme.typography.fontSize.xs};
@@ -80,6 +102,7 @@ const CategoryChip = styled.span`
   background: ${({ theme }) => theme.color.accent}1A;
   padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
   border-radius: ${({ theme }) => theme.radii.sm};
+  box-shadow: 0 0 10px ${({ theme }) => theme.color.accent}40;
 `;
 
 const GoalDesc = styled.p`
@@ -114,6 +137,7 @@ const GOAL_STATUS_FILTER_OPTIONS = [
 ];
 
 export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
+  const theme = useTheme();
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [goalStatusFilter, setGoalStatusFilter] = useState("all");
@@ -181,7 +205,7 @@ export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
             ? goals
             : goals.filter((g) => g.status === goalStatusFilter);
         return (
-          <Card
+          <StyledCard
             icon={<Target size={16} />}
             title="All Goals"
             subtitle={`${visibleGoals.length} goal${visibleGoals.length !== 1 ? "s" : ""}`}
@@ -194,7 +218,11 @@ export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
                   onChange={(v) => setGoalStatusFilter(v as string)}
                   options={GOAL_STATUS_FILTER_OPTIONS}
                 />
-                <Button size="sm" variant="primary" onClick={() => handleOpenAddGoal()}>
+                <Button size="sm" variant="primary" onClick={() => handleOpenAddGoal()} style={{
+                  background: `linear-gradient(135deg, ${theme.color.accent} 0%, color-mix(in srgb, ${theme.color.accent} 80%, black) 100%)`,
+                  border: 'none',
+                  boxShadow: `0 4px 12px ${theme.color.accent}40`
+                }}>
                   <Plus size={14} style={{ marginRight: 6 }} /> Add goal
                 </Button>
               </div>
@@ -206,7 +234,11 @@ export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
                 title="No goals yet"
                 description="Set a macro goal and track progress across your life areas."
                 action={
-                  <Button size="sm" variant="primary" onClick={() => handleOpenAddGoal()}>
+                  <Button size="sm" variant="primary" onClick={() => handleOpenAddGoal()} style={{
+                    background: `linear-gradient(135deg, ${theme.color.accent} 0%, color-mix(in srgb, ${theme.color.accent} 80%, black) 100%)`,
+                    border: 'none',
+                    boxShadow: `0 4px 12px ${theme.color.accent}40`
+                  }}>
                     <Plus size={14} style={{ marginRight: 6 }} /> Add goal
                   </Button>
                 }
@@ -214,7 +246,7 @@ export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
             ) : (
               <GoalsGrid>
                 {visibleGoals.map((g) => (
-                  <Card key={g.id} variant="outline" size="md">
+                  <GoalCard key={g.id} size="md">
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                       <CategoryChip>{domainLabel(g.category)}</CategoryChip>
                       <IconBtn aria-label={`Delete ${g.title}`} onClick={() => setDeleteTarget(g)}>
@@ -227,11 +259,11 @@ export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
                       <span>{g.status}</span>
                       {g.target_date && <span>{g.target_date}</span>}
                     </GoalMeta>
-                  </Card>
+                  </GoalCard>
                 ))}
               </GoalsGrid>
             )}
-          </Card>
+          </StyledCard>
         );
       })()}
 

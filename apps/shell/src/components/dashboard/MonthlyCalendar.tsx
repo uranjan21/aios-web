@@ -86,24 +86,24 @@ const IconBtn = styled.button`
 const DowGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
-  margin-bottom: ${({ theme }) => `${theme.spacing[1]}`};
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
+  margin-bottom: ${({ theme }) => `${theme.spacing[2]}`};
 `;
 
 const DowCell = styled.div`
   text-align: center;
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
+  font-size: 11px;
   font-weight: 600;
   color: ${({ theme }) => theme.color.mutedForeground};
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   padding: ${({ theme }) => `${theme.spacing[1]} 0`};
 `;
 
 const DaysGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: ${({ theme }) => `${theme.spacing[1]}`};
+  gap: ${({ theme }) => `${theme.spacing[1.5]}`};
 `;
 
 const Cell = styled.button<{
@@ -116,38 +116,46 @@ const Cell = styled.button<{
   aspect-ratio: 1 / 1;
   border: 1px solid transparent;
   background: ${({ theme, $selected }) =>
-    $selected ? theme.color.primary : theme.color.background};
+    $selected
+      ? `linear-gradient(135deg, ${theme.color.accent} 0%, ${theme.color.accent}DD 100%)`
+      : 'transparent'};
   color: ${({ theme, $selected, $outside }) =>
     $selected
-      ? theme.color.primaryForeground
+      ? theme.color.accentForeground
       : $outside
-        ? theme.color.mutedForeground + "AA"
+        ? theme.color.mutedForeground + "55"
         : theme.color.foreground};
-  border-radius: ${({ theme }) => theme.radii.md};
+  border-radius: ${({ theme }) => theme.radii.lg};
   font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  font-weight: 500;
+  font-weight: ${({ $selected, $today }) => ($selected || $today ? 600 : 400)};
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   padding: 0;
-  transition:
-    transform 120ms,
-    background 120ms,
-    border-color 120ms;
+  box-shadow: ${({ $selected, theme }) =>
+    $selected ? `0 4px 16px ${theme.color.accent}40` : 'none'};
+  transition: all 180ms ease;
+
   ${({ $today, theme, $selected }) =>
     $today &&
     !$selected &&
     css`
-      border-color: ${theme.color.accent};
+      border: 1px solid ${theme.color.accent}55;
       color: ${theme.color.accent};
+      background: ${theme.color.accent}0A;
       font-weight: 700;
     `}
+
   &:hover {
-    transform: scale(1.05);
-    border-color: ${({ theme, $selected }) =>
-      $selected ? "transparent" : theme.color.border};
+    transform: scale(1.08);
+    background: ${({ theme, $selected }) =>
+      $selected
+        ? `linear-gradient(135deg, ${theme.color.accent} 0%, ${theme.color.accent}DD 100%)`
+        : theme.mode === 'dark'
+          ? 'rgba(255, 255, 255, 0.08)'
+          : 'rgba(0, 0, 0, 0.05)'};
   }
   ${focusRing}
 `;
@@ -162,7 +170,7 @@ const EventDot = styled.span<{ $selected?: boolean }>`
   border-radius: 50%;
   flex-shrink: 0;
   background: ${({ theme, $selected }) =>
-    $selected ? theme.color.primaryForeground : theme.color.accent};
+    $selected ? theme.color.accentForeground : theme.color.accent};
 `;
 
 const EventDots = styled.span`

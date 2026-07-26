@@ -7,6 +7,7 @@ import styled from 'styled-components'
 import { financeApi, type MerchantRuleItem } from '@ct/shared/api/areas'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
+import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 
 const FormRow = styled.form`
   display: flex;
@@ -41,7 +42,7 @@ const MATCH_OPTIONS = [
   { value: 'regex', label: 'regex' },
 ]
 
-export function RulesTab() {
+export function RulesTab({ navMenu }: { navMenu?: React.ReactNode }) {
   const queryClient = useQueryClient()
   const [pattern, setPattern] = useState('')
   const [matchType, setMatchType] = useState('contains')
@@ -109,54 +110,60 @@ export function RulesTab() {
     },
   ]
 
-  if (isLoading) return <Skeleton style={{ height: 280 }} />
+  if (isLoading) return (
+    <WorkspaceLayout rail={navMenu}>
+      <Skeleton style={{ height: 280 }} />
+    </WorkspaceLayout>
+  )
 
   return (
-    <Card
-      title="Auto-categorisation rules"
-      subtitle="When an ingested transaction's payee matches, apply a category and account automatically"
-      icon={<Wand2 size={16} />}
-    >
-      <FormRow onSubmit={(e) => { e.preventDefault(); if (pattern.trim()) createMutation.mutate() }}>
-        <Field $w={130}>
-          <FieldLabel>Match</FieldLabel>
-          <Select fullWidth={false} value={matchType} onChange={(v: any) => setMatchType(String(v))} options={MATCH_OPTIONS} />
-        </Field>
-        <Field>
-          <FieldLabel>Payee pattern</FieldLabel>
-          <Input value={pattern} placeholder="e.g. SWIGGY" onChange={(e) => setPattern(e.target.value)} required />
-        </Field>
-        <Field $w={160}>
-          <FieldLabel>Category</FieldLabel>
-          <Select
-            fullWidth={false}
-            value={categoryId}
-            onChange={(v: any) => setCategoryId(String(v))}
-            placeholder="Category"
-            options={[{ value: '', label: 'None' }, ...(categories ?? []).map((c) => ({ value: c.id, label: c.name }))]}
-          />
-        </Field>
-        <Field $w={160}>
-          <FieldLabel>Account</FieldLabel>
-          <Select
-            fullWidth={false}
-            value={accountId}
-            onChange={(v: any) => setAccountId(String(v))}
-            placeholder="Account"
-            options={[{ value: '', label: 'None' }, ...(accounts ?? []).map((a) => ({ value: a.id, label: a.name }))]}
-          />
-        </Field>
-        <Button type="submit" variant="primary" size="sm" loading={createMutation.isPending}>
-          <Plus size={12} style={{ marginRight: 4 }} /> Add rule
-        </Button>
-      </FormRow>
+    <WorkspaceLayout rail={navMenu}>
+      <Card
+        title="Auto-categorisation rules"
+        subtitle="When an ingested transaction's payee matches, apply a category and account automatically"
+        icon={<Wand2 size={16} />}
+      >
+        <FormRow onSubmit={(e) => { e.preventDefault(); if (pattern.trim()) createMutation.mutate() }}>
+          <Field $w={130}>
+            <FieldLabel>Match</FieldLabel>
+            <Select fullWidth={false} value={matchType} onChange={(v: any) => setMatchType(String(v))} options={MATCH_OPTIONS} />
+          </Field>
+          <Field>
+            <FieldLabel>Payee pattern</FieldLabel>
+            <Input value={pattern} placeholder="e.g. SWIGGY" onChange={(e) => setPattern(e.target.value)} required />
+          </Field>
+          <Field $w={160}>
+            <FieldLabel>Category</FieldLabel>
+            <Select
+              fullWidth={false}
+              value={categoryId}
+              onChange={(v: any) => setCategoryId(String(v))}
+              placeholder="Category"
+              options={[{ value: '', label: 'None' }, ...(categories ?? []).map((c) => ({ value: c.id, label: c.name }))]}
+            />
+          </Field>
+          <Field $w={160}>
+            <FieldLabel>Account</FieldLabel>
+            <Select
+              fullWidth={false}
+              value={accountId}
+              onChange={(v: any) => setAccountId(String(v))}
+              placeholder="Account"
+              options={[{ value: '', label: 'None' }, ...(accounts ?? []).map((a) => ({ value: a.id, label: a.name }))]}
+            />
+          </Field>
+          <Button type="submit" variant="primary" size="sm" loading={createMutation.isPending}>
+            <Plus size={12} style={{ marginRight: 4 }} /> Add rule
+          </Button>
+        </FormRow>
 
-      <DataTable
-        rows={rules ?? []}
-        columns={columns}
-        getRowKey={(r) => r.id}
-        empty={{ icon: <Wand2 size={20} />, title: 'No rules yet', description: 'Add a rule so matching transactions get categorised automatically at ingestion.' }}
-      />
-    </Card>
+        <DataTable
+          rows={rules ?? []}
+          columns={columns}
+          getRowKey={(r) => r.id}
+          empty={{ icon: <Wand2 size={20} />, title: 'No rules yet', description: 'Add a rule so matching transactions get categorised automatically at ingestion.' }}
+        />
+      </Card>
+    </WorkspaceLayout>
   )
 }

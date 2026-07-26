@@ -79,19 +79,34 @@ const SIZE_PADDING: Record<CardSize, ReturnType<typeof css>> = {
 
 const variantStyles: Record<ResolvedCardVariant, ReturnType<typeof css>> = {
   flat: css`
-    background: ${({ theme }) => theme.color.card};
-    border: ${({ theme }) => theme.border.hairline} solid ${({ theme }) => theme.color.border};
-    box-shadow: ${({ theme }) => theme.elevation[1]};
+    border: 1px solid ${({ theme }) =>
+      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'};
+    background: ${({ theme }) =>
+      theme.mode === 'dark'
+        ? 'linear-gradient(180deg, rgba(30, 32, 40, 0.8) 0%, rgba(20, 21, 26, 0.6) 100%)'
+        : 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 250, 252, 0.8) 100%)'};
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
   `,
   raised: css`
-    background: ${({ theme }) => theme.color.card};
-    border: ${({ theme }) => theme.border.hairline} solid ${({ theme }) => theme.color.border};
-    box-shadow: ${({ theme }) => theme.elevation[2]};
+    border: 1px solid ${({ theme }) =>
+      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'};
+    background: ${({ theme }) =>
+      theme.mode === 'dark'
+        ? 'linear-gradient(180deg, rgba(35, 37, 45, 0.85) 0%, rgba(25, 26, 32, 0.7) 100%)'
+        : 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(250, 250, 252, 0.9) 100%)'};
+    backdrop-filter: blur(16px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
   `,
   floating: css`
-    background: ${({ theme }) => theme.color.card};
-    border: ${({ theme }) => theme.border.hairline} solid ${({ theme }) => theme.color.border};
-    box-shadow: ${({ theme }) => theme.elevation[3]};
+    border: 1px solid ${({ theme }) =>
+      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.1)'};
+    background: ${({ theme }) =>
+      theme.mode === 'dark'
+        ? 'linear-gradient(180deg, rgba(40, 42, 50, 0.9) 0%, rgba(30, 31, 38, 0.8) 100%)'
+        : 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.95) 100%)'};
+    backdrop-filter: blur(20px);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
   `,
   glass: css`
     background: ${({ theme }) => theme.glass.background};

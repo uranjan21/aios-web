@@ -5,7 +5,6 @@ import styled from "styled-components";
 import { BOTTOM_NAV_HEIGHT } from "@ct/shared/theme/layout";
 import { trackOnce } from "@ct/shared/lib/analytics";
 
-import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { BottomNav } from "./BottomNav";
 
@@ -148,8 +147,6 @@ export function AppShell() {
         onClick={() => setSidebarOpen(false)}
         aria-hidden={!sidebarOpen}
       />
-
-      <Sidebar />
 
       <MainColumn>
         {user && user.email_verified === false && <EmailVerificationBanner email={user.email} />}

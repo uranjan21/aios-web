@@ -6,7 +6,7 @@ import dayjs from 'dayjs'
 import { Plus, Dumbbell, Trophy, X, Target, CheckCircle2, Flame, Repeat } from 'lucide-react'
 import { healthApi } from '@ct/shared/api/areas'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
-import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
+import styled from 'styled-components'
 
 import { COMMON_EXERCISES } from './fitness/constants'
 import { GOALS } from './fitness/goals'
@@ -29,6 +29,12 @@ import {
   StyledHabitFormRow,
   StyledButtonContent,
 } from './fitness/FitnessTab.styles'
+
+const TabContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing[6]};
+`
 
 type SetRow = { exercise: string; reps: number | null; weight_kg: number | null }
 
@@ -121,7 +127,7 @@ export function FitnessTab() {
 
   return (
     <>
-    <WorkspaceLayout rail={undefined}>
+    <TabContent>
       <HeaderActionPortal>
         <Button size="sm" variant="primary" onClick={() => setLogModalOpen(true)}>
           <Plus size={12} style={{ marginRight: 4 }} /> Log Workout
@@ -183,18 +189,20 @@ export function FitnessTab() {
 
         {/* Habits */}
         <div>
+          <StyledSectionHeader>
+            <Repeat style={{ width: '14px', height: '14px', color: 'var(--muted-foreground)' }} />
+            <StyledSectionTitle>Daily Habits</StyledSectionTitle>
+          </StyledSectionHeader>
           <KpiGrid $cols={3}>
             <KpiCard
               label="Habits"
               icon={Repeat}
-              sub="Total habits monitored"
               loading={loadingHabits}
               value={String(habits?.length ?? 0)}
             />
             <KpiCard
               label="Done Today"
               icon={CheckCircle2}
-              sub="Habits checked today"
               loading={loadingHabits}
               value={`${doneToday}/${habits?.length ?? 0}`}
             />
@@ -202,7 +210,6 @@ export function FitnessTab() {
               label="Best Streak"
               icon={Flame}
               color="primary"
-              sub="Highest habit streak"
               loading={loadingHabits}
               value={`${bestStreak} days`}
             />
@@ -311,7 +318,7 @@ export function FitnessTab() {
           )}
         </GlassCard>
       </StyledContainer>
-    </WorkspaceLayout>
+    </TabContent>
 
     <Dialog open={logModalOpen} onOpenChange={setLogModalOpen} title="Log Fitness Activity">
       <StyledModalContent>

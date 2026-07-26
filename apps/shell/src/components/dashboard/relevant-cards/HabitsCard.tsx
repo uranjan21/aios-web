@@ -2,11 +2,11 @@ import { toast } from 'sonner'
 import styled, { useTheme } from 'styled-components'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Flame, Check } from 'lucide-react'
-import { Card, Stack, focusRing } from '@ledgr/ui'
+import { Stack, focusRing } from '@ledgr/ui'
 import { healthApi } from '@ct/shared/api/areas'
 import { fmtDateKey } from '@ct/shared/stores/dayEventsStore'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
-import { Empty } from './shared'
+import { Empty, StyledCard } from './shared'
 
 const StatRow = styled.div`
   display: flex;
@@ -121,7 +121,7 @@ export function HabitsCard() {
   })
 
   return (
-    <Card title="Habits & Streaks" subtitle="Daily check-ins" icon={<Flame size={14} style={{ color: theme.domain.finance }} />}>
+    <StyledCard title="Habits & Streaks" subtitle="Daily check-ins" icon={<Flame size={14} style={{ color: theme.domain.finance }} />}>
       {isLoading ? (
         <Stack direction="column" gap={2}>
           <Skeleton style={{ height: 34, width: '100%' }} />
@@ -154,6 +154,7 @@ export function HabitsCard() {
           })}
         </Stack>
       )}
-    </Card>
+    </StyledCard>
   )
 }
+
