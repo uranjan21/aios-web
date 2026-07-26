@@ -24,7 +24,7 @@ import {
 import styled from 'styled-components'
 
 const StyledContent = styled(DropdownMenuContent)`
-  min-width: 280px;
+  min-width: 240px;
   border-radius: ${({ theme }) => theme.radii.xl};
   background: ${({ theme }) =>
     theme.mode === 'dark'
@@ -35,60 +35,59 @@ const StyledContent = styled(DropdownMenuContent)`
   border: 1px solid ${({ theme }) =>
     theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.04);
-  padding: 6px;
+  padding: 4px;
 `
 
 const IdentityHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing[3]};
-  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[4]}`};
-  margin: 2px 2px 6px 2px;
+  gap: ${({ theme }) => theme.spacing[2.5]};
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[3]}`};
+  margin: 2px 2px 4px 2px;
   border-radius: ${({ theme }) => theme.radii.lg};
   background: ${({ theme }) =>
     theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)'};
   border: 1px solid ${({ theme }) =>
     theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)'};
-  
+
   .avatar {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
     background: linear-gradient(135deg, ${({ theme }) => theme.color.primary} 0%, ${({ theme }) => theme.color.accent} 100%);
     color: ${({ theme }) => theme.color.primaryForeground};
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: ${({ theme }) => theme.typography.fontSize.md};
+    font-size: ${({ theme }) => theme.typography.fontSize.sm};
     font-weight: 600;
     flex-shrink: 0;
-    box-shadow: 0 4px 10px ${({ theme }) => theme.color.primary}44;
+    box-shadow: 0 2px 8px ${({ theme }) => theme.color.primary}33;
   }
-  
+
   .user-details {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    
+
     .name {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       color: ${({ theme }) => theme.color.foreground};
       white-space: nowrap;
       text-overflow: ellipsis;
       overflow: hidden;
       letter-spacing: -0.01em;
-      line-height: 1.2;
-      margin-bottom: 3px;
+      line-height: 1.3;
     }
-    
+
     .meta {
-      font-size: 12px;
+      font-size: 11px;
       color: ${({ theme }) => theme.color.mutedForeground};
       white-space: nowrap;
       text-overflow: ellipsis;
       overflow: hidden;
-      line-height: 1.2;
+      line-height: 1.3;
     }
   }
 `
@@ -119,8 +118,8 @@ const MenuItemContent = styled.div`
 `
 
 const StyledMenuItem = styled(DropdownMenuItem)`
-  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[3.5]}`};
-  margin: 2px 4px;
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[3]}`};
+  margin: 1px 2px;
   cursor: pointer;
   border-radius: ${({ theme }) => theme.radii.md};
   transition: all 150ms ease;
@@ -146,8 +145,8 @@ const ThemeRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[3.5]}`};
-  margin: 2px 4px;
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[3]}`};
+  margin: 1px 2px;
   
   .label-group {
     display: flex;
@@ -171,7 +170,7 @@ const SegmentedControl = styled.div`
     theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)'};
   border: 1px solid ${({ theme }) =>
     theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'};
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   padding: 2px;
   gap: 2px;
 `
@@ -183,23 +182,23 @@ const Segment = styled.button<{ $active: boolean }>`
   width: 26px;
   height: 22px;
   border: none;
-  background: ${({ $active, theme }) => 
-    $active 
-      ? theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : '#ffffff' 
+  background: ${({ $active, theme }) =>
+    $active
+      ? theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : '#ffffff'
       : 'transparent'};
   color: ${({ $active, theme }) => $active ? theme.color.foreground : theme.color.mutedForeground};
-  border-radius: 9999px;
-  box-shadow: ${({ $active, theme }) => 
-    $active 
-      ? theme.mode === 'dark' ? '0 2px 8px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)' 
+  border-radius: ${({ theme }) => theme.radii.xs ?? theme.radii.sm};
+  box-shadow: ${({ $active }) =>
+    $active
+      ? '0 1px 3px rgba(0,0,0,0.1)'
       : 'none'};
   cursor: pointer;
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  
+  transition: color 150ms ease, background 150ms ease;
+
   &:hover {
     color: ${({ theme }) => theme.color.foreground};
   }
-  
+
   svg {
     width: 14px;
     height: 14px;

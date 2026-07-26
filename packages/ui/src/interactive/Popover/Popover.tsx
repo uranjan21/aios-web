@@ -77,7 +77,7 @@ const popIn = keyframes`
   to   { opacity: 1; transform: scale(1); }
 `;
 
-const Surface = styled.div<{ $top: number; $left: number; $minWidth: number }>`
+const Surface = styled.div<{ $top: number; $left: number; $minWidth: number; $origin: string; $ready: boolean }>`
   position: fixed;
   top: ${({ $top }) => `${$top}px`};
   left: ${({ $left }) => `${$left}px`};
@@ -94,10 +94,10 @@ const Surface = styled.div<{ $top: number; $left: number; $minWidth: number }>`
   box-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   padding: ${({ theme }) => theme.spacing[3]};
   outline: none;
-  transform-origin: top left;
-  animation: ${popIn} ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.enter};
+  transform-origin: ${({ $origin }) => $origin};
+  visibility: ${({ $ready }) => ($ready ? 'visible' : 'hidden')};
+  animation: ${({ $ready }) => $ready ? popIn : 'none'} ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.enter};
 
-  /* Hide scrollbar for clean visual unless scroll is necessary */
   scrollbar-width: thin;
   scrollbar-color: ${({ theme }) => theme.color.border} transparent;
 `;
@@ -160,21 +160,34 @@ export function PopoverContent({
   const { open, setOpen, triggerRef, contentId } = useCtx();
   const contentRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [ready, setReady] = useState(false);
   const [minWidth, setMinWidth] = useState(0);
+
+  // Compute correct transform-origin so scale animation starts from the trigger corner.
+  const origin = (() => {
+    if (side === 'left' || side === 'right') {
+      const v = align === 'start' ? 'top' : align === 'end' ? 'bottom' : 'center'
+      return side === 'left' ? `right ${v}` : `left ${v}`
+    }
+    const h = align === 'start' ? 'left' : align === 'end' ? 'right' : 'center'
+    const v = side === 'bottom' ? 'top' : 'bottom'
+    return `${h} ${v}`
+  })()
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
+    setReady(false);
 
     const updatePosition = () => {
       if (!triggerRef.current || !contentRef.current) return;
       const rect = triggerRef.current.getBoundingClientRect();
       if (matchTriggerWidth) setMinWidth(rect.width);
       setPos(computePos(rect, side, align, gap, contentRef.current));
+      setReady(true);
     };
 
     updatePosition();
 
-    // Re-measure position when content size changes (e.g. images load, async data arrives)
     const observer = new ResizeObserver(() => {
       updatePosition();
     });
@@ -193,7 +206,6 @@ export function PopoverContent({
   }, [open, side, align, gap, matchTriggerWidth, triggerRef]);
 
   useOnClickOutside(contentRef, (e) => {
-    // Don't close if click was on the trigger itself
     if (triggerRef.current?.contains(e.target as Node)) return;
     setOpen(false);
   }, open);
@@ -202,7 +214,7 @@ export function PopoverContent({
   if (!open) return null;
   return (
     <Portal>
-      <Surface ref={contentRef} id={contentId} role="dialog" $top={pos.top} $left={pos.left} $minWidth={minWidth} className={className} style={style}>
+      <Surface ref={contentRef} id={contentId} role="dialog" $top={pos.top} $left={pos.left} $minWidth={minWidth} $origin={origin} $ready={ready} className={className} style={style}>
         {children}
       </Surface>
     </Portal>

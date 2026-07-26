@@ -1,15 +1,18 @@
-import { NAV_ITEMS } from '@/config/navigation'
+import { NAV_ITEMS, type NavItem } from '@/config/navigation'
 import { Sun, Moon, Search, Menu, Sparkles } from 'lucide-react'
 import { NotificationBell } from '@/components/NotificationBell'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useUIStore } from '@ct/shared/stores/uiStore'
 import { useAuthStore } from '@ct/shared/stores/authStore'
 import { useSubscription } from '@ct/shared/hooks/useSubscription'
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@ledgr/ui'
-import { ChevronDown } from 'lucide-react'
+import { DropdownMenu, DropdownMenuTrigger } from '@ledgr/ui'
 import { AccountMenuBody } from './AccountMenu'
 import styled from 'styled-components'
 import { TOPBAR_HEIGHT } from '@ct/shared/theme/layout'
+
+// Paths to surface as flat links in the TopBar (ordered). Items not entitled or
+// not present in NAV_ITEMS are silently skipped.
+const TOPBAR_NAV_PATHS = ['/app', '/app/finance', '/app/health', '/app/career', '/app/plan', '/app/chat']
 
 const HeaderRoot = styled.header`
   position: relative;
@@ -44,11 +47,11 @@ const Hamburger = styled.button`
   border: none;
   color: ${({ theme }) => theme.color.foreground};
   cursor: pointer;
-  border-radius: ${({ theme }) => theme.radii.full};
-  
+  border-radius: ${({ theme }) => theme.radii.sm};
+
   &:hover { background: ${({ theme }) =>
     theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'}; }
-  
+
   @media ${({ theme }) => theme.media.md} {
     display: none;
   }
@@ -57,179 +60,102 @@ const Hamburger = styled.button`
 const TopNavLinks = styled.nav`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[2]}`};
-  
+  gap: 2px;
+
   @media ${({ theme }) => theme.media.belowMd} {
     display: none;
   }
-  
+
   .nav-link {
     position: relative;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    border-radius: 9999px;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: ${({ theme }) => theme.radii.sm};
     color: ${({ theme }) => theme.color.mutedForeground};
     text-decoration: none;
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 500;
-    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: color 150ms ease, background 150ms ease;
     background: transparent;
-    border: 1px solid transparent;
+    border: none;
     cursor: pointer;
 
-    &:hover, &[data-state="open"] {
+    &:hover {
       color: ${({ theme }) => theme.color.foreground};
       background: ${({ theme }) =>
-        theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'};
-    }
-
-    &:hover {
-      transform: scale(1.02);
+        theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)'};
     }
 
     &.active {
       color: ${({ theme }) => theme.color.foreground};
       background: ${({ theme }) =>
-        theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'};
-      border-color: ${({ theme }) =>
-        theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.06)'};
+        theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'};
       font-weight: 600;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
     }
 
     svg {
       width: 14px;
       height: 14px;
-      opacity: 0.8;
-      transition: transform 200ms ease;
+      flex-shrink: 0;
+      opacity: 0.75;
     }
   }
 `
 
-const StyledDropdownContent = styled(DropdownMenuContent)`
-  min-width: 200px;
-  border-radius: ${({ theme }) => theme.radii.lg};
-  background: ${({ theme }) =>
-    theme.mode === 'dark'
-      ? 'rgba(15, 17, 23, 0.72)'
-      : 'rgba(255, 255, 255, 0.75)'};
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.04);
-  padding: 6px;
-`
-
-const StyledDropdownItem = styled(DropdownMenuItem)<{ $active?: boolean }>`
-  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[3]}`};
-  margin: 2px;
-  cursor: pointer;
-  border-radius: ${({ theme }) => theme.radii.md};
-  transition: all 150ms ease;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: ${({ theme }) => theme.color.foreground};
-  font-size: 13px;
-  font-weight: 500;
-
-  &:hover {
-    background: ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)'};
-  }
-
-  ${({ $active, theme }) => $active && `
-    background: ${theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
-    font-weight: 600;
-  `}
-
-  svg {
-    width: 15px;
-    height: 15px;
-    color: ${({ theme }) => theme.color.mutedForeground};
-  }
-  
-  &:hover svg, ${({ $active }) => $active && '& svg'} {
-    color: ${({ theme }) => theme.color.foreground};
-  }
-`
-
 const LogoBadge = styled.div`
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
-  border-radius: ${({ theme }) => theme.radii.lg};
-  background: linear-gradient(135deg, ${({ theme }) => theme.color.accent}33 0%, ${({ theme }) => theme.color.accent}10 100%);
-  color: ${({ theme }) => theme.color.accent};
+  border-radius: ${({ theme }) => theme.radii.md};
+  background: ${({ theme }) => theme.color.primary};
+  color: ${({ theme }) => theme.color.primaryForeground};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: ${({ theme }) => theme.typography.fontFamily.display};
-  font-size: 1rem;
-  font-weight: 800;
-  box-shadow: 0 4px 16px ${({ theme }) => theme.color.accent}2A;
-  border: 1px solid ${({ theme }) => theme.color.accent}44;
-  position: relative;
-  transition: transform 200ms ease;
-  margin-right: 12px;
-
-  &:hover {
-    transform: scale(1.05);
-  }
-
-  .sparkle {
-    position: absolute;
-    top: -2px;
-    right: -2px;
-    width: 8px;
-    height: 8px;
-    color: ${({ theme }) => theme.color.accent};
-  }
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+  margin-right: 4px;
 `
 
 const GlobalSearchContainer = styled.button`
-  flex: 1;
-  max-width: 24rem;
+  max-width: 220px;
+  width: 220px;
   height: 34px;
-  position: relative;
   display: flex;
   align-items: center;
-  padding: 0 16px;
-  gap: 12px;
-  border-radius: 9999px;
+  padding: 0 12px;
+  gap: 8px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'};
-  backdrop-filter: blur(12px);
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)'};
   border: 1px solid ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'};
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.07)'};
   color: ${({ theme }) => theme.color.mutedForeground};
   cursor: pointer;
-  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
-  margin-left: auto;
+  transition: border-color 150ms ease, background 150ms ease;
 
   &:hover {
     background: ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'};
-    border-color: ${({ theme }) => theme.color.accent}66;
-    box-shadow: 0 4px 16px ${({ theme }) => theme.color.accent}15;
+      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'};
+    border-color: ${({ theme }) =>
+      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.12)'};
     color: ${({ theme }) => theme.color.foreground};
-    transform: translateY(-1px);
   }
 
   @media ${({ theme }) => theme.media.belowSm} {
     display: none;
-    margin-left: 0;
   }
 
   .icon-search {
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
     flex-shrink: 0;
-    opacity: 0.7;
+    opacity: 0.6;
   }
 
   .placeholder {
@@ -243,16 +169,17 @@ const GlobalSearchContainer = styled.button`
   }
 
   .shortcut-badge {
-    font-size: 10px;
-    font-weight: 600;
-    padding: 2px 6px;
-    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 1px 5px;
+    border-radius: ${({ theme }) => theme.radii.sm};
     background: ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'};
     color: ${({ theme }) => theme.color.mutedForeground};
     border: 1px solid ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)'};
-    letter-spacing: 0.05em;
+      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'};
+    letter-spacing: 0;
+    flex-shrink: 0;
   }
 `
 
@@ -260,7 +187,7 @@ const RightCluster = styled.div`
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 `
 
 const IconButton = styled.button`
@@ -269,59 +196,69 @@ const IconButton = styled.button`
   justify-content: center;
   width: 34px;
   height: 34px;
-  border-radius: 9999px;
-  background: ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)'};
-  border: 1px solid ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)'};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  background: transparent;
+  border: 1px solid transparent;
   color: ${({ theme }) => theme.color.mutedForeground};
   cursor: pointer;
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  
+  transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
+
   &:hover {
     background: ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'};
+      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)'};
     color: ${({ theme }) => theme.color.foreground};
-    border-color: ${({ theme }) => theme.color.accent}44;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border-color: ${({ theme }) =>
+      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.07)'};
   }
-  
+
   svg {
     width: 15px;
     height: 15px;
   }
 `
 
-const AssistantPill = styled.button`
+const AvatarButton = styled(IconButton)`
+  border-radius: 50%;
+  overflow: hidden;
+  padding: 0;
+  border-color: ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'};
+
+  &:hover {
+    border-color: ${({ theme }) => theme.color.accent}66;
+  }
+`
+
+const AssistantButton = styled.button`
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px;
+  gap: 6px;
+  padding: 0 14px;
   height: 34px;
-  border-radius: 9999px;
-  background: linear-gradient(135deg, ${({ theme }) => theme.color.accent}1A 0%, ${({ theme }) => theme.color.accent}05 100%);
-  border: 1px solid ${({ theme }) => theme.color.accent}33;
+  border-radius: ${({ theme }) => theme.radii.md};
+  background: ${({ theme }) => theme.color.accent}18;
+  border: 1px solid ${({ theme }) => theme.color.accent}30;
   color: ${({ theme }) => theme.color.accent};
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 10px ${({ theme }) => theme.color.accent}11;
+  transition: background 150ms ease, border-color 150ms ease;
 
   &:hover {
-    background: linear-gradient(135deg, ${({ theme }) => theme.color.accent}2A 0%, ${({ theme }) => theme.color.accent}0F 100%);
-    box-shadow: 0 6px 20px ${({ theme }) => theme.color.accent}33;
-    transform: translateY(-1px) scale(1.02);
-    border-color: ${({ theme }) => theme.color.accent}55;
+    background: ${({ theme }) => theme.color.accent}28;
+    border-color: ${({ theme }) => theme.color.accent}50;
   }
 
   svg {
-    width: 14px;
-    height: 14px;
-    filter: drop-shadow(0 2px 4px ${({ theme }) => theme.color.accent}66);
+    width: 13px;
+    height: 13px;
   }
 `
+
+function isItemActive(item: NavItem, pathname: string) {
+  if (item.to === '/app') return pathname === '/app'
+  return pathname.startsWith(item.to)
+}
 
 export function TopBar() {
   const { theme, toggleTheme, setCmdPaletteOpen, toggleSidebar, toggleAssistant } = useUIStore()
@@ -329,118 +266,78 @@ export function TopBar() {
   const navigate = useNavigate()
   const user = useAuthStore(s => s.user)
 
-  // Use the same entitled logic as Sidebar to filter modules
   const { data: sub } = useSubscription()
   const entitled = sub?.entitled ?? []
-  
+
   const visibleItems = NAV_ITEMS.filter(item => {
     if (item.adminOnly && !user?.is_admin) return false
     if (item.module && !user?.is_admin && !entitled.includes(item.module)) return false
     return true
   })
 
-  const mainItems = visibleItems.filter(item => item.group === 'Main')
-  const areaItems = visibleItems.filter(item => item.group === 'Areas')
-  
-  // Dashboard is always the first Main item (Today)
-  const dashboardItem = mainItems.find(item => item.to === '/app')
-  const workflowItems = mainItems.filter(item => item.to !== '/app')
-
-  const isGroupActive = (items: typeof visibleItems) => {
-    return items.some(item => location.pathname.startsWith(item.to) && (item.to !== '/app' || location.pathname === '/app'))
-  }
-
-  const renderDropdownGroup = (label: string, items: typeof visibleItems) => {
-    const isActive = isGroupActive(items)
-    return (
-      <DropdownMenu>
-        <DropdownMenuTrigger>
-          <button type="button" className={`nav-link ${isActive ? 'active' : ''}`}>
-            {label}
-            <ChevronDown size={14} style={{ opacity: 0.6 }} />
-          </button>
-        </DropdownMenuTrigger>
-        <StyledDropdownContent align="start">
-          {items.map(item => {
-            const Icon = item.icon
-            const isItemActive = location.pathname.startsWith(item.to) && (item.to !== '/app' || location.pathname === '/app')
-            return (
-              <StyledDropdownItem 
-                key={item.to}
-                $active={isItemActive}
-                onSelect={() => navigate(item.to)}
-              >
-                <Icon />
-                <span>{item.label}</span>
-              </StyledDropdownItem>
-            )
-          })}
-        </StyledDropdownContent>
-      </DropdownMenu>
-    )
-  }
+  // Flat ordered list — only the paths we surface in the TopBar nav.
+  const topbarItems = TOPBAR_NAV_PATHS
+    .map(path => visibleItems.find(item => item.to === path))
+    .filter((item): item is NavItem => !!item)
 
   return (
     <HeaderRoot>
       <LeftSide>
-        <LogoBadge>
-          <Sparkles className="sparkle" />
-          C
-        </LogoBadge>
+        <LogoBadge aria-hidden>CT</LogoBadge>
 
         <Hamburger aria-label="Open mobile menu" onClick={toggleSidebar}>
           <Menu size={18} />
         </Hamburger>
 
-        <TopNavLinks aria-label="Main App Navigation">
-          {dashboardItem && (
-            <button
-              type="button"
-              className={`nav-link ${location.pathname === '/app' ? 'active' : ''}`}
-              onClick={() => navigate(dashboardItem.to)}
-            >
-              <dashboardItem.icon />
-              {dashboardItem.label}
-            </button>
-          )}
-          
-          {renderDropdownGroup('Areas', areaItems)}
-          {renderDropdownGroup('Workflow', workflowItems)}
+        <TopNavLinks aria-label="Main navigation">
+          {topbarItems.map(item => {
+            const Icon = item.icon
+            const active = isItemActive(item, location.pathname)
+            return (
+              <button
+                key={item.to}
+                type="button"
+                className={`nav-link${active ? ' active' : ''}`}
+                onClick={() => navigate(item.to)}
+              >
+                <Icon />
+                {item.label}
+              </button>
+            )
+          })}
         </TopNavLinks>
       </LeftSide>
 
       <RightCluster>
         <GlobalSearchContainer onClick={() => setCmdPaletteOpen(true)} type="button" aria-label="Global search">
           <Search className="icon-search" />
-          <span className="placeholder">Search anything...</span>
+          <span className="placeholder">Search...</span>
           <kbd className="shortcut-badge">⌘K</kbd>
         </GlobalSearchContainer>
 
-        <AssistantPill onClick={toggleAssistant} title="Open AI Assistant (⌘J)">
+        <AssistantButton onClick={toggleAssistant} title="Open AI Assistant (⌘J)">
           <Sparkles />
-          <span>Ask AI</span>
-        </AssistantPill>
+          Ask AI
+        </AssistantButton>
 
         <IconButton onClick={toggleTheme} aria-label="Toggle theme" title="Toggle theme">
           {theme === 'dark' ? <Sun /> : <Moon />}
         </IconButton>
-        
+
         <NotificationBell />
 
-        <div style={{ marginLeft: 8 }}>
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <IconButton style={{ borderRadius: '50%', overflow: 'hidden', padding: 0 }} aria-label="User Menu">
-                {user?.picture_url ? (
-                  <img src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <span style={{ fontSize: 14, fontWeight: 600 }}>{(user?.name || 'U')[0].toUpperCase()}</span>
-                )}
-              </IconButton>
-            </DropdownMenuTrigger>
-            <AccountMenuBody side="bottom" align="end" />
-          </DropdownMenu>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger>
+            <AvatarButton aria-label="User menu">
+              {user?.picture_url ? (
+                <img src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{(user?.name || 'U')[0].toUpperCase()}</span>
+              )}
+            </AvatarButton>
+          </DropdownMenuTrigger>
+          <AccountMenuBody side="bottom" align="end" />
+        </DropdownMenu>
       </RightCluster>
     </HeaderRoot>
   )

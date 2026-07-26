@@ -559,7 +559,7 @@ export function Sidebar() {
                           </div>
                         }
                       >
-                        <NavItemLink 
+                        <NavItemLink
                           to={item.to}
                           end={item.to === '/app'}
                           $collapsed={collapsed}

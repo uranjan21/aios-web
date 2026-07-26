@@ -117,16 +117,16 @@ export function HealthPage() {
     {
       label: 'Overview',
       items: [
-        { key: '1', label: 'Dashboard', icon: <LayoutDashboard size={14} /> },
+        { key: '1', label: 'Dashboard',   icon: <LayoutDashboard size={14} /> },
       ]
     },
     {
       label: 'Tracking',
       items: [
         { key: '2', label: 'Body & Sleep', icon: <Moon size={14} /> },
-        { key: '3', label: 'Nutrition', icon: <Apple size={14} /> },
-        { key: '4', label: 'Fitness', icon: <Dumbbell size={14} /> },
-        { key: '5', label: 'History', icon: <History size={14} /> },
+        { key: '3', label: 'Nutrition',    icon: <Apple size={14} /> },
+        { key: '4', label: 'Fitness',      icon: <Dumbbell size={14} /> },
+        { key: '5', label: 'History',      icon: <History size={14} /> },
       ]
     }
   ]

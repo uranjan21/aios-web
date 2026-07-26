@@ -19,12 +19,12 @@ import { AnalyticsTab } from '@ct/finance/components/AnalyticsTab'
 import { AccountsTabModal } from '@ct/finance/components/QuickAddAccounts'
 import { ModuleLayout } from '@ct/shared/components/layout/ModuleLayout'
 import { ModuleSidebar } from '@ct/shared/components/layout/ModuleSidebar'
-import { Inbox, Wand2, ListChecks, TrendingUp, Landmark } from 'lucide-react'
+import { Inbox, Wand2, ListChecks, TrendingUp, Landmark, IndianRupee } from 'lucide-react'
 
 export function FinancePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const activeKey = searchParams.get('tab') || 'overview'
-  
+
   const setActiveKey = (key: string) => {
     setSearchParams(prev => {
       prev.set('tab', key)
@@ -44,7 +44,7 @@ export function FinancePage() {
     {
       label: 'Finance',
       items: [
-        { key: 'overview', label: 'Overview', icon: <LayoutDashboard size={14} /> },
+        { key: 'overview',  label: 'Overview',  icon: <LayoutDashboard size={14} /> },
         { key: 'analytics', label: 'Analytics', icon: <BarChart2 size={14} /> },
       ]
     },
@@ -52,15 +52,15 @@ export function FinancePage() {
       label: 'Ledger',
       items: [
         { key: 'transactions', label: 'Transactions', icon: <ArrowLeftRight size={14} /> },
-        { key: 'inbox', label: 'Inbox', icon: <Inbox size={14} /> },
-        { key: 'rules', label: 'Rules', icon: <Wand2 size={14} /> },
+        { key: 'inbox',        label: 'Inbox',        icon: <Inbox size={14} /> },
+        { key: 'rules',        label: 'Rules',        icon: <Wand2 size={14} /> },
       ]
     },
     {
       label: 'Planning',
       items: [
-        { key: 'budgets', label: 'Budgets', icon: <PiggyBank size={14} /> },
-        { key: 'payables', label: 'Payables', icon: <ListChecks size={14} /> },
+        { key: 'budgets',     label: 'Budgets',     icon: <PiggyBank size={14} /> },
+        { key: 'payables',    label: 'Payables',    icon: <ListChecks size={14} /> },
         { key: 'projections', label: 'Projections', icon: <TrendingUp size={14} /> },
       ]
     },
@@ -68,28 +68,24 @@ export function FinancePage() {
       label: 'Wealth',
       items: [
         { key: 'investments', label: 'Investments', icon: <Gem size={14} /> },
-        { key: 'loans', label: 'Loans', icon: <Landmark size={14} /> },
+        { key: 'loans',       label: 'Loans',       icon: <Landmark size={14} /> },
       ]
     }
   ]
 
   const renderContent = () => {
     switch (activeKey) {
-      case 'overview': return <HomeTab />
-      case 'analytics': return <AnalyticsTab />
-      
+      case 'overview':     return <HomeTab />
+      case 'analytics':    return <AnalyticsTab />
       case 'transactions': return <TransactionsTab />
-      case 'inbox': return <InboxTab />
-      case 'rules': return <RulesTab />
-      
-      case 'budgets': return <BudgetTab />
-      case 'payables': return <PayablesTab />
-      case 'projections': return <SimulatorTab />
-      
-      case 'investments': return <InvestmentsTab onAddClick={() => setAccountModalOpen(true)} />
-      case 'loans': return <LoansTab onAdd={() => setAccountModalOpen(true)} />
-      
-      default: return <HomeTab />
+      case 'inbox':        return <InboxTab />
+      case 'rules':        return <RulesTab />
+      case 'budgets':      return <BudgetTab />
+      case 'payables':     return <PayablesTab />
+      case 'projections':  return <SimulatorTab />
+      case 'investments':  return <InvestmentsTab onAddClick={() => setAccountModalOpen(true)} />
+      case 'loans':        return <LoansTab onAdd={() => setAccountModalOpen(true)} />
+      default:             return <HomeTab />
     }
   }
 
@@ -97,7 +93,7 @@ export function FinancePage() {
     <ModuleLayout
       header={
         <PageHeader
-          icon={<LayoutDashboard size={24} />}
+          icon={<IndianRupee size={24} />}
           eyebrow="Finance"
           title="Finance Center"
           subtitle="Manage your transactions, budgets, investments, and financial health in one place."

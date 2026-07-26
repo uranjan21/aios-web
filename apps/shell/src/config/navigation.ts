@@ -30,6 +30,13 @@ import {
 
 export type NavGroup = 'Main' | 'Areas' | 'System';
 
+export interface SubNavItem {
+  /** Maps to the `?tab=` query param on the parent route. */
+  tabKey: string;
+  label: string;
+  icon: LucideIcon;
+}
+
 export interface NavItem {
   /** Route path. Must match a route in router.tsx. */
   to: string;
@@ -46,6 +53,8 @@ export interface NavItem {
   module?: string;
   /** Short label for the bottom nav, where horizontal space is tight. */
   shortLabel?: string;
+  /** Sub-pages rendered in the global sidebar; navigate via `?tab=` param. */
+  subNav?: SubNavItem[];
 }
 
 export const NAV_ITEMS: NavItem[] = [
