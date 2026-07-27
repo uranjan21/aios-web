@@ -50,7 +50,12 @@ def _issue_cookie(response: Response, user_id: str, token_version: int = 1):
         value=token,
         httponly=True,
         samesite="strict",
-        secure=settings.environment == "production",
+        # Derived from the site scheme, not from ENVIRONMENT. A Secure cookie is
+        # never sent over http://, so keying this on ENVIRONMENT=production made
+        # login silently fail on any production deploy not yet behind TLS (e.g.
+        # a bare-IP VPS). It hardens automatically the moment ALLOWED_ORIGIN
+        # becomes https://…, and every other production guard stays independent.
+        secure=settings.allowed_origin.startswith("https://"),
         max_age=_COOKIE_DAYS * 24 * 3600,
     )
 

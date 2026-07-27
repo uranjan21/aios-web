@@ -78,35 +78,27 @@ const SIZE_PADDING: Record<CardSize, ReturnType<typeof css>> = {
 };
 
 const variantStyles: Record<ResolvedCardVariant, ReturnType<typeof css>> = {
+  /*
+   * flat/raised/floating map onto the elevation scale, as this file's docblock
+   * always claimed they did. They had drifted into hardcoded 32–48px diffuse
+   * halos over translucent gradients — a soft muddy edge instead of a crisp
+   * one, plus a backdrop-filter that did nothing (cards sit on an opaque page)
+   * and cost a compositing layer per card.
+   */
   flat: css`
-    border: 1px solid ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'};
-    background: ${({ theme }) =>
-      theme.mode === 'dark'
-        ? 'linear-gradient(180deg, rgba(30, 32, 40, 0.8) 0%, rgba(20, 21, 26, 0.6) 100%)'
-        : 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 250, 252, 0.8) 100%)'};
-    backdrop-filter: blur(12px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+    background: ${({ theme }) => theme.color.card};
+    border: ${({ theme }) => theme.border.hairline} solid ${({ theme }) => theme.color.border};
+    box-shadow: ${({ theme }) => theme.elevation[1]};
   `,
   raised: css`
-    border: 1px solid ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'};
-    background: ${({ theme }) =>
-      theme.mode === 'dark'
-        ? 'linear-gradient(180deg, rgba(35, 37, 45, 0.85) 0%, rgba(25, 26, 32, 0.7) 100%)'
-        : 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(250, 250, 252, 0.9) 100%)'};
-    backdrop-filter: blur(16px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+    background: ${({ theme }) => theme.color.card};
+    border: ${({ theme }) => theme.border.hairline} solid ${({ theme }) => theme.color.border};
+    box-shadow: ${({ theme }) => theme.elevation[2]};
   `,
   floating: css`
-    border: 1px solid ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.1)'};
-    background: ${({ theme }) =>
-      theme.mode === 'dark'
-        ? 'linear-gradient(180deg, rgba(40, 42, 50, 0.9) 0%, rgba(30, 31, 38, 0.8) 100%)'
-        : 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.95) 100%)'};
-    backdrop-filter: blur(20px);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+    background: ${({ theme }) => theme.color.card};
+    border: ${({ theme }) => theme.border.hairline} solid ${({ theme }) => theme.color.border};
+    box-shadow: ${({ theme }) => theme.elevation[3]};
   `,
   glass: css`
     background: ${({ theme }) => theme.glass.background};
@@ -160,10 +152,10 @@ const StyledCard = styled.div<{
     css`
       cursor: pointer;
       &:hover {
-        box-shadow: ${theme.elevation[3]};
+        box-shadow: ${theme.elevation[2]};
         /* translate only — the old rule also scaled 1.01, which reflowed text */
-        transform: translateY(-2px);
-        border-color: color-mix(in srgb, ${theme.color.accent} 35%, ${theme.color.border});
+        transform: translateY(-1px);
+        border-color: color-mix(in srgb, ${theme.color.accent} 30%, ${theme.color.border});
       }
       &:active {
         transform: translateY(0);
@@ -175,14 +167,17 @@ const StyledCard = styled.div<{
     `}
 `;
 
+/*
+ * The full-width rule under every card header was the strongest "admin
+ * template" cue in the app — a card that announces its own sections reads as
+ * a report, not a product surface. Separation is spacing now.
+ */
 export const CardHeader = styled.div<{ $inset?: boolean }>`
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: ${({ theme }) => theme.spacing[3]};
-  padding-bottom: ${({ theme }) => theme.spacing[3]};
   margin-bottom: ${({ theme }) => theme.spacing[4]};
-  border-bottom: ${({ theme }) => theme.border.hairline} solid ${({ theme }) => theme.color.border};
 
   flex-wrap: wrap;
   @media ${({ theme }) => theme.media.sm} {
@@ -194,23 +189,39 @@ export const CardHeader = styled.div<{ $inset?: boolean }>`
   ${({ $inset, theme }) =>
     $inset &&
     css`
-      padding: ${theme.spacing[5]} ${theme.spacing[5]} ${theme.spacing[3]};
-      margin-bottom: 0;
+      padding: ${theme.spacing[5]} ${theme.spacing[5]} 0;
+      margin-bottom: ${theme.spacing[4]};
     `}
 `;
 
 export const TitleGroup = styled.div`
   display: flex;
-  align-items: flex-start;
-  gap: ${({ theme }) => theme.spacing[2]};
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing[2.5]};
   min-width: 0;
+
+  /* The icon gets a tinted chip rather than floating bare beside the title —
+     it anchors the header row and echoes PageHeader's icon treatment. */
+  & > [data-card-icon] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: ${({ theme }) => theme.radii.sm};
+    background: ${({ theme }) => `color-mix(in srgb, ${theme.color.accent} 12%, transparent)`};
+    color: ${({ theme }) => theme.color.accent};
+  }
 
   & > svg,
   & > [data-card-icon] > svg {
-    width: 16px;
-    height: 16px;
+    width: 15px;
+    height: 15px;
     flex-shrink: 0;
-    margin-top: ${({ theme }) => `${theme.spacing[0.5]}`};
+  }
+
+  & > svg {
     color: ${({ theme }) => theme.color.mutedForeground};
   }
 `;
@@ -218,6 +229,9 @@ export const TitleGroup = styled.div`
 export const CardTitle = styled.h2`
   ${textRole('title-s')}
   ${truncate}
+  /* 17px reads as a page-section heading; a card heading sits one step down. */
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
+  line-height: 1.3;
   margin: 0;
   color: ${({ theme }) => theme.color.foreground};
 `;

@@ -23,8 +23,10 @@ const Root = styled.div<{ $fullHeight: boolean }>`
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: ${({ theme }) => theme.spacing[3]};
-  padding: ${({ theme }) => `${theme.spacing[10]} ${theme.spacing[6]}`};
+  gap: ${({ theme }) => theme.spacing[2]};
+  /* Inside a card the old spacing[10] block made an empty card taller than a
+     populated one. The state is a placeholder — it should not dominate. */
+  padding: ${({ theme }) => `${theme.spacing[6]} ${theme.spacing[4]}`};
   min-height: ${({ $fullHeight }) => ($fullHeight ? '60vh' : 'auto')};
   width: 100%;
   color: ${({ theme }) => theme.color.mutedForeground};

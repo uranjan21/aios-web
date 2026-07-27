@@ -1,0 +1,126 @@
+name: Deploy
+
+# Push to main → build images on GitHub's runners → push to GHCR → VPS pulls.
+# The build never runs on the VPS: the Vite/tsc build needs ~2GB and would
+# contend with Postgres on a small box.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: "Deploy without waiting for CI (emergency only)"
+        type: boolean
+        default: false
+
+concurrency:
+  # Never let two deploys race for the same server.
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE_NAME: ${{ github.repository }}-backend
+  FRONTEND_IMAGE_NAME: ${{ github.repository }}-web
+
+jobs:
+  # Gate the deploy on the existing CI workflow's checks.
+  test:
+    if: ${{ !inputs.skip_tests }}
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: [test]
+    # `always()` + explicit result check so skip_tests can bypass the gate.
+    if: ${{ always() && (needs.test.result == 'success' || inputs.skip_tests) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      backend_image: ${{ steps.tags.outputs.backend }}
+      frontend_image: ${{ steps.tags.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: tags
+        run: |
+          # Lowercase — GHCR rejects uppercase path segments, and GitHub
+          # usernames can contain them.
+          BE="${REGISTRY}/$(echo "${BACKEND_IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
+          FE="${REGISTRY}/$(echo "${FRONTEND_IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
+          echo "backend=${BE}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "frontend=${FE}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "backend_repo=${BE}" >> "$GITHUB_OUTPUT"
+          echo "frontend_repo=${FE}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ steps.tags.outputs.backend }}
+            ${{ steps.tags.outputs.backend_repo }}:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Build & push web
+        uses: docker/build-push-action@v6
+        with:
+          # Repo root — the frontend Dockerfile needs the whole pnpm workspace.
+          context: .
+          file: ./apps/shell/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.tags.outputs.frontend }}
+            ${{ steps.tags.outputs.frontend_repo }}:latest
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+  deploy:
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      # Keep the server's compose file and deploy script in lockstep with the
+      # repo, so infra changes ship with the same push as code changes.
+      - name: Copy compose + deploy script to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          source: "docker-compose.prod.yml,deploy/deploy.sh"
+          target: /opt/control-tower
+          overwrite: true
+
+      - name: Pull & restart on VPS
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          BACKEND_IMAGE: ${{ needs.build.outputs.backend_image }}
+          FRONTEND_IMAGE: ${{ needs.build.outputs.frontend_image }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          envs: BACKEND_IMAGE,FRONTEND_IMAGE
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+            cd /opt/control-tower
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            chmod +x deploy/deploy.sh
+            ./deploy/deploy.sh "$BACKEND_IMAGE" "$FRONTEND_IMAGE"

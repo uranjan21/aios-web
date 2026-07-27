@@ -1,0 +1,63 @@
+# =============================================================================
+# Control Tower — edge config (baked into the web image)
+#
+# SITE_ADDRESS controls HTTP vs HTTPS and is the ONLY thing you change to go
+# from bare-IP to a real domain:
+#
+#   SITE_ADDRESS=:80                 → plain HTTP (bare IP, no cert possible)
+#   SITE_ADDRESS=app.example.com     → Caddy auto-provisions a Let's Encrypt
+#                                      cert and redirects HTTP→HTTPS by itself
+#
+# When you switch, also set ALLOWED_ORIGIN=https://app.example.com in .env.prod
+# so CORS, the CSP connect-src and the Secure cookie flag all line up.
+# =============================================================================
+{
+	# No admin API — it would otherwise listen on 2019 inside the container.
+	admin off
+	email {$ACME_EMAIL:admin@example.com}
+}
+
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# ---- backend -------------------------------------------------------------
+	# /health is proxied too so an external uptime monitor can hit it without
+	# knowing the /api prefix.
+	@backend path /api/* /health
+	handle @backend {
+		reverse_proxy {$BACKEND_UPSTREAM:backend:8000}
+	}
+
+	# WebSockets (/ws/sync, /ws/chat, /ws/agents). Caddy upgrades these
+	# transparently — no extra Connection/Upgrade headers needed.
+	handle /ws/* {
+		reverse_proxy {$BACKEND_UPSTREAM:backend:8000} {
+			# Chat streams can idle between tokens; don't cut them at the default.
+			transport http {
+				read_timeout 300s
+			}
+		}
+	}
+
+	# ---- SPA -----------------------------------------------------------------
+	handle {
+		root * /srv
+
+		# Vite emits content-hashed filenames under /assets — safe to cache
+		# forever. index.html must never be cached or users get pinned to a
+		# stale bundle after a deploy.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		header /index.html Cache-Control "no-cache, must-revalidate"
+
+		# React Router owns client-side routing: any unknown path returns the
+		# shell. Without this, refreshing /app/finance is a hard 404.
+		try_files {path} /index.html
+		file_server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

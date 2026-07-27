@@ -139,7 +139,19 @@ const StyledFormActions = styled.div`
   border-top: 1px solid rgba(45, 49, 58, 0.15);
 `;
 
-export function BodySleepTab() {
+/**
+ * `section` splits this surface into two single-purpose tabs. Body composition
+ * and sleep were always two unrelated jobs sharing one screen; the sidebar now
+ * addresses them separately. 'all' keeps the combined view for any caller that
+ * still wants it.
+ */
+export interface BodySleepTabProps {
+  section?: 'body' | 'sleep' | 'all'
+}
+
+export function BodySleepTab({ section = 'all' }: BodySleepTabProps = {}) {
+  const showBody = section !== 'sleep'
+  const showSleep = section !== 'body'
   const theme = useTheme()
   const queryClient = useQueryClient()
   const [bodyFormState, setBodyFormState] = useState({ logged_at: '', weight_kg: '', body_fat_pct: '', notes: '' })
@@ -245,7 +257,7 @@ export function BodySleepTab() {
   }))
 
   const [logModalOpen, setLogModalOpen] = useState(false)
-  const [logType, setLogType] = useState<'body' | 'sleep'>('body')
+  const [logType, setLogType] = useState<'body' | 'sleep'>(section === 'sleep' ? 'sleep' : 'body')
 
   useEffect(() => {
     const handleOpen = () => setLogModalOpen(true)
@@ -259,25 +271,29 @@ export function BodySleepTab() {
     <TabContent>
       <HeaderActionPortal>
         <Button size="sm" variant="primary" onClick={() => setLogModalOpen(true)}>
-          <Plus size={12} style={{ marginRight: 4 }} /> Log Body Stats / Sleep
+          <Plus size={12} style={{ marginRight: 4 }} />
+          {section === 'body' ? 'Log Body Stats' : section === 'sleep' ? 'Log Sleep' : 'Log Body Stats / Sleep'}
         </Button>
       </HeaderActionPortal>
       <StyledContainer>
-        <KpiGrid $cols={5}>
-          <KpiCard
-            label="Weight" icon={Scale} color="primary"
-            loading={loadingWeight} value={latestWeight != null ? `${latestWeight} kg` : '—'}
-            spark={weightLogs && weightLogs.length > 1
-              ? [...weightLogs].slice(0, 30).reverse().map(l => Number(l.value) || 0)
-              : undefined}
-          />
-          <KpiCard label="Body Fat" icon={Percent} color="purple" loading={loadingBodyFat} value={latestBodyFat != null ? `${latestBodyFat}%` : '—'} />
-          <KpiCard label="BMI" icon={Ruler} color="emerald" loading={loadingGoals} value={bmi != null ? bmi.toFixed(1) : '—'} />
-          <KpiCard label="Last Night" icon={Moon} color="indigo" loading={loadingSleep} value={lastNight != null ? `${lastNight}h` : '—'} />
-          <KpiCard label="7-Day Avg" icon={Clock} color="primary" loading={loadingSleep} value={sleep?.weekly_avg != null ? `${sleep.weekly_avg}h` : '—'} />
+        <KpiGrid $cols={section === 'all' ? 5 : section === 'body' ? 3 : 2}>
+          {showBody && (
+            <KpiCard
+              label="Weight" icon={Scale} color="primary"
+              loading={loadingWeight} value={latestWeight != null ? `${latestWeight} kg` : '—'}
+              spark={weightLogs && weightLogs.length > 1
+                ? [...weightLogs].slice(0, 30).reverse().map(l => Number(l.value) || 0)
+                : undefined}
+            />
+          )}
+          {showBody && <KpiCard label="Body Fat" icon={Percent} color="purple" loading={loadingBodyFat} value={latestBodyFat != null ? `${latestBodyFat}%` : '—'} />}
+          {showBody && <KpiCard label="BMI" icon={Ruler} color="emerald" loading={loadingGoals} value={bmi != null ? bmi.toFixed(1) : '—'} />}
+          {showSleep && <KpiCard label="Last Night" icon={Moon} color="indigo" loading={loadingSleep} value={lastNight != null ? `${lastNight}h` : '—'} />}
+          {showSleep && <KpiCard label="7-Day Avg" icon={Clock} color="primary" loading={loadingSleep} value={sleep?.weekly_avg != null ? `${sleep.weekly_avg}h` : '—'} />}
         </KpiGrid>
 
         <StyledChartsGrid>
+          {showBody && (
           <SectionCard
             title="Weight & Body Fat Trend"
             subtitle="Recent body composition logs over time"
@@ -329,7 +345,9 @@ export function BodySleepTab() {
               </ResponsiveContainer>
             )}
           </SectionCard>
+          )}
 
+          {showSleep && (
           <SectionCard
             title="Sleep Duration Trend"
             subtitle="Hours slept per day vs your target"
@@ -388,8 +406,10 @@ export function BodySleepTab() {
               </ResponsiveContainer>
             )}
           </SectionCard>
+          )}
         </StyledChartsGrid>
 
+        {showSleep && (
         <SectionCard
           title="Sleep — Last 7 Days"
           subtitle="Each night's hours and quality rating"
@@ -430,6 +450,7 @@ export function BodySleepTab() {
             </StyledListWrapper>
           )}
         </SectionCard>
+        )}
       </StyledContainer>
     </TabContent>
 

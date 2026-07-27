@@ -28,12 +28,14 @@ export default defineConfig({
     proxy: {
       // 127.0.0.1 (not "localhost") — Node resolves localhost to IPv6 ::1 first,
       // but the backend binds IPv4, so localhost proxying intermittently ECONNREFUSEDs.
+      // VITE_PROXY_TARGET overrides it when the dev server runs in a container,
+      // where 127.0.0.1 is the frontend container itself (set to http://backend:8000).
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: process.env.VITE_PROXY_TARGET ?? 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://127.0.0.1:8000',
+        target: (process.env.VITE_PROXY_TARGET ?? 'http://127.0.0.1:8000').replace(/^http/, 'ws'),
         ws: true,
       },
     },

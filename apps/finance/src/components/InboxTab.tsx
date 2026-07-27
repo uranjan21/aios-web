@@ -67,13 +67,6 @@ const SourceChip = styled.span`
   font-weight: 600;
 `
 
-const BulkBar = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[3]}`};
-`
-
 const ActionGroup = styled.div`
   display: flex;
   gap: ${({ theme }) => `${theme.spacing[3]}`};
@@ -283,19 +276,21 @@ export function InboxTab({ navMenu }: { navMenu?: React.ReactNode }) {
 
   if (loading) return (
     <WorkspaceLayout rail={navMenu}>
-      <div>Loading inbox...</div>
+      <Card title="Review Queue" subtitle="Transactions captured from your email" icon={<InboxIcon size={16} />}>
+        <MetaText>Loading inbox…</MetaText>
+      </Card>
     </WorkspaceLayout>
   )
 
   if (transactions.length === 0) {
     return (
       <WorkspaceLayout rail={navMenu}>
-        <EmptyState
-          icon={<InboxIcon size={32} />}
-          title="Inbox is empty"
-          description="No pending transactions from your emails."
+        <Card
+          title="Review Queue"
+          subtitle="Transactions captured from your email"
+          icon={<InboxIcon size={16} />}
           action={
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Button variant="outline" size="sm" onClick={onFetchNow}>
                 <RefreshCw size={14} style={{ marginRight: 6 }} /> Fetch now
               </Button>
@@ -306,7 +301,13 @@ export function InboxTab({ navMenu }: { navMenu?: React.ReactNode }) {
               </Link>
             </div>
           }
-        />
+        >
+          <EmptyState
+            icon={<InboxIcon size={32} />}
+            title="Inbox is empty"
+            description="No pending transactions from your emails."
+          />
+        </Card>
       </WorkspaceLayout>
     )
   }
@@ -338,20 +339,24 @@ export function InboxTab({ navMenu }: { navMenu?: React.ReactNode }) {
 
   return (
     <WorkspaceLayout rail={navMenu}>
+      <Card
+        title="Review Queue"
+        subtitle={`${transactions.length} ${transactions.length === 1 ? 'transaction' : 'transactions'} waiting for review`}
+        icon={<InboxIcon size={16} />}
+        action={
+          transactions.length > 1 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Button variant="outline" size="sm" onClick={onDismissAll}>
+                <X size={14} style={{ marginRight: 6 }} /> Dismiss all
+              </Button>
+              <Button variant="primary" size="sm" onClick={onApproveAll}>
+                <Check size={14} style={{ marginRight: 6 }} /> Approve all
+              </Button>
+            </div>
+          ) : undefined
+        }
+      >
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24 }}>
-      {transactions.length > 1 && (
-        <BulkBar>
-          <MetaText>{transactions.length} transactions waiting for review</MetaText>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="outline" size="sm" onClick={onDismissAll}>
-              <X size={14} style={{ marginRight: 6 }} /> Dismiss all
-            </Button>
-            <Button variant="primary" size="sm" onClick={onApproveAll}>
-              <Check size={14} style={{ marginRight: 6 }} /> Approve all
-            </Button>
-          </div>
-        </BulkBar>
-      )}
       {transactions.map(tx => {
         const edit = edits[tx.id]
         if (!edit) return null
@@ -438,6 +443,7 @@ export function InboxTab({ navMenu }: { navMenu?: React.ReactNode }) {
         )
       })}
       </div>
+      </Card>
     </WorkspaceLayout>
   )
 }

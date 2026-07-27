@@ -1,0 +1,24 @@
+# NOTE: alembic/ is deliberately NOT excluded. entrypoint.sh runs
+# `alembic upgrade head` inside the container on every boot, which needs
+# alembic.ini AND the alembic/ script directory present in the image.
+# (Excluding it only "worked" in dev because docker-compose bind-mounts
+# ./backend over /app, masking the missing files.)
+
+.env
+.env.*
+.venv
+venv/
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.ruff_cache
+.mypy_cache
+
+tests/
+.git
+.gitignore
+*.md
+.DS_Store

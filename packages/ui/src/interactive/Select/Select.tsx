@@ -12,7 +12,6 @@ import type { ReactNode, CSSProperties } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { Portal } from '../../utils/Portal';
 import { useOnClickOutside, useEscapeKey } from '../../utils/hooks';
-import { focusRing } from '../../utils/focusRing';
 
 export interface SelectOption {
   value: string | number;

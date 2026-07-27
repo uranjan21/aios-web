@@ -153,11 +153,21 @@ export function DataTable<Row>({
   skeletonRows = 5,
   className,
 }: DataTableProps<Row>) {
+  /*
+   * The empty state renders WITHOUT `Wrap`. Wrap carries a border and the card
+   * background, which is right for a table but makes a card-inside-a-card when
+   * the DataTable sits in a Card — the usual case. There is no table to frame
+   * when there are no rows, so the frame goes away with it.
+   */
   if (!loading && rows.length === 0 && empty) {
     return (
-      <Wrap className={className}>
-        <EmptyState icon={empty.icon} title={empty.title} description={empty.description} action={empty.action} />
-      </Wrap>
+      <EmptyState
+        className={className}
+        icon={empty.icon}
+        title={empty.title}
+        description={empty.description}
+        action={empty.action}
+      />
     );
   }
 

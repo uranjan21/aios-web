@@ -1,184 +1,170 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import styled from 'styled-components';
-import { MoreHorizontal } from 'lucide-react';
-import { Popover, PopoverTrigger, PopoverContent } from '../../interactive/Popover';
-import { Button } from '../../primitives/Button';
 
 export interface PageHeaderProps {
-  /** Small uppercase label above the title (e.g. "Client Management"). */
+  /** Small uppercase label that appears before the title (e.g. "Finance"). */
   eyebrow?: ReactNode;
-  /** Decorative icon — typically a Lucide icon. */
+  /** Decorative icon — typically a Lucide icon at 16px. */
   icon?: ReactNode;
   /** Page title (h1). */
   title: ReactNode;
-  /** Optional subtitle — always rendered as its own line below the title row. */
+  /** Optional subtitle — rendered as a small muted line below the glass bar. */
   subtitle?: ReactNode;
-  /** Right-aligned slot — typically a primary action button or stack of actions. */
+  /** Right-aligned slot — typically action buttons. */
   actions?: ReactNode;
   className?: string;
 }
 
-const Root = styled.header`
+const Wrapper = styled.div`
+  margin-bottom: ${({ theme }) => theme.spacing[4]};
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing[2]};
-  padding: ${({ theme }) => `${theme.spacing[1]} 0`};
-  margin-bottom: ${({ theme }) => theme.spacing[4]};
+  gap: ${({ theme }) => theme.spacing[1.5]};
 `;
 
-const MainRow = styled.div`
+const Root = styled.header`
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: ${({ theme }) => theme.spacing[3]};
-  flex-wrap: wrap;
+  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[4]}`};
+
+  background: ${({ theme }) =>
+    theme.mode === 'dark'
+      ? 'rgba(12, 10, 9, 0.72)'
+      : 'rgba(250, 250, 249, 0.82)'};
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid ${({ theme }) =>
+    theme.mode === 'dark'
+      ? 'rgba(255, 255, 255, 0.07)'
+      : 'rgba(0, 0, 0, 0.06)'};
+  border-radius: ${({ theme }) => theme.radii.lg};
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 ${({ theme }) =>
+      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.9)'};
 `;
 
 const Left = styled.div`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing[2]};
+  gap: ${({ theme }) => theme.spacing[2.5]};
   flex: 1;
   min-width: 0;
-
-  @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
-    align-items: flex-start;
-    gap: ${({ theme }) => theme.spacing[3]};
-  }
 `;
 
 const IconWrap = styled.div`
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: ${({ theme }) => theme.radii.md};
-  background: ${({ theme }) => theme.color.primary + '15'};
-  color: ${({ theme }) => theme.color.primary};
-  & svg { width: 16px; height: 16px; }
+  background: ${({ theme }) => theme.color.accent + '18'};
+  color: ${({ theme }) => theme.color.accent};
 
-  @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
-    width: 40px;
-    height: 40px;
-    border-radius: ${({ theme }) => theme.radii.lg};
-    & svg { width: 20px; height: 20px; }
+  & svg {
+    width: 14px;
+    height: 14px;
   }
 `;
 
-const TextCol = styled.div`
-  min-width: 0;
+const TextRow = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: ${({ theme }) => theme.spacing[1]};
-`;
-
-const Eyebrow = styled.span`
-  display: inline-flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing[2]};
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  font-weight: ${({ theme }) => theme.typography.fontWeight.semibold};
-  text-transform: uppercase;
-  letter-spacing: ${({ theme }) => theme.typography.letterSpacing.wider};
-  color: ${({ theme }) => theme.color.mutedForeground};
+  min-width: 0;
+  flex: 1;
+`;
 
-  &::before {
-    content: '';
-    width: 14px;
-    height: 2px;
-    background: ${({ theme }) => theme.color.accent};
-    border-radius: ${({ theme }) => theme.radii.xs};
+/* Below sm the eyebrow duplicates context the nav already gives, and it costs
+   the title enough width to truncate it — so it yields on small screens. */
+const Eyebrow = styled.span`
+  display: none;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  flex-shrink: 0;
+  white-space: nowrap;
+
+  @media ${({ theme }) => theme.media.sm} {
+    display: inline;
+  }
+`;
+
+const Sep = styled.span`
+  display: none;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: ${({ theme }) =>
+    theme.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'};
+
+  @media ${({ theme }) => theme.media.sm} {
+    display: block;
   }
 `;
 
 const Title = styled.h1`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: ${({ theme }) => theme.typography.fontSize.lg};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: ${({ theme }) => theme.typography.fontWeight.semibold};
   color: ${({ theme }) => theme.color.foreground};
-  line-height: ${({ theme }) => theme.typography.lineHeight.tight};
   margin: 0;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
 
-  @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
-    font-size: ${({ theme }) => theme.typography.fontSize['2xl']};
-    white-space: nowrap;
-  }
+const Actions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing[2]};
+  flex-shrink: 0;
 `;
 
 const Subtitle = styled.p`
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin: 0;
+  padding: ${({ theme }) => `0 ${theme.spacing[1]}`};
   line-height: 1.4;
-`;
 
-const MobileActions = styled.div`
-  display: flex;
-  align-items: center;
-
-  @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
-    display: none;
-  }
-`;
-
-const DesktopActions = styled.div`
+  /* Hidden on mobile to protect vertical space for primary content. */
   display: none;
-
-  @media (min-width: ${({ theme }) => theme.breakpoint.sm}) {
-    display: flex;
-    align-items: center;
-    gap: ${({ theme }) => theme.spacing[2]};
-    flex-shrink: 0;
-    flex-wrap: wrap;
+  @media ${({ theme }) => theme.media.sm} {
+    display: block;
   }
-`;
-
-const MobileActionsMenu = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: ${({ theme }) => `${theme.spacing[2]}`};
-  padding: ${({ theme }) => `${theme.spacing[2]}`};
 `;
 
 export function PageHeader({ eyebrow, icon, title, subtitle, actions, className }: PageHeaderProps) {
   const ctx = useContext(PageHeaderActionsContext);
-  const finalActions = (ctx?.actions || actions) ? (
-    <>{ctx?.actions}{actions}</>
-  ) : null;
+  const finalActions = ctx?.actions || actions
+    ? <>{ctx?.actions}{actions}</>
+    : null;
 
   return (
-    <Root className={className}>
-      <MainRow>
+    <Wrapper className={className}>
+      <Root>
         <Left>
           {icon && <IconWrap aria-hidden="true">{icon}</IconWrap>}
-          <TextCol>
+          <TextRow>
             {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
+            {eyebrow && <Sep aria-hidden="true" />}
             <Title>{title}</Title>
-          </TextCol>
+          </TextRow>
         </Left>
-        {finalActions && (
-          <>
-            <MobileActions>
-              <Popover>
-                <PopoverTrigger>
-                  <Button variant="ghost" size="sm" aria-label="More actions">
-                    <MoreHorizontal size={20} />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="end" gap={8}>
-                  <MobileActionsMenu>{finalActions}</MobileActionsMenu>
-                </PopoverContent>
-              </Popover>
-            </MobileActions>
-            <DesktopActions>{finalActions}</DesktopActions>
-          </>
-        )}
-      </MainRow>
+        {finalActions && <Actions>{finalActions}</Actions>}
+      </Root>
       {subtitle && <Subtitle>{subtitle}</Subtitle>}
-    </Root>
+    </Wrapper>
   );
 }
 

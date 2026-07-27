@@ -1,10 +1,10 @@
 # Environment Variables
+# Deny-by-default: .env.prod was NOT matched by the old explicit list, so the
+# file docker-compose.prod.yml loads (every production secret) was committable.
 .env
-.env.local
-.env.*.local
-.env.development
-.env.production
-.env.staging
+.env.*
+!.env.example
+!.env.prod.example
 
 # Python
 *.pyc
@@ -80,7 +80,9 @@ tmp/
 .prettierignore
 
 # Docker
-.dockerignore
+# .dockerignore is deliberately NOT ignored — it defines the build context for
+# the images CI builds. Ignoring it meant GitHub Actions built from a context
+# with no exclusions at all.
 docker-compose.override.yml
 
 # Graphify

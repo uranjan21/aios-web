@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
-import { Scale, Flame, Activity, Target, Heart, LayoutDashboard, Moon, Apple, Dumbbell, History, LineChart as LineChartIcon, Settings, Brain } from 'lucide-react'
+import { Scale, Flame, Activity, Target, Heart, LayoutDashboard, Moon, Apple, Dumbbell, History, LineChart as LineChartIcon, Settings, Droplets, Repeat } from 'lucide-react'
 import { Button, Select } from '@ledgr/ui'
 import { useNavigate } from 'react-router-dom'
 import { healthApi } from '@ct/shared/api/areas'
@@ -9,7 +9,6 @@ import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { ErrorState } from '@ledgr/ui'
 import { useCountUp } from '@ct/shared/hooks/useCountUp'
 import { KpiCard, KpiGrid } from '@ledgr/ui';
-import { Card as GlassCard } from '@ledgr/ui';
 import { Card as SectionCard } from '@ledgr/ui'
 
 import { HistoryTab } from '@ct/health/components/HistoryTab'
@@ -48,6 +47,12 @@ const StyledGridItemMain = styled.div`
   @media ${({ theme }) => theme.media.lg} {
     grid-column: span 8 / span 8;
   }
+`;
+
+/* Grows to fill the side column so it ends level with the chart card beside it
+   instead of leaving a gap under the stack. */
+const SideInsightCard = styled(AiInsightCard)`
+  flex: 1;
 `;
 
 const StyledGridItemSide = styled.div`
@@ -117,16 +122,34 @@ export function HealthPage() {
     {
       label: 'Overview',
       items: [
-        { key: '1', label: 'Dashboard',   icon: <LayoutDashboard size={14} /> },
+        { key: '1', label: 'Dashboard', icon: <LayoutDashboard size={14} /> },
       ]
     },
     {
-      label: 'Tracking',
+      label: 'Body',
       items: [
-        { key: '2', label: 'Body & Sleep', icon: <Moon size={14} /> },
-        { key: '3', label: 'Nutrition',    icon: <Apple size={14} /> },
-        { key: '4', label: 'Fitness',      icon: <Dumbbell size={14} /> },
-        { key: '5', label: 'History',      icon: <History size={14} /> },
+        { key: 'body',  label: 'Composition', icon: <Scale size={14} /> },
+        { key: 'sleep', label: 'Sleep',       icon: <Moon size={14} /> },
+      ]
+    },
+    {
+      label: 'Nutrition',
+      items: [
+        { key: 'nutrition', label: 'Meals', icon: <Apple size={14} /> },
+        { key: 'water',     label: 'Water', icon: <Droplets size={14} /> },
+      ]
+    },
+    {
+      label: 'Fitness',
+      items: [
+        { key: 'workouts', label: 'Workouts', icon: <Dumbbell size={14} /> },
+        { key: 'habits',   label: 'Habits',   icon: <Repeat size={14} /> },
+      ]
+    },
+    {
+      label: 'Records',
+      items: [
+        { key: 'history', label: 'History', icon: <History size={14} /> },
       ]
     }
   ]
@@ -198,9 +221,9 @@ export function HealthPage() {
       </StyledGridItemMain>
       <StyledGridItemSide>
         <WaterTrackerWidget />
-        <GlassCard title="Health Insights" subtitle="AI breakdown of your wellness" icon={<Brain size={16} />} style={{ flex: 1, minHeight: 200 }}>
-          <AiInsightCard area="health" />
-        </GlassCard>
+        {/* AiInsightCard is itself a card — the old wrapper nested two borders
+            and repeated the heading. */}
+        <SideInsightCard area="health" />
       </StyledGridItemSide>
     </StyledDashboardGrid>
     </DashboardContent>
@@ -208,12 +231,15 @@ export function HealthPage() {
 
   const renderContent = () => {
     switch (activeKey) {
-      case '1': return renderDashboard()
-      case '2': return <BodySleepTab />
-      case '3': return <NutritionTab />
-      case '4': return <FitnessTab />
-      case '5': return <HistoryTab onLogClick={() => setIsLogModalOpen(true)} />
-      default: return renderDashboard()
+      case '1':         return renderDashboard()
+      case 'body':      return <BodySleepTab section="body" />
+      case 'sleep':     return <BodySleepTab section="sleep" />
+      case 'nutrition': return <NutritionTab />
+      case 'water':     return <WaterTrackerWidget />
+      case 'workouts':  return <FitnessTab section="workouts" />
+      case 'habits':    return <FitnessTab section="habits" />
+      case 'history':   return <HistoryTab onLogClick={() => setIsLogModalOpen(true)} />
+      default:          return renderDashboard()
     }
   }
 

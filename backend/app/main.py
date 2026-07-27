@@ -78,6 +78,13 @@ async def lifespan(app: FastAPI):
             "REDIS_URL must be set in production for distributed rate limiting across workers. "
             "Start a Redis instance and set REDIS_URL=redis://host:6379/0"
         )
+    if settings.environment == "production" and not settings.allowed_origin.startswith("https://"):
+        logger.warning(
+            "ALLOWED_ORIGIN is not https:// (%s) — the auth cookie is sent WITHOUT the "
+            "Secure flag and all traffic, including JWTs, is in cleartext. Put a domain "
+            "in front of this deployment and switch to https as soon as possible.",
+            settings.allowed_origin,
+        )
 
     logger.info("AIOS Web backend starting — vault: %s", settings.vault_path)
 

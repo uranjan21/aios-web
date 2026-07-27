@@ -38,7 +38,17 @@ const TabContent = styled.div`
 
 type SetRow = { exercise: string; reps: number | null; weight_kg: number | null }
 
-export function FitnessTab() {
+/**
+ * `section` splits this surface into two single-purpose tabs: training
+ * (goals, PRs, sessions) and habits. They shared a screen but never a task.
+ */
+export interface FitnessTabProps {
+  section?: 'workouts' | 'habits' | 'all'
+}
+
+export function FitnessTab({ section = 'all' }: FitnessTabProps = {}) {
+  const showWorkouts = section !== 'habits'
+  const showHabits = section !== 'workouts'
   const queryClient = useQueryClient()
 
   // Workout form state
@@ -135,6 +145,7 @@ export function FitnessTab() {
       </HeaderActionPortal>
       <StyledContainer>
         {/* Goals */}
+        {showWorkouts && (
         <div>
           <StyledSectionHeader>
             <Target style={{ width: '14px', height: '14px', color: 'var(--muted-foreground)' }} />
@@ -155,9 +166,10 @@ export function FitnessTab() {
             })}
           </KpiGrid>
         </div>
+        )}
 
         {/* PRs */}
-        {prs && prs.length > 0 && (
+        {showWorkouts && prs && prs.length > 0 && (
           <GlassCard
             title="Personal Records"
             subtitle="Top lifts logged across every workout session"
@@ -188,6 +200,7 @@ export function FitnessTab() {
         )}
 
         {/* Habits */}
+        {showHabits && (
         <div>
           <StyledSectionHeader>
             <Repeat style={{ width: '14px', height: '14px', color: 'var(--muted-foreground)' }} />
@@ -268,8 +281,10 @@ export function FitnessTab() {
             )}
           </GlassCard>
         </div>
+        )}
 
         {/* Workout sessions */}
+        {showWorkouts && (
         <GlassCard
           title="Recent Workouts"
           subtitle="Browse your recently completed workouts and exercises"
@@ -317,6 +332,7 @@ export function FitnessTab() {
             </StyledListWrapper>
           )}
         </GlassCard>
+        )}
       </StyledContainer>
     </TabContent>
 

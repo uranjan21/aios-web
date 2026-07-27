@@ -1,47 +1,74 @@
 # =============================================================================
-# Control Tower — Production Docker Compose
-# =============================================================================
-# OPERATOR CHECKLIST — complete before first deploy:
+# Control Tower — production stack (single VPS)
 #
-#  [ ] Create .env.prod with ALL vars listed in .env.example
-#  [ ] Set ENVIRONMENT=production
-#  [ ] Set APP_SECRET_KEY to a 64-char random hex string
-#  [ ] Set DATABASE_URL to the managed Postgres connection string
-#  [ ] Set REDIS_URL (e.g. redis://redis:6379/0 or managed Redis URL)
-#  [ ] Set RESEND_API_KEY for email verification
-#  [ ] Set OPENAI_API_KEY and/or ANTHROPIC_API_KEY
-#  [ ] Set GCAL_CLIENT_ID / GCAL_CLIENT_SECRET for Google OAuth
-#  [ ] Set TOKEN_ENCRYPTION_KEY (generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
-#  [ ] Set VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY for push notifications
-#  [ ] Set STRIPE_SECRET_KEY (sk_live_...) and STRIPE_WEBHOOK_SECRET
-#  [ ] Set ALLOWED_ORIGIN to your production domain (https://...)
-#  [ ] Set VAULT_SYNC_ENABLED=false (multi-tenant SaaS) or set VAULT_SINGLE_TENANT_ACK=true
-#  [x] Migrations run automatically via entrypoint.sh on every deploy (alembic upgrade head)
-#  [ ] Configure TLS termination at the reverse proxy / load balancer level
-#  [ ] Confirm DB backups are configured on your managed Postgres service
+#   internet ──► web (Caddy, :80/:443) ──► backend (:8000, internal only)
+#                    │                          │
+#                    └── serves built SPA        ├── db    (internal only)
+#                                                └── redis (internal only)
+#
+# Only `web` publishes host ports. The DB, Redis and the API are reachable
+# solely on the private compose network — nothing to firewall by hand.
+#
+# Usage on the VPS:
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+#
+# See docs/DEPLOYMENT.md for the operator checklist and first-boot steps.
 # =============================================================================
+
+# Distinct from the dev stack's project name (which defaults to the directory
+# name, "control-tower"). Without this, running the prod compose from a checkout
+# silently attaches to the DEV pgdata volume — same volume, different password,
+# and the backend crash-loops on "password authentication failed".
+name: control-tower-prod
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   db:
     image: pgvector/pgvector:pg15
-    restart: always
+    restart: unless-stopped
+    logging: *default-logging
     environment:
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD required}
       POSTGRES_USER: ${DB_USER:-control_tower}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD required}
       POSTGRES_DB: ${DB_NAME:-control_tower}
+      # Postgres only initialises trust/scram on FIRST boot; be explicit.
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-control_tower}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-control_tower} -d ${DB_NAME:-control_tower}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    # NO host port binding — DB is only reachable within the Docker network
+      start_period: 20s
+    # No host port binding — the DB is unreachable from the internet.
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   redis:
     image: redis:7-alpine
-    restart: always
-    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    restart: unless-stopped
+    logging: *default-logging
+    # Rate-limit counters + pending tool-call state. `--save 60 1` keeps a
+    # light RDB snapshot; maxmemory-policy protects the box if it ever fills.
+    command:
+      - redis-server
+      - --save
+      - "60"
+      - "1"
+      - --loglevel
+      - warning
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
     volumes:
       - redisdata:/data
     healthcheck:
@@ -49,38 +76,68 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 320M
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    restart: always
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE required (e.g. ghcr.io/OWNER/control-tower-backend:sha)}
+    restart: unless-stopped
+    logging: *default-logging
     env_file: .env.prod
+    environment:
+      # Service-name DSNs override whatever .env.prod carries, so the same file
+      # works locally and on the server.
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-control_tower}:${DB_PASSWORD}@db:5432/${DB_NAME:-control_tower}
+      REDIS_URL: redis://redis:6379/0
+      # gunicorn worker count. 2 is right for a 2-vCPU box; raise with the plan.
+      # Each worker holds its own DB pool — don't outrun Postgres max_connections.
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    environment:
-      # Override DATABASE_URL to use internal service name
-      DATABASE_URL: postgresql+asyncpg://${DB_USER:-control_tower}:${DB_PASSWORD}@db:5432/${DB_NAME:-control_tower}
-      REDIS_URL: redis://redis:6379/0
+    # Migrations run in entrypoint.sh (alembic upgrade head) before gunicorn
+    # binds, and `set -e` there means a failed migration kills the container
+    # rather than serving against a stale schema.
     deploy:
-      replicas: 2
       resources:
         limits:
-          cpus: "2"
-          memory: 2G
+          cpus: "1.5"
+          memory: 1536M
         reservations:
-          cpus: "0.5"
-          memory: 512M
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+          memory: 384M
+
+  web:
+    image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE required (e.g. ghcr.io/OWNER/control-tower-web:sha)}
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      # ":80" = plain HTTP on the bare IP. Replace with your hostname
+      # (e.g. app.example.com) and Caddy provisions TLS automatically.
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
+      BACKEND_UPSTREAM: backend:8000
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    depends_on:
+      - backend
+    volumes:
+      # Persist issued certificates across deploys — Let's Encrypt rate-limits
+      # re-issuance, so losing this directory on every deploy will lock you out.
+      - caddydata:/data
+      - caddyconfig:/config
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
 volumes:
   pgdata:
   redisdata:
+  caddydata:
+  caddyconfig:

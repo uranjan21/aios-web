@@ -12,9 +12,14 @@ import { AiInsightCard } from '@ct/shared/components/AiInsightCard'
 import { ChartTooltip } from '@ct/shared/components/ui/ChartTooltip'
 import { FinancialInsights, SubscriptionManagement } from './AdvancedWidgets'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
-import { PieChart as PieChartIcon, Brain } from 'lucide-react'
+import { PieChart as PieChartIcon } from 'lucide-react'
 import styled from 'styled-components'
 
+/*
+ * Cards in a row share a height (grid's default stretch). What used to make
+ * that read as dead space was a hardcoded 380px card height, nested card
+ * chrome and an oversized empty state — all removed — not the stretch itself.
+ */
 const AnalyticsGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
@@ -31,6 +36,15 @@ const InsightsGrid = styled.div`
   @media ${({ theme }) => theme.media.lg} {
     grid-template-columns: repeat(2, 1fr);
   }
+`
+
+/* Fixed height belongs to the chart, not the card — when the chart is replaced
+   by an empty state the card should collapse, not hold a 380px void. */
+const ChartBox = styled.div`
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  height: 280px;
 `
 
 // Series colours come from theme.chart (the validated categorical palette), in
@@ -136,12 +150,11 @@ export function AnalyticsTab() {
             />
           }
           hoverable
-          style={{ height: 380, display: 'flex', flexDirection: 'column' }}
         >
           {topCategories.length === 0 ? (
             <EmptyState title="No expenses" />
           ) : (
-            <div style={{ flex: 1, width: '100%', minHeight: 0 }}>
+            <ChartBox>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -164,17 +177,18 @@ export function AnalyticsTab() {
                   <Tooltip content={<ChartTooltip valueFormatter={(value: any) => formatCurrency(value)} />} />
                 </PieChart>
               </ResponsiveContainer>
-            </div>
+            </ChartBox>
           )}
         </GlassCard>
       </AnalyticsGrid>
 
-      {/* Insights + Explain Month */}
+      {/* Insights + Explain Month.
+          AiInsightCard IS a card — wrapping it in another one nested two
+          borders and repeated the title ("Explain Month" / "Explain This
+          Month"). It stands on its own now. */}
       <InsightsGrid>
         <FinancialInsights />
-        <GlassCard title="Explain Month" subtitle="AI breakdown of this month's spending" icon={<Brain size={16} />} style={{ height: '100%' }}>
-          <AiInsightCard area="finance" />
-        </GlassCard>
+        <AiInsightCard area="finance" />
       </InsightsGrid>
     </WorkspaceLayout>
   )

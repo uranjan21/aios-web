@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   LayoutDashboard, ArrowLeftRight,
-  PiggyBank, BarChart2, Gem
+  PiggyBank, BarChart2, Gem, Receipt
 } from 'lucide-react'
 import { PageHeader } from '@ledgr/ui'
 
@@ -12,14 +12,13 @@ import { InboxTab } from '@ct/finance/components/InboxTab'
 import { RulesTab } from '@ct/finance/components/RulesTab'
 import { BudgetTab } from '@ct/finance/components/BudgetTab'
 import { PayablesTab } from '@ct/finance/components/PayablesTab'
-import { SimulatorTab } from '@ct/finance/components/SimulatorTab'
 import { InvestmentsTab } from '@ct/finance/components/InvestmentsTab'
 import { LoansTab } from '@ct/finance/components/LoansTab'
 import { AnalyticsTab } from '@ct/finance/components/AnalyticsTab'
 import { AccountsTabModal } from '@ct/finance/components/QuickAddAccounts'
 import { ModuleLayout } from '@ct/shared/components/layout/ModuleLayout'
 import { ModuleSidebar } from '@ct/shared/components/layout/ModuleSidebar'
-import { Inbox, Wand2, ListChecks, TrendingUp, Landmark, IndianRupee } from 'lucide-react'
+import { Inbox, Wand2, Landmark, IndianRupee } from 'lucide-react'
 
 export function FinancePage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -42,10 +41,10 @@ export function FinancePage() {
 
   const groups = [
     {
-      label: 'Finance',
+      label: 'Overview',
       items: [
-        { key: 'overview',  label: 'Overview',  icon: <LayoutDashboard size={14} /> },
-        { key: 'analytics', label: 'Analytics', icon: <BarChart2 size={14} /> },
+        { key: 'overview',  label: 'Dashboard',  icon: <LayoutDashboard size={14} /> },
+        { key: 'analytics', label: 'Analytics',  icon: <BarChart2 size={14} /> },
       ]
     },
     {
@@ -53,15 +52,19 @@ export function FinancePage() {
       items: [
         { key: 'transactions', label: 'Transactions', icon: <ArrowLeftRight size={14} /> },
         { key: 'inbox',        label: 'Inbox',        icon: <Inbox size={14} /> },
-        { key: 'rules',        label: 'Rules',        icon: <Wand2 size={14} /> },
+      ]
+    },
+    {
+      label: 'Automation',
+      items: [
+        { key: 'rules', label: 'Rules', icon: <Wand2 size={14} /> },
       ]
     },
     {
       label: 'Planning',
       items: [
-        { key: 'budgets',     label: 'Budgets',     icon: <PiggyBank size={14} /> },
-        { key: 'payables',    label: 'Payables',    icon: <ListChecks size={14} /> },
-        { key: 'projections', label: 'Projections', icon: <TrendingUp size={14} /> },
+        { key: 'budgets',  label: 'Budgets', icon: <PiggyBank size={14} /> },
+        { key: 'payables', label: 'Bills',   icon: <Receipt size={14} /> },
       ]
     },
     {
@@ -82,7 +85,6 @@ export function FinancePage() {
       case 'rules':        return <RulesTab />
       case 'budgets':      return <BudgetTab />
       case 'payables':     return <PayablesTab />
-      case 'projections':  return <SimulatorTab />
       case 'investments':  return <InvestmentsTab onAddClick={() => setAccountModalOpen(true)} />
       case 'loans':        return <LoansTab onAdd={() => setAccountModalOpen(true)} />
       default:             return <HomeTab />

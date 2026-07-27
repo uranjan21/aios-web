@@ -221,6 +221,11 @@ control-tower/                      # pnpm workspace root (package.json = ALL th
 
 ## Critical Gotchas
 
+- **Deployment configs: read `docs/DEPLOYMENT.md` before touching any Dockerfile / compose / CI / env file.** The prod stack is `docker-compose.prod.yml` (project `control-tower-prod`) — Caddy edge + backend + db + redis, with **only** Caddy publishing ports. `docker-compose.yml` is local-dev only and must never run on the VPS.
+- **`ENVIRONMENT=production` is load-bearing, not a label.** In `development` the app enables the legacy env-credential login backdoor and `ai_allowed()` returns unlimited — on a public signup page that is uncapped LLM spend on the operator key. `AI_FREE_MONTHLY_CREDITS` is enforced *only* in production.
+- **Never key TLS-dependent flags on `ENVIRONMENT`** — cookie `secure=` derives from `settings.allowed_origin.startswith("https://")`. Keying it on `ENVIRONMENT` (as it was) makes login fail *silently* on any production deploy not yet behind TLS: the server returns 200 with a valid `Set-Cookie`, the browser refuses to send it over http, and every later request is anonymous with nothing in the logs.
+- **`backend/.dockerignore` must NOT exclude `alembic/`** — `entrypoint.sh` runs `alembic upgrade head` inside the container. Excluding it only appears to work because the dev compose bind-mounts `./backend` over `/app`.
+- **The frontend must stay same-origin with the API.** `packages/shared/src/api/client.ts` uses a relative `/api` baseURL and the WS hooks use `location.host` — there is no absolute API URL anywhere. Any deploy topology that splits them (separate CDN/host for the SPA) breaks auth and WebSockets.
 - **No Docker `--reload`**: any Python change → `docker compose restart backend`
 - **Alembic autogenerate** tries to DROP `captures` table — always review, strip unrelated drops
 - **Recharts animation**: add `isAnimationActive={false}` to every `<Pie>/<Bar>/<Area>/<Line>` — default animation leaves shapes empty in headless/preview environments
@@ -267,6 +272,62 @@ alembic upgrade head
 ```
 
 ---
+
+## Recent Updates (2026-07-27 — VPS deploy pipeline: infra audit + auto-deploy on push to main)
+
+Full audit of the Docker/compose/CI/env configs ahead of the Hostinger VPS
+(AlmaLinux) launch, then rebuilt them. **Operator guide: `docs/DEPLOYMENT.md`.**
+
+- **The prod stack could not serve the app.** `docker-compose.prod.yml` had no
+  frontend service and no reverse proxy, and `backend` published no host port.
+  `apps/shell/Dockerfile` ran `pnpm dev --host` — a Vite *dev server* — in
+  production. Rewritten: multi-stage build → **`caddy:2.8-alpine` serving the
+  compiled SPA from `/srv` and proxying `/api`, `/ws`, `/health` to
+  `backend:8000`** (72 MB image). Same-origin is mandatory, not cosmetic: the
+  axios baseURL is a relative `/api` and WS uses `location.host`.
+- **`backend/.dockerignore` excluded `alembic/`** while `entrypoint.sh` runs
+  `alembic upgrade head` — every real image build would crash-loop. It only
+  looked fine because the dev compose bind-mounts `./backend` over `/app`.
+- **Backend image**: multi-stage (deps layer keyed on `pyproject.toml` alone),
+  non-root uid 10001, no dev extras, stdlib healthcheck (no curl in slim).
+- **Dev compose published Postgres on `0.0.0.0:5434`** with a hardcoded
+  password — Postgres on the public internet if that compose ran on the VPS.
+  Now `127.0.0.1`-bound; Redis added so dev takes the same rate-limiter path
+  as prod. The containerised frontend's Vite proxy targeted `127.0.0.1:8000`
+  (= itself) — now `VITE_PROXY_TARGET`, set to `http://backend:8000`.
+- **`.gitignore` never matched `.env.prod`** — the exact file the prod compose
+  loads. Now deny-by-default `.env.*` with `!*.example`. Added `.env.prod.example`
+  and a root `.dockerignore` (without it `COPY apps ./apps` dragged macOS-native
+  `node_modules` into a linux image).
+- **`ci.yml` still pointed at the deleted `frontend/` directory** — the frontend
+  job had failed on every push since the 2026-07-20 monorepo conversion. Fixed
+  to repo-root pnpm paths, made reusable (`workflow_call`), and gained
+  ui-build + token-lint (advisory) + vitest steps.
+- **New `.github/workflows/deploy.yml`**: push to `main` → CI → build both
+  images on GitHub runners → GHCR → scp compose+script to the VPS → `deploy.sh`
+  pulls, restarts, polls `/health` 120s and **rolls back to the previous image
+  tags on failure**. Nothing is ever built on the VPS.
+- **Cookie `Secure` now derives from the ALLOWED_ORIGIN scheme**, not from
+  `ENVIRONMENT` — see the new Critical Gotcha below.
+- **Prod compose project renamed `control-tower-prod`** — the old `control-tower`
+  collides with the dev compose's directory-derived default and silently
+  attaches to the **dev** `pgdata` volume.
+- Fixed 3 unused imports (`AnalyticsTab`, `HealthPage` ×2) that failed
+  `noUnusedLocals`; `pnpm build` was red on `main`, so the frontend image could
+  not have built at all.
+- **Verified, not assumed:** both images build; backend boots in
+  `ENVIRONMENT=production` on an empty DB, auto-migrates to head (64 tables),
+  `/health` → `{"status":"ok","db":true,"watcher":false}`; leader election
+  elects exactly one of 2 workers; full stack end-to-end through Caddy — SPA
+  deep-route fallback, immutable `/assets` + `no-cache` index.html, gzip
+  857 kB → 266 kB, `/api` proxy, signup → login → `/api/auth/me`; cookie has no
+  `Secure` on an http origin and gains it on https. Backend suite **231 passing**.
+- **Open:** no domain yet (`SITE_ADDRESS=:80`, cleartext JWT — §4 of
+  DEPLOYMENT.md is a two-line switch); `RESEND_API_KEY` must be set or
+  production refuses to boot; DB backups need the cron install in
+  `deploy/backup-db.sh`; root `package.json` still carries a
+  `pnpm.onlyBuiltDependencies` key that modern pnpm ignores (the live setting is
+  `allowBuilds` in `pnpm-workspace.yaml`).
 
 ## Recent Updates (2026-07-23 — Agent roster audit: Content Strategist retired, Professional Pulse opt-in)
 

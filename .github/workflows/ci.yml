@@ -5,6 +5,8 @@ on:
     branches: [main, dev]
   pull_request:
     branches: [main]
+  # Called by deploy.yml so a push to main can't ship a red build.
+  workflow_call:
 
 jobs:
   backend:
@@ -44,9 +46,11 @@ jobs:
         working-directory: backend
         run: uv pip install -e ".[dev]" --system
 
+      # `python -m pytest`, not `uv run pytest` — uv run would build a second,
+      # separate venv that never got the [dev] extras installed above.
       - name: Run tests
         working-directory: backend
-        run: uv run pytest tests/ -v --tb=short
+        run: python -m pytest tests/ -v --tb=short
 
   frontend:
     name: Frontend (TypeScript + Build)
@@ -55,6 +59,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # NOTE: paths are repo-root, not frontend/ — the frontend became a pnpm
+      # workspace monorepo (apps/* + packages/*) on 2026-07-20. This job had
+      # been failing on every push since.
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -63,18 +70,29 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        working-directory: frontend
         run: pnpm install --frozen-lockfile
 
+      # @ledgr/ui must be built first — the shell's tsc pass resolves its types
+      # from packages/ui/dist.
+      - name: Build component library
+        run: pnpm --filter @ledgr/ui build
+
       - name: Type check
-        working-directory: frontend
-        run: pnpm exec tsc --noEmit
+        run: ./node_modules/.bin/tsc -p tsconfig.json
+
+      # Reported, not enforced. The ratchet currently fails on pre-existing
+      # violations, and this job gates production deploys — a design-token
+      # regression should not be able to block shipping a backend fix.
+      # Drop `continue-on-error` once the baseline is green again.
+      - name: Design-token lint (advisory)
+        continue-on-error: true
+        run: node scripts/token-lint.mjs
 
       - name: Build
-        working-directory: frontend
-        run: pnpm run build
-        env:
-          VITE_API_BASE_URL: http://localhost:8000
+        run: pnpm --filter @ct/shell build
+
+      - name: Unit tests
+        run: pnpm test --run

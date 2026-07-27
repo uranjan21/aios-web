@@ -1,3 +1,11 @@
+# =============================================================================
+# LOCAL DEVELOPMENT ONLY. Do not run this on the VPS —
+# use docker-compose.prod.yml (see docs/DEPLOYMENT.md).
+#
+# Every published port binds to 127.0.0.1 so nothing here is reachable from
+# outside the machine even if it is accidentally started on a public host.
+# =============================================================================
+
 services:
   db:
     image: pgvector/pgvector:pg15
@@ -6,7 +14,7 @@ services:
       POSTGRES_PASSWORD: control_tower_dev_password
       POSTGRES_DB: control_tower
     ports:
-      - "5434:5432"
+      - "127.0.0.1:5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -15,6 +23,18 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    # Present in dev so the rate limiter and pending-tool-call store take the
+    # same code path as production (Redis-backed, not per-process memory).
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
   backend:
     build:
       context: ./backend
@@ -22,27 +42,41 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://control_tower:control_tower_dev_password@db:5432/control_tower
+      REDIS_URL: redis://redis:6379/0
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./backend:/app
-      - ${VAULT_PATH}:${VAULT_PATH}:rw
+      # Vault sync is opt-in locally; defaults to a throwaway dir so the stack
+      # still comes up when VAULT_PATH is unset or points somewhere that only
+      # exists on your laptop.
+      - ${VAULT_PATH:-./.vault-dev}:${VAULT_PATH:-/tmp/vault}:rw
     depends_on:
       db:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+      redis:
+        condition: service_healthy
+    # The bind mount above shadows the image's app/, so --reload is useful here.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
     build:
       context: .
       dockerfile: apps/shell/Dockerfile
+      # Stop at the build stage and run the Vite dev server instead of Caddy —
+      # the runtime stage serves a static production bundle with no HMR.
+      target: build
+    working_dir: /app/apps/shell
     ports:
-      - "5173:5173"
+      - "127.0.0.1:5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:8000
+      # Vite's dev proxy default (127.0.0.1:8000) resolves to the frontend
+      # CONTAINER, not the backend one — that is why the containerised frontend
+      # could never reach the API.
+      VITE_PROXY_TARGET: http://backend:8000
     depends_on:
       - backend
-    command: pnpm dev --host
+    command: pnpm dev --host 0.0.0.0
 
 volumes:
   pgdata:
