@@ -96,8 +96,8 @@ export function FinancePage() {
       header={
         <PageHeader
           icon={<IndianRupee size={24} />}
-          eyebrow="Finance"
-          title="Finance Center"
+          eyebrow="Money"
+          title="Finance"
           subtitle="Manage your transactions, budgets, investments, and financial health in one place."
         />
       }

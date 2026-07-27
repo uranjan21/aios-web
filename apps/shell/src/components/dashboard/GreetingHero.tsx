@@ -227,10 +227,8 @@ const QuotePanel = styled.div`
     theme.mode === 'dark'
       ? `linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)`
       : `linear-gradient(145deg, ${theme.color.accent}12 0%, ${theme.color.accent}04 100%)`};
-  border: 1px solid ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.5)'};
-  backdrop-filter: blur(16px);
-  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255,255,255,0.4);
+  border: 1px solid ${({ theme }) => theme.color.border};
+  box-shadow: ${({ theme }) => theme.elevation[1]};
 `;
 
 const QuoteLabel = styled.span`

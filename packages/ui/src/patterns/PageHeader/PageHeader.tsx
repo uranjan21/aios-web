@@ -1,143 +1,121 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import styled from 'styled-components';
+import { textRole, truncate } from '../../theme/mixins';
 
 export interface PageHeaderProps {
-  /** Small uppercase label that appears before the title (e.g. "Finance"). */
+  /** Small uppercase label stacked above the title (e.g. "Wellness"). */
   eyebrow?: ReactNode;
-  /** Decorative icon — typically a Lucide icon at 16px. */
+  /** Decorative icon — rendered inside an accent chip, normalised to 20px. */
   icon?: ReactNode;
   /** Page title (h1). */
   title: ReactNode;
-  /** Optional subtitle — rendered as a small muted line below the glass bar. */
+  /** Optional subtitle — sits under the title, aligned to the same text column. */
   subtitle?: ReactNode;
   /** Right-aligned slot — typically action buttons. */
   actions?: ReactNode;
   className?: string;
 }
 
-const Wrapper = styled.div`
-  margin-bottom: ${({ theme }) => theme.spacing[4]};
-  display: flex;
-  flex-direction: column;
-  gap: ${({ theme }) => theme.spacing[1.5]};
-`;
-
+/*
+ * The header used to be a full-bleed glass capsule holding a 13px title: the
+ * heaviest surface on the page wrapped around its lightest text, with ~85% of
+ * the bar left empty on a desktop viewport, and the subtitle stranded outside
+ * it at a different left inset. It also blurred a backdrop that is flat page
+ * background — a compositing layer bought nothing.
+ *
+ * It is a typographic block now. Hierarchy comes from the type scale, the
+ * accent chip carries the domain identity, and the three text lines share one
+ * left edge. No rule underneath: `PageDivider` owns that decision per the
+ * workspace-vs-area convention.
+ */
 const Root = styled.header`
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: ${({ theme }) => theme.spacing[3]};
-  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[4]}`};
-
-  background: ${({ theme }) =>
-    theme.mode === 'dark'
-      ? 'rgba(12, 10, 9, 0.72)'
-      : 'rgba(250, 250, 249, 0.82)'};
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid ${({ theme }) =>
-    theme.mode === 'dark'
-      ? 'rgba(255, 255, 255, 0.07)'
-      : 'rgba(0, 0, 0, 0.06)'};
-  border-radius: ${({ theme }) => theme.radii.lg};
-  box-shadow:
-    0 2px 12px rgba(0, 0, 0, 0.04),
-    inset 0 1px 0 ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.9)'};
-`;
-
-const Left = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing[2.5]};
-  flex: 1;
-  min-width: 0;
+  column-gap: ${({ theme }) => theme.spacing[3.5]};
+  row-gap: ${({ theme }) => theme.spacing[2]};
 `;
 
 const IconWrap = styled.div`
+  grid-column: 1;
+  grid-row: 1;
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: ${({ theme }) => theme.radii.md};
-  background: ${({ theme }) => theme.color.accent + '18'};
+  background: ${({ theme }) =>
+    `color-mix(in oklab, ${theme.color.accent} 14%, ${theme.color.background})`};
   color: ${({ theme }) => theme.color.accent};
 
   & svg {
-    width: 14px;
-    height: 14px;
+    width: 20px;
+    height: 20px;
+  }
+
+  @media ${({ theme }) => theme.media.belowSm} {
+    width: 34px;
+    height: 34px;
+
+    & svg {
+      width: 17px;
+      height: 17px;
+    }
   }
 `;
 
-const TextRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing[2]};
+const Titles = styled.div`
+  grid-column: 2;
+  grid-row: 1;
   min-width: 0;
-  flex: 1;
 `;
 
-/* Below sm the eyebrow duplicates context the nav already gives, and it costs
-   the title enough width to truncate it — so it yields on small screens. */
 const Eyebrow = styled.span`
-  display: none;
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  font-weight: 600;
+  display: block;
+  ${textRole('micro')}
   text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: ${({ theme }) => theme.color.mutedForeground};
-  flex-shrink: 0;
-  white-space: nowrap;
-
-  @media ${({ theme }) => theme.media.sm} {
-    display: inline;
-  }
-`;
-
-const Sep = styled.span`
-  display: none;
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'};
-
-  @media ${({ theme }) => theme.media.sm} {
-    display: block;
-  }
+  ${truncate}
 `;
 
 const Title = styled.h1`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  font-weight: ${({ theme }) => theme.typography.fontWeight.semibold};
+  ${textRole('title-m')}
   color: ${({ theme }) => theme.color.foreground};
   margin: 0;
-  line-height: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  ${truncate}
+
+  @media ${({ theme }) => theme.media.sm} {
+    ${textRole('title-l')}
+  }
 `;
 
 const Actions = styled.div`
+  grid-column: 3;
+  grid-row: 1;
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing[2]};
   flex-shrink: 0;
+  justify-self: end;
 `;
 
+/* Aligned to the title's left edge, not the icon's — the three text lines read
+   as one block. Hidden below sm to protect vertical space on mobile.
+   Actions stay on row 1 at every width: dropping them to their own row costs
+   ~44px of vertical on every mobile page view, and the title column is
+   `minmax(0, 1fr)` so it ellipsises rather than overflowing. */
 const Subtitle = styled.p`
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
+  grid-column: 2 / -1;
+  grid-row: 2;
+  ${textRole('body-s')}
   color: ${({ theme }) => theme.color.mutedForeground};
   margin: 0;
-  padding: ${({ theme }) => `0 ${theme.spacing[1]}`};
-  line-height: 1.4;
+  max-width: 68ch;
 
-  /* Hidden on mobile to protect vertical space for primary content. */
   display: none;
   @media ${({ theme }) => theme.media.sm} {
     display: block;
@@ -151,20 +129,15 @@ export function PageHeader({ eyebrow, icon, title, subtitle, actions, className 
     : null;
 
   return (
-    <Wrapper className={className}>
-      <Root>
-        <Left>
-          {icon && <IconWrap aria-hidden="true">{icon}</IconWrap>}
-          <TextRow>
-            {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
-            {eyebrow && <Sep aria-hidden="true" />}
-            <Title>{title}</Title>
-          </TextRow>
-        </Left>
-        {finalActions && <Actions>{finalActions}</Actions>}
-      </Root>
+    <Root className={className}>
+      {icon && <IconWrap aria-hidden="true">{icon}</IconWrap>}
+      <Titles>
+        {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
+        <Title>{title}</Title>
+      </Titles>
+      {finalActions && <Actions>{finalActions}</Actions>}
       {subtitle && <Subtitle>{subtitle}</Subtitle>}
-    </Wrapper>
+    </Root>
   );
 }
 

@@ -325,8 +325,7 @@ const NavItemLink = styled(NavLink)<{ $collapsed: boolean }>`
     background: linear-gradient(90deg, ${({ theme }) => theme.color.accent}24 0%, ${({ theme }) => theme.color.accent}0A 100%);
     color: ${({ theme }) => theme.color.foreground};
     font-weight: 600;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    
+
     & > svg {
       color: ${({ theme }) => theme.color.accent};
     }

@@ -7,7 +7,7 @@ export const FAB = styled(motion.button).attrs({ type: 'button' })`
   right: 24px;
   height: 48px;
   padding: 0 18px 0 14px;
-  border-radius: 9999px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) =>
     theme.mode === 'dark'
       ? 'rgba(20, 24, 34, 0.88)'

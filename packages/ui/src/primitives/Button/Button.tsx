@@ -43,73 +43,83 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 /* ── Style maps ──────────────────────────────────────────────────────── */
 
+/*
+ * Radii are deliberately one step below the surface scale. `radii.md` (14px)
+ * on a 32px control and `radii.lg` (20px) on a 44px one are pills in all but
+ * name — half the height IS the pill threshold. `sm` (10px) reads as a flat
+ * corner at every button height, which is what the no-pill rule is after.
+ */
 const sizeStyles = {
   sm: css`
     height: 32px;
     padding: 0 ${({ theme }) => theme.spacing[3]};
     font-size: ${({ theme }) => theme.typography.fontSize.xs};
     gap: ${({ theme }) => theme.spacing[1]};
-    border-radius: ${({ theme }) => theme.radii.md};
+    border-radius: ${({ theme }) => theme.radii.sm};
   `,
   md: css`
     height: 36px;
     padding: 0 ${({ theme }) => theme.spacing[4]};
     font-size: ${({ theme }) => theme.typography.fontSize.base};
     gap: ${({ theme }) => theme.spacing[2]};
-    border-radius: ${({ theme }) => theme.radii.md};
+    border-radius: ${({ theme }) => theme.radii.sm};
   `,
   lg: css`
     height: 44px;
     padding: 0 ${({ theme }) => theme.spacing[5]};
     font-size: ${({ theme }) => theme.typography.fontSize.md};
     gap: ${({ theme }) => theme.spacing[2]};
-    border-radius: ${({ theme }) => theme.radii.lg};
+    border-radius: ${({ theme }) => theme.radii.md};
   `,
   icon: css`
     height: 36px;
     width: 36px;
     padding: 0;
-    border-radius: ${({ theme }) => theme.radii.md};
+    border-radius: ${({ theme }) => theme.radii.sm};
   `,
 };
 
+/*
+ * De-clayed 2026-07-27. Every filled variant used to carry the full
+ * claymorphic recipe: a 135° gradient body, a white top bevel
+ * (`inset 0 1px 0 rgba(255,255,255,0.2)`) over a dark bottom bevel, a coloured
+ * ambient glow, and a `translateY` squish that pressed the button into a
+ * sunken `inset 0 2px 4px` well on `:active`. The outline/secondary variants
+ * added `backdrop-filter: blur(12px)` over translucent black — a frosted body
+ * with nothing behind it to frost, costing a compositing layer per button.
+ *
+ * All of it is gone. Fills are flat semantic colours, depth comes from the
+ * `elevation` scale (which carries the one sanctioned dark-mode hairline and
+ * nothing in light mode), state changes are colour-only, and nothing moves on
+ * press. This is the "no white/highlight shadows on buttons or inputs" rule
+ * the design system already declared but the component never followed.
+ */
 const variantStyles = {
   primary: css`
-    background: linear-gradient(135deg, ${({ theme }) => theme.color.primary} 0%, ${({ theme }) => theme.color.primaryHover} 100%);
+    background: ${({ theme }) => theme.color.primary};
     color: ${({ theme }) => theme.color.primaryForeground};
-    border: none;
-    box-shadow: 
-      inset 0 1px 0 rgba(255, 255, 255, 0.2), 
-      inset 0 -1px 0 rgba(0, 0, 0, 0.1), 
-      0 4px 12px ${({ theme }) => theme.color.primary}40;
+    border: 1px solid transparent;
+    box-shadow: ${({ theme }) => theme.elevation[1]};
     &:hover:not(:disabled) {
-      background: linear-gradient(135deg, ${({ theme }) => theme.color.primaryHover} 0%, ${({ theme }) => theme.color.primary} 100%);
-      box-shadow: 
-        inset 0 1px 0 rgba(255, 255, 255, 0.3), 
-        inset 0 -1px 0 rgba(0, 0, 0, 0.1), 
-        0 6px 16px ${({ theme }) => theme.color.primary}50;
-      transform: translateY(-1px);
+      background: ${({ theme }) => theme.color.primaryHover};
     }
     &:active:not(:disabled) {
-      box-shadow: 
-        inset 0 2px 4px rgba(0, 0, 0, 0.2), 
-        0 2px 4px ${({ theme }) => theme.color.primary}30;
-      transform: translateY(1px);
+      background: ${({ theme }) => theme.color.primaryHover};
+      box-shadow: ${({ theme }) => theme.elevation[0]};
     }
   `,
   secondary: css`
-    background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)'};
+    background: ${({ theme }) => theme.color.muted};
     color: ${({ theme }) => theme.color.foreground};
-    border: 1px solid ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'};
-    backdrop-filter: blur(12px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    border: 1px solid ${({ theme }) => theme.color.border};
+    box-shadow: none;
     &:hover:not(:disabled) {
-      background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.09)' : 'rgba(0, 0, 0, 0.06)'};
-      border-color: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)'};
+      background: ${({ theme }) =>
+        `color-mix(in srgb, ${theme.color.muted} 88%, ${theme.color.foreground})`};
+      border-color: ${({ theme }) => theme.color.foreground}30;
     }
     &:active:not(:disabled) {
-      box-shadow: none;
-      transform: translateY(1px);
+      background: ${({ theme }) => theme.color.muted};
     }
   `,
   outline: css`
@@ -118,11 +128,8 @@ const variantStyles = {
     border: 1px solid ${({ theme }) => theme.color.border};
     box-shadow: none;
     &:hover:not(:disabled) {
-      background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)'};
+      background: ${({ theme }) => theme.color.muted};
       border-color: ${({ theme }) => theme.color.foreground}30;
-    }
-    &:active:not(:disabled) {
-      transform: translateY(1px);
     }
   `,
   ghost: css`
@@ -131,30 +138,19 @@ const variantStyles = {
     border: 1px solid transparent;
     box-shadow: none;
     &:hover:not(:disabled) {
-      background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)'};
-    }
-    &:active:not(:disabled) {
-      transform: translateY(1px);
+      background: ${({ theme }) => theme.color.muted};
     }
   `,
   destructive: css`
-    background: linear-gradient(135deg, ${({ theme }) => theme.color.destructive} 0%, #B91C1C 100%);
+    background: ${({ theme }) => theme.color.destructive};
     color: ${({ theme }) => theme.color.destructiveForeground};
-    border: none;
-    box-shadow: 
-      inset 0 1px 0 rgba(255, 255, 255, 0.2), 
-      inset 0 -1px 0 rgba(0, 0, 0, 0.1), 
-      0 4px 12px ${({ theme }) => theme.color.destructive}40;
+    border: 1px solid transparent;
+    box-shadow: ${({ theme }) => theme.elevation[1]};
     &:hover:not(:disabled) {
-      background: linear-gradient(135deg, #EF4444 0%, ${({ theme }) => theme.color.destructive} 100%);
-      box-shadow: 
-        inset 0 1px 0 rgba(255, 255, 255, 0.3), 
-        0 6px 16px ${({ theme }) => theme.color.destructive}50;
-      transform: translateY(-1px);
+      filter: brightness(1.08);
     }
     &:active:not(:disabled) {
-      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
-      transform: translateY(1px);
+      box-shadow: ${({ theme }) => theme.elevation[0]};
     }
   `,
   link: css`

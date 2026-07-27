@@ -67,7 +67,7 @@ const Surface = styled.div<{ $size: DialogSize }>`
   color: ${({ theme }) => theme.color.cardForeground};
   border-radius: ${({ theme }) => theme.radii.xl};
   border: 1px solid ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : theme.color.border};
-  box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: ${({ theme }) => theme.elevation[4]};
   outline: none;
   overflow: hidden;
   animation: ${popIn} ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.enter};

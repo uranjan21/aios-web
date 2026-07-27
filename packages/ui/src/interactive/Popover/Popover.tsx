@@ -90,8 +90,8 @@ const Surface = styled.div<{ $top: number; $left: number; $minWidth: number; $or
   -webkit-backdrop-filter: blur(24px) saturate(190%);
   color: ${({ theme }) => theme.color.popoverForeground};
   border: 1px solid ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.lg};
-  box-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  border-radius: ${({ theme }) => theme.radii.md};
+  box-shadow: ${({ theme }) => theme.elevation[3]};
   padding: ${({ theme }) => theme.spacing[3]};
   outline: none;
   transform-origin: ${({ $origin }) => $origin};

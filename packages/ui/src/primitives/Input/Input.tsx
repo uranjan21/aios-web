@@ -38,28 +38,30 @@ const Wrapper = styled.div<{ $fullWidth: boolean; $invalid: boolean; $size: Inpu
   display: inline-flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing[2]};
-  background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'};
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'};
-  border-radius: ${({ theme }) => theme.radii.md};
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04);
-  transition: all ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
+  background: ${({ theme }) => theme.color.card};
+  border: 1px solid ${({ theme, $invalid }) =>
+    $invalid ? theme.color.destructive : theme.color.input};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  box-shadow: none;
+  transition:
+    border-color ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard},
+    outline-color ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
   ${({ $fullWidth }) => $fullWidth && css`width: 100%;`}
   ${({ $size }) => sizeStyles[$size]}
 
   &:hover {
-    background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.03)'};
-    border-color: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)'};
+    border-color: ${({ theme, $invalid }) =>
+      $invalid ? theme.color.destructive : theme.color.foreground + '30'};
   }
 
+  /* The one focus treatment — a 2px outline at 2px offset, same as every other
+     control. It replaces a triple-stacked box-shadow (sunken well + 1px ring +
+     12px coloured halo) that was the input's share of the clay vocabulary. */
   &:focus-within {
-    background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'};
-    border-color: ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.accent)};
-    box-shadow: 
-      inset 0 2px 4px rgba(0, 0, 0, 0.04),
-      0 0 0 1px ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.accent)},
-      0 0 12px ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.accent)}40;
+    border-color: ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.ring)};
+    outline: ${({ theme }) => theme.border.focus} solid
+      ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.ring)};
+    outline-offset: 2px;
   }
 
   &:has(input:disabled) {

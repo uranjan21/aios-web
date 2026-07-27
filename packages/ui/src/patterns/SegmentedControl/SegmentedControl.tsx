@@ -25,7 +25,9 @@ const Root = styled.div<{ $size: 'sm' | 'md' }>`
   gap: ${({ theme }) => `${theme.spacing[0.5]}`};
   padding: ${({ theme }) => `${theme.spacing[1]}`};
   background: ${({ theme }) => theme.color.muted};
-  border-radius: ${({ theme }) => theme.radii.lg};
+  /* 10px outer / 6px inner with 4px padding — concentric, and flat at the 32px
+     track height where radii.lg (20px) was a pill. */
+  border-radius: ${({ theme }) => theme.radii.sm};
   ${({ $size, theme }) => $size === 'sm'
     ? `height: 32px; font-size: ${theme.typography.fontSize.xs};`
     : `height: 36px; font-size: ${theme.typography.fontSize.base};`}
@@ -43,7 +45,7 @@ const Segment = styled.button<{ $active: boolean; $size: 'sm' | 'md' }>`
   color: ${({ theme, $active }) => ($active ? theme.color.foreground : theme.color.mutedForeground)};
   background: ${({ theme, $active }) => ($active ? theme.color.card : 'transparent')};
   border: none;
-  border-radius: ${({ theme }) => theme.radii.md};
+  border-radius: ${({ theme }) => theme.radii.xs};
   box-shadow: ${({ theme, $active }) => ($active ? theme.shadow.xs : 'none')};
   cursor: pointer;
   white-space: nowrap;

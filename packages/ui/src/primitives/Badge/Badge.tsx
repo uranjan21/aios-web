@@ -59,9 +59,13 @@ const StyledBadge = styled.span<{ $tone: BadgeTone; $size: BadgeSize; $outline: 
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-weight: ${({ theme }) => theme.typography.fontWeight.medium};
   line-height: 1;
-  border-radius: ${({ theme }) => theme.radii.md};
+  /* radii.xs (6px), not radii.md (14px): a badge is 20–24px tall, so 14px was
+     past the pill threshold. And no shadow — a badge is a label on a surface,
+     not a surface of its own. The clay/claySunken aliases it used are legacy
+     names mapping to elevation[2]/[1]. */
+  border-radius: ${({ theme }) => theme.radii.xs};
   border: none;
-  box-shadow: ${({ theme, $outline }) => ($outline ? theme.shadow.claySunken : theme.shadow.clay)};
+  box-shadow: none;
   white-space: nowrap;
   user-select: none;
 

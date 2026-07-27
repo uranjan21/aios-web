@@ -32,7 +32,7 @@ const Root = styled.span<{ $size: AvatarSize }>`
   border-radius: ${({ theme }) => theme.radii.full};
   background: ${({ theme }) => theme.color.primary};
   color: ${({ theme }) => theme.color.primaryForeground};
-  box-shadow: ${({ theme }) => theme.shadow.clay};
+  box-shadow: none;
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-weight: ${({ theme }) => theme.typography.fontWeight.semibold};
   flex-shrink: 0;

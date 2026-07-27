@@ -233,22 +233,17 @@ function OverviewSkeleton() {
 
 // ─────────────────────────── Root component ───────────────────────────
 
+/* Accent-filled, otherwise a plain Button: the pill radius, the 135° gradient,
+   the coloured ambient glow and the hover lift were all clay overrides on top
+   of the primitive. Only the accent fill is a real product decision. */
 const AnalyseButton = styled(Button)`
-  border-radius: 9999px !important;
-  background: linear-gradient(
-    135deg,
-    ${({ theme }) => theme.color.accent} 0%,
-    ${({ theme }) => theme.color.accent}DD 100%
-  ) !important;
-  color: ${({ theme }) => theme.color.accentForeground} !important;
-  border: none !important;
-  font-weight: 700 !important;
-  box-shadow: 0 4px 14px ${({ theme }) => theme.color.accent}3D;
-  transition: all 160ms ease;
+  background: ${({ theme }) => theme.color.accent};
+  color: ${({ theme }) => theme.color.accentForeground};
+  border-color: transparent;
 
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px ${({ theme }) => theme.color.accent}55;
+  &:hover:not(:disabled) {
+    background: ${({ theme }) => theme.color.accent};
+    filter: brightness(1.08);
   }
 `;
 

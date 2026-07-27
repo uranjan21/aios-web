@@ -72,30 +72,29 @@ const Trigger = styled.button<{ $size: SelectSize; $invalid: boolean; $fullWidth
   width: ${({ $fullWidth }) => ($fullWidth ? '100%' : 'auto')};
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   color: ${({ theme }) => theme.color.foreground};
-  border-radius: ${({ theme }) => theme.radii.md};
-  background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'};
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid ${({ theme, $invalid }) => $invalid ? theme.color.destructive : theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'};
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04);
+  /* Matches Input exactly — a Select trigger is an input, and the two sit side
+     by side in every toolbar. Flat card fill, hairline border, no sunken well,
+     no blur, no coloured halo on focus. */
+  border-radius: ${({ theme }) => theme.radii.sm};
+  background: ${({ theme }) => theme.color.card};
+  border: 1px solid ${({ theme, $invalid }) =>
+    $invalid ? theme.color.destructive : theme.color.input};
+  box-shadow: none;
   cursor: pointer;
   text-align: left;
   white-space: nowrap;
-  transition: all ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
-  
+  transition: border-color ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
+
   &:hover {
-    background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.03)'};
-    border-color: ${({ theme, $invalid }) => $invalid ? theme.color.destructive : theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)'};
+    border-color: ${({ theme, $invalid }) =>
+      $invalid ? theme.color.destructive : theme.color.foreground + '30'};
   }
 
   &:focus-visible {
-    outline: none;
-    background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'};
-    border-color: ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.accent)};
-    box-shadow: 
-      inset 0 2px 4px rgba(0, 0, 0, 0.04),
-      0 0 0 1px ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.accent)},
-      0 0 12px ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.accent)}40;
+    border-color: ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.ring)};
+    outline: ${({ theme }) => theme.border.focus} solid
+      ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.ring)};
+    outline-offset: 2px;
   }
 
   &:disabled {
@@ -138,8 +137,8 @@ const Surface = styled.div<{ $top: number; $left: number; $width: number }>`
   backdrop-filter: blur(24px) saturate(190%);
   -webkit-backdrop-filter: blur(24px) saturate(190%);
   border: 1px solid ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.lg};
-  box-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  border-radius: ${({ theme }) => theme.radii.md};
+  box-shadow: ${({ theme }) => theme.elevation[3]};
   padding: ${({ theme }) => theme.spacing[1]};
   animation: ${popIn} ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.enter};
   outline: none;

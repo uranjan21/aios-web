@@ -27,7 +27,10 @@ const HiddenInput = styled.input`
   cursor: pointer;
 
   &:disabled { cursor: not-allowed; }
-  &:focus-visible + span { box-shadow: 0 0 0 3px ${({ theme }) => theme.color.ring + '40'}; }
+  &:focus-visible + span {
+    outline: ${({ theme }) => theme.border.focus} solid ${({ theme }) => theme.color.ring};
+    outline-offset: 2px;
+  }
 `;
 
 const Box = styled.span<{ $checked: boolean; $indeterminate: boolean; $disabled: boolean }>`
@@ -38,7 +41,9 @@ const Box = styled.span<{ $checked: boolean; $indeterminate: boolean; $disabled:
   height: 100%;
   border: 1.5px solid ${({ theme, $checked, $indeterminate }) =>
     $checked || $indeterminate ? theme.color.primary : theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.sm};
+  /* The box is 16–18px; radii.sm (10px) rendered it as a circle, which reads as
+     a radio button. radii.xs keeps it an unmistakable square. */
+  border-radius: ${({ theme }) => theme.radii.xs};
   background: ${({ theme, $checked, $indeterminate }) =>
     $checked || $indeterminate ? theme.color.primary : theme.color.card};
   color: ${({ theme }) => theme.color.primaryForeground};

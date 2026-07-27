@@ -114,7 +114,7 @@ const GlassEmptyState = styled.div`
     align-items: center;
     gap: 6px;
     padding: 8px 20px;
-    border-radius: 9999px;
+    border-radius: ${({ theme }) => theme.radii.sm};
     background: ${({ theme }) =>
       theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)'};
     border: 1px solid ${({ theme }) =>

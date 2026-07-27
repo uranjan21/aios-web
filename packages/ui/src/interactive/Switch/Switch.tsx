@@ -28,7 +28,10 @@ const HiddenInput = styled.input`
   margin: 0;
   opacity: 0;
   cursor: inherit;
-  &:focus-visible + span { box-shadow: 0 0 0 3px ${({ theme }) => theme.color.ring + '40'}; }
+  &:focus-visible + span {
+    outline: ${({ theme }) => theme.border.focus} solid ${({ theme }) => theme.color.ring};
+    outline-offset: 2px;
+  }
 `;
 
 const Track = styled.span<{ $checked: boolean; $size: 'sm' | 'md' | 'lg' }>`

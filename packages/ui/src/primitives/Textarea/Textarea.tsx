@@ -19,17 +19,18 @@ const StyledTextarea = styled.textarea<{ $invalid: boolean; $fullWidth: boolean 
   color: ${({ theme }) => theme.color.foreground};
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.input)};
-  border-radius: ${({ theme }) => theme.radii.md};
+  border-radius: ${({ theme }) => theme.radii.sm};
   resize: vertical;
   transition: border-color ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.standard};
   ${focusRing}
 
   &::placeholder { color: ${({ theme }) => theme.color.mutedForeground}; }
+  /* Outline, not a 3px soft ring — one focus treatment across every control. */
   &:focus-visible {
     border-color: ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.ring)};
-    outline: none;
-    box-shadow: 0 0 0 3px ${({ theme, $invalid }) =>
-      $invalid ? theme.color.destructive + '33' : theme.color.ring + '33'};
+    outline: ${({ theme }) => theme.border.focus} solid
+      ${({ theme, $invalid }) => ($invalid ? theme.color.destructive : theme.color.ring)};
+    outline-offset: 2px;
   }
   &:disabled {
     opacity: 0.6;
