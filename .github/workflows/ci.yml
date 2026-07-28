@@ -29,7 +29,10 @@ jobs:
     env:
       DATABASE_URL: postgresql+asyncpg://control_tower:control_tower@localhost:5432/control_tower_test
       APP_SECRET_KEY: ci-test-secret-key-32-chars-minimum
-      APP_PASSWORD: ci-test-password
+      # APP_PASSWORD is deliberately NOT set here. tests/conftest.py does
+      # os.environ.setdefault("APP_PASSWORD", "testpass") and test_auth.py logs
+      # in with "testpass" — setting it here makes the setdefault a no-op and
+      # every auth test 401s. Same for APP_EMAIL (conftest → admin@example.com).
       ANTHROPIC_API_KEY: sk-placeholder
       ALLOWED_ORIGIN: http://localhost:5173
       VAULT_PATH: /tmp/vault
@@ -94,5 +97,9 @@ jobs:
       - name: Build
         run: pnpm --filter @ct/shell build
 
+      # `pnpm exec vitest --run`, NOT `pnpm test --run`. pnpm 9 (what
+      # action-setup installs here) parses `--run` as a pnpm flag and dies with
+      # "Unknown option: 'run'"; only pnpm 10+ forwards it to the script. Local
+      # dev is on pnpm 11, which is why this passed on a laptop and failed here.
       - name: Unit tests
-        run: pnpm test --run
+        run: pnpm exec vitest --run
