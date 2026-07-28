@@ -1,0 +1,22 @@
+# Build context excludes for the FRONTEND image (context = frontend/).
+# Without this, `COPY apps ./apps` drags host node_modules (macOS-native
+# binaries) into a linux/amd64 image and the build silently uses the wrong
+# esbuild/rollup platform binary.
+#
+# NOTE: the context is frontend/, NOT the repo root (changed 2026-07-28 when the
+# JS workspace moved under frontend/). The old file also listed backend/,
+# .git, .github, .env* — those now sit ABOVE the context and are unreachable
+# by definition, so entries for them would be dead weight.
+
+**/node_modules
+**/dist
+**/.vite
+**/*.tsbuildinfo
+
+.claude
+.gemini
+
+docs
+
+*.md
+.DS_Store

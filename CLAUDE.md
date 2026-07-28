@@ -3,11 +3,55 @@
 
 # Project: Control Tower
 
+## Where the rules live (restructured 2026-07-28)
+
+This file is the **project-level** source of truth: what the product is, the
+stack, deploy topology, cross-cutting gotchas, and the change history. The
+domain-specific rules were split out so each side of the stack carries its own
+context:
+
+| File | Covers | Loads when |
+|---|---|---|
+| `CLAUDE.md` (this file) | Product, stack, deploy, history, backlog | **Always** |
+| `frontend/CLAUDE.md` | Design system, UI/UX rules, monorepo graph, React conventions | Working under `frontend/` |
+| `backend/CLAUDE.md` | FastAPI/SQLModel conventions, migrations, multi-tenancy, backend gotchas | Working under `backend/` |
+| `AGENTS.md` | The working agreement for every AI tool (mandatory session log) | Always |
+
+Skills live beside the code they serve — e.g. `frontend/.claude/skills/`.
+
+**Read the matching sub-file before writing code on that side.** Do not
+duplicate its rules back into this file; add them where they belong.
+
+---
+
 ## What this is
 
 A full-stack personal life-management OS — Finance, Health, Career, Business, Content — with AI agents, vault sync, and multi-LLM integration. **Transitioning from single-user to multi-tenant SaaS (decided 2026-06-21).** All new DB/backend work must be multi-user aware: `users` table, `user_id` FK on every user-data table, row-level isolation.
 
-**The frontend is a pnpm-workspace MONOREPO (converted 2026-07-20).** Each life domain is its own app package (`apps/finance`, `apps/health`, `apps/career` — **Business and Content were deleted 2026-07-21**, their tables deliberately kept; see `packages/shared/src/config/domains.ts` for ACTIVE vs RETIRED domain keys); `apps/shell` is the central app that owns the router, AppShell navigation (Sidebar/TopBar/BottomNav), and all cross-domain surfaces; `packages/shared` (`@ct/shared`) holds api/stores/hooks/lib/theme/types + shared components; `packages/ui` is `@ledgr/ui`. The shell composes the domain apps into ONE deployed SPA (they are workspace packages consumed from source via Vite aliases, not separately deployed micro-frontends).
+The frontend is a pnpm-workspace **monorepo** (converted 2026-07-20) rooted at `frontend/`; the backend is a FastAPI service in `backend/`. Details in each sub-file.
+
+---
+
+## Repository layout
+
+```text
+Project - Control Tower/            # repo root (git)
+├── frontend/                   # pnpm workspace root — apps/* + packages/* + its own CLAUDE.md
+├── backend/                    # FastAPI service (uv) — its own CLAUDE.md
+├── deploy/                     # VPS ops: deploy.sh, backup-db.sh
+├── docs/                       # cross-cutting docs (deployment, runbook, roadmap, pricing, audits)
+├── .github/workflows/          # ci.yml + deploy.yml (GitHub requires this path)
+├── docker-compose.yml          # local dev (project name pinned to `control-tower`)
+├── docker-compose.prod.yml     # VPS stack (project `control-tower-prod`)
+├── CLAUDE.md · AGENTS.md · PROGRESS.md · FEATURES.md · SYSTEM_DESIGN.md
+├── run.sh                      # one-shot local dev: db → migrations → backend + shell
+└── .env · .env.example · .env.prod.example
+```
+
+Before 2026-07-28 the JS workspace lived at the repo root. Anything referencing
+`apps/…` or `packages/…` from the root — Dockerfile contexts, CI working
+directories, `run.sh`, `backend/tests/test_api_mappings.py` — now goes through
+`frontend/`.
 
 ---
 
@@ -34,241 +78,42 @@ A full-stack personal life-management OS — Finance, Health, Career, Business, 
 
 ## Stack
 
-- **Frontend**: React 18 + TypeScript + Vite + **@ledgr/ui** (component library at `packages/ui/`) + styled-components. **No Ant Design** (removed 2026-07-21 — the whole package was bundled at 226 kB to render one `Timeline`). **No Highcharts** — Recharts only.
-- **Backend**: Python 3.11+ + FastAPI + SQLModel (async SQLAlchemy) + asyncpg
+- **Frontend**: React 18 + TypeScript + Vite + **@ledgr/ui** (component library at `frontend/packages/ui/`) + styled-components. **No Ant Design** (removed 2026-07-21). **No Highcharts** — Recharts only. → `frontend/CLAUDE.md`
+- **Backend**: Python 3.11+ + FastAPI + SQLModel (async SQLAlchemy) + asyncpg → `backend/CLAUDE.md`
 - **Database**: PostgreSQL 15 + pgvector
 - **AI/LLMs**: Anthropic Claude SDK, OpenAI SDK (default provider, `settings.openai_chat_model`)
 - **Real-time**: FastAPI native WebSockets (`/ws/sync`, `/ws/chat`, `/ws/agents`)
 - **State**: Zustand (global) + React Query / TanStack (server state)
 - **Auth**: JWT in httpOnly SameSite=Strict cookie (`ct_token`). Google OAuth added 2026-06-21.
-- **Package managers**: pnpm workspaces (frontend monorepo — install from repo root), uv (backend)
+- **Package managers**: pnpm workspaces (frontend — install from `frontend/`), uv (backend)
 - **Container**: Docker + docker-compose
 
 ---
 
-## Design System — "Expressive" (direction set 2026-07-21)
+## Cross-cutting Gotchas
 
-**Tailwind is fully removed.** All styling is styled-components + `@ledgr/ui` theme tokens.
-
-**`packages/ui/src/theme/tokens.ts` is THE authoritative token layer.** Until
-2026-07-21 it was shadowed by a second layer in `ctTheme.ts` that overwrote
-the palette, radii, shadows and fonts at runtime, so most of what the file
-declared never rendered. `ctTheme.ts` now only picks a palette + mode and
-calls `buildTheme()`.
-
-| Token | Value |
-|---|---|
-| Background | `#FAFAF9` light / `#0C0A09` dark |
-| Card | `#FFFFFF` light / `#1C1917` dark |
-| Primary | `#1C1917` (near-black) |
-| Accent / Gold | `#CA8A04` |
-| Font (UI/body) | `DM Sans`, **16px body baseline** |
-| Font (display) | `Playfair Display` — hero numerals + wordmark ONLY |
-| Depth | 6-step `theme.elevation` + gradient + glass layers |
-| Motion | duration/easing scales + 3 spring presets |
-
-**HARD RULES:**
-- Never use `hsl(var(--x))` — CSS vars are HEX; use `var()` or `color-mix()`.
-- **No serif in body/UI.** `fontFamily.display` is for hero numerals and the wordmark.
-- **There is no `mono` font.** The old token resolved to DM Sans (a proportional
-  face wearing a mono name). Monospace display type is banned by standing user
-  rule — use `tabularNums` from `@ledgr/ui` for figure alignment.
-- **No pill / `9999px` radii.** True circles (avatar, status dot, Switch) exempt.
-- No white/highlight shadows on **buttons or inputs**. ONE exception: the 1px
-  top inner hairline inside `theme.elevation` on dark-mode raised surfaces —
-  without it dark mode has no depth cue at all.
-- Consume scales through the mixins (`textRole`, `focusRing`, `surface`,
-  `glass`, `tabularNums`), not by hand — that is what stops the drift.
-- Media queries use `theme.media.*`. Raw px breakpoints are a lint failure.
-- **Run `node scripts/token-lint.mjs` before committing.** It ratchets against
-  `scripts/token-lint.baseline.json` and fails when a violation count rises.
-  `--report` lists locations; `--update` re-locks after a genuine reduction.
-- **MOBILE STRICT**: In mobile/tab this app should feel like it's made natively for mobile/tab, not some app built for web and responsive to mobile. Design elements (especially KPIs) must compactly fit in single rows on small viewports rather than stacking loosely.
-
----
-
-## Architecture
-
-### Frontend (monorepo)
-
-- **Package graph:** `apps/shell` (`@ct/shell`) → depends on the 5 domain apps + `@ct/shared` + `@ledgr/ui`; each domain app (`@ct/finance|health|career|business|content`) → depends only on `@ct/shared` + `@ledgr/ui`. Domain apps NEVER import each other or the shell. Shell may deep-import a domain component (e.g. GoalsPage uses `@ct/finance/components/GoalsTab`).
-- **Import specifiers:** `@/` = shell-internal only (`apps/shell/src`); `@ct/shared/...`, `@ct/<domain>/...` everywhere else. Aliases live in `apps/shell/vite.config.ts` + root `tsconfig.json` paths + root `vitest.config.ts` — keep the three in sync when adding a package.
-- **Dependency policy:** all third-party deps are declared ONCE in the root `package.json` (single-version policy — guarantees one React/styled-components instance). Per-package manifests only declare the workspace graph (`workspace:*`).
-- SPA via React Router v6 (in `apps/shell/src/router.tsx`); `RequireAuth` guard on all area routes
-- Feature areas: Finance / Health / Career / Business / Content — each is an app package with `src/pages` + `src/components`, each page has `<AreaTabs>` sub-nav (never nest Tabs)
-- API: functions in `packages/shared/src/api/` — no raw fetch or axios in components
-- Styling: `styled.div` / `styled(Component)` everywhere; `className` in SC = CSS selector hook, NOT utility
-- `WorkspaceLayout` + `RailHeading` pattern: analytics/lists → center; inputs/forms → right 300px sticky rail
-- **Settings Layout**: Any settings page (global or domain-specific) MUST use the standard two-panel layout (`AreaSettingsPage`). Do not build inline settings tabs or custom settings layouts.
-- `GlobalCapture` (⌘L): uses `@ledgr/ui Dialog`, parses NL text via `/captures/parse`, routes to correct domain
-
-### Backend
-
-- Routers: `backend/app/api/areas/<domain>.py` for each domain
-- Service layer: `backend/app/services/` (finance, insights, notifications have sub-folders; others are direct in routers)
-- No `--reload` in Docker — **restart required after any Python edit**: `docker compose restart backend`
-- Alembic: always review autogenerated migrations — autogenerate tries to DROP `captures` table (model not imported in env). Strip unrelated drops before `upgrade head`.
-- APScheduler jobs: recurring finance post (01:00 UTC), budget alerts (on expense write), anomaly scan (04:00 UTC), weekly digest (Sun 13:30 UTC), bill notifications (03:30 UTC)
-
-### WebSockets
-
-- Backend: `api/sync.py`, `api/chat.py`, `api/agents.py`
-- Frontend hooks: `useChat.ts`, `useNotifications.ts`, `useVaultSync.ts`
-- Always call `ws_auth(websocket)` BEFORE accepting frames; close with code 1008 on auth failure
-
----
-
-## Project Structure
-
-```text
-control-tower/                      # pnpm workspace root (package.json = ALL third-party deps, tsconfig.json, vitest.config.ts)
-├── apps/
-│   ├── shell/                 # @ct/shell — THE deployable Vite app (central top layer)
-│   │   ├── src/
-│   │   │   ├── router.tsx     # All routes + RequireAuth/RequireModule guards
-│   │   │   ├── components/
-│   │   │   │   ├── layout/    # AppShell, Sidebar, TopBar, BottomNav (all navigation/menus)
-│   │   │   │   ├── dashboard/ # Dashboard card components
-│   │   │   │   └── assistant/, onboarding/, CommandPalette, NotificationBell…
-│   │   │   ├── features/agents/
-│   │   │   └── pages/         # Dashboard, Chat, Agents, Goals, workspace/, settings/, guide/, legal/, landing…
-│   │   ├── index.html · public/ · vite.config.ts (workspace aliases) · Dockerfile
-│   ├── finance/               # @ct/finance — src/pages (FinancePage, FinanceSettingsPage) + src/components
-│   ├── health/                # @ct/health — same shape
-│   ├── career/                # @ct/career — same shape
-│   ├── business/              # @ct/business — same shape
-│   └── content/               # @ct/content — same shape
-│
-├── packages/
-│   ├── ui/                    # @ledgr/ui component library (tsup build → dist/)
-│   └── shared/                # @ct/shared — code any app may use
-│       └── src/
-│           ├── api/           # All HTTP calls — never call fetch/axios directly in components
-│           ├── stores/        # Zustand stores (authStore, uiStore, notificationStore, dayEventsStore)
-│           ├── hooks/ · lib/ · types/ · styled.d.ts
-│           ├── theme/         # ctTheme.ts + layout.ts — all design tokens
-│           └── components/    # ui/ (AreaTabs…), layout/ (WorkspaceLayout, AreaSettingsPage, PageLayout, PageDivider),
-│                              # lumina/, widgets/, workspace/, UpgradeWall, AiInsightCard, CareerRadar
-│
-├── backend/
-│   ├── app/
-│   │   ├── api/               # Route handlers
-│   │   │   └── areas/         # finance.py, health.py, career.py, business.py, content.py
-│   │   ├── services/          # Business logic
-│   │   │   ├── agents/        # Orchestration + APScheduler
-│   │   │   ├── ai/            # LLM calls (insights.py, anomalies.py, digest.py)
-│   │   │   ├── finance/       # recurring.py, budget_alerts.py
-│   │   │   ├── chat/          # Streaming chat + tools
-│   │   │   ├── rag/           # Retrieval + embeddings
-│   │   │   └── vault_sync/    # VaultWatcher + VaultWriteGuard
-│   │   ├── models/            # SQLModel schemas
-│   │   ├── core/              # Config, deps, middleware, rate limiting
-│   │   └── main.py            # FastAPI factory + lifespan
-│   ├── alembic/               # Migrations
-│   └── seed_dummy_data.py     # Dev DB seeding
-│
-├── pnpm-workspace.yaml        # workspace: apps/* + packages/*
-├── docker-compose.yml
-├── CLAUDE.md                  # This file — source of truth for architecture + conventions
-├── .env                       # Secrets (never commit)
-├── .env.example
-├── run.sh
-└── setup.sh
-```
-
----
-
-## Conventions
-
-### Backend
-
-- **Async first**: all I/O async (DB, HTTP, file ops)
-- **Error handling**: FastAPI `HTTPException` with correct status; log with `logger`
-- **Secrets**: `get_settings()` from `app.core.config`; never hardcode
-- **DB**: SQLModel schemas; async queries with `async with engine.begin() as conn`
-- **SaaS rule**: every user-data table needs `user_id UUID FK → users.id`; queries filter by authenticated user
-
-### Frontend
-
-- **No magic numbers**: every spacing/color/radius traces to a theme token
-- **No Tailwind classes**: Tailwind is removed — any `className` on SC components is a CSS selector hook
-- **No `any` types**: TypeScript strict — use proper interfaces
-- **Modals**: always use `@ledgr/ui Dialog`; never roll custom overlay/backdrop/portal
-- **Forms**: plain controlled components + local state. (React Hook Form and Zod were listed here for a long time but had **zero import sites**; the packages were removed 2026-07-21. Reintroduce them deliberately if a form gets complex enough to need them.)
-- **React Query**: always set `staleTime` on queries that don't need to refetch on every render
-
-### UI/UX rules (always apply)
-
-- **Navigation**: `apps/shell/src/config/navigation.ts` is the single source of truth. Sidebar, BottomNav, CommandPalette, breadcrumb labels and the `g`-goto shortcuts all read from it — never hand-write a nav list in a component. Sidebar is top-level links only: no accordions, no sub-menus.
-- **Routes have no `/areas/` prefix** — `/app/finance`, not `/app/areas/finance`. Goals/Projects/Sprints/Tasks live at `/app/plan?view=…&domain=…`; the old paths redirect.
-- **AreaTabs**: use `<AreaTabs>` from `@ct/shared/components/ui/AreaTabs`; never nest `<Tabs>`. Do NOT add a tab per life domain — that pattern produced 24 tabs across four workspace pages that were really one filter. Use a `Select` domain filter (see `PlanPage`).
-- **No page-level titles** rendered inside content — breadcrumbs only in TopBar
-- **Dashboard layout**: two-column shell, right column 300px fixed, left `1fr`
-- **Density**: body baseline is **16px** and cards breathe (`spacing[5]`–`spacing[6]`). The old "13–14px, tight padding" rule was retired on 2026-07-21 — it was the main reason the UI read as an admin panel rather than a product.
-- **Agents page**: dense table pattern — status, schedule, last-run, actions columns
-- **Action-Rail**: inputs/forms always in right WorkspaceLayout rail; data/analytics in center
-- **No pill/capsule shapes anywhere** — buttons, inputs, toggles, badges, progress bars all use `theme.radii.sm`/`md` (flat, ~8–10px corners), never `9999px`/`theme.radii.full`. Exception: true circles (avatars, status dots, the `Switch` track/thumb) where the shape is structural, not a corner-rounding choice. When adding any new rounded element, reference a `theme.radii.*` token — never hardcode a radius value.
-- **Multi-option toggle/filter style (user-confirmed favorite, always use this for "All / Over / Near / On track"-style filters)**: `@ledgr/ui`'s `SegmentedControl` — light `theme.color.muted` track, white/card active segment with `theme.shadow.xs`, `theme.radii.md` corners (not pill-shaped). Do NOT use a `Select` dropdown for this pattern unless the option list is long (5+) or doesn't need every option visible at once — short status/range filters (≤4 options) should be `SegmentedControl`, not a dropdown.
-- **`PageHeader` (ledgr-ui)** — redesigned 2026-07-27, **no container chrome**. It was a full-bleed glass capsule (blur + border + shadow, `radii.lg`) wrapped around a 13px title, ~85% empty on desktop, with the subtitle stranded outside the bar at a different left inset. It is now a 3-column CSS grid: accent icon chip (40px, `radii.md`) · eyebrow + title stacked · actions. Hierarchy comes from the type scale — eyebrow `micro`, title `title-l` (`title-m` below `sm`), subtitle `body-s` — and the three text lines share one left edge. Deliberately **no rule underneath**: `PageDivider` owns that per the area-vs-workspace convention below. `Subtitle` is hidden below `sm` (640px) to protect mobile vertical space — don't rely on it being visible there. `Actions` stay on row 1 at every width (`justify-self: end`); the title column is `minmax(0, 1fr)` so it ellipsises rather than pushing buttons to a second row. No `margin-bottom` — `PageContent`'s `gap: spacing[6]` owns the spacing to content.
-- **`PageHeader` actions vs `AreaToolbar` — where controls live**: Use `AreaToolbar` ONLY when there are multiple elements (e.g. multiple buttons, filters, search). If a tab only has a SINGLE button (like "Add Transaction"), do NOT use `AreaToolbar`. Instead, if the tab's main content is a single Card, place the button on the right side of the Card's header. If it's not a single Card, elevate the single button to the global `PageHeader` (aligned right, parallel to the page title) using the `HeaderActionPortal`.
-- **`@ledgr/ui` `Dialog` icon renders inline, no background box** — `IconWrap` in `Dialog.tsx` has no `width`/`height`/`background`. The icon SVG renders bare alongside the eyebrow+title+description, exactly like the Card header icon. Never add a muted-bg container to the dialog icon.
-- **Toolbar/action-row controls share a 32px height contract** — every interactive control that sits in a `Card` action row or `AreaToolbar` must render at exactly **32px** so they align on one baseline. Fixed at the ledgr-ui source (all `border-box`): `Button size="sm"` = 32px, `SegmentedControl size="sm"` = 32px (explicit `height` on `Root`), `DateNavBtn` = 32×32px, `ToolbarIconBtn` = `height:32px; padding:0 16px` (do NOT use vertical padding — it made it 37.5px and pushed it above the others). Never paper over a height mismatch with an inline `style={{ height: 32 }}` on the call site — fix the primitive. When adding a new toolbar control, measure it against 32px.
-- **`PageHeader` standard** — Finance (`FinancePage.tsx`) + Settings are the canonical references. Settings button is always `variant="outline" size="sm"` with `<Settings size={14} style={{ marginRight: 6 }} /> Settings` (NOT ghost, NOT icon-only). **PageDivider rule:** area pages (Finance/Health/Career/Business/Content/Goals) → NO PageDivider after PageHeader; workspace/tool pages (Projects/Sprints/Tasks/Agents/Settings/Discoveries/Review/Integrations) → ALWAYS `<PageDivider />` immediately after `<PageHeader />`.
-- **Always use `@ledgr/ui` `Card` directly — never build custom card wrapper components.** `Card` has `icon`/`title`/`subtitle`/`action` props that provide the full header layout. **Canonical reference: `apps/finance/src/components/BudgetsTab.tsx`.** Action items go in `<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>` passed as `action`. Always add `fullWidth={false}` to any `Select` inside `action` (without it Select fills the container and pushes buttons to a second line). Icon size = `16`. Never use `flex-wrap: wrap` on the inner action div.
-- **WorkspaceLayout's `Main` is a flex column with `gap: 24px`** — direct children (grids, sections) must NOT also set their own `margin-top`, or spacing doubles (gap + margin-top stack additively). Let the parent `gap` handle inter-section spacing.
-
----
-
-## Critical Gotchas
+Side-specific gotchas live in `frontend/CLAUDE.md` and `backend/CLAUDE.md`. These
+span both:
 
 - **Deployment configs: read `docs/DEPLOYMENT.md` before touching any Dockerfile / compose / CI / env file.** The prod stack is `docker-compose.prod.yml` (project `control-tower-prod`) — Caddy edge + backend + db + redis, with **only** Caddy publishing ports. `docker-compose.yml` is local-dev only and must never run on the VPS.
-- **`ENVIRONMENT=production` is load-bearing, not a label.** In `development` the app enables the legacy env-credential login backdoor and `ai_allowed()` returns unlimited — on a public signup page that is uncapped LLM spend on the operator key. `AI_FREE_MONTHLY_CREDITS` is enforced *only* in production.
-- **Never key TLS-dependent flags on `ENVIRONMENT`** — cookie `secure=` derives from `settings.allowed_origin.startswith("https://")`. Keying it on `ENVIRONMENT` (as it was) makes login fail *silently* on any production deploy not yet behind TLS: the server returns 200 with a valid `Set-Cookie`, the browser refuses to send it over http, and every later request is anonymous with nothing in the logs.
-- **`backend/.dockerignore` must NOT exclude `alembic/`** — `entrypoint.sh` runs `alembic upgrade head` inside the container. Excluding it only appears to work because the dev compose bind-mounts `./backend` over `/app`.
-- **The frontend must stay same-origin with the API.** `packages/shared/src/api/client.ts` uses a relative `/api` baseURL and the WS hooks use `location.host` — there is no absolute API URL anywhere. Any deploy topology that splits them (separate CDN/host for the SPA) breaks auth and WebSockets.
-- **No Docker `--reload`**: any Python change → `docker compose restart backend`
-- **Alembic autogenerate** tries to DROP `captures` table — always review, strip unrelated drops
-- **Recharts animation**: add `isAnimationActive={false}` to every `<Pie>/<Bar>/<Area>/<Line>` — default animation leaves shapes empty in headless/preview environments
-- **VaultWriteGuard**: all vault writes validated against `ALLOWED_WRITE_PATHS`; never bypass
-- **pgvector**: Docker image must be `pgvector/pgvector:pg15`
-- **Push notifications gotcha**: `docker compose restart` does NOT re-read `env_file` — use `docker compose up -d backend` after `.env` changes
-- **health_logs entry_type CHECK**: allowed values are `gym,weight,food,meal,water,steps,body_fat,sleep,note` — adding a new type needs a migration to update the Postgres CHECK constraint
-- **CSS vars are HEX**: never `hsl(var(--x))` — use `var(--x)` or `color-mix()`
-- **ledgr-ui edit → browser: rebuild + restart + MANDATORY verify.** Since the monorepo conversion (2026-07-20), `@ledgr/ui` is a `workspace:*` symlink — the old "copy dist into the pnpm store" dance is GONE. Sequence after editing `packages/ui` source: (1) `pnpm --filter @ledgr/ui build`; (2) `rm -rf apps/shell/node_modules/.vite` (Vite pre-bundles `@ledgr/ui` into its deps cache and keeps serving the stale copy); (3) **restart the dev server** (clearing `.vite` alone doesn't re-optimize a running server); (4) **verify in the browser by measuring** — `getBoundingClientRect()` via `preview_eval`, not by trusting the source. If you can't log in to reach the real page, add a throwaway public route rendering the components, measure, then delete it.
-- **`@ledgr/ui` Dialog fires `onOpenChange` on CLOSE only** (Esc/overlay/close-button → `onOpenChange(false)`); it never calls `onOpenChange(true)`. So modal **reset/prefill must be driven by a `useEffect` on `[open, editing]`**, not an `onOpenChange(true)` branch (that branch never runs → stale/empty forms on reopen/edit). Same for any controlled Dialog.
-- **Number `<Input>` needs `step`**: `min="0.01"` (or any non-integer min) with the default `step="1"` makes whole numbers *invalid* ("nearest valid values are 19.01 and 20.01"). Always pair a decimal `min` with `step="0.01"` (or `step="any"`) on currency/amount inputs.
-- **Finance categories are a 2-level DB tree, separated by `kind` (income vs expense)** — no hardcoded category lists. Query key `['finance', 'categories']`; `GET /categories?kind=` filters; the tree auto-seeds defaults per kind on first fetch (`_DEFAULT_CATEGORIES`). The txn form uses `CategoryPicker` (a cascading flyout on desktop / drill-down on mobile, with inline create). **Transactions store `category_id`** (FK to the exact node) **plus a denormalized `category`/`source` = the TOP-LEVEL ancestor name** (so existing by-category reports roll up for free; resolve `category_id` for the subcategory). Resolve via `_resolve_category()` in `api/areas/finance.py`. Deleting a category uncategorizes its transactions. **Account is required** on manual expense/income (422 without it).
-- **Finance `logged_at` columns are `TIMESTAMP WITHOUT TIME ZONE`** — asyncpg rejects a tz-aware datetime with `DataError: can't subtract offset-naive and offset-aware`. `api/areas/finance.py` normalizes every `logged_at` via the `NaiveDateTime` annotated type (`AfterValidator(_to_naive_utc)`). Any new datetime field mapping to one of these columns must use it. **Frontend must send a NAIVE LOCAL datetime, not `toISOString()`** — `dayjs(date).toISOString()` converts the picked local-midnight to UTC, which shifts the date back a day for users east of UTC (IST midnight → previous-day 18:30 UTC), so the txn renders on the wrong day. Send `dayjs(date).format('YYYY-MM-DD') + 'T' + dayjs().format('HH:mm:ss')` (naive local).
-- **Pending migration chain** (not yet applied if Docker was down): `c7d2e9f1a3b4` (splits/tags) → `d8e3f0a2b5c6` (habits) → `e9f4a1b3c6d7` (workouts) → `f0a5b2c4d7e8` (foods). Run `alembic upgrade head` to apply.
-- **Audit + CMS migration chain** (2026-06-22, single linear head): `h006` (is_admin) → `h007` (oauth_states.user_id) → `h008` (per-user composite uniques) → `h009` (content CMS expansion). Run `alembic upgrade head` to apply.
+- **The frontend must stay same-origin with the API.** `frontend/packages/shared/src/api/client.ts` uses a relative `/api` baseURL and the WS hooks use `location.host` — there is no absolute API URL anywhere. Any deploy topology that splits them (separate CDN/host for the SPA) breaks auth and WebSockets.
+- **Compose project names are pinned, not derived.** `docker-compose.yml` declares `name: control-tower` and the prod file declares `control-tower-prod`. Compose otherwise defaults the project name to the containing directory — so renaming the repo folder would silently create a fresh empty `pgdata` volume and abandon the existing one. Never remove those `name:` keys.
+- **The web image's build context is `frontend/`, not the repo root** (changed 2026-07-28). It is set in three places that must agree: `docker-compose.yml` (`context: ./frontend`), `.github/workflows/deploy.yml` (`context: ./frontend`, `file: ./frontend/apps/shell/Dockerfile`), and `frontend/.dockerignore`. `frontend/Caddyfile` had to move inside that context — a `COPY` cannot reach above it.
 
 ---
 
 ## Commands
 
+Frontend commands run from `frontend/`, backend commands from `backend/`; see
+each sub-file for the full list. From the repo root:
+
 ```bash
-# Frontend (run from repo root — pnpm workspace)
-pnpm install                     # installs ALL workspace packages (root, apps/*, packages/*)
-pnpm dev                         # shell dev server :5173 (= pnpm --filter @ct/shell dev)
-pnpm build                       # builds @ledgr/ui then the shell app
-pnpm test                        # vitest across apps/* + packages/*
-pnpm --filter @ledgr/ui build    # rebuild the component library after editing packages/ui
-./node_modules/.bin/tsc -p tsconfig.json   # typecheck the whole frontend monorepo
+./run.sh                        # db → migrations → backend :8000 + shell :5173
 
-# Backend (local, not Docker)
-cd backend
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-# Docker (preferred)
-docker compose up -d          # Start all services
-docker compose restart backend  # After any Python edit
+docker compose up -d            # full local stack
+docker compose restart backend  # after any Python edit (no --reload in Docker)
 docker compose exec backend alembic upgrade head
 docker compose exec backend pytest
-
-# Migrations
-cd backend
-alembic revision --autogenerate -m "description"
-alembic upgrade head
 ```
 
 ---

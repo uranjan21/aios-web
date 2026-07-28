@@ -59,21 +59,27 @@ jobs:
     name: Frontend (TypeScript + Build)
     runs-on: ubuntu-latest
 
+    # The pnpm workspace root moved from the repo root to frontend/ on
+    # 2026-07-28, so every `run` step executes there. Action *inputs* ignore
+    # `defaults.run.working-directory`, so the two paths below stay
+    # repo-root-relative and must be spelled out.
+    defaults:
+      run:
+        working-directory: frontend
+
     steps:
       - uses: actions/checkout@v4
 
-      # NOTE: paths are repo-root, not frontend/ — the frontend became a pnpm
-      # workspace monorepo (apps/* + packages/*) on 2026-07-20. This job had
-      # been failing on every push since.
       - uses: pnpm/action-setup@v4
         with:
           version: 9
+          package_json_file: frontend/package.json
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

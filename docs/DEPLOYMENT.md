@@ -211,7 +211,7 @@ $DC exec backend alembic current
 **Manual rollback** to a known-good build:
 
 ```bash
-./deploy/deploy.sh ghcr.io/<owner>/aios-web-backend:<sha> ghcr.io/<owner>/aios-web-web:<sha>
+./deploy/deploy.sh ghcr.io/<owner>/control-tower-backend:<sha> ghcr.io/<owner>/control-tower-web:<sha>
 ```
 
 **Backups** — install the nightly dump (see the header of `deploy/backup-db.sh`):

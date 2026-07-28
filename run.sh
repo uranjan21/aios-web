@@ -58,14 +58,15 @@ echo -e "${YELLOW}[2/4] Backend migrations${NC}"
 (cd backend && uv run alembic upgrade head 2>&1 | tail -1)
 
 # 3. Frontend deps + @ledgr/ui build (shell consumes @ledgr/ui from its dist/, not source)
+# The pnpm workspace root is frontend/, not the repo root (moved 2026-07-28).
 echo -e "${YELLOW}[3/4] Frontend setup${NC}"
-if [ ! -d node_modules ] || [ ! -d apps/shell/node_modules ]; then
+if [ ! -d frontend/node_modules ] || [ ! -d frontend/apps/shell/node_modules ]; then
   echo "  Installing workspace deps (pnpm install)..."
-  pnpm install
+  (cd frontend && pnpm install)
 fi
-if [ ! -d packages/ui/dist ]; then
+if [ ! -d frontend/packages/ui/dist ]; then
   echo "  Building @ledgr/ui..."
-  pnpm --filter @ledgr/ui build >/dev/null
+  (cd frontend && pnpm --filter @ledgr/ui build >/dev/null)
 fi
 
 # 4. Start backend (:8000) + frontend shell (:5173, proxies /api → backend)
@@ -73,7 +74,7 @@ echo -e "${YELLOW}[4/4] Starting services${NC}"
 (cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000) &
 BACKEND_PID=$!
 
-(cd apps/shell && PORT=5173 pnpm dev) &
+(cd frontend/apps/shell && PORT=5173 pnpm dev) &
 FRONTEND_PID=$!
 
 sleep 2

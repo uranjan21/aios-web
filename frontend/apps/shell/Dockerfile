@@ -3,8 +3,10 @@
 # =============================================================================
 # Control Tower — web edge image (built SPA + reverse proxy)
 #
-# Build context MUST be the repo root (`docker build -f apps/shell/Dockerfile .`)
-# so the workspace packages resolve.
+# Build context MUST be `frontend/` — the pnpm workspace root
+# (`docker build -f apps/shell/Dockerfile ./frontend` from the repo root) — so
+# the workspace packages resolve. It was the repo root until the 2026-07-28
+# restructure moved the whole JS workspace under frontend/.
 #
 # This image is the ONLY thing exposed to the internet. Caddy serves the
 # compiled SPA and proxies /api + /ws to the backend container, which is why
@@ -44,7 +46,7 @@ RUN pnpm --filter @ledgr/ui build \
 FROM caddy:2.8-alpine AS runtime
 
 COPY --from=build /app/apps/shell/dist /srv
-COPY deploy/Caddyfile /etc/caddy/Caddyfile
+COPY Caddyfile /etc/caddy/Caddyfile
 
 EXPOSE 80 443
 

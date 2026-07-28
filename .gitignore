@@ -89,6 +89,13 @@ docker-compose.override.yml
 graphify-out/
 
 # AI Assistants & Subagents
+# Local agent state stays out of git, but SKILLS are project assets and must be
+# versioned (frontend/.claude/skills/, backend/.claude/skills/). Git cannot
+# re-include a path whose parent DIRECTORY is excluded, so these patterns
+# exclude the directory's CONTENTS (`.claude/*`) rather than the directory
+# itself (`.claude/`) — otherwise the `!` negation below would never apply.
 .agents/
-.claude/
+.agent/
 .gemini/
+**/.claude/*
+!**/.claude/skills/

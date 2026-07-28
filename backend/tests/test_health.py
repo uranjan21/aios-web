@@ -10,7 +10,7 @@ async def test_health_returns_200(client):
     data = resp.json()
     assert "status" in data
     assert "service" in data
-    assert data["service"] == "aios-web"
+    assert data["service"] == "control-tower"
 
 
 @pytest.mark.asyncio

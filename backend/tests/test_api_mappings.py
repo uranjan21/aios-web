@@ -204,10 +204,12 @@ def strip_comments(text: str) -> str:
 
 
 def get_frontend_endpoints():
-    # Monorepo layout: frontend source lives in the shell/domain apps + shared package.
+    # Monorepo layout: frontend source lives in the shell/domain apps + shared
+    # package, all under frontend/ (moved there from the repo root 2026-07-28).
     repo_root = Path(__file__).parent.parent.parent
-    src_dirs = [p / "src" for p in (repo_root / "apps").iterdir() if (p / "src").is_dir()]
-    src_dirs.append(repo_root / "packages/shared/src")
+    frontend_root = repo_root / "frontend"
+    src_dirs = [p / "src" for p in (frontend_root / "apps").iterdir() if (p / "src").is_dir()]
+    src_dirs.append(frontend_root / "packages/shared/src")
     endpoints = []
     for base_dir in src_dirs:
         for root, _, files in os.walk(base_dir):

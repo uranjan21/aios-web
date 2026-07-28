@@ -250,7 +250,7 @@ def create_app() -> FastAPI:
         return JSONResponse(
             {
                 "status": status_str,
-                "service": "aios-web",
+                "service": "control-tower",
                 "db": db_ok,
                 "watcher": _watcher is not None,
             },

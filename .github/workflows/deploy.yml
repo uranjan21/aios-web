@@ -76,9 +76,10 @@ jobs:
       - name: Build & push web
         uses: docker/build-push-action@v6
         with:
-          # Repo root — the frontend Dockerfile needs the whole pnpm workspace.
-          context: .
-          file: ./apps/shell/Dockerfile
+          # frontend/ — the Dockerfile needs the whole pnpm workspace, whose
+          # root moved from the repo root to frontend/ on 2026-07-28.
+          context: ./frontend
+          file: ./frontend/apps/shell/Dockerfile
           push: true
           tags: |
             ${{ steps.tags.outputs.frontend }}

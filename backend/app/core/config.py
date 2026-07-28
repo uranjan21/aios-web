@@ -145,7 +145,7 @@ class Settings(BaseSettings):
         return self
 
     model_config = ConfigDict(
-        env_file=(".env", "../.env"),  # works whether run from backend/ or aios-web/
+        env_file=(".env", "../.env"),  # works whether run from backend/ or the repo root
         case_sensitive=False,
         extra="ignore",
     )

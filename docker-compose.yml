@@ -6,6 +6,13 @@
 # outside the machine even if it is accidentally started on a public host.
 # =============================================================================
 
+# Pinned, NOT derived from the directory name. Compose defaults the project name
+# to the containing folder, so when that folder was renamed to
+# "Project - Control Tower" (2026-07-28) the sanitised default would have become
+# a DIFFERENT project — silently creating an empty pgdata volume and abandoning
+# the existing `control-tower_pgdata` with all local dev data in it.
+name: control-tower
+
 services:
   db:
     image: pgvector/pgvector:pg15
@@ -61,7 +68,8 @@ services:
 
   frontend:
     build:
-      context: .
+      # Context is frontend/ (the pnpm workspace root), not the repo root.
+      context: ./frontend
       dockerfile: apps/shell/Dockerfile
       # Stop at the build stage and run the Vite dev server instead of Caddy —
       # the runtime stage serves a static production bundle with no HMR.
