@@ -167,6 +167,11 @@ const KanbanCard = styled.div`
   gap: 7px;
   cursor: pointer;
   transition: transform 150ms, border-color 150ms;
+  /* Resets for the button form a page opts into via onCardClick. */
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
 
   &:hover {
     transform: translateY(-2px);
@@ -176,6 +181,14 @@ const KanbanCard = styled.div`
 
 export function KanbanKind({ m }: { m: KanbanModule }) {
   const c = useModulePalette()
+  const { onCardClick } = m
+  // Cards are indexed across all columns in column order, so a page can map an
+  // index straight back into the flattened list it built the board from. The
+  // offsets are derived up front rather than counted during render.
+  const columnOffsets = m.columns.reduce<number[]>((acc, col, i) => {
+    acc.push(i === 0 ? 0 : acc[i - 1] + m.columns[i - 1].cards.length)
+    return acc
+  }, [])
   return (
     <AutoGrid $cols={trackFor(m)} $gap={14}>
       {m.columns.map((col, i) => (
@@ -192,7 +205,12 @@ export function KanbanKind({ m }: { m: KanbanModule }) {
           </div>
 
           {col.cards.map((card, j) => (
-            <KanbanCard key={j}>
+            <KanbanCard
+              key={j}
+              as={onCardClick ? 'button' : 'div'}
+              type={onCardClick ? 'button' : undefined}
+              onClick={onCardClick ? () => onCardClick(columnOffsets[i] + j) : undefined}
+            >
               <div style={{ fontSize: 12.5, fontWeight: 700, lineHeight: 1.35 }}>{card.title}</div>
               {card.meta && <div style={{ fontSize: 11, color: c('mutedFg') }}>{card.meta}</div>}
               {card.tagLabel && (
@@ -263,8 +281,23 @@ const LogLine = styled.div`
   line-height: 1.55;
 `
 
+/** The agent name block, a button once a page wires onCardClick. */
+const AgentTitle = styled.div`
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+
+  &:is(button) { cursor: pointer; }
+`
+
 export function AgentsKind({ m }: { m: AgentsModule }) {
   const c = useModulePalette()
+  const { onToggle, onCardClick } = m
   return (
     <AutoGrid $cols={trackFor(m)} $gap={16}>
       {m.agents.map((ag, i) => {
@@ -275,11 +308,29 @@ export function AgentsKind({ m }: { m: AgentsModule }) {
               <IconChip $bg={c.alpha(ag.iconKey, 0.13)} $color={c(ag.iconKey)}>
                 <Icon size={16} />
               </IconChip>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              {/* The name opens the agent; the toggle beside it must not, so
+                  the clickable region is the text block, not the whole card. */}
+              <AgentTitle
+                as={onCardClick ? 'button' : 'div'}
+                type={onCardClick ? 'button' : undefined}
+                onClick={onCardClick ? () => onCardClick(i) : undefined}
+              >
                 <div style={{ fontSize: 13.5, fontWeight: 700 }}>{ag.name}</div>
                 <div style={{ fontSize: 11, color: c('mutedFg'), marginTop: 2 }}>{ag.schedule}</div>
-              </div>
-              <ToggleTrack $on={!!ag.on} $w={38} $h={22} role="switch" aria-checked={!!ag.on} aria-label={ag.name}>
+              </AgentTitle>
+              <ToggleTrack
+                $on={!!ag.on}
+                $w={38}
+                $h={22}
+                role="switch"
+                aria-checked={!!ag.on}
+                aria-label={ag.name}
+                tabIndex={onToggle ? 0 : undefined}
+                onClick={onToggle ? () => onToggle(i, !ag.on) : undefined}
+                onKeyDown={onToggle ? (e) => {
+                  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onToggle(i, !ag.on) }
+                } : undefined}
+              >
                 <ToggleKnob $on={!!ag.on} $size={17} />
               </ToggleTrack>
             </div>

@@ -1,354 +1,333 @@
-import { agentsApi } from "@ct/shared/api/agents";
-import { EmptyState, ErrorState, Button, PageHeader } from "@ledgr/ui";
-import { ModuleLayout } from "@ct/shared/components/layout/ModuleLayout";
-import { ModuleSidebar } from "@ct/shared/components/layout/ModuleSidebar";
-import { PageDivider } from "@ct/shared/components/layout/PageDivider";
-import { useSearchParams } from "react-router-dom";
-import { AgentsToolbar, AgentsFilters } from "@/features/agents/components/AgentsToolbar";
-import { AgentRow } from "@/features/agents/components/AgentRow";
-import { AgentCard } from "@/features/agents/components/AgentCard";
-import { AgentDetailDialog } from "@/features/agents/components/AgentDetailDialog";
-import {
-  SpinGlobal,
-  AgentSkeleton,
-  Stack,
-  RosterCard,
-  } from "@/features/agents/components/agents.styles";
+/**
+ * Intelligence → Agents.
+ *
+ * Phase 4 conversion to the canvas's `agents:overview` composition —
+ * tiles(12) · agents(12) · table(12) — rebuilt from the live agents API. The
+ * old ModuleSidebar + `?tab=` filter rail is gone: the redesign's IA has no
+ * per-page rails, and the roster is small enough to read whole.
+ *
+ * Toggling an agent card writes through `PATCH /agents/{task_id}`, and clicking
+ * one opens a dialog to run it now or change its schedule.
+ *
+ * TWO DEPARTURES, both because an agent row keeps only its LAST run:
+ *  - The canvas draws a 14-run sparkline per agent. There is no run-history
+ *    table, so the strip shows the one run we know about and renders the rest
+ *    as "did not run" rather than inventing a history.
+ *  - The canvas's third module is a cross-agent run log. For the same reason it
+ *    lists each agent's most recent run instead of the last six runs overall.
+ *
+ * BACKEND FOLLOW-UP: an `agent_runs` table (started_at, duration, trigger,
+ * status) would fill both modules exactly as drawn.
+ */
+import { useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import styled from 'styled-components'
+import { Bot, Cpu, FileText, Shield, Zap } from 'lucide-react'
+import { Button, Dialog, EmptyState, ErrorState, Input, PageHeader } from '@ledgr/ui'
+import { agentsApi } from '@ct/shared/api/agents'
+import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
+import { PageDivider } from '@ct/shared/components/layout/PageDivider'
+import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
+import { Skeleton } from '@ct/shared/components/ui/skeleton'
+import type { Agent } from '@ct/shared/types'
 
-import { getAgentDomain } from "@/features/agents/constants/domains";
-import { useAgentFilters } from "@/features/agents/hooks/useAgentFilters";
-import { getNextCronRun, getScheduleSortValue } from "@/features/agents/lib/cron";
-import type { Agent } from "@ct/shared/types";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import {
-  Activity,
-  Bot,
-  Calendar,
-  Clock3,
-  Filter,
-  RefreshCw,
-  Zap,
-  LayoutDashboard,
-  PlayCircle,
-  PauseCircle,
-  AlertCircle
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
-import styled from "styled-components";
+dayjs.extend(relativeTime)
 
-const AgentGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: ${({ theme }) => `${theme.spacing[4]}`};
-`;
-
-const TableShell = styled.div`
+const Form = styled.div`
   display: flex;
   flex-direction: column;
-  padding-bottom: ${({ theme }) => `${theme.spacing[5]}`};
-`;
+  gap: ${({ theme }) => theme.spacing[3]};
+`
 
-const TableHeader = styled.div`
-  display: none;
-
-  @media ${({ theme }) => theme.media.lg} {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) 95px 140px 110px 110px 110px;
-    gap: ${({ theme }) => `${theme.spacing[3]}`};
-    padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[4]}`};
-    background: ${({ theme }) => theme.color.muted};
-    border-radius: 8px 8px 0 0;
-    margin: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[5]} 0 ${theme.spacing[5]}`};
-    border-bottom: 1px solid ${({ theme }) => theme.color.border};
-  }
-`;
-
-const TableHeaderCell = styled.div<{ $alignRight?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[2]}`};
+const Label = styled.label`
+  display: block;
   font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: ${({ theme }) => theme.color.mutedForeground};
-  user-select: none;
+  margin-bottom: ${({ theme }) => theme.spacing[1]};
+`
 
-  svg {
-    color: ${({ theme }) => theme.color.foreground};
-    opacity: 0.4;
-    transition: opacity 0.2s ease, transform 0.2s ease;
-  }
+const CronHint = styled.div`
+  margin-top: ${({ theme }) => theme.spacing[1.5]};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
 
-  &:hover svg {
-    opacity: 0.8;
-    transform: scale(1.05);
-  }
+const OutputBlock = styled.div`
+  white-space: pre-wrap;
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
+  color: ${({ theme }) => theme.color.mutedForeground};
+  max-height: 180px;
+  overflow-y: auto;
+`
 
-  @media ${({ theme }) => theme.media.lg} {
-    ${({ $alignRight }) => $alignRight && `
-      justify-content: flex-end;
-    `}
-  }
-`;
-
-const FooterSection = styled.div`
+const Actions = styled.div`
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: ${({ theme }) => `${theme.spacing[4]} ${theme.spacing[5]}`};
-  border-top: 1px solid ${({ theme }) => theme.color.border};
-`;
+  gap: ${({ theme }) => theme.spacing[2]};
+  padding-top: ${({ theme }) => theme.spacing[2]};
+`
 
-const FooterLabel = styled.span`
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  color: ${({ theme }) => theme.color.foreground};
-`;
+const Spacer = styled.div`
+  flex: 1;
+`
 
-const FooterValue = styled.span`
-  font-size: ${({ theme }) => theme.typography.fontSize.base};
-  font-weight: 700;
-  color: ${({ theme }) => theme.color.foreground};
-`;
+/** Icon per agent family, matched on the task id the backend seeds. */
+function iconFor(taskId: string) {
+  if (taskId.includes('finance') || taskId.includes('upi') || taskId.includes('statement')) return Shield
+  if (taskId.includes('brief') || taskId.includes('pulse')) return Zap
+  return FileText
+}
 
-const EmptyWrap = styled.div`
-  padding: ${({ theme }) => `${theme.spacing[8]}`};
-`;
-
-function AgentsContent({ agents }: { agents: Agent[] }) {
-  const { tab, search, domain, schedule, status, sort, view } = useAgentFilters();
-  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
-
-  const processedAgents = useMemo(() => {
-    let filtered = agents;
-
-    if (tab === "active") filtered = filtered.filter((agent) => agent.is_active);
-    if (tab === "paused") filtered = filtered.filter((agent) => !agent.is_active);
-    if (tab === "error") filtered = filtered.filter((agent) => agent.last_run_status === "error");
-
-    if (search) {
-      const query = search.toLowerCase();
-      filtered = filtered.filter(
-        (agent) =>
-          agent.name.toLowerCase().includes(query) ||
-          (agent.description || "").toLowerCase().includes(query) ||
-          (agent.last_output_text || "").toLowerCase().includes(query),
-      );
-    }
-
-    if (domain !== "all") {
-      filtered = filtered.filter((agent) => getAgentDomain(agent.task_id) === domain);
-    }
-
-    if (schedule !== "all") {
-      if (schedule === "manual") {
-        filtered = filtered.filter((agent) => !agent.cron_expression || agent.cron_expression === "Manual");
-      } else if (schedule === "daily") {
-        filtered = filtered.filter(
-          (agent) => agent.cron_expression && agent.cron_expression !== "Manual" && agent.cron_expression.split(" ")[4] === "*",
-        );
-      } else if (schedule === "weekly") {
-        filtered = filtered.filter(
-          (agent) => agent.cron_expression && agent.cron_expression !== "Manual" && agent.cron_expression.split(" ")[4] !== "*",
-        );
-      }
-    }
-
-    if (status !== "all") {
-      filtered = filtered.filter((agent) => (agent.last_run_status || "idle") === status);
-    }
-
-    return [...filtered].sort((a, b) => {
-      if (sort === "name") return a.name.localeCompare(b.name);
-      if (sort === "schedule") {
-        const nextA = a.cron_expression && a.cron_expression !== "Manual" ? getNextCronRun(a.cron_expression)?.getTime() || Infinity : Infinity;
-        const nextB = b.cron_expression && b.cron_expression !== "Manual" ? getNextCronRun(b.cron_expression)?.getTime() || Infinity : Infinity;
-        return nextA - nextB;
-      }
-      if (sort === "time") {
-        const nextA = a.cron_expression && a.cron_expression !== "Manual" ? getScheduleSortValue(a.cron_expression) : Infinity;
-        const nextB = b.cron_expression && b.cron_expression !== "Manual" ? getScheduleSortValue(b.cron_expression) : Infinity;
-        return nextA - nextB;
-      }
-      const timeA = a.last_run_at ? new Date(a.last_run_at).getTime() : 0;
-      const timeB = b.last_run_at ? new Date(b.last_run_at).getTime() : 0;
-      return timeB - timeA;
-    });
-  }, [agents, domain, schedule, search, sort, status, tab]);
-
-  const selectedAgent =
-    processedAgents.find((agent) => agent.id === selectedAgentId) ??
-    agents.find((agent) => agent.id === selectedAgentId) ??
-    null;
-
-  const tableRender = (
-    <Stack>
-      {view === "grid" && <AgentsToolbar />}
-
-      {view === "grid" ? (
-        processedAgents.length === 0 ? (
-          <EmptyWrap>
-            <EmptyState
-              icon={<Filter size={24} />}
-              title="No agents match this filter"
-              description="Tighten or clear filters to see more of the roster."
-            />
-          </EmptyWrap>
-        ) : (
-          <AgentGrid>
-            {processedAgents.map((agent) => (
-              <AgentCard key={agent.id} agent={agent} onOpen={() => setSelectedAgentId(agent.id)} />
-            ))}
-          </AgentGrid>
-        )
-      ) : (
-        <RosterCard
-          noPadding
-          title="Agents Roster"
-          subtitle="One clean list. Scan fast, open details only when you need them."
-          action={<AgentsFilters />}
-        >
-          {processedAgents.length === 0 ? (
-            <EmptyWrap>
-              <EmptyState
-                icon={<Filter size={24} />}
-                title="No agents match this filter"
-                description="Tighten or clear filters to see more of the roster."
-              />
-            </EmptyWrap>
-          ) : (
-            <TableShell>
-              <TableHeader>
-                <TableHeaderCell>Agent</TableHeaderCell>
-                <TableHeaderCell $alignRight>
-                  <Activity size={12} />
-                  Status
-                </TableHeaderCell>
-                <TableHeaderCell $alignRight>
-                  <Calendar size={12} />
-                  Schedule
-                </TableHeaderCell>
-                <TableHeaderCell $alignRight>
-                  <Clock3 size={12} />
-                  Last run
-                </TableHeaderCell>
-                <TableHeaderCell $alignRight>
-                  <RefreshCw size={12} />
-                  Next run
-                </TableHeaderCell>
-                <TableHeaderCell $alignRight>
-                  <Zap size={12} />
-                  Actions
-                </TableHeaderCell>
-              </TableHeader>
-              {processedAgents.map((agent) => (
-                <AgentRow key={agent.id} agent={agent} onOpen={() => setSelectedAgentId(agent.id)} />
-              ))}
-            </TableShell>
-          )}
-
-          {processedAgents.length > 0 && (
-            <FooterSection>
-              <FooterLabel>Total Agents Matching Filters</FooterLabel>
-              <FooterValue>{processedAgents.length}</FooterValue>
-            </FooterSection>
-          )}
-        </RosterCard>
-      )}
-
-      <AgentDetailDialog
-        agent={selectedAgent}
-        open={Boolean(selectedAgent)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedAgentId(null);
-        }}
-      />
-    </Stack>
-  );
-
-  return tableRender;
+/**
+ * Cron to something a person reads. Covers the shapes the seeded roster uses;
+ * anything else falls back to the raw expression rather than guessing wrong.
+ */
+function describeCron(expr: string): string {
+  const parts = (expr ?? '').trim().split(/\s+/)
+  if (parts.length !== 5) return expr || 'No schedule'
+  const [min, hour, dom, , dow] = parts
+  const at = (h: string, m: string) => {
+    const hh = Number(h)
+    if (Number.isNaN(hh)) return expr
+    const mm = String(Number(m)).padStart(2, '0')
+    const suffix = hh < 12 ? 'AM' : 'PM'
+    const h12 = hh % 12 === 0 ? 12 : hh % 12
+    return `${h12}:${mm} ${suffix}`
+  }
+  if (hour.startsWith('*/')) return `Every ${hour.slice(2)} hours`
+  if (dow !== '*') {
+    const names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    return `${names[Number(dow)] ?? `Day ${dow}`}s at ${at(hour, min)}`
+  }
+  if (dom !== '*') return `Day ${dom} of the month at ${at(hour, min)}`
+  return `Every day at ${at(hour, min)}`
 }
 
 export function AgentsPage() {
+  const qc = useQueryClient()
+  const [detail, setDetail] = useState<Agent | null>(null)
+  const [cron, setCron] = useState('')
+
   const { data: agents, isLoading, isError, refetch } = useQuery({
-    queryKey: ["agents"],
+    queryKey: ['agents'],
     queryFn: agentsApi.list,
-  });
+  })
 
-  const seedMutation = useMutation({
+  const seed = useMutation({
     mutationFn: () => agentsApi.seed(),
-    onSuccess: async () => {
-      await refetch();
-      toast.success("Default agents seeded");
-    },
-    onError: () => toast.error("Failed to seed agents"),
-  });
+    onSuccess: async () => { await refetch(); toast.success('Default agents seeded') },
+    onError: () => toast.error('Failed to seed agents'),
+  })
 
-  const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') || 'all';
-  
-  const groups = [
-    {
-      label: 'Status',
-      items: [
-        { key: "all", label: `All (${agents?.length ?? 0})`, icon: <LayoutDashboard size={14} /> },
-        { key: "active", label: `Active (${agents?.filter((agent) => agent.is_active).length ?? 0})`, icon: <PlayCircle size={14} /> },
-        { key: "paused", label: `Paused (${agents?.filter((agent) => !agent.is_active).length ?? 0})`, icon: <PauseCircle size={14} /> },
-        { key: "error", label: `Needs Attention (${agents?.filter((agent) => agent.last_run_status === "error").length ?? 0})`, icon: <AlertCircle size={14} /> },
-      ]
-    }
-  ];
+  const patch = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof agentsApi.patch>[1] }) =>
+      agentsApi.patch(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agents'] })
+      toast.success('Agent updated')
+    },
+    onError: () => toast.error('Could not update that agent'),
+  })
+
+  const trigger = useMutation({
+    mutationFn: (id: string) => agentsApi.trigger(id),
+    onSuccess: () => {
+      toast.success('Agent triggered — its result appears here shortly')
+      setTimeout(() => qc.invalidateQueries({ queryKey: ['agents'] }), 4000)
+    },
+    onError: () => toast.error('Could not trigger that agent'),
+  })
+
+  const rows = useMemo(() => agents ?? [], [agents])
+
+  const openDetail = (a: Agent) => {
+    setDetail(a)
+    setCron(a.cron_expression)
+  }
+
+  const modules = useMemo<ModuleSpec[]>(() => {
+    if (!rows.length) return []
+
+    const active = rows.filter(a => a.is_active)
+    const errored = rows.filter(a => a.last_run_status === 'error')
+    const ranToday = rows.filter(a => a.last_run_at && dayjs(a.last_run_at).isSame(dayjs(), 'day'))
+    const totalRuns = rows.reduce((s, a) => s + a.run_count, 0)
+    // Success rate across the runs we can see — one data point per agent.
+    const withStatus = rows.filter(a => a.last_run_status === 'success' || a.last_run_status === 'error')
+    const successPct = withStatus.length
+      ? Math.round((withStatus.filter(a => a.last_run_status === 'success').length / withStatus.length) * 100)
+      : null
+
+    const byRecency = [...rows].sort((a, b) => (b.last_run_at ?? '').localeCompare(a.last_run_at ?? ''))
+
+    return [
+      {
+        kind: 'tiles',
+        span: 12,
+        tiles: [
+          {
+            label: 'Active agents',
+            value: String(active.length),
+            sub: errored.length ? `${errored.length} needing attention` : `${rows.length - active.length} paused`,
+            dotKey: errored.length ? 'destructive' : 'success',
+          },
+          {
+            label: 'Ran today',
+            value: String(ranToday.length),
+            sub: `${totalRuns} run${totalRuns === 1 ? '' : 's'} all time`,
+          },
+          {
+            label: 'Last run healthy',
+            value: successPct === null ? '—' : `${successPct}%`,
+            sub: successPct === null
+              ? 'Nothing has run yet'
+              : `Across ${withStatus.length} agent${withStatus.length === 1 ? '' : 's'}`,
+            subKey: successPct !== null && successPct >= 90 ? 'success' : 'warning',
+            ...(successPct !== null && { bar: successPct, barKey: successPct >= 90 ? 'success' : 'warning' }),
+          },
+          {
+            label: 'On a schedule',
+            value: String(active.filter(a => !!a.cron_expression).length),
+            sub: 'Running without you',
+          },
+        ],
+      },
+      {
+        kind: 'agents',
+        span: 12,
+        cols: 3,
+        onToggle: (i: number) => patch.mutate({ id: rows[i].task_id, data: { is_active: !rows[i].is_active } }),
+        onCardClick: (i: number) => openDetail(rows[i]),
+        agents: rows.map((a) => {
+          const ok = a.last_run_status === 'success'
+          const bad = a.last_run_status === 'error'
+          return {
+            name: a.name,
+            schedule: describeCron(a.cron_expression),
+            icon: iconFor(a.task_id),
+            iconKey: bad ? 'destructive' : a.is_active ? 'accent' : 'mutedFg',
+            on: a.is_active,
+            // Only the last run is known; the rest read as "did not run".
+            runs: [...Array(13).fill(0), ok ? 1 : bad ? 0.25 : 0],
+            lastRun: a.last_run_at ? `Ran ${dayjs(a.last_run_at).fromNow()}` : 'Never run',
+            successPct: !a.is_active ? 'Paused' : bad ? 'Failed' : ok ? 'Healthy' : 'Idle',
+            statusKey: !a.is_active ? 'mutedFg' : bad ? 'destructive' : ok ? 'success' : 'warning',
+            log: a.last_output_text
+              ? a.last_output_text.replace(/\s+/g, ' ').slice(0, 160)
+              : a.description ?? 'No output recorded yet.',
+          }
+        }),
+      },
+      {
+        kind: 'table',
+        span: 12,
+        title: 'Latest run per agent',
+        subtitle: 'Click a row to open the agent',
+        icon: Cpu,
+        gridCols: '1.2fr 1.4fr 1.4fr 0.7fr 0.9fr',
+        cols: [
+          { l: 'When' },
+          { l: 'Agent' },
+          { l: 'Schedule' },
+          { l: 'Runs', a: 'right' },
+          { l: 'Status', a: 'right' },
+        ],
+        rows: byRecency.map((a) => [
+          { t: a.last_run_at ? dayjs(a.last_run_at).format('HH:mm ddd') : '—', bold: true },
+          a.name,
+          describeCron(a.cron_expression),
+          String(a.run_count),
+          {
+            t: a.last_run_status ?? 'never',
+            tag: true,
+            colorKey: a.last_run_status === 'success' ? 'success'
+              : a.last_run_status === 'error' ? 'destructive'
+              : a.last_run_status === 'running' ? 'info' : 'mutedFg',
+          },
+        ]),
+        onRowClick: (i: number) => openDetail(byRecency[i]),
+      },
+    ]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows])
 
   return (
-    <ModuleLayout
-      header={
-        <>
-          <PageHeader
-            title="Agents"
-            subtitle="A compact control room for autonomous workflows across your life OS."
-            icon={<Bot />}
-            eyebrow="Automation"
+    <PageContainer>
+      <PageContent>
+        <PageHeader
+          title="Agents"
+          subtitle="A compact control room for autonomous workflows across your life OS."
+          icon={<Bot />}
+          eyebrow="Automation"
+        />
+        <PageDivider />
+
+        {isError ? (
+          <ErrorState title="Could not load agents" onRetry={() => refetch()} />
+        ) : isLoading ? (
+          <Skeleton style={{ height: 320 }} />
+        ) : rows.length === 0 ? (
+          <EmptyState
+            icon={<Zap size={24} />}
+            title="No agents yet"
+            description="Seed the default roster and they start running on their own schedules."
+            action={
+              <Button variant="secondary" size="sm" onClick={() => seed.mutate()}>
+                {seed.isPending ? 'Seeding…' : 'Seed agents'}
+              </Button>
+            }
           />
-          <PageDivider />
-        </>
-      }
-      sidebar={
-        <ModuleSidebar
-          groups={groups}
-          activeKey={tab}
-          onChange={(key) => {
-            const next = new URLSearchParams(params);
-            if (key === 'all') next.delete('tab');
-            else next.set('tab', key);
-            setParams(next, { replace: true });
-          }}
-        />
-      }
-    >
-      <SpinGlobal />
-      {isError ? (
-        <ErrorState title="Could not load agents" onRetry={() => refetch()} />
-      ) : isLoading ? (
-        <Stack>
-          {Array.from({ length: 6 }).map((_, index) => (
-            <AgentSkeleton key={index} />
-          ))}
-        </Stack>
-      ) : agents?.length === 0 ? (
-        <EmptyState
-          icon={<Zap size={24} />}
-          title="No agents yet"
-          description="Seed the default roster, then refine with filters as your setup grows."
-          action={
-            <Button variant="secondary" size="sm" onClick={() => seedMutation.mutate()}>
-              {seedMutation.isPending ? "Seeding..." : "Seed Agents"}
-            </Button>
-          }
-        />
-      ) : (
-        <AgentsContent agents={agents ?? []} />
-      )}
-    </ModuleLayout>
-  );
+        ) : (
+          <ModuleGrid modules={modules} />
+        )}
+
+        <Dialog
+          open={!!detail}
+          onOpenChange={(o) => !o && setDetail(null)}
+          icon={<Bot size={18} />}
+          eyebrow="Agent"
+          title={detail?.name ?? 'Agent'}
+          description={detail?.description ?? undefined}
+          size="md"
+        >
+          <Form>
+            <div>
+              <Label>Schedule (cron)</Label>
+              <Input value={cron} onChange={(e: any) => setCron(e.target.value)} placeholder="0 7 * * *" />
+              <CronHint>{describeCron(cron)}</CronHint>
+            </div>
+            {detail?.last_output_text && (
+              <div>
+                <Label>Last output</Label>
+                <OutputBlock>{detail.last_output_text}</OutputBlock>
+              </div>
+            )}
+            <Actions>
+              <Button
+                variant="primary"
+                loading={patch.isPending}
+                disabled={!detail || cron === detail.cron_expression}
+                onClick={() => detail && patch.mutate({ id: detail.task_id, data: { cron_expression: cron } })}
+              >
+                Save schedule
+              </Button>
+              <Button variant="ghost" onClick={() => setDetail(null)}>Close</Button>
+              <Spacer />
+              <Button
+                variant="outline"
+                size="sm"
+                loading={trigger.isPending}
+                onClick={() => detail && trigger.mutate(detail.task_id)}
+              >
+                Run now
+              </Button>
+            </Actions>
+          </Form>
+        </Dialog>
+      </PageContent>
+    </PageContainer>
+  )
 }

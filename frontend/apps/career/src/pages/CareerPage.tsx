@@ -22,7 +22,7 @@ import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLay
 import { Button, KpiCard, KpiGrid, PageHeader } from '@ledgr/ui'
 import { useAreaSection } from '@ct/shared/hooks/useAreaSection'
 import { JournalSection } from '@ct/career/components/JournalSection'
-import { OpportunitiesTab } from '@ct/career/components/OpportunitiesTab'
+import { OpportunitiesSection } from '@ct/career/components/sections/OpportunitiesSection'
 import { CareerLogModal } from '@ct/career/components/CareerLogModal'
 import { careerApi } from '@ct/shared/api/areas'
 
@@ -78,7 +78,7 @@ export function CareerPage() {
           <KpiCard label="Skills tracked" value={String(skills?.length ?? 0)} icon={BookOpen} />
         </KpiGrid>
 
-        <OpportunitiesTab />
+        <OpportunitiesSection />
         </>
         )}
 

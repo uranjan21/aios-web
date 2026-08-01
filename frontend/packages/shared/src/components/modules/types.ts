@@ -240,6 +240,11 @@ export interface KanbanModule extends Base {
     colorKey?: ColorKey
     cards: Array<{ title: string; meta?: string; tagLabel?: string; tagKey?: ColorKey }>
   }>
+  /**
+   * Optional card affordance. The index counts cards across ALL columns in
+   * column order, so a page flattens its own list the same way to map back.
+   */
+  onCardClick?: (index: number) => void
 }
 
 export interface AgentsModule extends Base {
@@ -259,6 +264,9 @@ export interface AgentsModule extends Base {
     statusKey?: ColorKey
     log: string
   }>
+  /** Optional controlled mode — see `notes`. Absent, the cards are inert. */
+  onToggle?: (index: number, next: boolean) => void
+  onCardClick?: (index: number) => void
 }
 
 export interface ChatModule extends Base {
