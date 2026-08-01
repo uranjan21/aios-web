@@ -6,9 +6,9 @@
 from the repo 2026-07-31. A local copy of the extracted HTML lives in this
 session's scratchpad; re-pull with `DesignSync get_file` if it is gone.
 
-**Plan written:** 2026-08-01. **Phases 1–3 are built, plus two Phase 4/5
-vertical slices (Milestones, Career Journal) — see the build log in §8b for
-what actually landed.**
+**Plan written:** 2026-08-01. **Phases 1–3 are built, and all three net-new
+features (Milestones, Career Journal, Week planner) are shipped end to end —
+see the build log in §8b for what actually landed.**
 
 ---
 
@@ -484,8 +484,47 @@ route — `career:journal` had been shipping the canvas's sample rows.
   disabled when empty → enabled on input → saves → clears, tags derived
   server-side, theme counts recomputed.
 
+### Phase 5.3 — Week planner ✅ 2026-08-01
+
+Third slice, and the last of the three net-new features. `/app/plan` now means
+what the redesign says it means.
+
+- **Backend:** `PlanBlock` model + migration `w006_plan_blocks` (new head,
+  applied), CRUD on `/api/workspace/plan-blocks`. Times are local wall-clock
+  `time` values, NOT timestamps — a block is "Tuesday 09:00–10:30 in the user's
+  day" and storing it as an instant would make it drift when they travel.
+  `end_time > start_time` enforced; **at most one priority per day**, enforced
+  server-side (promoting a block demotes the incumbent).
+- **`/app/plan` changed meaning.** It is the week planner; the
+  goals/projects/sprints/tasks page it used to be is under `/app/workspace/*`.
+  `PlanRoute` in router.tsx forwards old `?view=` links, which a static
+  `<Navigate>` cannot read.
+- **One deliberate departure from the canvas:** it labels the progress module
+  "Planned hours vs capacity". There is no capacity model, and inventing a
+  denominator would put a fake number on screen, so the module shows planned
+  hours per domain as a share of the week's planned time. Same question,
+  answered with data that exists.
+- **Tests:** 4 new (isolation, cross-tenant PATCH, end-before-start 422,
+  priority exclusivity). Backend suite **246 passing**.
+- Verified live: 10 blocks across 6 days render in the week grid with today's
+  column ruled in the accent, domain colours correct, 13.0h totalled and split
+  by domain, and the per-day priority list populated.
+
+### Bug found and fixed in this session's own code
+
+`toISOString().slice(0,10)` in the new planner converted local midnight to UTC,
+so east of UTC every date shifted back a day — the seeded week landed on Sunday
+26 July instead of Monday 27th. This is the **documented** finance-date trap,
+reintroduced. Fixed with a shared `packages/shared/src/lib/calendarDate.ts`
+(`toCalendarDate` / `fromCalendarDate` / `daysUntil`) and applied to all three
+new pages. `fromCalendarDate` also fixes the mirror-image bug: `new
+Date('2026-08-09')` parses as UTC midnight and renders as the 8th west of UTC.
+
+**Any new date-only field must use these helpers.**
+
 **Migration chain now:** `f001_finance_email_ingestion` →
-`w005_workspace_milestones` → `c002_career_journal` (head).
+`w005_workspace_milestones` → `c002_career_journal` → `w006_plan_blocks`
+(head).
 
 **Note for Phase 6:** `ModuleSidebar` and `ModuleLayout` now have no consumers
 outside `AgentsPage`; `AnalyticsTab`, `RulesTab`, `HistoryTab`,

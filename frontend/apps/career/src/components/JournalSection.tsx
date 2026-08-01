@@ -13,9 +13,11 @@ import { NotebookPen, History, Tags } from 'lucide-react'
 import { ErrorState, Skeleton } from '@ledgr/ui'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { careerApi, type JournalEntry } from '@ct/shared/api/areas'
+import { fromCalendarDate } from '@ct/shared/lib/calendarDate'
 
+// Local-day parsing — see lib/calendarDate for why not `new Date(iso)`.
 const fmtDay = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+  fromCalendarDate(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 
 /** First line, or the first ~60 characters — entries have no required title. */
 function headline(entry: JournalEntry): string {

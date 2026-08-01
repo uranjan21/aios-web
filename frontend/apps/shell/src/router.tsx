@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, useSearchParams } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 import { PageTransition } from '@/components/PageTransition'
@@ -24,6 +24,7 @@ const CareerSettingsPage = lazy(() => import('@ct/career/pages/CareerSettingsPag
 const ReviewPage = lazy(() => import('@/pages/ReviewPage').then(m => ({ default: m.ReviewPage })))
 
 const PlanPage = lazy(() => import('@/pages/PlanPage').then(m => ({ default: m.PlanPage })))
+const WeekPlanPage = lazy(() => import('@/pages/WeekPlanPage').then(m => ({ default: m.WeekPlanPage })))
 
 const ChatPage = lazy(() => import('@/pages/ChatPage').then(m => ({ default: m.ChatPage })))
 const LandingPage = lazy(() => import('@/pages/LandingPage').then(m => ({ default: m.LandingPage })))
@@ -111,6 +112,18 @@ function RequireModule({ children, module }: { children: React.ReactNode, module
   return <Navigate to="/pricing" replace />
 }
 
+/**
+ * /app/plan changed meaning on 2026-08-01: it is now the week planner, and the
+ * goals/projects/sprints/tasks page it used to be lives under /app/workspace.
+ * Old links carry `?view=goals` etc., which a static <Navigate> cannot read.
+ */
+function PlanRoute() {
+  const [params] = useSearchParams()
+  const view = params.get('view')
+  if (view) return <Navigate to={`/app/workspace/${view}`} replace />
+  return <WeekPlanPage />
+}
+
 function Page({ children }: { children: React.ReactNode }) {
   return (
     <RouteErrorBoundary>
@@ -155,10 +168,10 @@ export const router = createBrowserRouter([
       { index: true, element: <Page><DashboardPage /></Page> },
       { path: 'chat', element: <Page><RequireModule module="chat"><ChatPage /></RequireModule></Page> },
       { path: 'agents', element: <Page><RequireModule module="agents"><AgentsPage /></RequireModule></Page> },
-      // TODO(phase 5): /app/plan becomes the week time-blocking planner. Until
-      // that exists it still renders the old planning page, which is ALSO
-      // reachable at /app/workspace/* below. Two doors to one room, briefly.
-      { path: 'plan', element: <Page><PlanPage /></Page> },
+      // /app/plan is the week time-blocking planner as of 2026-08-01. The
+      // goals/projects/sprints/tasks page it used to be now lives under
+      // /app/workspace/* (PlanPage still backs those routes).
+      { path: 'plan', element: <Page><PlanRoute /></Page> },
       { path: 'review', element: <Page><ReviewPage /></Page> },
 
       /*

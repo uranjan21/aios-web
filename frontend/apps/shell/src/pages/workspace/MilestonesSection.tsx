@@ -15,6 +15,7 @@ import { Button, Dialog, EmptyState, ErrorState, Input, Select, Skeleton } from 
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { workspaceApi, type Milestone } from '@ct/shared/api/workspace'
 import { DOMAIN_OPTIONS } from '@ct/shared/config/domains'
+import { daysUntil, fromCalendarDate } from '@ct/shared/lib/calendarDate'
 import { toast } from 'sonner'
 
 /** ledgr-ui Input/Select take no `label` prop — the caller owns the label. */
@@ -49,18 +50,14 @@ const STATUS_OPTIONS = (Object.keys(STATUS_LABEL) as Milestone['status'][]).map(
   label: STATUS_LABEL[v],
 }))
 
+// Date-only values are parsed as LOCAL days — `new Date('2026-08-09')` is UTC
+// midnight, which renders as the 8th anywhere west of UTC.
 const fmtDate = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'No date'
+  iso
+    ? fromCalendarDate(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+    : 'No date'
 
-/** Days until the due date. Negative means overdue; null when undated. */
-function daysAway(iso?: string | null): number | null {
-  if (!iso) return null
-  const due = new Date(iso)
-  due.setHours(0, 0, 0, 0)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return Math.round((due.getTime() - today.getTime()) / 86_400_000)
-}
+const daysAway = daysUntil
 
 /**
  * Buckets the canvas grouped by: the next 30 days, the quarter, then

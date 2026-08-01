@@ -18,6 +18,7 @@ import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLay
 import { PageDivider } from '@ct/shared/components/layout/PageDivider'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { workspaceApi, type PlanBlock } from '@ct/shared/api/workspace'
+import { toCalendarDate } from '@ct/shared/lib/calendarDate'
 import { DOMAIN_OPTIONS } from '@ct/shared/config/domains'
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -30,7 +31,11 @@ function mondayOf(d: Date): Date {
   return out
 }
 
-const iso = (d: Date) => d.toISOString().slice(0, 10)
+/*
+ * NOT toISOString().slice(0,10) — that converts local midnight to UTC and
+ * shifts every date back a day east of UTC. See lib/calendarDate.
+ */
+const iso = toCalendarDate
 
 /** "09:00:00" → "09:00". The seconds are storage detail, not display. */
 const hhmm = (t: string) => t.slice(0, 5)
