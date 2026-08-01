@@ -11,12 +11,15 @@ import { useCountUp } from '@ct/shared/hooks/useCountUp'
 import { KpiCard, KpiGrid } from '@ledgr/ui';
 import { Card as SectionCard } from '@ledgr/ui'
 
-import { NutritionTab } from '@ct/health/components/NutritionTab'
-// Water lost its own tab in the 2026-08-01 IA, but the widget still lives on
-// the Health overview — the redesign relocates it in Phase 4, not here.
+// Water lost its own tab in the 2026-08-01 IA. Its widget stays on the Health
+// overview, and Phase 4 also folded the daily water target into the Nutrition
+// page's "Daily targets" module.
 import { WaterTrackerWidget } from '@ct/health/components/WaterTrackerWidget'
-import { BodySleepTab } from '@ct/health/components/BodySleepTab'
-import { FitnessTab } from '@ct/health/components/FitnessTab'
+import { WorkoutsSection } from '@ct/health/components/sections/WorkoutsSection'
+import { NutritionSection } from '@ct/health/components/sections/NutritionSection'
+import { BodySection } from '@ct/health/components/sections/BodySection'
+import { SleepSection } from '@ct/health/components/sections/SleepSection'
+import { HabitsSection } from '@ct/health/components/sections/HabitsSection'
 import { HealthLogModal } from '@ct/health/components/HealthLogModal'
 import { PageHeader } from '@ledgr/ui'
 import { AiInsightCard } from '@ct/shared/components/AiInsightCard'
@@ -204,11 +207,11 @@ export function HealthPage() {
   const renderContent = () => {
     switch (section) {
       case 'overview':  return renderDashboard()
-      case 'workouts':  return <FitnessTab section="workouts" />
-      case 'nutrition': return <NutritionTab />
-      case 'body':      return <BodySleepTab section="body" />
-      case 'sleep':     return <BodySleepTab section="sleep" />
-      case 'habits':    return <FitnessTab section="habits" />
+      case 'workouts':  return <WorkoutsSection />
+      case 'nutrition': return <NutritionSection />
+      case 'body':      return <BodySection />
+      case 'sleep':     return <SleepSection />
+      case 'habits':    return <HabitsSection />
       default:          return renderDashboard()
     }
   }

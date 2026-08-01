@@ -153,6 +153,11 @@ const TargetLine = styled.div<{ $top: string }>`
     ${textRole('micro')};
     text-transform: uppercase;
     color: ${({ theme }) => theme.color.mutedForeground};
+    /* A tall right-hand bar puts its own value label right here, so the target
+       label needs an opaque backing to stay readable over it. */
+    background: ${({ theme }) => theme.color.card};
+    padding: 0 ${({ theme }) => theme.spacing[1]};
+    border-radius: ${({ theme }) => theme.radii.xs};
   }
 `
 
