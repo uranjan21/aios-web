@@ -32,6 +32,7 @@ const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage').then(
 const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage })))
 const PricingPage = lazy(() => import('@/pages/PricingPage').then(m => ({ default: m.PricingPage })))
 const AdminPage = lazy(() => import('@/pages/AdminPage').then(m => ({ default: m.AdminPage })))
+const DesignGalleryPage = lazy(() => import('@/pages/DesignGalleryPage').then(m => ({ default: m.DesignGalleryPage })))
 
 // Legal Pages
 const LegalLayout = lazy(() => import('@/pages/legal/LegalLayout').then(m => ({ default: m.LegalLayout })))
@@ -154,32 +155,61 @@ export const router = createBrowserRouter([
       { index: true, element: <Page><DashboardPage /></Page> },
       { path: 'chat', element: <Page><RequireModule module="chat"><ChatPage /></RequireModule></Page> },
       { path: 'agents', element: <Page><RequireModule module="agents"><AgentsPage /></RequireModule></Page> },
+      // TODO(phase 5): /app/plan becomes the week time-blocking planner. Until
+      // that exists it still renders the old planning page, which is ALSO
+      // reachable at /app/workspace/* below. Two doors to one room, briefly.
       { path: 'plan', element: <Page><PlanPage /></Page> },
-      // The four workspace pages collapsed into /app/plan on 2026-07-21.
-      // Redirects keep old links and bookmarks working.
-      { path: 'goals', element: <Navigate to="/app/plan?view=goals" replace /> },
-      { path: 'projects', element: <Navigate to="/app/plan?view=projects" replace /> },
-      { path: 'sprints', element: <Navigate to="/app/plan?view=sprints" replace /> },
-      { path: 'tasks', element: <Navigate to="/app/plan?view=tasks" replace /> },
       { path: 'review', element: <Page><ReviewPage /></Page> },
+
+      /*
+       * ── Sub-page routes (2026-08-01) ──────────────────────────────────
+       * Each area takes an optional `:section` segment; the page component
+       * resolves it via `useAreaSection`. This replaces the `?tab=` query
+       * param + the per-area ModuleSidebar, so every destination in the
+       * two-level nav is a real, linkable URL.
+       */
 
       // Finance Area
       { path: 'finance', element: <Page><RequireModule module="finance"><FinancePage /></RequireModule></Page> },
       { path: 'finance/settings', element: <Page><RequireModule module="finance"><FinanceSettingsPage /></RequireModule></Page> },
+      { path: 'finance/:section', element: <Page><RequireModule module="finance"><FinancePage /></RequireModule></Page> },
 
       // Health Area
       { path: 'health', element: <Page><RequireModule module="health"><HealthPage /></RequireModule></Page> },
       { path: 'health/settings', element: <Page><RequireModule module="health"><HealthSettingsPage /></RequireModule></Page> },
+      { path: 'health/:section', element: <Page><RequireModule module="health"><HealthPage /></RequireModule></Page> },
 
       // Career Area
       { path: 'career', element: <Page><RequireModule module="career"><CareerPage /></RequireModule></Page> },
       { path: 'career/settings', element: <Page><RequireModule module="career"><CareerSettingsPage /></RequireModule></Page> },
+      { path: 'career/:section', element: <Page><RequireModule module="career"><CareerPage /></RequireModule></Page> },
+
+      // Workspace — the four planning entities, promoted out of /app/plan's
+      // `?view=` param into their own routes, plus Milestones (Phase 5).
+      { path: 'workspace', element: <Navigate to="/app/workspace/projects" replace /> },
+      { path: 'workspace/:section', element: <Page><PlanPage /></Page> },
 
       // System
       { path: 'settings', element: <Page><SettingsPage /></Page> },
+      { path: 'settings/:section', element: <Page><SettingsPage /></Page> },
       { path: 'admin', element: <Page><RequireAdmin><AdminPage /></RequireAdmin></Page> },
-      
-      // Legacy /app/areas/* links.
+
+      // Design gallery — every modular page from the canvas, sample data.
+      // Deliberately absent from the nav tree; see DesignGalleryPage.
+      { path: 'design', element: <Page><DesignGalleryPage /></Page> },
+      { path: 'design/:key', element: <Page><DesignGalleryPage /></Page> },
+
+      /*
+       * ── Legacy redirects ──────────────────────────────────────────────
+       * Everything that used to be a top-level path or a `?tab=`/`?view=`
+       * value. `LegacyTabRedirect` handles the query-param forms, which a
+       * static <Navigate> cannot read.
+       */
+      { path: 'goals', element: <Navigate to="/app/workspace/goals" replace /> },
+      { path: 'projects', element: <Navigate to="/app/workspace/projects" replace /> },
+      { path: 'sprints', element: <Navigate to="/app/workspace/sprints" replace /> },
+      { path: 'tasks', element: <Navigate to="/app/workspace/tasks" replace /> },
+
       { path: 'areas', element: <Navigate to="/app/finance" replace /> },
       { path: 'areas/finance', element: <Navigate to="/app/finance" replace /> },
       { path: 'areas/health', element: <Navigate to="/app/health" replace /> },

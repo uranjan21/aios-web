@@ -162,13 +162,13 @@ def _isolation_tables():
     from app.models.forecast import Forecast
     from app.models.automations import AutomationRule
     from app.models.admin_audit import AdminAuditLog
-    from app.models.workspace import Project, Sprint, Task
+    from app.models.workspace import Project, Sprint, Task, Milestone, PlanBlock
     from app.models.goal import MacroGoal, GoalProgress
     from app.models.content import ContentItem, ContentCampaign
     from app.models.health import HealthLog, HealthGoal, Habit, HabitCheck, WorkoutSession, WorkoutSet, FoodItem
     from app.models.finance import FinanceExpense, FinanceIncome, FinanceTransfer, Account, Category, FinancePendingTransaction, FinanceSettings
     from app.models.google_sync import GmailMessage
-    from app.models.career import CareerEvent, JobOpportunity
+    from app.models.career import CareerEvent, JobOpportunity, CareerJournalEntry
     from app.models.business import BusinessEvent
     from app.models.insights import BriefingPreference, Briefing, Insight
     from app.models.quote import SavedQuote
@@ -178,9 +178,9 @@ def _isolation_tables():
         OAuthState,
         User, ChatSession, ChatMessage, Capture, IntegrationCredential, Agent, PushSubscription, Subscription, AIUsageRecord,
         FailedWebhook, AgentAction, Forecast, AutomationRule, AdminAuditLog,
-        Project, Sprint, Task, MacroGoal, GoalProgress, ContentItem, ContentCampaign,
+        Project, Sprint, Task, Milestone, PlanBlock, MacroGoal, GoalProgress, ContentItem, ContentCampaign,
         HealthLog, HealthGoal, Habit, HabitCheck, WorkoutSession, WorkoutSet, FoodItem,
-        FinanceExpense, FinanceIncome, FinanceTransfer, Account, Category, FinancePendingTransaction, FinanceSettings, GmailMessage, CareerEvent, JobOpportunity, BusinessEvent,
+        FinanceExpense, FinanceIncome, FinanceTransfer, Account, Category, FinancePendingTransaction, FinanceSettings, GmailMessage, CareerEvent, JobOpportunity, CareerJournalEntry, BusinessEvent,
         BriefingPreference, Briefing, Insight, SavedQuote, VaultFile, VaultConflict
     )]
 

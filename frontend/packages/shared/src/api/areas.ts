@@ -268,6 +268,27 @@ export const healthApi = {
 }
 
 // Career
+/** A dated written reflection. Added 2026-08-01. */
+export interface JournalEntry {
+  id: string
+  entry_date: string
+  body: string
+  title?: string | null
+  /** Comma-separated, derived server-side from the body by keyword match. */
+  tags?: string | null
+  word_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface JournalStats {
+  total_entries: number
+  entries_this_month: number
+  words_this_month: number
+  streak_days: number
+  themes: Array<{ tag: string; count: number }>
+}
+
 export const careerApi = {
   summary: () => api.get<{ total_skills: number; last_skill_update: string | null; last_event_title: string | null; last_event_at: string | null }>('/areas/career/summary').then(r => r.data),
   skills: () => api.get<SkillInventory[]>('/areas/career/skills').then(r => r.data),
@@ -280,6 +301,17 @@ export const careerApi = {
     api.post<CareerEvent>('/areas/career/events', data).then(r => r.data),
   // Job opportunities
   opportunities: () => api.get<JobOpportunity[]>('/areas/career/opportunities').then(r => r.data),
+
+  // Journal
+  journal: (limit = 50) =>
+    api.get<JournalEntry[]>('/areas/career/journal', { params: { limit } }).then(r => r.data),
+  journalStats: () => api.get<JournalStats>('/areas/career/journal/stats').then(r => r.data),
+  createJournalEntry: (data: { body: string; title?: string; entry_date?: string }) =>
+    api.post<JournalEntry>('/areas/career/journal', data).then(r => r.data),
+  updateJournalEntry: (id: string, data: { body?: string; title?: string; entry_date?: string }) =>
+    api.patch<JournalEntry>(`/areas/career/journal/${id}`, data).then(r => r.data),
+  deleteJournalEntry: (id: string) =>
+    api.delete(`/areas/career/journal/${id}`).then(r => r.data),
   createOpportunity: (data: { company: string; role: string; status?: string; notes?: string; url?: string; applied_date?: string | null }) =>
     api.post<JobOpportunity>('/areas/career/opportunities', data).then(r => r.data),
   patchOpportunity: (id: string, data: { status?: string; notes?: string; url?: string; applied_date?: string | null }) =>

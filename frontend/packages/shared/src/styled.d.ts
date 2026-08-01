@@ -14,12 +14,14 @@ import type { DomainKey } from '@ct/shared/theme/ctTheme';
  */
 declare module 'styled-components' {
   export interface DefaultTheme extends Theme {
-    /** Always-dark sidebar chrome colours, from the active palette's dark set. */
-    chrome: { bg: string; border: string; fg: string };
-
     /** Domain identity colours for the active mode. */
     domain: Record<DomainKey, string>;
-    /** Domain colours for the always-dark sidebar, regardless of mode. */
+    /**
+     * Domain colours for an always-dark surface, regardless of mode — the
+     * login/marketing page only. In-app chrome follows the mode as of
+     * 2026-08-01, so use `domain` there. `chrome` itself now comes from
+     * @ledgr/ui's Theme (mode-following, full set), not from here.
+     */
     chromeDomain: Record<DomainKey, string>;
   }
 }

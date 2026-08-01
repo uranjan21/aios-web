@@ -1,11 +1,12 @@
-from datetime import datetime, timezone
+import uuid
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import select, desc
 
 from app.core.deps import get_current_user, get_db
-from app.models.career import CareerEvent, SkillInventory, JobOpportunity
+from app.models.career import CareerEvent, SkillInventory, JobOpportunity, CareerJournalEntry
 
 router = APIRouter(prefix="/api/areas/career", tags=["career"])
 
@@ -183,3 +184,180 @@ async def delete_opportunity(opp_id: str, current_user=Depends(get_current_user)
     await db.delete(opp)
     await db.commit()
     return {"status": "deleted"}
+
+
+# ── Journal ───────────────────────────────────────────────────────────────────
+# Dated written reflections. Added 2026-08-01 for the redesign's
+# Career -> Journal destination.
+
+# Theme keywords, checked case-insensitively against the entry body. Keyword
+# matching rather than an LLM pass on purpose — see the note on the model.
+_THEME_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "leadership": ("lead", "mentor", "delegat", "1:1", "one-on-one", "manage"),
+    "shipping": ("ship", "launch", "release", "deploy", "merged"),
+    "learning": ("learn", "read", "course", "studied", "tutorial", "docs"),
+    "interviewing": ("interview", "screen", "offer", "recruiter", "onsite"),
+    "architecture": ("architect", "design doc", "rfc", "refactor", "system design"),
+    "collaboration": ("pair", "review", "feedback", "stakeholder", "cross-team"),
+    "wellbeing": ("burnout", "tired", "overwhelm", "rest", "balance", "energy"),
+    "impact": ("impact", "metric", "revenue", "adoption", "retention"),
+}
+
+
+def _derive_tags(body: str) -> str:
+    lowered = body.lower()
+    hits = [theme for theme, words in _THEME_KEYWORDS.items() if any(w in lowered for w in words)]
+    return ",".join(hits)
+
+
+class JournalCreate(BaseModel):
+    body: str
+    title: Optional[str] = None
+    entry_date: Optional[date] = None
+
+
+class JournalUpdate(BaseModel):
+    body: Optional[str] = None
+    title: Optional[str] = None
+    entry_date: Optional[date] = None
+
+
+async def _owned_entry(db, entry_id: uuid.UUID, user_id: uuid.UUID) -> CareerJournalEntry:
+    result = await db.execute(
+        select(CareerJournalEntry).where(
+            CareerJournalEntry.id == entry_id,
+            CareerJournalEntry.user_id == user_id,
+        )
+    )
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Journal entry not found")
+    return entry
+
+
+@router.get("/journal")
+async def list_journal(
+    limit: int = 50,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    limit = min(max(limit, 1), 200)
+    result = await db.execute(
+        select(CareerJournalEntry)
+        .where(CareerJournalEntry.user_id == current_user.id)
+        .order_by(desc(CareerJournalEntry.entry_date), desc(CareerJournalEntry.created_at))
+        .limit(limit)
+    )
+    return result.scalars().all()
+
+
+@router.get("/journal/stats")
+async def journal_stats(current_user=Depends(get_current_user), db=Depends(get_db)):
+    """
+    Counts the Journal page header needs: this month's volume, the current
+    consecutive-day writing streak, and theme frequency across the month.
+    """
+    today = date.today()
+    month_start = today.replace(day=1)
+
+    result = await db.execute(
+        select(CareerJournalEntry)
+        .where(CareerJournalEntry.user_id == current_user.id)
+        .order_by(desc(CareerJournalEntry.entry_date))
+    )
+    entries = result.scalars().all()
+
+    this_month = [e for e in entries if e.entry_date >= month_start]
+
+    # Streak counts back from today; a gap of one day ends it. Writing twice in
+    # a day is still one day, hence the set.
+    written_days = {e.entry_date for e in entries}
+    streak = 0
+    cursor = today
+    if cursor not in written_days:
+        # Yesterday still counts — today may simply not be written yet.
+        cursor = today - timedelta(days=1)
+    while cursor in written_days:
+        streak += 1
+        cursor -= timedelta(days=1)
+
+    theme_counts: dict[str, int] = {}
+    for e in this_month:
+        for tag in (e.tags or "").split(","):
+            if tag:
+                theme_counts[tag] = theme_counts.get(tag, 0) + 1
+
+    return {
+        "total_entries": len(entries),
+        "entries_this_month": len(this_month),
+        "words_this_month": sum(e.word_count for e in this_month),
+        "streak_days": streak,
+        "themes": [
+            {"tag": t, "count": n}
+            for t, n in sorted(theme_counts.items(), key=lambda kv: -kv[1])
+        ],
+    }
+
+
+@router.post("/journal")
+async def create_journal_entry(
+    body: JournalCreate,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    text = body.body.strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="Entry body cannot be empty")
+
+    entry = CareerJournalEntry(
+        user_id=current_user.id,
+        entry_date=body.entry_date or date.today(),
+        body=text,
+        title=body.title,
+        tags=_derive_tags(text),
+        word_count=len(text.split()),
+    )
+    db.add(entry)
+    await db.commit()
+    await db.refresh(entry)
+    return entry
+
+
+@router.patch("/journal/{entry_id}")
+async def update_journal_entry(
+    entry_id: uuid.UUID,
+    body: JournalUpdate,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    entry = await _owned_entry(db, entry_id, current_user.id)
+    payload = body.model_dump(exclude_unset=True)
+
+    if "body" in payload:
+        text = (payload["body"] or "").strip()
+        if not text:
+            raise HTTPException(status_code=422, detail="Entry body cannot be empty")
+        entry.body = text
+        entry.tags = _derive_tags(text)
+        entry.word_count = len(text.split())
+    if "title" in payload:
+        entry.title = payload["title"]
+    if "entry_date" in payload and payload["entry_date"]:
+        entry.entry_date = payload["entry_date"]
+
+    entry.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(entry)
+    return entry
+
+
+@router.delete("/journal/{entry_id}")
+async def delete_journal_entry(
+    entry_id: uuid.UUID,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    entry = await _owned_entry(db, entry_id, current_user.id)
+    await db.delete(entry)
+    await db.commit()
+    return {"ok": True}

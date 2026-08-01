@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
+import { useTheme } from 'styled-components'
 import { useUIStore } from '@ct/shared/stores/uiStore'
-import { NAV_GROUP_ORDER, navItemsForGroup, NavItem } from '@/config/navigation'
+import { navSections, resolvePath, type NavItem, type SubNavItem } from '@/config/navigation'
 import { useAuthStore } from '@ct/shared/stores/authStore'
 import { accountLabel } from '@ct/shared/lib/account'
 import {
@@ -25,29 +26,21 @@ const SidebarRoot = styled.aside<{ $collapsed: boolean; $mobileOpen?: boolean }>
   width: ${({ $collapsed }) => ($collapsed ? SIDEBAR_NAV_COLLAPSED_WIDTH : SIDEBAR_NAV_WIDTH)};
   height: 100vh;
   flex-shrink: 0;
-  background: ${({ theme }) =>
-    theme.mode === 'dark'
-      ? 'rgba(15, 17, 23, 0.85)'
-      : 'rgba(250, 248, 245, 0.85)'};
-  backdrop-filter: blur(24px) saturate(190%);
-  -webkit-backdrop-filter: blur(24px) saturate(190%);
-  border-right: 1px solid ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : theme.color.border};
-  box-shadow: 4px 0 24px -4px rgba(0, 0, 0, 0.06);
+  /*
+   * Chrome tokens, not hand-rolled rgba. theme.chrome follows the active mode
+   * as of 2026-08-01 — the sidebar used to be hardcoded near-black in both
+   * modes, which the redesign drops in favour of a light sidebar in light mode.
+   */
+  background: ${({ theme }) => theme.chrome.bg};
+  backdrop-filter: ${({ theme }) => theme.chrome.filter};
+  -webkit-backdrop-filter: ${({ theme }) => theme.chrome.filter};
+  border-right: 1px solid ${({ theme }) => theme.chrome.border};
+  box-shadow: ${({ theme }) =>
+    theme.chrome.hi === 'none'
+      ? theme.chrome.edge
+      : `${theme.chrome.hi}, ${theme.chrome.edge}`};
   transition: width 220ms cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 30;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 14rem;
-    background: radial-gradient(circle at 75% 0%, ${({ theme }) => theme.color.accent}2E, transparent 65%);
-    pointer-events: none;
-    z-index: 1;
-  }
 
   @media ${({ theme }) => theme.media.belowMd} {
     position: fixed;
@@ -246,7 +239,12 @@ const CategoryHeader = styled.button<{ $collapsed: boolean; $isCollapsedSection:
   `}
 `
 
-const ItemsContainer = styled.div<{ $isCollapsedSection: boolean }>`
+/**
+ * Rows sit inside a hairline rail, indented from the section header. The rail
+ * is what makes the two levels legible without a second indent step — each
+ * row's active indicator is a 3px bar drawn ON the rail (see `RowIndicator`).
+ */
+const ItemsContainer = styled.div<{ $isCollapsedSection: boolean; $collapsed: boolean }>`
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -254,6 +252,25 @@ const ItemsContainer = styled.div<{ $isCollapsedSection: boolean }>`
   max-height: ${({ $isCollapsedSection }) => ($isCollapsedSection ? '0px' : '600px')};
   opacity: ${({ $isCollapsedSection }) => ($isCollapsedSection ? 0 : 1)};
   transition: max-height 240ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease;
+
+  ${({ $collapsed, theme }) => !$collapsed && css`
+    margin: 0 0 ${theme.spacing[0.5]} ${theme.spacing[2.5]};
+    padding-left: 11px;
+    border-left: 1px solid ${theme.chrome.border};
+  `}
+`
+
+/** The 3px active bar drawn on the rail, in the area's domain colour. */
+const RowIndicator = styled.span<{ $color: string; $active: boolean }>`
+  position: absolute;
+  left: -14px;
+  top: 7px;
+  bottom: 7px;
+  width: 3px;
+  border-radius: 2px;
+  background: ${({ $active, $color }) => ($active ? $color : 'transparent')};
+  box-shadow: ${({ $active, $color }) => ($active ? `0 0 10px ${$color}` : 'none')};
+  transition: background 150ms, box-shadow 150ms;
 `
 
 const TooltipShortcut = styled.span`
@@ -272,18 +289,25 @@ const NavItemWrapper = styled.div`
   position: relative;
 `
 
-const NavItemLink = styled(NavLink)<{ $collapsed: boolean }>`
+/**
+ * A single destination row. The active treatment is domain-coloured rather
+ * than accent-coloured: a Finance row stays gold and a Health row stays green
+ * wherever it appears, which is what makes a 34-item tree scannable.
+ * `$color` comes from `theme.domain[item.domain]`, or the muted foreground for
+ * areas with no domain identity.
+ */
+const NavItemLink = styled(NavLink)<{ $collapsed: boolean; $color: string; $active: boolean }>`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[3]}`};
-  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[3]}`};
-  border-radius: ${({ theme }) => theme.radii.md};
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
+  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[2.5]}`};
+  border: 1px solid transparent;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  font-size: ${({ theme }) => theme.typography.role['body-m'].size};
   font-weight: 500;
-  color: ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.75)' : theme.color.foreground};
+  color: ${({ theme }) => theme.chrome.fgMuted};
   text-decoration: none;
-  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease;
+  transition: background 150ms, color 150ms, border-color 150ms, box-shadow 150ms;
   position: relative;
 
   ${({ $collapsed }) => $collapsed && css`
@@ -292,11 +316,11 @@ const NavItemLink = styled(NavLink)<{ $collapsed: boolean }>`
   `}
 
   & > svg {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     flex-shrink: 0;
-    color: ${({ theme }) => theme.color.mutedForeground};
-    transition: transform 140ms ease, color 140ms ease;
+    color: ${({ theme }) => theme.chrome.fgMuted};
+    transition: color 150ms;
   }
 
   .label {
@@ -304,45 +328,38 @@ const NavItemLink = styled(NavLink)<{ $collapsed: boolean }>`
     opacity: ${({ $collapsed }) => $collapsed ? 0 : 1};
     transition: opacity 180ms ease, width 180ms ease;
     overflow: hidden;
+    text-overflow: ellipsis;
     width: ${({ $collapsed }) => $collapsed ? 0 : 'auto'};
     flex: 1;
   }
 
   &:hover {
-    background: ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'};
-    color: ${({ theme }) => theme.color.foreground};
-    
-    & > svg {
-      transform: scale(1.1);
-      color: ${({ theme }) => theme.color.accent};
-    }
+    background: ${({ theme }) => theme.chrome.ctl};
+    color: ${({ theme }) => theme.chrome.fg};
   }
 
   ${focusRing}
 
-  &.active {
-    background: linear-gradient(90deg, ${({ theme }) => theme.color.accent}24 0%, ${({ theme }) => theme.color.accent}0A 100%);
-    color: ${({ theme }) => theme.color.foreground};
-    font-weight: 600;
+  /*
+   * Active state comes from the $active prop, NOT react-router's own .active
+   * class. Two reasons: NavLink's matching is prefix-based, so /app and
+   * /app/finance would both light up on /app/finance/investments; and
+   * styled(NavLink) discards a function-valued className, so the usual escape
+   * hatch of passing a className callback silently does nothing.
+   */
+  ${({ $active, $color, theme }) => $active && css`
+    background: linear-gradient(100deg, ${$color}30, ${$color}0C);
+    border-color: ${$color}48;
+    box-shadow: ${theme.chrome.hi === 'none'
+      ? `0 6px 18px -12px ${$color}`
+      : `${theme.chrome.hi}, 0 6px 18px -12px ${$color}`};
+    color: ${theme.chrome.fg};
+    font-weight: 700;
 
     & > svg {
-      color: ${({ theme }) => theme.color.accent};
+      color: ${$color};
     }
-
-    &::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 3px;
-      height: 20px;
-      border-radius: 0 4px 4px 0;
-      background: ${({ theme }) => theme.color.accent};
-      box-shadow: 0 0 10px ${({ theme }) => theme.color.accent};
-    }
-  }
+  `}
 `
 
 const QuickActionsBar = styled.div<{ $collapsed: boolean }>`
@@ -502,10 +519,69 @@ const DropdownIconWrapper = styled.div`
   }
 `
 
+/**
+ * Flattens the nav tree into the list of collapsible sections the sidebar
+ * renders. An area WITH sub-pages becomes its own section (header = the area
+ * name, rows = its subs); areas WITHOUT subs are pooled into one section per
+ * group. So "Finance" is a section of 9 rows, while Chat and Agents share an
+ * "Intelligence" section — which is what keeps a 34-destination tree to one
+ * indent level instead of a nested accordion.
+ */
+interface SidebarSection {
+  key: string
+  label: string
+  /** The owning area — present only for a section built from one area's subs. */
+  item?: NavItem
+  rows: Array<{ item: NavItem; sub?: SubNavItem; to: string; label: string; icon: NavItem['icon'] }>
+}
+
+function buildSidebarSections(isAdmin: boolean): SidebarSection[] {
+  const sections: SidebarSection[] = []
+
+  for (const group of navSections(isAdmin)) {
+    const leftover: NavItem[] = []
+
+    for (const item of group.items) {
+      if (item.subs?.length) {
+        sections.push({
+          key: `item-${item.key}`,
+          label: item.label,
+          item,
+          rows: item.subs.map((sub) => ({ item, sub, to: sub.to, label: sub.label, icon: sub.icon })),
+        })
+      } else {
+        leftover.push(item)
+      }
+    }
+
+    if (leftover.length) {
+      sections.push({
+        key: `group-${group.key}`,
+        label: group.label,
+        rows: leftover.map((item) => ({ item, to: item.to, label: item.label, icon: item.icon })),
+      })
+    }
+  }
+
+  return sections
+}
+
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const { sidebarOpen, collapsedSections, toggleSectionCollapsed, toggleTheme, theme, setCmdPaletteOpen } = useUIStore()
   const user = useAuthStore(s => s.user)
+  const styledTheme = useTheme()
+  const { pathname } = useLocation()
+
+  const isAdmin = !!user?.is_admin
+  const sections = useMemo(() => buildSidebarSections(isAdmin), [isAdmin])
+
+  // Longest-prefix match, so /app/finance/transactions highlights that row and
+  // not Finance's Overview (whose path is the bare /app/finance).
+  const current = resolvePath(pathname)
+
+  const colorFor = (item: NavItem) =>
+    item.domain ? styledTheme.domain[item.domain] : styledTheme.chrome.fgMuted
 
   return (
     <SidebarRoot $collapsed={collapsed} $mobileOpen={sidebarOpen}>
@@ -524,47 +600,54 @@ export function Sidebar() {
       </BrandPanel>
 
       <NavList aria-label="Main navigation">
-        {NAV_GROUP_ORDER.map((group) => {
-          const items = navItemsForGroup(group, !!user?.is_admin)
-          if (items.length === 0) return null
-
-          const isCollapsedSection = !!collapsedSections[group]
+        {sections.map((section) => {
+          const isCollapsedSection = !!collapsedSections[section.key]
 
           return (
-            <NavGroup key={group}>
-              <CategoryHeader 
+            <NavGroup key={section.key}>
+              <CategoryHeader
                 $collapsed={collapsed}
                 $isCollapsedSection={isCollapsedSection}
-                onClick={() => toggleSectionCollapsed(group)}
+                onClick={() => toggleSectionCollapsed(section.key)}
                 aria-expanded={!isCollapsedSection}
-                title={collapsed ? group : undefined}
+                title={collapsed ? section.label : undefined}
               >
-                <span>{group}</span>
+                <span>{section.label}</span>
                 <ChevronDown className="chevron" />
               </CategoryHeader>
 
-              <ItemsContainer $isCollapsedSection={!collapsed && isCollapsedSection}>
-                {items.map((item: NavItem) => {
-                  const Icon = item.icon
+              <ItemsContainer
+                $collapsed={collapsed}
+                $isCollapsedSection={!collapsed && isCollapsedSection}
+              >
+                {section.rows.map((row) => {
+                  const Icon = row.icon
+                  const color = colorFor(row.item)
+                  const active = row.sub
+                    ? current?.sub?.key === row.sub.key && current?.item.key === row.item.key
+                    : current?.item.key === row.item.key
+
                   return (
-                    <NavItemWrapper key={item.to}>
+                    <NavItemWrapper key={`${row.item.key}:${row.sub?.key ?? ''}`}>
+                      {!collapsed && <RowIndicator $color={color} $active={active} />}
                       <Tooltip
                         side="right"
                         disabled={!collapsed}
                         content={
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span>{item.label}</span>
-                            {item.shortcut && <TooltipShortcut>g {item.shortcut}</TooltipShortcut>}
+                            <span>{section.item ? `${section.label} · ${row.label}` : row.label}</span>
+                            {row.item.shortcut && <TooltipShortcut>g {row.item.shortcut}</TooltipShortcut>}
                           </div>
                         }
                       >
                         <NavItemLink
-                          to={item.to}
-                          end={item.to === '/app'}
+                          to={row.to}
                           $collapsed={collapsed}
+                          $color={color}
+                          $active={active}
                         >
                           <Icon />
-                          <span className="label">{item.label}</span>
+                          <span className="label">{row.label}</span>
                         </NavItemLink>
                       </Tooltip>
                     </NavItemWrapper>

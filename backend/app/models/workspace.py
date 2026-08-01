@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, date
+from datetime import datetime, date, time
 from typing import Optional
 from sqlmodel import SQLModel, Field
 from sqlalchemy import Column, ForeignKey
@@ -66,6 +66,73 @@ class Task(SQLModel, table=True):
     priority: str = Field(default="medium")  # low, medium, high, urgent
     due_date: Optional[date] = None
     labels: Optional[str] = None  # comma-separated labels
+
+    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
+    updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
+
+
+class Milestone(SQLModel, table=True):
+    """
+    A dated checkpoint on the way to a goal.
+
+    Added 2026-08-01 for the redesign's Workspace -> Milestones destination.
+    Deliberately thinner than Task: a milestone is a date you are steering
+    toward, not a unit of work you execute, so it carries no sprint, no
+    project and no priority — only a goal, a domain and a due date.
+
+    `goal_id` is SET NULL rather than CASCADE: deleting a goal should orphan
+    its milestones, not silently delete dated commitments the user made.
+    """
+
+    __tablename__ = "workspace_milestones"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True)
+    goal_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("macro_goals.id", ondelete="SET NULL"), nullable=True, index=True),
+    )
+
+    title: str = Field(index=True)
+    description: Optional[str] = None
+    domain: Optional[str] = None
+    due_date: Optional[date] = None
+    status: str = Field(default="upcoming")  # upcoming, at_risk, hit, missed
+    position: int = Field(default=0)
+
+    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
+    updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
+
+
+class PlanBlock(SQLModel, table=True):
+    """
+    A time block on the weekly planner.
+
+    Added 2026-08-01 for the redesign's Today -> Plan destination, which is a
+    time-blocking planner. Note this is NOT the old /app/plan page — that was
+    the goals/projects/sprints/tasks list, which moved under Workspace.
+
+    Times are stored as local wall-clock `time` values, not timestamps: a block
+    is "Tuesday 09:00–10:30 in the user's day", and storing it as an instant
+    would make it drift when the user travels.
+    """
+
+    __tablename__ = "plan_blocks"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True)
+    goal_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("macro_goals.id", ondelete="SET NULL"), nullable=True, index=True),
+    )
+
+    block_date: date = Field(index=True)
+    start_time: time
+    end_time: time
+    title: str
+    domain: Optional[str] = None
+    # The single thing that must happen that day. At most one per date.
+    is_priority: bool = Field(default=False)
 
     created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
     updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))

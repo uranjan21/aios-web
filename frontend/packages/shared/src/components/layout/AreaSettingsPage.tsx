@@ -30,6 +30,14 @@ interface AreaSettingsPageProps {
   backTo: string;
   groups: SettingsGroup[];
   eyebrow?: string;
+  /**
+   * Controlled mode (added 2026-08-01): when both are supplied the section is
+   * owned by the caller — the global Settings page drives it from the route,
+   * so its rail and the sidebar's Settings sub-nav cannot disagree. Area
+   * settings pages omit both and keep the local `?section=` behaviour.
+   */
+  activeKey?: string;
+  onSelect?: (key: string) => void;
 }
 
 export const Shell = styled.div`
@@ -167,6 +175,8 @@ export function AreaSettingsPage({
   backTo,
   groups,
   eyebrow = "Settings",
+  activeKey: controlledKey,
+  onSelect,
 }: AreaSettingsPageProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -180,11 +190,17 @@ export function AreaSettingsPage({
 
   const initialKey = searchParams.get("section");
 
-  const [activeKey, setActiveKey] = useState(() =>
+  const [uncontrolledKey, setUncontrolledKey] = useState(() =>
     initialKey && allKeys.includes(initialKey)
       ? initialKey
       : (allItems[0]?.key ?? ""),
   );
+
+  const controlled = controlledKey !== undefined && onSelect !== undefined;
+  const activeKey = controlled
+    ? (allKeys.includes(controlledKey) ? controlledKey : (allItems[0]?.key ?? ""))
+    : uncontrolledKey;
+  const setActiveKey = controlled ? onSelect : setUncontrolledKey;
 
   const activeItem = useMemo(
     () => allItems.find((item) => item.key === activeKey),

@@ -104,9 +104,12 @@ const chartDark = [
 
 export interface CtTheme extends Theme {
   domain: Record<DomainKey, string>;
-  /** The sidebar is always dark, so anything domain-coloured inside it uses these. */
+  /**
+   * Domain colours for an always-dark surface, regardless of the active mode.
+   * Only the login/marketing page needs these — the app sidebar follows the
+   * mode as of 2026-08-01, so in-app chrome uses `domain`, not this.
+   */
   chromeDomain: Record<DomainKey, string>;
-  chrome: { bg: string; border: string; fg: string };
   /** Categorical chart series, in fixed slot order. See `chartLight` above. */
   chart: readonly string[];
 }
@@ -115,20 +118,15 @@ export interface CtTheme extends Theme {
 export function getTheme(paletteId: string, mode: 'light' | 'dark'): CtTheme {
   const palette = getPalette(paletteId);
   const color: PaletteColors = mode === 'dark' ? palette.dark : palette.light;
-  // Sidebar chrome is intentionally always-dark regardless of the active mode,
-  // sourced from the palette's dark colours so it still repaints per palette.
-  const chromeSource = palette.dark;
 
+  // `chrome` used to be built here as an always-dark {bg,border,fg} triple. It
+  // had zero call sites, and the redesign gives light mode a light sidebar, so
+  // the full mode-following chrome group now comes from buildTheme.
   return {
     ...buildTheme({ name: `${paletteId}-${mode}`, mode, color }),
     domain: mode === 'dark' ? domainDark : domainLight,
     chromeDomain: domainDark,
     chart: mode === 'dark' ? chartDark : chartLight,
-    chrome: {
-      bg: chromeSource.card,
-      border: chromeSource.muted,
-      fg: chromeSource.foreground,
-    },
   };
 }
 

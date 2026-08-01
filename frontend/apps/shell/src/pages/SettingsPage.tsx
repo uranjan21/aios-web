@@ -1,19 +1,18 @@
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Settings, Palette, Activity, Sparkles, Keyboard, User, CreditCard, Lock, Zap, Sunrise, BookOpen, Shield, Link2 } from 'lucide-react'
+import { Settings, Palette, Bell, CreditCard, Lock, Cpu, SlidersHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@ct/shared/stores/authStore'
 import { useFeatures } from '@ct/shared/hooks/useFeatures'
 import { AreaSettingsPage } from '@ct/shared/components/layout/AreaSettingsPage'
+import { useNavigate } from 'react-router-dom'
+import { useAreaSection } from '@ct/shared/hooks/useAreaSection'
 import { AppearanceSection } from './settings/sections/AppearanceSection'
-import { SystemStatusSection } from './settings/sections/SystemStatusSection'
 import { AiUsageSection } from './settings/sections/AiUsageSection'
-import { ShortcutsSection } from './settings/sections/ShortcutsSection'
 import { ProfileSection } from './settings/sections/ProfileSection'
 import { SecuritySection } from './settings/sections/SecuritySection'
 import { BillingSection } from './settings/sections/BillingSection'
 import { AccountSection } from './settings/sections/AccountSection'
-import { AdminPanelSection } from './settings/sections/AdminPanelSection'
 import { BriefingSection } from './settings/sections/BriefingSection'
 import { AutomationsSection } from './settings/sections/AutomationsSection'
 import { KnowledgeSection } from './settings/sections/KnowledgeSection'
@@ -26,6 +25,14 @@ export function SettingsPage() {
   const queryClient = useQueryClient()
   const user = useAuthStore(s => s.user)
   const { billing_enabled: billingEnabled } = useFeatures()
+  const navigate = useNavigate()
+  const section = useAreaSection('/app/settings', 'general', {
+    profile: 'general', account: 'general', connections: 'general',
+    briefing: 'notifications', automations: 'notifications',
+    'ai-config': 'ai', knowledge: 'ai',
+    'ai-usage': 'billing',
+    shortcuts: 'general', status: 'general', admin: 'general',
+  })
 
   // Returning from Stripe Checkout — confirm and refresh the subscription.
   useEffect(() => {
@@ -37,39 +44,49 @@ export function SettingsPage() {
     }
   }, [queryClient])
 
+  /*
+   * ── Settings IA, 2026-08-01 ───────────────────────────────────────────
+   * The redesign specifies exactly six sections, and they are now routes in
+   * the global nav tree. Fourteen sections collapsed into them — mostly by
+   * ABSORPTION, not deletion:
+   *
+   *   general       <- Profile + Account + Connections (the Google OAuth flow
+   *                    has no other home in the new IA; the Transaction
+   *                    Tracker agent depends on it, so it is not droppable)
+   *   appearance    <- Appearance
+   *   notifications <- Briefing (channels, delivery time) + Automations
+   *                    (alert rules) — the design's "Channels / Alert rules /
+   *                    Quiet hours" is exactly this content
+   *   billing       <- Billing & modules + AI usage (the design puts usage on
+   *                    the billing page as "Usage this cycle")
+   *   ai            <- AI config + Knowledge base (the design's "Data access")
+   *   security      <- Security
+   *
+   * Genuinely removed: Shortcuts and System status (no slot in the design).
+   * Admin Panel moved to its own /app/admin destination.
+   */
   const groups = [
     {
-      label: 'Preferences',
+      label: 'Settings',
       items: [
+        {
+          key: 'general', label: 'General', icon: <SlidersHorizontal size={15} />,
+          content: <><ProfileSection /><ConnectionsSection /><AccountSection /></>,
+        },
         { key: 'appearance', label: 'Appearance', icon: <Palette size={15} />, content: <AppearanceSection /> },
-        { key: 'briefing', label: 'Briefing', icon: <Sunrise size={15} />, content: <BriefingSection /> },
-        { key: 'connections', label: 'Connections', icon: <Link2 size={15} />, content: <ConnectionsSection /> },
-        { key: 'knowledge', label: 'Knowledge Base', icon: <BookOpen size={15} />, content: <KnowledgeSection /> },
-        { key: 'ai-config', label: 'AI Config', icon: <Sparkles size={15} />, content: <AiConfigSection /> },
-        { key: 'automations', label: 'Automations', icon: <Zap size={15} />, content: <AutomationsSection /> },
-        { key: 'shortcuts', label: 'Shortcuts', icon: <Keyboard size={15} />, content: <ShortcutsSection /> },
+        {
+          key: 'notifications', label: 'Notifications', icon: <Bell size={15} />,
+          content: <><BriefingSection /><AutomationsSection /></>,
+        },
+        ...(billingEnabled
+          ? [{ key: 'billing', label: 'Billing', icon: <CreditCard size={15} />, content: <><BillingSection /><AiUsageSection /></> }]
+          : [{ key: 'billing', label: 'Billing', icon: <CreditCard size={15} />, content: <AiUsageSection /> }]),
+        { key: 'ai', label: 'AI configuration', icon: <Cpu size={15} />, content: <><AiConfigSection /><KnowledgeSection /></> },
+        ...(user?.auth_provider === 'email'
+          ? [{ key: 'security', label: 'Security', icon: <Lock size={15} />, content: <SecuritySection /> }]
+          : []),
       ],
     },
-    {
-      label: 'System',
-      items: [
-        { key: 'status', label: 'Status', icon: <Activity size={15} />, content: <SystemStatusSection /> },
-        { key: 'ai-usage', label: 'AI Usage', icon: <Sparkles size={15} />, content: <AiUsageSection /> },
-        ...(billingEnabled ? [{ key: 'billing', label: 'Billing & modules', icon: <CreditCard size={15} />, content: <BillingSection /> }] : []),
-      ],
-    },
-    {
-      label: 'Account',
-      items: [
-        { key: 'profile', label: 'Profile', icon: <User size={15} />, content: <ProfileSection /> },
-        ...(user?.auth_provider === 'email' ? [{ key: 'security', label: 'Security', icon: <Lock size={15} />, content: <SecuritySection /> }] : []),
-        { key: 'account', label: 'Account', icon: <User size={15} />, content: <AccountSection /> },
-      ],
-    },
-    ...(user?.is_admin ? [{
-      label: 'Admin',
-      items: [{ key: 'admin', label: 'Admin Panel', icon: <Shield size={15} />, content: <AdminPanelSection /> }],
-    }] : []),
   ]
 
   return (
@@ -80,6 +97,8 @@ export function SettingsPage() {
       subtitle="Preferences, integrations and account management."
       backTo="/app"
       groups={groups}
+      activeKey={section}
+      onSelect={(key) => navigate(key === 'general' ? '/app/settings' : `/app/settings/${key}`)}
     />
   )
 }

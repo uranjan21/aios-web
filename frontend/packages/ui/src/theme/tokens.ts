@@ -23,9 +23,17 @@
  * (55 token usages against 453 hardcoded `font-size:Npx` across 23 distinct
  * values), and its most common size — 11px — was not even in the scale.
  *
- * Body baseline moves 13–14px -> 16px. There is no `mono` family: the old one
- * was `"DM Sans", monospace`, a proportional font wearing a mono name. Use
- * `numeric` below for figure alignment instead.
+ * DENSITY, 2026-08-01: body baseline moves 16px -> 13px. This reverses the
+ * 2026-07-21 change (which had moved 13–14px -> 16px to stop the UI reading as
+ * an admin panel). The reversal is deliberate and user-confirmed: the sizes
+ * below are lifted from the Control Tower Redesign design canvas, which is now
+ * the visual target. See `frontend/docs/DC_REDESIGN_IMPLEMENTATION_PLAN.md` §1
+ * decision 1. The role NAMES are unchanged, so call sites follow automatically
+ * — do not reintroduce raw px to get the old size back.
+ *
+ * There is no `mono` family: the old one was `"DM Sans", monospace`, a
+ * proportional font wearing a mono name. Use `numeric` below for figure
+ * alignment instead.
  * ------------------------------------------------------------------- */
 
 export const typography = {
@@ -46,24 +54,31 @@ export const typography = {
     'display-xl': { size: '56px', line: '60px', tracking: '-0.03em', weight: 600 },
     'display-l':  { size: '40px', line: '44px', tracking: '-0.025em', weight: 600 },
     'display-m':  { size: '32px', line: '36px', tracking: '-0.02em', weight: 600 },
-    'title-l':    { size: '24px', line: '30px', tracking: '-0.015em', weight: 600 },
-    'title-m':    { size: '20px', line: '26px', tracking: '-0.01em', weight: 600 },
-    'title-s':    { size: '17px', line: '24px', tracking: '-0.01em', weight: 600 },
-    'body-l':     { size: '16px', line: '26px', tracking: '0', weight: 400 },
-    'body-m':     { size: '15px', line: '24px', tracking: '0', weight: 400 },
-    'body-s':     { size: '13px', line: '20px', tracking: '0', weight: 400 },
-    'label':      { size: '13px', line: '16px', tracking: '0.01em', weight: 500 },
-    'micro':      { size: '11px', line: '14px', tracking: '0.06em', weight: 600 },
+    /** Page greeting — "Good evening, Utsav". */
+    'title-l':    { size: '22px', line: '28px', tracking: '-0.015em', weight: 700 },
+    'title-m':    { size: '18px', line: '24px', tracking: '-0.01em', weight: 700 },
+    /** Brand wordmark, section titles. */
+    'title-s':    { size: '15px', line: '20px', tracking: '-0.01em', weight: 700 },
+    /** Card title, emphasised body. */
+    'body-l':     { size: '14px', line: '20px', tracking: '-0.005em', weight: 600 },
+    /** THE body default — nav rows, table cells, prose. */
+    'body-m':     { size: '13px', line: '19px', tracking: '0', weight: 400 },
+    /** Card subtitle, muted body. */
+    'body-s':     { size: '12px', line: '17px', tracking: '0', weight: 400 },
+    /** Meta lines, timestamps, tag text. */
+    'label':      { size: '11px', line: '15px', tracking: '0.01em', weight: 500 },
+    /** Group headers, eyebrows — always uppercase at this size. */
+    'micro':      { size: '10px', line: '13px', tracking: '0.08em', weight: 700 },
   },
 
   fontSize: {
-    xs: '11px',
-    sm: '13px',
-    base: '15px',
-    md: '16px',
-    lg: '17px',
-    xl: '20px',
-    '2xl': '24px',
+    xs: '10px',
+    sm: '11px',
+    base: '13px',
+    md: '14px',
+    lg: '15px',
+    xl: '18px',
+    '2xl': '22px',
     '3xl': '32px',
     '4xl': '40px',
     '5xl': '56px',
@@ -128,18 +143,27 @@ export const spacing = {
  * xl 10 / 2xl 10 — three distinct corners pretending to be six, so asking for
  * `radii.xl` silently gave you `radii.md`.
  *
- * `full` is for TRUE CIRCLES ONLY (avatars, status dots, Switch thumb). Pills
- * are banned — see the feedback-ui-radius-and-toggle-style memory.
+ * `full` is for TRUE CIRCLES ONLY (avatars, status dots, Switch thumb).
+ *
+ * `pill` (2026-08-01) is a NARROW exception to the no-pill rule, not its
+ * repeal: permitted on Badge / StatusBadge / StatusPill and count bubbles
+ * only. Buttons, inputs, progress bars, cards, toggles and segmented controls
+ * still take `sm`/`md`. See the feedback-ui-radius-and-toggle-style memory and
+ * the `pill-radius` rule in scripts/token-lint.mjs, which enforces the scope.
+ *
+ * `md` moved 14px -> 16px on 2026-08-01 to match the redesign's card corner.
  * ------------------------------------------------------------------- */
 
 export const radii = {
   none: '0',
   xs: '6px',
   sm: '10px',
-  md: '14px',
+  md: '16px',
   lg: '20px',
   xl: '28px',
   '2xl': '36px',
+  /** Badges and count bubbles ONLY. See the note above before using. */
+  pill: '99px',
   full: '9999px',
 } as const;
 

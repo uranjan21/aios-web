@@ -1,35 +1,39 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import {
-  LayoutDashboard, ArrowLeftRight,
-  PiggyBank, BarChart2, Gem, Receipt
-} from 'lucide-react'
 import { PageHeader } from '@ledgr/ui'
 
 import { HomeTab } from '@ct/finance/components/HomeTab'
 import { TransactionsTab } from '@ct/finance/components/TransactionsTab'
 import { InboxTab } from '@ct/finance/components/InboxTab'
-import { RulesTab } from '@ct/finance/components/RulesTab'
 import { BudgetTab } from '@ct/finance/components/BudgetTab'
 import { PayablesTab } from '@ct/finance/components/PayablesTab'
 import { InvestmentsTab } from '@ct/finance/components/InvestmentsTab'
 import { LoansTab } from '@ct/finance/components/LoansTab'
-import { AnalyticsTab } from '@ct/finance/components/AnalyticsTab'
+import { GoalsTab } from '@ct/finance/components/GoalsTab'
+import { AccountManager } from '@ct/finance/components/AccountManager'
 import { AccountsTabModal } from '@ct/finance/components/QuickAddAccounts'
-import { ModuleLayout } from '@ct/shared/components/layout/ModuleLayout'
-import { ModuleSidebar } from '@ct/shared/components/layout/ModuleSidebar'
-import { Inbox, Wand2, Landmark, IndianRupee } from 'lucide-react'
+import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
+import { useAreaSection } from '@ct/shared/hooks/useAreaSection'
+import { IndianRupee } from 'lucide-react'
+
+/**
+ * Sub-page routing, 2026-08-01: the per-area `ModuleSidebar` and its `?tab=`
+ * param are gone — every section below is a route in the global nav tree
+ * (`apps/shell/src/config/navigation.ts`).
+ *
+ * Two sections were retired here per the redesign's IA:
+ *  - `analytics` — no slot in the new nav.
+ *  - `rules`     — RELOCATED, not deleted: auto-categorization becomes a
+ *                  `controls` module on the Inbox page in Phase 4.
+ * Both still redirect to Overview rather than 404ing an old bookmark.
+ */
+const LEGACY_SECTIONS: Record<string, string> = {
+  payables: 'bills',
+  analytics: 'overview',
+  rules: 'inbox',
+}
 
 export function FinancePage() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const activeKey = searchParams.get('tab') || 'overview'
-
-  const setActiveKey = (key: string) => {
-    setSearchParams(prev => {
-      prev.set('tab', key)
-      return prev
-    })
-  }
+  const section = useAreaSection('/app/finance', 'overview', LEGACY_SECTIONS)
 
   const [accountModalOpen, setAccountModalOpen] = useState(false)
 
@@ -39,78 +43,33 @@ export function FinancePage() {
     return () => window.removeEventListener('open-new-account', handler)
   }, [])
 
-  const groups = [
-    {
-      label: 'Overview',
-      items: [
-        { key: 'overview',  label: 'Dashboard',  icon: <LayoutDashboard size={14} /> },
-        { key: 'analytics', label: 'Analytics',  icon: <BarChart2 size={14} /> },
-      ]
-    },
-    {
-      label: 'Ledger',
-      items: [
-        { key: 'transactions', label: 'Transactions', icon: <ArrowLeftRight size={14} /> },
-        { key: 'inbox',        label: 'Inbox',        icon: <Inbox size={14} /> },
-      ]
-    },
-    {
-      label: 'Automation',
-      items: [
-        { key: 'rules', label: 'Rules', icon: <Wand2 size={14} /> },
-      ]
-    },
-    {
-      label: 'Planning',
-      items: [
-        { key: 'budgets',  label: 'Budgets', icon: <PiggyBank size={14} /> },
-        { key: 'payables', label: 'Bills',   icon: <Receipt size={14} /> },
-      ]
-    },
-    {
-      label: 'Wealth',
-      items: [
-        { key: 'investments', label: 'Investments', icon: <Gem size={14} /> },
-        { key: 'loans',       label: 'Loans',       icon: <Landmark size={14} /> },
-      ]
-    }
-  ]
-
   const renderContent = () => {
-    switch (activeKey) {
+    switch (section) {
       case 'overview':     return <HomeTab />
-      case 'analytics':    return <AnalyticsTab />
       case 'transactions': return <TransactionsTab />
-      case 'inbox':        return <InboxTab />
-      case 'rules':        return <RulesTab />
       case 'budgets':      return <BudgetTab />
-      case 'payables':     return <PayablesTab />
+      case 'bills':        return <PayablesTab />
+      case 'goals':        return <GoalsTab />
       case 'investments':  return <InvestmentsTab onAddClick={() => setAccountModalOpen(true)} />
       case 'loans':        return <LoansTab onAdd={() => setAccountModalOpen(true)} />
+      case 'inbox':        return <InboxTab />
+      case 'accounts':     return <AccountManager />
       default:             return <HomeTab />
     }
   }
 
   return (
-    <ModuleLayout
-      header={
+    <PageContainer>
+      <PageContent>
         <PageHeader
           icon={<IndianRupee size={24} />}
           eyebrow="Money"
           title="Finance"
           subtitle="Manage your transactions, budgets, investments, and financial health in one place."
         />
-      }
-      sidebar={
-        <ModuleSidebar
-          groups={groups}
-          activeKey={activeKey}
-          onChange={setActiveKey}
-        />
-      }
-    >
-      {renderContent()}
-      <AccountsTabModal open={accountModalOpen} onClose={() => setAccountModalOpen(false)} defaultTab="Account" />
-    </ModuleLayout>
+        {renderContent()}
+        <AccountsTabModal open={accountModalOpen} onClose={() => setAccountModalOpen(false)} defaultTab="Account" />
+      </PageContent>
+    </PageContainer>
   )
 }

@@ -20,6 +20,8 @@ import { Activity, BookOpen, Briefcase, Plus, Settings } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
 import { Button, KpiCard, KpiGrid, PageHeader } from '@ledgr/ui'
+import { useAreaSection } from '@ct/shared/hooks/useAreaSection'
+import { JournalSection } from '@ct/career/components/JournalSection'
 import { OpportunitiesTab } from '@ct/career/components/OpportunitiesTab'
 import { CareerLogModal } from '@ct/career/components/CareerLogModal'
 import { careerApi } from '@ct/shared/api/areas'
@@ -27,6 +29,10 @@ import { careerApi } from '@ct/shared/api/areas'
 export function CareerPage() {
   const [isLogModalOpen, setIsLogModalOpen] = useState(false)
   const navigate = useNavigate()
+  // Career gained a two-page IA on 2026-08-01: Journal (Phase 5 — no model
+  // yet) and Opportunities. Journal is the area's landing page in the design,
+  // so /app/career resolves to it.
+  const section = useAreaSection('/app/career', 'journal')
 
   const { data: skills } = useQuery({ queryKey: ['career', 'skills'], queryFn: careerApi.skills })
   const { data: opportunities } = useQuery({
@@ -57,6 +63,10 @@ export function CareerPage() {
           }
         />
 
+        {section === 'journal' ? (
+          <JournalSection />
+        ) : (
+        <>
         <KpiGrid>
           <KpiCard label="Active pipeline" value={String(activeOpps.length)} color="primary" icon={Briefcase} />
           <KpiCard
@@ -69,6 +79,8 @@ export function CareerPage() {
         </KpiGrid>
 
         <OpportunitiesTab />
+        </>
+        )}
 
         <CareerLogModal open={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} />
       </PageContent>

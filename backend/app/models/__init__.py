@@ -9,7 +9,7 @@ from app.models.content import ContentItem, ContentCampaign
 from app.models.business import Business, BusinessEvent
 from app.models.vault import VaultFile, VaultConflict, VaultChunk
 from app.models.agent import Agent
-from app.models.career import CareerEvent, SkillInventory, JobOpportunity
+from app.models.career import CareerEvent, SkillInventory, JobOpportunity, CareerJournalEntry
 from app.models.push import PushSubscription
 from app.models.billing import Subscription
 from app.models.oauth_state import OAuthState
@@ -20,6 +20,6 @@ from app.models.forecast import Forecast
 from app.models.action import AgentAction
 from app.models.insights import BriefingPreference, Briefing, Insight
 from app.models.automations import AutomationRule
-from app.models.workspace import Project, Sprint, Task
+from app.models.workspace import Project, Sprint, Task, Milestone, PlanBlock
 from app.models.quote import SavedQuote
 from app.models.knowledge import KnowledgeSource

@@ -2,47 +2,84 @@
  * Navigation — THE single source of truth.
  *
  * Before this file, three surfaces each carried their own hand-written list
- * and they disagreed about what the app even contains: the sidebar offered 16
- * destinations, the mobile bottom nav 5 (one of which, "Areas", pointed at a
- * bare redirect), and the command palette 10 — omitting Goals, Projects,
- * Sprints, Tasks, Review, Discoveries and Guide entirely. The keyboard
- * `g`-shortcuts were a fourth list, and TopBar's breadcrumb labels a fifth.
+ * and they disagreed about what the app even contains. Sidebar, BottomNav,
+ * CommandPalette, the breadcrumb labels and the goto shortcuts all read from
+ * here now, so they cannot drift apart again.
  *
- * Sidebar, BottomNav, CommandPalette, the breadcrumb labels and the goto
- * shortcuts all read from here now, so they cannot drift apart again.
+ * ── 2026-08-01: FLAT LIST -> TWO-LEVEL TREE ───────────────────────────────
+ * The app had two competing navigations: a flat 10-item global sidebar, plus a
+ * SECOND per-area `ModuleSidebar` rendered inside Finance/Health/Plan/Agents
+ * that drove content off a `?tab=` query param. A destination three levels deep
+ * was therefore unaddressable, unbookmarkable and invisible to ⌘K.
+ *
+ * The redesign merges those two levels into one tree: 5 groups -> 9 areas ->
+ * 34 destinations, every one a real route. `?tab=` is gone; the old URLs
+ * redirect (see router.tsx).
  *
  * Adding a destination: add one entry. Set `primary: true` to surface it in
  * the mobile bottom nav (keep that to five or fewer — it is a fixed row).
  */
 import {
+  Activity,
+  Apple,
+  Bell,
   Bot,
   Briefcase,
   CalendarCheck,
+  CreditCard,
+  Cpu,
+  Flag,
+  FolderKanban,
+  Gem,
   Heart,
   IndianRupee,
+  Inbox,
+  Landmark,
   LayoutDashboard,
+  ListChecks,
   MessageSquare,
+  Milestone,
+  Moon,
+  Palette,
+  PiggyBank,
+  Receipt,
+  Repeat,
+  Scale,
   Settings,
   Shield,
+  SlidersHorizontal,
   Target,
+  TrendingUp,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
+import type { DomainKey } from '@ct/shared/theme/ctTheme';
 
-export type NavGroup = 'Main' | 'Areas' | 'System';
+/** Sidebar section headers, in render order. */
+export type NavGroup = 'Home' | 'Areas' | 'Workspace' | 'Intelligence' | 'System';
 
 export interface SubNavItem {
-  /** Maps to the `?tab=` query param on the parent route. */
-  tabKey: string;
+  /** Unique within its parent area. Also the last URL segment, where there is one. */
+  key: string;
   label: string;
   icon: LucideIcon;
+  /** Absolute route path. */
+  to: string;
 }
 
 export interface NavItem {
-  /** Route path. Must match a route in router.tsx. */
+  key: string;
+  /** Route path for the area itself — its first sub-page when it has subs. */
   to: string;
   label: string;
   icon: LucideIcon;
   group: NavGroup;
+  /**
+   * Domain identity colour key. Resolved against `theme.domain` at render time
+   * so the indicator rail repaints with the palette; areas without one get a
+   * neutral. Deliberately not a hex here — this module must not import a theme.
+   */
+  domain?: DomainKey;
   /** Single-letter `g`-prefix keyboard shortcut, e.g. `g f` for Finance. */
   shortcut?: string;
   /** Show in the mobile bottom nav. Max five. */
@@ -53,34 +90,175 @@ export interface NavItem {
   module?: string;
   /** Short label for the bottom nav, where horizontal space is tight. */
   shortLabel?: string;
-  /** Sub-pages rendered in the global sidebar; navigate via `?tab=` param. */
-  subNav?: SubNavItem[];
+  /** Second-level destinations, rendered nested under the area in the sidebar. */
+  subs?: SubNavItem[];
 }
 
-export const NAV_ITEMS: NavItem[] = [
-  { to: '/app',          label: 'Today',    shortLabel: 'Home', icon: LayoutDashboard, group: 'Main',   shortcut: 'd', primary: true },
-  { to: '/app/chat',     label: 'Chat',     icon: MessageSquare, group: 'Main',   shortcut: 'c', primary: true, module: 'chat' },
-  { to: '/app/agents',   label: 'Agents',   icon: Bot,           group: 'Main',   shortcut: 'a', primary: true, module: 'agents' },
-  { to: '/app/plan',     label: 'Plan',     icon: Target,        group: 'Main',   shortcut: 'p', primary: true },
-  // Kept as its own destination rather than folded into the dashboard: the
-  // weekly review is a guided flow that WRITES — it records goal progress via
-  // goalsApi.addProgress and creates focus captures. It is not a second
-  // rendering of the briefing, which is what the audit assumed.
-  { to: '/app/review',   label: 'Review',   icon: CalendarCheck, group: 'Main',   shortcut: 'w' },
+export interface NavSection {
+  label: NavGroup;
+  key: string;
+  items: NavItem[];
+}
 
-  { to: '/app/finance',  label: 'Finance',  icon: IndianRupee,   group: 'Areas',  shortcut: 'f', primary: true, module: 'finance' },
-  { to: '/app/health',   label: 'Health',   icon: Heart,         group: 'Areas',  shortcut: 'h', module: 'health' },
-  { to: '/app/career',   label: 'Career',   icon: Briefcase,     group: 'Areas',  shortcut: 'r', module: 'career' },
-
-  { to: '/app/settings', label: 'Settings', icon: Settings,      group: 'System', shortcut: 's' },
-  { to: '/app/admin',    label: 'Admin',    icon: Shield,        group: 'System', adminOnly: true },
+/*
+ * The tree, exactly as specified by the redesign canvas. Sub-page ORDER is
+ * meaningful — it is the order the design lists them in, which runs
+ * overview-first then roughly by how often the page is opened.
+ */
+export const NAV_SECTIONS: NavSection[] = [
+  {
+    label: 'Home',
+    key: 'group-home',
+    items: [
+      {
+        key: 'today',
+        label: 'Today',
+        shortLabel: 'Home',
+        to: '/app',
+        icon: LayoutDashboard,
+        group: 'Home',
+        shortcut: 'd',
+        primary: true,
+        subs: [
+          { key: 'overview', label: 'Overview',      icon: LayoutDashboard, to: '/app' },
+          // The weekly review is a guided flow that WRITES — it records goal
+          // progress via goalsApi.addProgress and creates focus captures. It is
+          // not a second rendering of the briefing.
+          { key: 'review',   label: 'Weekly review', icon: CalendarCheck,   to: '/app/review' },
+          // NOTE: /app/plan CHANGED MEANING on 2026-08-01. It used to be the
+          // goals/projects/sprints/tasks page (now under Workspace); it is now
+          // the week time-blocking planner.
+          { key: 'plan',     label: 'Plan',          icon: CalendarCheck,   to: '/app/plan' },
+        ],
+      },
+    ],
+  },
+  {
+    label: 'Areas',
+    key: 'group-areas',
+    items: [
+      {
+        key: 'finance',
+        label: 'Finance',
+        to: '/app/finance',
+        icon: IndianRupee,
+        group: 'Areas',
+        domain: 'finance',
+        shortcut: 'f',
+        primary: true,
+        module: 'finance',
+        subs: [
+          { key: 'overview',     label: 'Overview',     icon: LayoutDashboard, to: '/app/finance' },
+          { key: 'transactions', label: 'Transactions', icon: Wallet,          to: '/app/finance/transactions' },
+          { key: 'budgets',      label: 'Budgets',      icon: PiggyBank,       to: '/app/finance/budgets' },
+          { key: 'bills',        label: 'Bills',        icon: Receipt,         to: '/app/finance/bills' },
+          { key: 'goals',        label: 'Goals',        icon: Flag,            to: '/app/finance/goals' },
+          { key: 'investments',  label: 'Investments',  icon: Gem,             to: '/app/finance/investments' },
+          { key: 'loans',        label: 'Loans',        icon: Landmark,        to: '/app/finance/loans' },
+          { key: 'inbox',        label: 'Inbox',        icon: Inbox,           to: '/app/finance/inbox' },
+          { key: 'accounts',     label: 'Accounts',     icon: CreditCard,      to: '/app/finance/accounts' },
+        ],
+      },
+      {
+        key: 'health',
+        label: 'Health',
+        to: '/app/health',
+        icon: Heart,
+        group: 'Areas',
+        domain: 'health',
+        shortcut: 'h',
+        module: 'health',
+        subs: [
+          { key: 'overview',  label: 'Overview',     icon: LayoutDashboard, to: '/app/health' },
+          { key: 'workouts',  label: 'Workouts',     icon: Activity,        to: '/app/health/workouts' },
+          { key: 'nutrition', label: 'Nutrition',    icon: Apple,           to: '/app/health/nutrition' },
+          { key: 'body',      label: 'Body metrics', icon: Scale,           to: '/app/health/body' },
+          { key: 'sleep',     label: 'Sleep',        icon: Moon,            to: '/app/health/sleep' },
+          { key: 'habits',    label: 'Habits',       icon: Repeat,          to: '/app/health/habits' },
+        ],
+      },
+      {
+        key: 'career',
+        label: 'Career',
+        to: '/app/career',
+        icon: Briefcase,
+        group: 'Areas',
+        domain: 'career',
+        shortcut: 'r',
+        module: 'career',
+        subs: [
+          { key: 'journal',       label: 'Journal',       icon: CalendarCheck, to: '/app/career' },
+          { key: 'opportunities', label: 'Opportunities', icon: TrendingUp,    to: '/app/career/opportunities' },
+        ],
+      },
+    ],
+  },
+  {
+    label: 'Workspace',
+    key: 'group-ws',
+    items: [
+      {
+        key: 'workspace',
+        label: 'Workspace',
+        to: '/app/workspace/projects',
+        icon: FolderKanban,
+        group: 'Workspace',
+        shortcut: 'k',
+        primary: true,
+        shortLabel: 'Work',
+        subs: [
+          { key: 'projects',   label: 'Projects',   icon: FolderKanban, to: '/app/workspace/projects' },
+          { key: 'goals',      label: 'Goals',      icon: Target,       to: '/app/workspace/goals' },
+          { key: 'milestones', label: 'Milestones', icon: Milestone,    to: '/app/workspace/milestones' },
+          { key: 'sprints',    label: 'Sprints',    icon: Activity,     to: '/app/workspace/sprints' },
+          { key: 'tasks',      label: 'Tasks',      icon: ListChecks,   to: '/app/workspace/tasks' },
+        ],
+      },
+    ],
+  },
+  {
+    label: 'Intelligence',
+    key: 'group-intel',
+    items: [
+      { key: 'chat',   label: 'Chat',   to: '/app/chat',   icon: MessageSquare, group: 'Intelligence', shortcut: 'c', primary: true, module: 'chat' },
+      { key: 'agents', label: 'Agents', to: '/app/agents', icon: Bot,           group: 'Intelligence', shortcut: 'a', primary: true, module: 'agents' },
+    ],
+  },
+  {
+    label: 'System',
+    key: 'group-sys',
+    items: [
+      {
+        key: 'settings',
+        label: 'Settings',
+        to: '/app/settings',
+        icon: Settings,
+        group: 'System',
+        shortcut: 's',
+        subs: [
+          { key: 'general',       label: 'General',          icon: SlidersHorizontal, to: '/app/settings' },
+          { key: 'appearance',    label: 'Appearance',       icon: Palette,           to: '/app/settings/appearance' },
+          { key: 'notifications', label: 'Notifications',    icon: Bell,              to: '/app/settings/notifications' },
+          { key: 'billing',       label: 'Billing',          icon: CreditCard,        to: '/app/settings/billing' },
+          { key: 'ai',            label: 'AI configuration', icon: Cpu,               to: '/app/settings/ai' },
+          { key: 'security',      label: 'Security',         icon: Shield,            to: '/app/settings/security' },
+        ],
+      },
+      { key: 'admin', label: 'Admin', to: '/app/admin', icon: Shield, group: 'System', adminOnly: true },
+    ],
+  },
 ];
 
-export const NAV_GROUP_ORDER: NavGroup[] = ['Main', 'Areas', 'System'];
+export const NAV_GROUP_ORDER: NavGroup[] = ['Home', 'Areas', 'Workspace', 'Intelligence', 'System'];
 
-/** Items for a given group, honouring the admin flag. */
-export function navItemsForGroup(group: NavGroup, isAdmin: boolean): NavItem[] {
-  return NAV_ITEMS.filter((i) => i.group === group && (!i.adminOnly || isAdmin));
+/** Every area, flattened out of the tree. */
+export const NAV_ITEMS: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
+
+/** Sections with admin-only items filtered out for non-admins. */
+export function navSections(isAdmin: boolean): NavSection[] {
+  return NAV_SECTIONS
+    .map((s) => ({ ...s, items: s.items.filter((i) => !i.adminOnly || isAdmin) }))
+    .filter((s) => s.items.length > 0);
 }
 
 /** The (max five) destinations shown in the mobile bottom nav. */
@@ -92,11 +270,69 @@ export const GOTO_SHORTCUTS: Record<string, string> = Object.fromEntries(
 );
 
 /**
+ * Every addressable destination as a flat list — what ⌘K indexes. An area with
+ * sub-pages contributes its subs, NOT itself, so the palette never offers two
+ * entries that land on the same URL.
+ */
+export interface Destination {
+  path: string;
+  /** "Finance" for a sub-page, undefined for a standalone area. */
+  area?: string;
+  label: string;
+  icon: LucideIcon;
+  module?: string;
+  adminOnly?: boolean;
+}
+
+export const DESTINATIONS: Destination[] = NAV_ITEMS.flatMap((item) =>
+  item.subs
+    ? item.subs.map((sub) => ({
+        path: sub.to,
+        area: item.label,
+        label: sub.label,
+        icon: sub.icon,
+        module: item.module,
+        adminOnly: item.adminOnly,
+      }))
+    : [{ path: item.to, label: item.label, icon: item.icon, module: item.module, adminOnly: item.adminOnly }],
+);
+
+/**
+ * Resolve a pathname to its place in the tree. Longest-prefix match, so
+ * `/app/finance/transactions` beats `/app/finance` and `/app` never swallows
+ * everything. Returns nothing for paths outside the tree.
+ */
+export function resolvePath(pathname: string): { item: NavItem; sub?: SubNavItem } | undefined {
+  let best: { item: NavItem; sub?: SubNavItem; len: number } | undefined;
+
+  const consider = (len: number, item: NavItem, sub?: SubNavItem) => {
+    if (!best || len > best.len) best = { item, sub, len };
+  };
+
+  for (const item of NAV_ITEMS) {
+    for (const sub of item.subs ?? []) {
+      if (sub.to === pathname) consider(sub.to.length, item, sub);
+    }
+    if (item.to === pathname) {
+      // An area whose own path equals one of its subs' resolves to that sub,
+      // so the sidebar highlights "Overview" rather than the bare area.
+      const own = item.subs?.find((s) => s.to === pathname);
+      consider(item.to.length, item, own);
+    }
+    // Deeper unlisted paths (e.g. /app/finance/settings) still belong to the area.
+    if (pathname.startsWith(`${item.to}/`)) consider(item.to.length, item);
+  }
+
+  return best ? { item: best.item, sub: best.sub } : undefined;
+}
+
+/**
  * Breadcrumb labels for every known path, including sub-pages that are not
  * themselves nav destinations.
  */
 export const PAGE_NAMES: Record<string, string> = {
   ...Object.fromEntries(NAV_ITEMS.map((i) => [i.to, i.label])),
+  ...Object.fromEntries(DESTINATIONS.map((d) => [d.path, d.label])),
   '/app/finance/settings': 'Settings',
   '/app/health/settings': 'Settings',
   '/app/career/settings': 'Settings',

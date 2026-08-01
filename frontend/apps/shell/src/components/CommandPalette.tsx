@@ -1,4 +1,4 @@
-import { NAV_ITEMS } from '@/config/navigation'
+import { DESTINATIONS } from '@/config/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -15,14 +15,22 @@ import { agentsApi } from '@ct/shared/api/agents'
 import { capturesApi, financeApi, healthApi, type ParsedCapture } from '@ct/shared/api/areas'
 import { Button } from '@ledgr/ui'
 
-// Built from the shared nav config, so the palette can no longer offer a
-// different set of destinations than the sidebar. It previously listed 10
-// while the sidebar listed 16.
-const NAV_COMMANDS = NAV_ITEMS.filter(i => !i.adminOnly).map(i => ({
-  label: i.label,
-  icon: i.icon,
-  to: i.to,
-  section: i.group,
+/*
+ * Built from the shared nav config, so the palette can no longer offer a
+ * different set of destinations than the sidebar. It previously listed 10
+ * while the sidebar listed 16.
+ *
+ * 2026-08-01: indexes DESTINATIONS (every leaf of the two-level tree, 34 of
+ * them) rather than the 10 areas — the whole point of the new IA is that a
+ * page like Finance -> Investments is directly addressable, and ⌘K is where
+ * most people will address it. The area name becomes the palette section, so
+ * results read "Finance / Investments".
+ */
+const NAV_COMMANDS = DESTINATIONS.filter(d => !d.adminOnly).map(d => ({
+  label: d.area ? `${d.area} · ${d.label}` : d.label,
+  icon: d.icon,
+  to: d.path,
+  section: d.area ?? 'Go to',
 }))
 
 const PATH_LABEL: Record<string, string> = Object.fromEntries(NAV_COMMANDS.map(c => [c.to, c.label]))

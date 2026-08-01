@@ -1,5 +1,5 @@
-import { NAV_ITEMS, type NavItem } from '@/config/navigation'
-import { Sun, Moon, Search, Menu, Sparkles } from 'lucide-react'
+import { resolvePath } from '@/config/navigation'
+import { Sun, Moon, Search, Menu, Sparkles, ChevronRight, Home } from 'lucide-react'
 import { NotificationBell } from '@/components/NotificationBell'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useUIStore } from '@ct/shared/stores/uiStore'
@@ -10,9 +10,6 @@ import { AccountMenuBody } from './AccountMenu'
 import styled from 'styled-components'
 import { TOPBAR_HEIGHT } from '@ct/shared/theme/layout'
 
-// Paths to surface as flat links in the TopBar (ordered). Items not entitled or
-// not present in NAV_ITEMS are silently skipped.
-const TOPBAR_NAV_PATHS = ['/app', '/app/finance', '/app/health', '/app/career', '/app/plan', '/app/chat']
 
 const HeaderRoot = styled.header`
   position: relative;
@@ -57,51 +54,72 @@ const Hamburger = styled.button`
   }
 `
 
-const TopNavLinks = styled.nav`
+const Crumbs = styled.nav`
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 7px;
+  min-width: 0;
 
-  @media ${({ theme }) => theme.media.belowMd} {
+  @media ${({ theme }) => theme.media.belowSm} {
     display: none;
   }
 
-  .nav-link {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: ${({ theme }) => theme.radii.sm};
+  .sep {
+    width: 9px;
+    height: 9px;
+    flex-shrink: 0;
+    opacity: 0.4;
     color: ${({ theme }) => theme.color.mutedForeground};
-    text-decoration: none;
-    font-size: 13.5px;
-    font-weight: 500;
-    transition: color 150ms ease, background 150ms ease;
-    background: transparent;
+  }
+
+  .crumb {
+    background: none;
     border: none;
+    padding: 0;
+    font: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -0.005em;
+    transition: color 150ms ease;
+    color: ${({ theme }) => theme.color.mutedForeground};
+    font-size: ${({ theme }) => theme.typography.role['body-s'].size};
+    font-weight: 500;
     cursor: pointer;
 
-    &:hover {
-      color: ${({ theme }) => theme.color.foreground};
-      background: ${({ theme }) =>
-        theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)'};
-    }
+    &:hover { color: ${({ theme }) => theme.color.foreground}; }
 
-    &.active {
+    /* The current page is not a link — it is where you already are. */
+    &.last {
       color: ${({ theme }) => theme.color.foreground};
-      background: ${({ theme }) =>
-        theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'};
-      font-weight: 600;
-    }
-
-    svg {
-      width: 14px;
-      height: 14px;
-      flex-shrink: 0;
-      opacity: 0.75;
+      font-size: ${({ theme }) => theme.typography.role['body-l'].size};
+      font-weight: 700;
+      cursor: default;
     }
   }
+`
+
+const HomeButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  border: 1px solid ${({ theme }) => theme.glass.border};
+  background: ${({ theme }) => theme.glass.ctl};
+  color: ${({ theme }) => theme.color.mutedForeground};
+  cursor: pointer;
+  transition: background 150ms, color 150ms, border-color 150ms;
+
+  &:hover {
+    background: ${({ theme }) => theme.accent.soft};
+    border-color: ${({ theme }) => theme.color.accent};
+    color: ${({ theme }) => theme.color.accent};
+  }
+
+  svg { width: 16px; height: 16px; }
 `
 
 const LogoBadge = styled.div`
@@ -255,30 +273,28 @@ const AssistantButton = styled.button`
   }
 `
 
-function isItemActive(item: NavItem, pathname: string) {
-  if (item.to === '/app') return pathname === '/app'
-  return pathname.startsWith(item.to)
-}
-
 export function TopBar() {
   const { theme, toggleTheme, setCmdPaletteOpen, toggleSidebar, toggleAssistant } = useUIStore()
   const location = useLocation()
   const navigate = useNavigate()
   const user = useAuthStore(s => s.user)
 
-  const { data: sub } = useSubscription()
-  const entitled = sub?.entitled ?? []
+  useSubscription()
 
-  const visibleItems = NAV_ITEMS.filter(item => {
-    if (item.adminOnly && !user?.is_admin) return false
-    if (item.module && !user?.is_admin && !entitled.includes(item.module)) return false
-    return true
-  })
-
-  // Flat ordered list — only the paths we surface in the TopBar nav.
-  const topbarItems = TOPBAR_NAV_PATHS
-    .map(path => visibleItems.find(item => item.to === path))
-    .filter((item): item is NavItem => !!item)
+  /*
+   * Breadcrumbs, 2026-08-01. This used to be a THIRD flat nav — six hardcoded
+   * paths duplicating the sidebar. With a 34-destination tree that list could
+   * never be representative, so it is now a trail showing where you are:
+   * home icon -> area -> sub-page.
+   */
+  const current = resolvePath(location.pathname)
+  const crumbs: Array<{ label: string; to?: string }> = []
+  if (current) {
+    // An area with subs is not itself a destination — its own path belongs to
+    // its first sub — so it renders as plain text, not a link.
+    crumbs.push({ label: current.item.label, to: current.item.subs ? undefined : current.item.to })
+    if (current.sub) crumbs.push({ label: current.sub.label, to: current.sub.to })
+  }
 
   return (
     <HeaderRoot>
@@ -289,23 +305,28 @@ export function TopBar() {
           <Menu size={18} />
         </Hamburger>
 
-        <TopNavLinks aria-label="Main navigation">
-          {topbarItems.map(item => {
-            const Icon = item.icon
-            const active = isItemActive(item, location.pathname)
+        <HomeButton type="button" aria-label="Home" title="Home" onClick={() => navigate('/app')}>
+          <Home />
+        </HomeButton>
+
+        <Crumbs aria-label="Breadcrumb">
+          {crumbs.map((crumb, i) => {
+            const last = i === crumbs.length - 1
             return (
-              <button
-                key={item.to}
-                type="button"
-                className={`nav-link${active ? ' active' : ''}`}
-                onClick={() => navigate(item.to)}
-              >
-                <Icon />
-                {item.label}
-              </button>
+              <span key={`${crumb.label}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                {i > 0 && <ChevronRight className="sep" />}
+                <button
+                  type="button"
+                  className={`crumb${last ? ' last' : ''}`}
+                  disabled={last || !crumb.to}
+                  onClick={() => crumb.to && navigate(crumb.to)}
+                >
+                  {crumb.label}
+                </button>
+              </span>
             )
           })}
-        </TopNavLinks>
+        </Crumbs>
       </LeftSide>
 
       <RightCluster>

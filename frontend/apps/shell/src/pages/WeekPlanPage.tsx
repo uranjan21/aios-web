@@ -1,0 +1,292 @@
+/**
+ * Today → Plan — the weekly time-blocking planner.
+ *
+ * Third page built the Phase 4 way. The canvas's `today:plan` composition is
+ * week(12) · progress(6) · rows(6); this rebuilds all three from live
+ * `plan_blocks` data.
+ *
+ * NOTE ON THE ROUTE: /app/plan used to be the goals/projects/sprints/tasks
+ * page. That moved to /app/workspace/* on 2026-08-01 and this took its place,
+ * which is what the redesign specifies. The old `?view=` URLs redirect.
+ */
+import { useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { CalendarCheck, BarChart3, Flag, Plus } from 'lucide-react'
+import { Button, Dialog, ErrorState, Input, PageHeader, Select, Skeleton } from '@ledgr/ui'
+import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
+import { PageDivider } from '@ct/shared/components/layout/PageDivider'
+import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
+import { workspaceApi, type PlanBlock } from '@ct/shared/api/workspace'
+import { DOMAIN_OPTIONS } from '@ct/shared/config/domains'
+
+const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+/** Monday of the week containing `d`. The planner is always Mon–Sun. */
+function mondayOf(d: Date): Date {
+  const out = new Date(d)
+  out.setHours(0, 0, 0, 0)
+  out.setDate(out.getDate() - ((out.getDay() + 6) % 7))
+  return out
+}
+
+const iso = (d: Date) => d.toISOString().slice(0, 10)
+
+/** "09:00:00" → "09:00". The seconds are storage detail, not display. */
+const hhmm = (t: string) => t.slice(0, 5)
+
+/** Duration in hours between two wall-clock strings. */
+function hoursBetween(start: string, end: string): number {
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  return Math.max(0, (eh * 60 + em - (sh * 60 + sm)) / 60)
+}
+
+const DOMAIN_KEYS = ['finance', 'health', 'career'] as const
+/** Blocks with no domain still need a stable colour. */
+const colorFor = (domain?: string | null) =>
+  domain && (DOMAIN_KEYS as readonly string[]).includes(domain) ? domain : 'accent'
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.7 }}>
+        {label}
+      </span>
+      {children}
+    </label>
+  )
+}
+
+export function WeekPlanPage() {
+  const qc = useQueryClient()
+  const [weekOffset, setWeekOffset] = useState(0)
+  const [addOpen, setAddOpen] = useState(false)
+  const [draft, setDraft] = useState({
+    block_date: '', start_time: '09:00', end_time: '10:00', title: '', domain: '', is_priority: false,
+  })
+
+  const weekStart = useMemo(() => {
+    const d = mondayOf(new Date())
+    d.setDate(d.getDate() + weekOffset * 7)
+    return d
+  }, [weekOffset])
+
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(weekStart)
+      d.setDate(d.getDate() + i)
+      return d
+    }),
+    [weekStart],
+  )
+
+  const weekEnd = weekDays[6]
+  const todayIso = iso(new Date())
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['workspace', 'plan-blocks', iso(weekStart)],
+    queryFn: () => workspaceApi.getPlanBlocks({ start: iso(weekStart), end: iso(weekEnd) }),
+    staleTime: 30_000,
+  })
+
+  const create = useMutation({
+    mutationFn: () =>
+      workspaceApi.createPlanBlock({
+        block_date: draft.block_date || iso(weekDays[0]),
+        // The API takes seconds; the picker gives HH:MM.
+        start_time: `${draft.start_time}:00`,
+        end_time: `${draft.end_time}:00`,
+        title: draft.title.trim(),
+        domain: draft.domain || null,
+        is_priority: draft.is_priority,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workspace', 'plan-blocks'] })
+      setAddOpen(false)
+      setDraft({ ...draft, title: '', is_priority: false })
+      toast.success('Block added')
+    },
+    onError: () => toast.error('Could not add that block'),
+  })
+
+  const modules = useMemo<ModuleSpec[]>(() => {
+    const blocks = data ?? []
+
+    const byDay = new Map<string, PlanBlock[]>()
+    for (const b of blocks) {
+      if (!byDay.has(b.block_date)) byDay.set(b.block_date, [])
+      byDay.get(b.block_date)!.push(b)
+    }
+
+    // Hours per domain, and each domain's share of the week's planned time.
+    const hoursByDomain = new Map<string, number>()
+    let totalHours = 0
+    for (const b of blocks) {
+      const h = hoursBetween(b.start_time, b.end_time)
+      totalHours += h
+      const key = b.domain || 'Unassigned'
+      hoursByDomain.set(key, (hoursByDomain.get(key) ?? 0) + h)
+    }
+
+    const domainsUsed = hoursByDomain.size
+    const weekLabel = weekStart.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })
+
+    const mods: ModuleSpec[] = [
+      {
+        kind: 'week',
+        span: 12,
+        title: `Week of ${weekLabel}`,
+        subtitle: blocks.length
+          ? `${blocks.length} focus block${blocks.length === 1 ? '' : 's'} planned across ${domainsUsed} domain${domainsUsed === 1 ? '' : 's'}`
+          : 'Nothing blocked out yet — add your first focus block',
+        icon: CalendarCheck,
+        days: weekDays.map((d, i) => {
+          const key = iso(d)
+          return {
+            label: DAY_LABELS[i],
+            date: String(d.getDate()),
+            today: key === todayIso,
+            blocks: (byDay.get(key) ?? []).map((b) => ({
+              time: hhmm(b.start_time),
+              title: b.title,
+              colorKey: colorFor(b.domain),
+            })),
+          }
+        }),
+      },
+    ]
+
+    if (blocks.length) {
+      mods.push({
+        kind: 'progress',
+        span: 6,
+        // Deliberately NOT "vs capacity" like the canvas: there is no capacity
+        // model, and inventing one would put a fake denominator on screen.
+        // Share of planned time answers the same question honestly.
+        title: 'Planned hours by domain',
+        subtitle: `Where the week is actually going · ${totalHours.toFixed(1)}h planned`,
+        icon: BarChart3,
+        rows: [...hoursByDomain.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .map(([domain, h]) => ({
+            title: domain.charAt(0).toUpperCase() + domain.slice(1),
+            meta: `${((h / totalHours) * 100).toFixed(0)}% of planned time`,
+            value: `${h.toFixed(1)}h`,
+            pct: (h / totalHours) * 100,
+            colorKey: colorFor(domain === 'Unassigned' ? null : domain),
+          })),
+      })
+
+      mods.push({
+        kind: 'rows',
+        span: 6,
+        title: 'One priority per day',
+        subtitle: 'If nothing else happens, this does',
+        icon: Flag,
+        rows: weekDays.map((d, i) => {
+          const priority = (byDay.get(iso(d)) ?? []).find((b) => b.is_priority)
+          return {
+            title: DAY_LABELS[i],
+            meta: priority ? priority.title : 'Nothing set',
+            tagLabel: priority ? hhmm(priority.start_time) : undefined,
+            tagColorKey: priority ? colorFor(priority.domain) : undefined,
+          }
+        }),
+      })
+    }
+
+    return mods
+  }, [data, weekDays, weekStart, todayIso])
+
+  return (
+    <PageContainer>
+      <PageContent>
+        <PageHeader
+          icon={<CalendarCheck size={24} />}
+          eyebrow="Today"
+          title="Plan"
+          subtitle="Block the week before it blocks you"
+          actions={
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Button variant="outline" size="sm" onClick={() => setWeekOffset((w) => w - 1)}>← Prev</Button>
+              <Button variant="outline" size="sm" onClick={() => setWeekOffset(0)}>This week</Button>
+              <Button variant="outline" size="sm" onClick={() => setWeekOffset((w) => w + 1)}>Next →</Button>
+              <Button size="sm" onClick={() => { setDraft({ ...draft, block_date: iso(weekDays[0]) }); setAddOpen(true) }}>
+                <Plus size={14} style={{ marginRight: 6 }} /> Add block
+              </Button>
+            </div>
+          }
+        />
+        <PageDivider />
+
+        {isLoading ? (
+          <Skeleton style={{ height: 320 }} />
+        ) : isError ? (
+          <ErrorState title="Could not load your week" onRetry={() => refetch()} />
+        ) : (
+          <ModuleGrid modules={modules} />
+        )}
+
+        <Dialog
+          open={addOpen}
+          onOpenChange={(o) => !o && setAddOpen(false)}
+          icon={<CalendarCheck size={18} />}
+          eyebrow="Plan"
+          title="Add a focus block"
+          description="A time you are committing to one thing."
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <Field label="What">
+              <Input
+                value={draft.title}
+                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                placeholder="Deep work — sync guard"
+              />
+            </Field>
+            <Field label="Day">
+              <Select
+                value={draft.block_date}
+                onChange={(v) => setDraft({ ...draft, block_date: String(v) })}
+                options={weekDays.map((d, i) => ({
+                  value: iso(d),
+                  label: `${DAY_LABELS[i]} ${d.getDate()}`,
+                }))}
+              />
+            </Field>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="From">
+                <Input type="time" value={draft.start_time} onChange={(e) => setDraft({ ...draft, start_time: e.target.value })} />
+              </Field>
+              <Field label="To">
+                <Input type="time" value={draft.end_time} onChange={(e) => setDraft({ ...draft, end_time: e.target.value })} />
+              </Field>
+            </div>
+            <Field label="Life area">
+              <Select
+                value={draft.domain}
+                onChange={(v) => setDraft({ ...draft, domain: String(v) })}
+                options={[{ value: '', label: 'None' }, ...DOMAIN_OPTIONS]}
+                placeholder="None"
+              />
+            </Field>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={draft.is_priority}
+                onChange={(e) => setDraft({ ...draft, is_priority: e.target.checked })}
+              />
+              <span style={{ fontSize: 13 }}>Make this the day&rsquo;s one priority</span>
+            </label>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button variant="outline" size="sm" onClick={() => setAddOpen(false)}>Cancel</Button>
+              <Button size="sm" disabled={!draft.title.trim() || create.isPending} onClick={() => create.mutate()}>
+                {create.isPending ? 'Adding…' : 'Add block'}
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      </PageContent>
+    </PageContainer>
+  )
+}

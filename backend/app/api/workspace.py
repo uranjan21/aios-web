@@ -1,6 +1,6 @@
 import uuid
 from typing import List, Optional
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from app.core.deps import get_db, get_current_user
 from app.models.user import User
-from app.models.workspace import Project, Sprint, Task
+from app.models.workspace import Project, Sprint, Task, Milestone, PlanBlock
 from app.models.goal import MacroGoal
 from sqlalchemy import func
 
@@ -35,6 +35,24 @@ class SprintCreate(BaseModel):
     end_date: Optional[date] = None
     status: Optional[str] = "planned"
     capacity: Optional[int] = None
+
+class MilestoneCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    domain: Optional[str] = None
+    goal_id: Optional[uuid.UUID] = None
+    due_date: Optional[date] = None
+    status: Optional[str] = "upcoming"
+    position: Optional[int] = 0
+
+class MilestoneUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    domain: Optional[str] = None
+    goal_id: Optional[uuid.UUID] = None
+    due_date: Optional[date] = None
+    status: Optional[str] = None
+    position: Optional[int] = None
 
 class TaskCreate(BaseModel):
     project_id: Optional[uuid.UUID] = None
@@ -376,5 +394,236 @@ async def delete_task(
 ):
     task = await _get_owned(db, Task, task_id, current_user.id, "Task")
     await db.delete(task)
+    await db.commit()
+    return {"ok": True}
+
+
+# ── Milestones ────────────────────────────────────────────────────────────────
+# Dated checkpoints on the way to a goal. Added 2026-08-01 for the redesign's
+# Workspace -> Milestones destination.
+
+MILESTONE_STATUSES = {"upcoming", "at_risk", "hit", "missed"}
+
+
+def _check_milestone_status(status: Optional[str]) -> None:
+    if status is not None and status not in MILESTONE_STATUSES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"status must be one of {sorted(MILESTONE_STATUSES)}",
+        )
+
+
+@router.get("/milestones", response_model=List[Milestone])
+async def list_milestones(
+    domain: Optional[str] = None,
+    status: Optional[str] = None,
+    goal_id: Optional[uuid.UUID] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Soonest first. Undated milestones sort last rather than disappearing."""
+    query = select(Milestone).where(Milestone.user_id == current_user.id)
+    if domain:
+        query = query.where(Milestone.domain == domain)
+    if status:
+        query = query.where(Milestone.status == status)
+    if goal_id:
+        query = query.where(Milestone.goal_id == goal_id)
+    query = query.order_by(Milestone.due_date.is_(None), Milestone.due_date, Milestone.position)
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+@router.post("/milestones", response_model=Milestone)
+async def create_milestone(
+    data: MilestoneCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _check_milestone_status(data.status)
+    if data.goal_id:
+        # 404s on another user's goal, and keeps goal<->domain consistent —
+        # same contract as projects and tasks.
+        goal = await _get_owned(db, MacroGoal, data.goal_id, current_user.id, "Goal")
+        _check_goal_domain(goal, data.domain)
+    milestone = Milestone(**data.model_dump(), user_id=current_user.id)
+    db.add(milestone)
+    await db.commit()
+    await db.refresh(milestone)
+    return milestone
+
+
+@router.patch("/milestones/{milestone_id}", response_model=Milestone)
+async def update_milestone(
+    milestone_id: uuid.UUID,
+    data: MilestoneUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    milestone = await _get_owned(db, Milestone, milestone_id, current_user.id, "Milestone")
+    payload = data.model_dump(exclude_unset=True)
+    _reject_nulls(payload, ("title", "status"))
+    _check_milestone_status(payload.get("status"))
+
+    if "goal_id" in payload or "domain" in payload:
+        eff_goal_id = payload.get("goal_id", milestone.goal_id)
+        eff_domain = payload.get("domain", milestone.domain)
+        if eff_goal_id:
+            goal = await _get_owned(db, MacroGoal, eff_goal_id, current_user.id, "Goal")
+            _check_goal_domain(goal, eff_domain)
+
+    for k, v in payload.items():
+        setattr(milestone, k, v)
+    milestone.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(milestone)
+    return milestone
+
+
+@router.delete("/milestones/{milestone_id}")
+async def delete_milestone(
+    milestone_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    milestone = await _get_owned(db, Milestone, milestone_id, current_user.id, "Milestone")
+    await db.delete(milestone)
+    await db.commit()
+    return {"ok": True}
+
+
+# ── Plan blocks ───────────────────────────────────────────────────────────────
+# The weekly time-blocking planner behind Today -> Plan. Added 2026-08-01.
+
+
+class PlanBlockCreate(BaseModel):
+    block_date: date
+    start_time: time
+    end_time: time
+    title: str
+    domain: Optional[str] = None
+    goal_id: Optional[uuid.UUID] = None
+    is_priority: Optional[bool] = False
+
+
+class PlanBlockUpdate(BaseModel):
+    block_date: Optional[date] = None
+    start_time: Optional[time] = None
+    end_time: Optional[time] = None
+    title: Optional[str] = None
+    domain: Optional[str] = None
+    goal_id: Optional[uuid.UUID] = None
+    is_priority: Optional[bool] = None
+
+
+def _check_block_times(start: Optional[time], end: Optional[time]) -> None:
+    if start and end and end <= start:
+        raise HTTPException(status_code=422, detail="end_time must be after start_time")
+
+
+async def _clear_other_priorities(db, user_id: uuid.UUID, on: date, keep_id: Optional[uuid.UUID]) -> None:
+    """At most one priority per day — promoting a block demotes the incumbent."""
+    result = await db.execute(
+        select(PlanBlock).where(
+            PlanBlock.user_id == user_id,
+            PlanBlock.block_date == on,
+            PlanBlock.is_priority == True,  # noqa: E712 — SQL boolean, not Python
+        )
+    )
+    for row in result.scalars().all():
+        if row.id != keep_id:
+            row.is_priority = False
+
+
+@router.get("/plan-blocks", response_model=List[PlanBlock])
+async def list_plan_blocks(
+    start: Optional[date] = None,
+    end: Optional[date] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Defaults to the current Monday–Sunday week when no range is given."""
+    if start is None:
+        today = date.today()
+        start = today - timedelta(days=today.weekday())
+    if end is None:
+        end = start + timedelta(days=6)
+    if end < start:
+        raise HTTPException(status_code=422, detail="end must not be before start")
+
+    result = await db.execute(
+        select(PlanBlock)
+        .where(
+            PlanBlock.user_id == current_user.id,
+            PlanBlock.block_date >= start,
+            PlanBlock.block_date <= end,
+        )
+        .order_by(PlanBlock.block_date, PlanBlock.start_time)
+    )
+    return result.scalars().all()
+
+
+@router.post("/plan-blocks", response_model=PlanBlock)
+async def create_plan_block(
+    data: PlanBlockCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _check_block_times(data.start_time, data.end_time)
+    if data.goal_id:
+        goal = await _get_owned(db, MacroGoal, data.goal_id, current_user.id, "Goal")
+        _check_goal_domain(goal, data.domain)
+
+    block = PlanBlock(**data.model_dump(), user_id=current_user.id)
+    if block.is_priority:
+        await _clear_other_priorities(db, current_user.id, block.block_date, None)
+    db.add(block)
+    await db.commit()
+    await db.refresh(block)
+    return block
+
+
+@router.patch("/plan-blocks/{block_id}", response_model=PlanBlock)
+async def update_plan_block(
+    block_id: uuid.UUID,
+    data: PlanBlockUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    block = await _get_owned(db, PlanBlock, block_id, current_user.id, "Plan block")
+    payload = data.model_dump(exclude_unset=True)
+    _reject_nulls(payload, ("title", "block_date", "start_time", "end_time"))
+
+    _check_block_times(
+        payload.get("start_time", block.start_time),
+        payload.get("end_time", block.end_time),
+    )
+
+    if "goal_id" in payload or "domain" in payload:
+        eff_goal_id = payload.get("goal_id", block.goal_id)
+        eff_domain = payload.get("domain", block.domain)
+        if eff_goal_id:
+            goal = await _get_owned(db, MacroGoal, eff_goal_id, current_user.id, "Goal")
+            _check_goal_domain(goal, eff_domain)
+
+    for k, v in payload.items():
+        setattr(block, k, v)
+    if block.is_priority:
+        await _clear_other_priorities(db, current_user.id, block.block_date, block.id)
+
+    block.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(block)
+    return block
+
+
+@router.delete("/plan-blocks/{block_id}")
+async def delete_plan_block(
+    block_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    block = await _get_owned(db, PlanBlock, block_id, current_user.id, "Plan block")
+    await db.delete(block)
     await db.commit()
     return {"ok": True}

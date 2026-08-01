@@ -14,6 +14,63 @@ export interface Project {
   created_at: string
 }
 
+/**
+ * A block on the weekly time-blocking planner. Added 2026-08-01.
+ * Times are local wall-clock strings ("09:00:00"), not instants.
+ */
+export interface PlanBlock {
+  id: string
+  user_id: string
+  goal_id?: string | null
+  block_date: string
+  start_time: string
+  end_time: string
+  title: string
+  domain?: string | null
+  is_priority: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface PlanBlockPayload {
+  block_date?: string
+  start_time?: string
+  end_time?: string
+  title?: string
+  domain?: string | null
+  goal_id?: string | null
+  is_priority?: boolean
+}
+
+/** A dated checkpoint on the way to a goal. Added 2026-08-01. */
+export interface Milestone {
+  id: string
+  user_id: string
+  goal_id?: string | null
+  title: string
+  description?: string | null
+  domain?: string | null
+  due_date?: string | null
+  status: 'upcoming' | 'at_risk' | 'hit' | 'missed'
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Explicit nulls CLEAR a field; omitted keys leave it untouched. Same contract
+ * as the other workspace payload types — see the note on TaskPayload.
+ */
+export interface MilestonePayload {
+  title?: string
+  description?: string | null
+  domain?: string | null
+  goal_id?: string | null
+  due_date?: string | null
+  status?: Milestone['status']
+  position?: number
+}
+
 export interface Sprint {
   id: string
   project_id: string
@@ -128,6 +185,42 @@ export const workspaceApi = {
   },
   deleteTask: async (id: string): Promise<void> => {
     await api.delete(`/workspace/tasks/${id}`)
+  },
+
+  // Milestones
+  getMilestones: async (params?: { domain?: string, status?: string, goal_id?: string }): Promise<Milestone[]> => {
+    const res = await api.get('/workspace/milestones', { params })
+    return res.data
+  },
+  createMilestone: async (data: MilestonePayload & { title: string }): Promise<Milestone> => {
+    const res = await api.post('/workspace/milestones', data)
+    return res.data
+  },
+  updateMilestone: async (id: string, data: MilestonePayload): Promise<Milestone> => {
+    const res = await api.patch(`/workspace/milestones/${id}`, data)
+    return res.data
+  },
+  deleteMilestone: async (id: string): Promise<void> => {
+    await api.delete(`/workspace/milestones/${id}`)
+  },
+
+  // Plan blocks (weekly time-blocking planner)
+  getPlanBlocks: async (params?: { start?: string, end?: string }): Promise<PlanBlock[]> => {
+    const res = await api.get('/workspace/plan-blocks', { params })
+    return res.data
+  },
+  createPlanBlock: async (
+    data: PlanBlockPayload & { block_date: string; start_time: string; end_time: string; title: string },
+  ): Promise<PlanBlock> => {
+    const res = await api.post('/workspace/plan-blocks', data)
+    return res.data
+  },
+  updatePlanBlock: async (id: string, data: PlanBlockPayload): Promise<PlanBlock> => {
+    const res = await api.patch(`/workspace/plan-blocks/${id}`, data)
+    return res.data
+  },
+  deletePlanBlock: async (id: string): Promise<void> => {
+    await api.delete(`/workspace/plan-blocks/${id}`)
   },
 
   // Stats

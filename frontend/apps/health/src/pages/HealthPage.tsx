@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
-import { Scale, Flame, Activity, Target, Heart, LayoutDashboard, Moon, Apple, Dumbbell, History, LineChart as LineChartIcon, Settings, Droplets, Repeat } from 'lucide-react'
+import { Scale, Flame, Activity, Target, Heart, LineChart as LineChartIcon, Settings } from 'lucide-react'
 import { Button, Select } from '@ledgr/ui'
 import { useNavigate } from 'react-router-dom'
 import { healthApi } from '@ct/shared/api/areas'
@@ -11,8 +11,9 @@ import { useCountUp } from '@ct/shared/hooks/useCountUp'
 import { KpiCard, KpiGrid } from '@ledgr/ui';
 import { Card as SectionCard } from '@ledgr/ui'
 
-import { HistoryTab } from '@ct/health/components/HistoryTab'
 import { NutritionTab } from '@ct/health/components/NutritionTab'
+// Water lost its own tab in the 2026-08-01 IA, but the widget still lives on
+// the Health overview — the redesign relocates it in Phase 4, not here.
 import { WaterTrackerWidget } from '@ct/health/components/WaterTrackerWidget'
 import { BodySleepTab } from '@ct/health/components/BodySleepTab'
 import { FitnessTab } from '@ct/health/components/FitnessTab'
@@ -21,10 +22,8 @@ import { PageHeader } from '@ledgr/ui'
 import { AiInsightCard } from '@ct/shared/components/AiInsightCard'
 import styled, { useTheme } from 'styled-components'
 
-import { ModuleLayout } from '@ct/shared/components/layout/ModuleLayout'
-import { ModuleSidebar } from '@ct/shared/components/layout/ModuleSidebar'
-
-import { useSearchParams } from 'react-router-dom'
+import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
+import { useAreaSection } from '@ct/shared/hooks/useAreaSection'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
 
 
@@ -95,10 +94,19 @@ export function HealthPage() {
     queryFn: () => healthApi.logs('gym'),
   })
 
-  const [params, setParams] = useSearchParams()
-  const activeKey = params.get('tab') || '1'
-  const setActiveKey = (key: string) => setParams({ tab: key })
-  
+  /*
+   * Sub-page routing, 2026-08-01 — see the note in FinancePage. Health's old
+   * dashboard key was the numeric '1'; `water` and `history` were dropped from
+   * the IA by the redesign and now redirect to Overview. The water endpoint
+   * (`/health/water/today`) and HistoryTab's data are untouched on the backend.
+   */
+  const section = useAreaSection('/app/health', 'overview', {
+    '1': 'overview',
+    water: 'overview',
+    history: 'overview',
+  })
+
+
   const [isLogModalOpen, setIsLogModalOpen] = useState(false)
   const [weightRange, setWeightRange] = useState<'7d' | '30d' | '90d'>('30d')
   const navigate = useNavigate()
@@ -117,42 +125,6 @@ export function HealthPage() {
   if (errorStreak || errorGym) {
     return <ErrorState title="Could not load health data" onRetry={() => { refetchStreak(); refetchGym() }} />
   }
-
-  const groups = [
-    {
-      label: 'Overview',
-      items: [
-        { key: '1', label: 'Dashboard', icon: <LayoutDashboard size={14} /> },
-      ]
-    },
-    {
-      label: 'Body',
-      items: [
-        { key: 'body',  label: 'Composition', icon: <Scale size={14} /> },
-        { key: 'sleep', label: 'Sleep',       icon: <Moon size={14} /> },
-      ]
-    },
-    {
-      label: 'Nutrition',
-      items: [
-        { key: 'nutrition', label: 'Meals', icon: <Apple size={14} /> },
-        { key: 'water',     label: 'Water', icon: <Droplets size={14} /> },
-      ]
-    },
-    {
-      label: 'Fitness',
-      items: [
-        { key: 'workouts', label: 'Workouts', icon: <Dumbbell size={14} /> },
-        { key: 'habits',   label: 'Habits',   icon: <Repeat size={14} /> },
-      ]
-    },
-    {
-      label: 'Records',
-      items: [
-        { key: 'history', label: 'History', icon: <History size={14} /> },
-      ]
-    }
-  ]
 
   const renderDashboard = () => (
     <DashboardContent>
@@ -230,22 +202,20 @@ export function HealthPage() {
   )
 
   const renderContent = () => {
-    switch (activeKey) {
-      case '1':         return renderDashboard()
+    switch (section) {
+      case 'overview':  return renderDashboard()
+      case 'workouts':  return <FitnessTab section="workouts" />
+      case 'nutrition': return <NutritionTab />
       case 'body':      return <BodySleepTab section="body" />
       case 'sleep':     return <BodySleepTab section="sleep" />
-      case 'nutrition': return <NutritionTab />
-      case 'water':     return <WaterTrackerWidget />
-      case 'workouts':  return <FitnessTab section="workouts" />
       case 'habits':    return <FitnessTab section="habits" />
-      case 'history':   return <HistoryTab onLogClick={() => setIsLogModalOpen(true)} />
       default:          return renderDashboard()
     }
   }
 
   return (
-    <ModuleLayout
-      header={
+    <PageContainer>
+      <PageContent>
         <PageHeader
           icon={<Heart />}
           eyebrow="Wellness"
@@ -257,17 +227,9 @@ export function HealthPage() {
             </Button>
           }
         />
-      }
-      sidebar={
-        <ModuleSidebar
-          groups={groups}
-          activeKey={activeKey}
-          onChange={setActiveKey}
-        />
-      }
-    >
-      {renderContent()}
-      <HealthLogModal open={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} />
-    </ModuleLayout>
+        {renderContent()}
+        <HealthLogModal open={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} />
+      </PageContent>
+    </PageContainer>
   )
 }

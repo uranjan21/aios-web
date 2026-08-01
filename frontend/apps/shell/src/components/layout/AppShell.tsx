@@ -5,6 +5,7 @@ import styled from "styled-components";
 import { BOTTOM_NAV_HEIGHT } from "@ct/shared/theme/layout";
 import { trackOnce } from "@ct/shared/lib/analytics";
 
+import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { BottomNav } from "./BottomNav";
 
@@ -48,18 +49,12 @@ const Root = styled.div`
   overflow: hidden;
   position: relative;
 
-  background:
-    radial-gradient(
-      ellipse 80% 60% at 90% -10%,
-      ${({ theme }) => `${theme.color.accent}12`},
-      transparent 58%
-    ),
-    radial-gradient(
-      ellipse 70% 50% at -10% 105%,
-      ${({ theme }) => `${theme.color.primary}12`},
-      transparent 55%
-    ),
-    ${({ theme }) => theme.color.background};
+  /*
+   * Two hand-rolled radials replaced by theme.appBackground on 2026-08-01 —
+   * the token carries the redesign's three-tint version (accent / info /
+   * success) and stays consistent with any other surface that needs it.
+   */
+  background: ${({ theme }) => theme.appBackground};
 
   color: ${({ theme }) => theme.color.foreground};
 `;
@@ -147,6 +142,14 @@ export function AppShell() {
         onClick={() => setSidebarOpen(false)}
         aria-hidden={!sidebarOpen}
       />
+
+      {/*
+        * The Sidebar component existed but was never mounted here — the app's
+        * only navigation was a flat six-link row in the TopBar, which is why
+        * `theme.chrome` had zero call sites. Mounted 2026-08-01 as the primary
+        * navigation for the two-level tree; TopBar now shows breadcrumbs.
+        */}
+      <Sidebar />
 
       <MainColumn>
         {user && user.email_verified === false && <EmailVerificationBanner email={user.email} />}
