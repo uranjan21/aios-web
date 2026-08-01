@@ -27,6 +27,12 @@ interface Base {
   iconKey?: ColorKey
   /** Ghost button in the card header. */
   action?: string
+  /*
+   * Optional handler for that button. Without it the button renders inert
+   * exactly as the canvas drew it, which is what the design gallery needs; a
+   * live page passes one in and the button works.
+   */
+  onAction?: () => void
 }
 
 export interface RowsModule extends Base {
@@ -37,6 +43,12 @@ export interface RowsModule extends Base {
 export interface ProgressModule extends Base {
   kind: 'progress'
   rows: Array<{ title: string; meta?: string; value: string; pct: number; colorKey?: ColorKey }>
+  /*
+   * Optional row affordance. A progress row is often the only place a page
+   * lists its entities, so a live page can make each one open its editor.
+   * Absent, rows are static — the canvas's own behaviour.
+   */
+  onRowClick?: (index: number) => void
 }
 
 export interface BarsModule extends Base {

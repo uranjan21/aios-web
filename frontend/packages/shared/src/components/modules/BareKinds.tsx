@@ -47,6 +47,31 @@ const Tile = styled(SurfaceCard)`
   }
 `
 
+/*
+ * MOBILE STRICT: below `md` a KPI grid collapses to one column and the tiles
+ * stack into a tall loose column — the exact pattern the rule bans. They become
+ * a compact scroll-snapped row instead, the same treatment the dashboard's
+ * PulseRow already uses for its tiles.
+ */
+const TileScroller = styled(AutoGrid)`
+  @media ${({ theme }) => theme.media.belowMd} {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: ${({ theme }) => theme.spacing[0.5]};
+
+    &::-webkit-scrollbar { display: none; }
+
+    > * {
+      flex: 0 0 clamp(168px, 62vw, 190px);
+      scroll-snap-align: start;
+      padding: ${({ theme }) => theme.spacing[3]} ${({ theme }) => theme.spacing[4]};
+    }
+  }
+`
+
 const TileLabel = styled.span`
   ${textRole('label')};
   font-weight: 700;
@@ -70,7 +95,7 @@ const TileValue = styled.div`
 export function TilesKind({ m }: { m: TilesModule }) {
   const c = useModulePalette()
   return (
-    <AutoGrid $cols={trackFor(m)} $gap={16}>
+    <TileScroller $cols={trackFor(m)} $gap={16}>
       {m.tiles.map((t, i) => (
         <Tile
           key={i}
@@ -108,7 +133,7 @@ export function TilesKind({ m }: { m: TilesModule }) {
           )}
         </Tile>
       ))}
-    </AutoGrid>
+    </TileScroller>
   )
 }
 

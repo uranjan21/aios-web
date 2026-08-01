@@ -2,7 +2,7 @@
  * The fourteen module kinds that render inside the standard card shell.
  * Ported from the modular page renderer in `Control Tower Redesign.dc.html`.
  */
-import styled from 'styled-components'
+import styled, { css } from 'styled-components'
 import { Check, ChevronDown } from 'lucide-react'
 import { textRole } from '@ledgr/ui'
 import { useModulePalette, pct } from './palette'
@@ -48,12 +48,48 @@ const ProgressHead = styled.div`
   margin-bottom: 7px;
 `
 
+/*
+ * A progress row becomes a button only when the page hands in `onRowClick`.
+ * `ProgressRow` resets the button chrome so the two paths render identically.
+ */
+const ProgressRow = styled.div<{ $interactive: boolean }>`
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+
+  ${({ $interactive, theme }) =>
+    $interactive &&
+    css`
+      cursor: pointer;
+      border-radius: ${theme.radii.xs};
+      padding: ${theme.spacing[2]};
+      margin: -${theme.spacing[2]};
+      transition: background 150ms;
+
+      &:hover {
+        background: ${theme.color.muted};
+      }
+    `}
+`
+
 export function ProgressKind({ m }: { m: ProgressModule }) {
   const c = useModulePalette()
+  const onRowClick = m.onRowClick
   return (
     <Stack $gap={17}>
       {m.rows.map((r, i) => (
-        <div key={i}>
+        <ProgressRow
+          key={i}
+          as={onRowClick ? 'button' : 'div'}
+          type={onRowClick ? 'button' : undefined}
+          $interactive={!!onRowClick}
+          onClick={onRowClick ? () => onRowClick(i) : undefined}
+        >
           <ProgressHead>
             <RowTitle as="span">{r.title}</RowTitle>
             <span style={{ fontWeight: 700, color: c(r.colorKey), fontVariantNumeric: 'tabular-nums' }}>
@@ -62,7 +98,7 @@ export function ProgressKind({ m }: { m: ProgressModule }) {
           </ProgressHead>
           <Track><TrackFill $pct={pct(r.pct)} $color={c(r.colorKey)} /></Track>
           {r.meta && <RowMeta>{r.meta}</RowMeta>}
-        </div>
+        </ProgressRow>
       ))}
     </Stack>
   )
@@ -549,11 +585,16 @@ const TableRow = styled.div<{ $cols: string }>`
   &:hover { background: ${({ theme }) => theme.color.muted}; }
 `
 
-/** Horizontal scroll container — a 5-column table must not widen the page. */
-const TableScroll = styled.div`
+/*
+ * Horizontal scroll container — a wide table must not widen the page. The
+ * floor scales with the column count rather than being a flat 520px: that
+ * figure was set for the 5-column tables and forced a 4-column one to scroll
+ * inside a span-7 card, clipping its last column at rest.
+ */
+const TableScroll = styled.div<{ $min: number }>`
   overflow-x: auto;
 
-  > * { min-width: 520px; }
+  > * { min-width: ${({ $min }) => $min}px; }
 `
 
 export function TableKind({ m }: { m: TableModule }) {
@@ -561,7 +602,7 @@ export function TableKind({ m }: { m: TableModule }) {
   const cols = m.gridCols ?? `repeat(${m.cols.length},minmax(0,1fr))`
 
   return (
-    <TableScroll>
+    <TableScroll $min={m.cols.length * 110}>
       <div>
         <TableHead $cols={cols}>
           {m.cols.map((col, i) => (

@@ -149,7 +149,11 @@ export function ModuleGrid({ modules }: { modules: ModuleSpec[] }) {
                     <ShellTitle>{m.title}</ShellTitle>
                     {m.subtitle && <ShellSubtitle>{m.subtitle}</ShellSubtitle>}
                   </div>
-                  {m.action && <ModuleButton>{m.action}</ModuleButton>}
+                  {m.action && (
+                    <ModuleButton type="button" onClick={m.onAction}>
+                      {m.action}
+                    </ModuleButton>
+                  )}
                 </ShellHeader>
                 <ShellBody>
                   <KindBody m={m} />

@@ -36,9 +36,17 @@ export function FinancePage() {
   const section = useAreaSection('/app/finance', 'overview', LEGACY_SECTIONS)
 
   const [accountModalOpen, setAccountModalOpen] = useState(false)
+  /* One shared add-modal serves several sections, so it opens on the tab the
+   * caller actually asked for — "Add loan" landing on Account was wrong. */
+  const [accountModalTab, setAccountModalTab] = useState<'Account' | 'Investment' | 'Loan'>('Account')
+
+  const openAddModal = (tab: 'Account' | 'Investment' | 'Loan') => {
+    setAccountModalTab(tab)
+    setAccountModalOpen(true)
+  }
 
   useEffect(() => {
-    const handler = () => setAccountModalOpen(true)
+    const handler = () => openAddModal('Account')
     window.addEventListener('open-new-account', handler)
     return () => window.removeEventListener('open-new-account', handler)
   }, [])
@@ -50,8 +58,8 @@ export function FinancePage() {
       case 'budgets':      return <BudgetTab />
       case 'bills':        return <PayablesTab />
       case 'goals':        return <GoalsTab />
-      case 'investments':  return <InvestmentsTab onAddClick={() => setAccountModalOpen(true)} />
-      case 'loans':        return <LoansTab onAdd={() => setAccountModalOpen(true)} />
+      case 'investments':  return <InvestmentsTab onAddClick={() => openAddModal('Investment')} />
+      case 'loans':        return <LoansTab onAdd={() => openAddModal('Loan')} />
       case 'inbox':        return <InboxTab />
       case 'accounts':     return <AccountManager />
       default:             return <HomeTab />
@@ -68,7 +76,7 @@ export function FinancePage() {
           subtitle="Manage your transactions, budgets, investments, and financial health in one place."
         />
         {renderContent()}
-        <AccountsTabModal open={accountModalOpen} onClose={() => setAccountModalOpen(false)} defaultTab="Account" />
+        <AccountsTabModal open={accountModalOpen} onClose={() => setAccountModalOpen(false)} defaultTab={accountModalTab} />
       </PageContent>
     </PageContainer>
   )
