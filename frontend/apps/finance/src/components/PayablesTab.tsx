@@ -1,92 +1,71 @@
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+/**
+ * Finance → Bills.
+ *
+ * Phase 4 conversion to the canvas's `finance:bills` composition —
+ * calendar(7) · rows(5) · controls(12) — rebuilt from the live payables API.
+ * The canvas asks "what is due this month, when, and what pays itself", which
+ * is what `/areas/finance/payables` answers.
+ *
+ * The old flat pay-checklist is replaced, but nothing it did is lost: marking
+ * an item paid moved onto the "Next up" rows, which is where the canvas puts
+ * the actionable list.
+ */
+import { useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Card, Button, Switch } from '@ledgr/ui'
-import { ChevronLeft, ChevronRight, ListChecks, Wallet, CreditCard } from 'lucide-react'
 import dayjs from 'dayjs'
+import { Button } from '@ledgr/ui'
+import { Bell, ChevronLeft, ChevronRight, FileText, Settings } from 'lucide-react'
 import styled from 'styled-components'
 import { financeApi, type PayableItem } from '@ct/shared/api/areas'
+import { api } from '@ct/shared/api/client'
+import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { formatCurrency } from '@ct/shared/lib/utils'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
-import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 
-const KpiRow = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
-`
-
-const Kpi = styled.div`
-  background: ${({ theme }) => theme.color.muted}66;
-  border-radius: ${({ theme }) => theme.radii.md};
-  padding: 12px 14px;
-`
-const KpiLabel = styled.div`
-  font-size: 12px;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  margin-bottom: 4px;
-`
-const KpiValue = styled.div<{ $tone?: 'danger' | 'success' }>`
-  font-size: 18px;
-  font-weight: 600;
-  color: ${({ theme, $tone }) =>
-    $tone === 'danger' ? theme.color.destructive : $tone === 'success' ? 'var(--success, #22c55e)' : theme.color.foreground};
-`
-
-const Row = styled.div<{ $paid: boolean }>`
+const Root = styled.div`
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 4px;
-  border-bottom: 1px solid ${({ theme }) => theme.color.border};
-  opacity: ${({ $paid }) => ($paid ? 0.55 : 1)};
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing[5]};
 `
-const TypeBadge = styled.span<{ $type: string }>`
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  background: ${({ theme }) => theme.color.muted};
-  color: ${({ theme }) => theme.color.mutedForeground};
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-`
-const Name = styled.div`
-  font-weight: 500;
-  color: ${({ theme }) => theme.color.foreground};
-`
-const Meta = styled.div`
-  font-size: 12px;
-  color: ${({ theme }) => theme.color.mutedForeground};
-`
-const Amount = styled.div<{ $paid: boolean }>`
-  font-weight: 600;
-  text-align: right;
-  text-decoration: ${({ $paid }) => ($paid ? 'line-through' : 'none')};
-`
+
 const MonthNav = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: ${({ theme }) => theme.spacing[2]};
 `
+
 const MonthLabel = styled.span`
-  font-weight: 600;
+  font-weight: 700;
   min-width: 96px;
   text-align: center;
 `
 
-function dueLabel(item: PayableItem): string {
-  if (item.due_date) return `Due ${dayjs(item.due_date).format('DD MMM')}`
-  if (item.due_day) return `Due on the ${item.due_day}${suffix(item.due_day)}`
-  return '—'
-}
-function suffix(n: number): string {
-  if (n >= 11 && n <= 13) return 'th'
-  return ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'
+/** The automation rule that sends the pre-due-date nudge. */
+const REMINDER_RULE = 'bill_reminder_3d'
+
+interface AutomationRule { key: string; enabled: boolean }
+
+function ordinal(n: number) {
+  const s = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return n + (s[(v - 20) % 10] || s[v] || s[0])
 }
 
-export function PayablesTab({ navMenu }: { navMenu?: React.ReactNode }) {
+/**
+ * A payable's urgency, driving both the calendar mark colour and the "Next up"
+ * tag. The canvas's legend entries map onto exactly these four states.
+ */
+function urgencyOf(item: PayableItem, dueDay: number | null, today: number, isCurrentMonth: boolean) {
+  if (item.paid) return { key: 'mutedFg', label: 'Paid' }
+  if (isCurrentMonth && dueDay !== null && dueDay < today) return { key: 'destructive', label: 'Overdue' }
+  if (!item.is_auto_debit) return { key: 'destructive', label: 'Action' }
+  if (isCurrentMonth && dueDay !== null && dueDay - today <= 3) return { key: 'warning', label: 'Due soon' }
+  return { key: 'info', label: 'Autopay' }
+}
+
+export function PayablesTab() {
   const queryClient = useQueryClient()
   const [month, setMonth] = useState(dayjs().format('YYYY-MM'))
 
@@ -94,6 +73,12 @@ export function PayablesTab({ navMenu }: { navMenu?: React.ReactNode }) {
     queryKey: ['finance', 'payables', month],
     queryFn: () => financeApi.payables(month),
     staleTime: 30_000,
+  })
+
+  const { data: rules } = useQuery({
+    queryKey: ['automations'],
+    queryFn: () => api.get<AutomationRule[]>('/automations/').then(r => r.data),
+    staleTime: 60_000,
   })
 
   const payMutation = useMutation({
@@ -106,7 +91,7 @@ export function PayablesTab({ navMenu }: { navMenu?: React.ReactNode }) {
         account_id: item.account_id,
       }),
     onMutate: async (item) => {
-      // Optimistic flip for a responsive checklist.
+      // Optimistic flip so the list stays responsive.
       await queryClient.cancelQueries({ queryKey: ['finance', 'payables', month] })
       const prev = queryClient.getQueryData<typeof data>(['finance', 'payables', month])
       if (prev) {
@@ -126,76 +111,168 @@ export function PayablesTab({ navMenu }: { navMenu?: React.ReactNode }) {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['finance', 'payables', month] }),
   })
 
+  /** Autopay is a column on the Bill row, so only `bill` payables can toggle it. */
+  const autopayMutation = useMutation({
+    mutationFn: ({ id, on }: { id: string; on: boolean }) => financeApi.patchBill(id, { is_auto_debit: on }),
+    onSuccess: (_d, v) => {
+      queryClient.invalidateQueries({ queryKey: ['finance', 'payables'] })
+      queryClient.invalidateQueries({ queryKey: ['finance', 'bills'] })
+      toast.success(v.on ? 'Autopay on' : 'Autopay off')
+    },
+    onError: () => toast.error('Could not change autopay'),
+  })
+
+  const reminderMutation = useMutation({
+    mutationFn: (enabled: boolean) => api.put(`/automations/${REMINDER_RULE}`, { enabled, params: {} }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['automations'] })
+      toast.success('Reminder updated')
+    },
+    onError: () => toast.error('Could not update the reminder'),
+  })
+
   const shift = (delta: number) => setMonth(dayjs(month + '-01').add(delta, 'month').format('YYYY-MM'))
 
-  if (isLoading) return (
-    <WorkspaceLayout rail={navMenu}>
-      <Skeleton style={{ height: 320 }} />
-    </WorkspaceLayout>
-  )
+  const items = useMemo(() => data?.items ?? [], [data])
+  const billRows = useMemo(() => items.filter(i => i.type === 'bill'), [items])
+  const reminderOn = rules?.find(r => r.key === REMINDER_RULE)?.enabled ?? false
 
-  const items = data?.items ?? []
+  const modules = useMemo<ModuleSpec[]>(() => {
+    const start = dayjs(month + '-01')
+    const daysInMonth = start.daysInMonth()
+    const isCurrentMonth = start.isSame(dayjs(), 'month')
+    const today = dayjs().date()
+
+    // Lead/trail fill the first and last weeks with the neighbouring months'
+    // days, dimmed — the canvas draws a complete 7-column grid.
+    const firstWeekday = start.day()
+    const prevMonthDays = start.subtract(1, 'month').daysInMonth()
+    const lead = Array.from({ length: firstWeekday }, (_, i) => prevMonthDays - firstWeekday + 1 + i)
+    const trailCount = (7 - ((firstWeekday + daysInMonth) % 7)) % 7
+    const trail = Array.from({ length: trailCount }, (_, i) => i + 1)
+
+    const dayOf = (item: PayableItem): number | null =>
+      item.due_date ? dayjs(item.due_date).date() : item.due_day ?? null
+
+    // One mark per day carrying that day's total and its most urgent state.
+    const RANK: Record<string, number> = { destructive: 3, warning: 2, info: 1, mutedFg: 0 }
+    const byDay = new Map<number, { total: number; key: string }>()
+    for (const item of items) {
+      const d = dayOf(item)
+      if (d === null) continue
+      const u = urgencyOf(item, d, today, isCurrentMonth)
+      const cur = byDay.get(d)
+      byDay.set(d, {
+        total: (cur?.total ?? 0) + Number(item.amount),
+        key: !cur || RANK[u.key] > RANK[cur.key] ? u.key : cur.key,
+      })
+    }
+    const marks: Record<number, { t: string; k?: string }> = {}
+    for (const [d, v] of byDay) marks[d] = { t: formatCurrency(v.total), k: v.key }
+
+    const unpaidCount = items.filter(i => !i.paid).length
+
+    // "Next up" — unpaid, soonest first. Clicking a row marks it paid.
+    const nextUp = items
+      .filter(i => !i.paid)
+      .sort((a, b) => (dayOf(a) ?? 99) - (dayOf(b) ?? 99))
+      .slice(0, 6)
+
+    const specs: ModuleSpec[] = [
+      {
+        kind: 'calendar',
+        span: 7,
+        title: start.format('MMMM YYYY'),
+        subtitle: `${formatCurrency(data?.total_unpaid ?? 0)} still due across ${unpaidCount} item${unpaidCount === 1 ? '' : 's'}`,
+        icon: FileText,
+        lead,
+        days: daysInMonth,
+        trail,
+        ...(isCurrentMonth && { today }),
+        marks,
+        legend: [
+          { label: 'Autopay', colorKey: 'info' },
+          { label: 'Needs action', colorKey: 'destructive' },
+          { label: 'Due soon', colorKey: 'warning' },
+          { label: 'Paid', colorKey: 'mutedFg' },
+        ],
+      },
+      {
+        kind: 'rows',
+        span: 5,
+        title: 'Next up',
+        subtitle: nextUp.length ? 'Sorted by due date · click to mark paid' : 'Nothing outstanding',
+        icon: Bell,
+        rows: nextUp.map((item) => {
+          const d = dayOf(item)
+          const u = urgencyOf(item, d, today, isCurrentMonth)
+          return {
+            title: item.name,
+            meta: [
+              d === null ? 'No due date' : start.date(d).format('D MMM'),
+              item.account_name ? `from ${item.account_name}` : 'no account set',
+            ].join(' · '),
+            tagLabel: u.label,
+            tagColorKey: u.key,
+            value: formatCurrency(item.amount),
+          }
+        }),
+        onRowClick: (i: number) => payMutation.mutate(nextUp[i]),
+      },
+    ]
+
+    if (billRows.length) {
+      specs.push({
+        kind: 'controls',
+        span: 12,
+        title: 'Autopay and reminders',
+        subtitle: `${billRows.filter(b => b.is_auto_debit).length} of ${billRows.length} bills self-pay`,
+        icon: Settings,
+        rows: [
+          ...billRows.map((b) => ({
+            title: b.name,
+            meta: [
+              b.account_name ?? 'No account set',
+              b.due_day ? `${ordinal(b.due_day)} of month` : 'no fixed day',
+            ].join(' · '),
+            control: 'toggle' as const,
+            on: b.is_auto_debit,
+            busy: autopayMutation.isPending && autopayMutation.variables?.id === b.id,
+          })),
+          {
+            title: 'Remind me before bills are due',
+            meta: 'Push notification, 3 days ahead',
+            control: 'toggle' as const,
+            on: reminderOn,
+            busy: reminderMutation.isPending,
+          },
+        ],
+        onToggle: (i: number, next: boolean) => {
+          if (i < billRows.length) autopayMutation.mutate({ id: billRows[i].id, on: next })
+          else reminderMutation.mutate(next)
+        },
+      })
+    }
+
+    return specs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, billRows, month, data, reminderOn, autopayMutation.isPending, reminderMutation.isPending])
+
+  if (isLoading) return <Skeleton style={{ height: 360 }} />
 
   return (
-    <WorkspaceLayout rail={navMenu}>
-      <Card
-        title="Month-end payables"
-        subtitle="Everything you owe this month — rent, EMIs, subscriptions, credit-card bills"
-        icon={<ListChecks size={16} />}
-        action={
-          <MonthNav>
-            <Button variant="ghost" size="icon" aria-label="Previous month" onClick={() => shift(-1)}>
-              <ChevronLeft size={16} />
-            </Button>
-            <MonthLabel>{dayjs(month + '-01').format('MMM YYYY')}</MonthLabel>
-            <Button variant="ghost" size="icon" aria-label="Next month" onClick={() => shift(1)}>
-              <ChevronRight size={16} />
-            </Button>
-          </MonthNav>
-        }
-      >
-        <KpiRow>
-          <Kpi>
-            <KpiLabel>Total payable</KpiLabel>
-            <KpiValue>{formatCurrency(data?.total ?? 0)}</KpiValue>
-          </Kpi>
-          <Kpi>
-            <KpiLabel>Paid</KpiLabel>
-            <KpiValue $tone="success">{formatCurrency(data?.total_paid ?? 0)}</KpiValue>
-          </Kpi>
-          <Kpi>
-            <KpiLabel>Still due</KpiLabel>
-            <KpiValue $tone="danger">{formatCurrency(data?.total_unpaid ?? 0)}</KpiValue>
-          </Kpi>
-        </KpiRow>
+    <Root>
+      <MonthNav>
+        <Button variant="ghost" size="icon" aria-label="Previous month" onClick={() => shift(-1)}>
+          <ChevronLeft size={16} />
+        </Button>
+        <MonthLabel>{dayjs(month + '-01').format('MMM YYYY')}</MonthLabel>
+        <Button variant="ghost" size="icon" aria-label="Next month" onClick={() => shift(1)}>
+          <ChevronRight size={16} />
+        </Button>
+      </MonthNav>
 
-        {items.length === 0 ? (
-          <Meta style={{ padding: '32px 0', textAlign: 'center' }}>
-            Nothing due this month. Add bills, loans (EMIs), or credit-card bills to see them here.
-          </Meta>
-        ) : (
-          items.map((item) => (
-            <Row key={`${item.type}-${item.id}`} $paid={item.paid}>
-              <Switch
-                checked={item.paid}
-                onChange={() => payMutation.mutate(item)}
-                aria-label={`Mark ${item.name} ${item.paid ? 'unpaid' : 'paid'}`}
-              />
-              {item.type === 'cc_bill' ? <CreditCard size={16} /> : <Wallet size={16} />}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <Name>{item.name}</Name>
-                <Meta>
-                  {dueLabel(item)}
-                  {item.account_name ? ` · from ${item.account_name}` : ' · no account set'}
-                  {item.is_auto_debit ? ' · auto-debit' : ''}
-                </Meta>
-              </div>
-              <TypeBadge $type={item.type}>{item.type === 'cc_bill' ? 'CC' : item.type}</TypeBadge>
-              <Amount $paid={item.paid}>{formatCurrency(item.amount)}</Amount>
-            </Row>
-          ))
-        )}
-      </Card>
-    </WorkspaceLayout>
+      <ModuleGrid modules={modules} />
+    </Root>
   )
 }

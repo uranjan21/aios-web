@@ -16,14 +16,38 @@ import type {
   SpansModule, TableModule, TimelineModule, WeekModule,
 } from './types'
 
+/*
+ * `Row` rendered as a real button when a page wires a handler. The UA button
+ * chrome has to be reset back down to what `Row` draws — hence the explicit
+ * border-bottom rather than a blanket `border: none`.
+ */
+const ClickableRow = styled(Row)`
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-bottom: 1px solid ${({ theme }) => theme.color.border};
+
+  &:is(button) { cursor: pointer; }
+`
+
 /* ── rows ─────────────────────────────────────────────────────────────── */
 
 export function RowsKind({ m }: { m: RowsModule }) {
   const c = useModulePalette()
+  const { onRowClick } = m
   return (
     <Stack>
       {m.rows.map((r, i) => (
-        <Row key={i}>
+        <ClickableRow
+          key={i}
+          as={onRowClick ? 'button' : 'div'}
+          type={onRowClick ? 'button' : undefined}
+          onClick={onRowClick ? () => onRowClick(i) : undefined}
+          style={r.busy ? { opacity: 0.55, pointerEvents: 'none' } : undefined}
+        >
           <RowBody>
             <RowTitle>{r.title}</RowTitle>
             {r.meta && <RowMeta>{r.meta}</RowMeta>}
@@ -32,7 +56,7 @@ export function RowsKind({ m }: { m: RowsModule }) {
             <Chip $bg={c.alpha(r.tagColorKey, 0.125)} $color={c(r.tagColorKey)}>{r.tagLabel}</Chip>
           )}
           {r.value && <RowValue>{r.value}</RowValue>}
-        </Row>
+        </ClickableRow>
       ))}
     </Stack>
   )
@@ -581,7 +605,17 @@ const TableRow = styled.div<{ $cols: string }>`
   align-items: center;
   border-radius: ${({ theme }) => theme.radii.xs};
   transition: background 150ms;
+  /* Resets for the button form a page opts into via onRowClick. */
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
 
+  &:is(button) { cursor: pointer; }
   &:hover { background: ${({ theme }) => theme.color.muted}; }
 `
 
@@ -610,7 +644,13 @@ export function TableKind({ m }: { m: TableModule }) {
           ))}
         </TableHead>
         {m.rows.map((row, i) => (
-          <TableRow key={i} $cols={cols}>
+          <TableRow
+            key={i}
+            $cols={cols}
+            as={m.onRowClick ? 'button' : 'div'}
+            type={m.onRowClick ? 'button' : undefined}
+            onClick={m.onRowClick ? () => m.onRowClick!(i) : undefined}
+          >
             {row.map((cell, j) => {
               const cc = typeof cell === 'object' ? cell : { t: cell }
               const align = m.cols[j]?.a ?? 'left'
@@ -700,17 +740,28 @@ const SelectChip = styled.span`
 
 export function ControlsKind({ m }: { m: ControlsModule }) {
   const c = useModulePalette()
+  const { onToggle, onSelect } = m
   return (
     <Stack>
       {m.rows.map((r, i) => (
-        <ControlRow key={i}>
+        <ControlRow key={i} style={r.busy ? { opacity: 0.55, pointerEvents: 'none' } : undefined}>
           <RowBody>
             <div style={{ fontWeight: 600 }}>{r.title}</div>
             {r.meta && <RowMeta>{r.meta}</RowMeta>}
           </RowBody>
 
           {r.control === 'toggle' && (
-            <ToggleTrack $on={!!r.on} role="switch" aria-checked={!!r.on} aria-label={r.title}>
+            <ToggleTrack
+              $on={!!r.on}
+              role="switch"
+              aria-checked={!!r.on}
+              aria-label={r.title}
+              tabIndex={onToggle ? 0 : undefined}
+              onClick={onToggle ? () => onToggle(i, !r.on) : undefined}
+              onKeyDown={onToggle ? (e) => {
+                if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onToggle(i, !r.on) }
+              } : undefined}
+            >
               <ToggleKnob $on={!!r.on} />
             </ToggleTrack>
           )}
@@ -718,7 +769,13 @@ export function ControlsKind({ m }: { m: ControlsModule }) {
           {r.control === 'segment' && (
             <Segment>
               {(r.options ?? []).map((op) => (
-                <SegmentOption key={op} $active={op === r.value}>{op}</SegmentOption>
+                <SegmentOption
+                  key={op}
+                  $active={op === r.value}
+                  onClick={onSelect ? () => onSelect(i, op) : undefined}
+                >
+                  {op}
+                </SegmentOption>
               ))}
             </Segment>
           )}
@@ -792,6 +849,7 @@ const Mono = styled.span`
 
 export function QueueKind({ m }: { m: QueueModule }) {
   const c = useModulePalette()
+  const { onPrimary, onSecondary } = m
   return (
     <Stack $gap={9}>
       {m.rows.map((r, i) => (
@@ -799,6 +857,7 @@ export function QueueKind({ m }: { m: QueueModule }) {
           key={i}
           $bg={r.flag ? c.alpha('destructive', 0.06) : 'transparent'}
           $border={r.flag ? c.alpha('destructive', 0.33) : c('border')}
+          style={r.busy ? { opacity: 0.55, pointerEvents: 'none' } : undefined}
         >
           <Mono>{r.mono}</Mono>
           <div style={{ minWidth: 130, flex: 1 }}>
@@ -812,8 +871,12 @@ export function QueueKind({ m }: { m: QueueModule }) {
             <Chip $bg={c.alpha(r.suggestKey, 0.12)} $color={c(r.suggestKey)}>{r.suggestion}</Chip>
           )}
           <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
-            <ModuleButton $variant="primary">{r.primary ?? 'Approve'}</ModuleButton>
-            <ModuleButton>{r.secondary ?? 'Skip'}</ModuleButton>
+            <ModuleButton type="button" $variant="primary" onClick={onPrimary ? () => onPrimary(i) : undefined}>
+              {r.primary ?? 'Approve'}
+            </ModuleButton>
+            <ModuleButton type="button" onClick={onSecondary ? () => onSecondary(i) : undefined}>
+              {r.secondary ?? 'Skip'}
+            </ModuleButton>
           </div>
         </QueueRow>
       ))}
@@ -835,12 +898,25 @@ const CheckBox = styled.span<{ $done: boolean }>`
   flex-shrink: 0;
 `
 
+/** A checklist row is a `label` in the canvas, or a button once wired. */
+const CheckRow = styled(ClickableRow)`
+  cursor: pointer;
+  gap: 11px;
+`
+
 export function ChecklistKind({ m }: { m: ChecklistModule }) {
   const c = useModulePalette()
+  const { onToggle } = m
   return (
     <Stack>
       {m.items.map((it, i) => (
-        <Row key={i} as="label" style={{ cursor: 'pointer', gap: 11 }}>
+        <CheckRow
+          key={i}
+          as={onToggle ? 'button' : 'label'}
+          type={onToggle ? 'button' : undefined}
+          onClick={onToggle ? () => onToggle(i, !it.done) : undefined}
+          style={it.busy ? { opacity: 0.55, pointerEvents: 'none' } : undefined}
+        >
           <CheckBox $done={!!it.done}>
             {it.done && <Check size={11} strokeWidth={3.4} color={c('accentForeground')} />}
           </CheckBox>
@@ -855,7 +931,7 @@ export function ChecklistKind({ m }: { m: ChecklistModule }) {
             {it.meta && <RowMeta>{it.meta}</RowMeta>}
           </RowBody>
           {it.tagLabel && <Chip $bg={c.alpha(it.tagKey, 0.125)} $color={c(it.tagKey)}>{it.tagLabel}</Chip>}
-        </Row>
+        </CheckRow>
       ))}
     </Stack>
   )

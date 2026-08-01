@@ -39,6 +39,12 @@ const Tile = styled(SurfaceCard)`
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[2.5]};
   transition: box-shadow 200ms ease, transform 200ms ease, border-color 200ms ease;
+  /* Resets for the button form a page opts into via onTileClick. */
+  text-align: left;
+  font: inherit;
+  color: inherit;
+
+  &:is(button) { cursor: pointer; }
 
   &:hover {
     box-shadow: ${({ theme }) => theme.elevation[2]};
@@ -94,11 +100,15 @@ const TileValue = styled.div`
 
 export function TilesKind({ m }: { m: TilesModule }) {
   const c = useModulePalette()
+  const { onTileClick } = m
   return (
     <TileScroller $cols={trackFor(m)} $gap={16}>
       {m.tiles.map((t, i) => (
         <Tile
           key={i}
+          as={onTileClick ? 'button' : 'div'}
+          type={onTileClick ? 'button' : undefined}
+          onClick={onTileClick ? () => onTileClick(i) : undefined}
           $bg={t.accent ? c.alpha('accent', 0.11) : undefined}
           $border={t.accent ? c('accent') : undefined}
         >

@@ -1,16 +1,28 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
-import { Button, EmptyState, DataTable, Select, Card, Input, Sheet } from '@ledgr/ui'
-import { Trash2, Wallet, PencilLine, ArrowLeftRight, TrendingUp, TrendingDown, Plus } from 'lucide-react'
+import { Button, EmptyState, Select, Card, Input, Sheet } from '@ledgr/ui'
+import { Trash2, Wallet, PencilLine, ArrowLeftRight, TrendingUp, TrendingDown, Landmark, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import styled from 'styled-components'
 import dayjs from 'dayjs'
 import { financeApi } from '@ct/shared/api/areas'
+import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { formatCurrency } from '@ct/shared/lib/utils'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { TransactionModal, type Txn, type Kind } from './TransactionsTab'
 import type { LedgerEntry } from '@ct/shared/types'
+
+const AccountsRoot = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing[5]};
+`
+
+const AccountsToolbar = styled.div`
+  display: flex;
+  justify-content: flex-end;
+`
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -448,8 +460,28 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
 
 // ── AccountManager ────────────────────────────────────────────────────────────
 
+/**
+ * Finance → Accounts.
+ *
+ * Phase 4 conversion to the canvas's `finance:accounts` composition —
+ * tiles(12) · table(7) · progress(5) — rebuilt from the live accounts API.
+ * Clicking a table row opens the same side panel the old table did, so the
+ * ledger view and edit/delete are unchanged.
+ *
+ * TWO DEPARTURES, both because the Account model has no institution link:
+ *  - The canvas's table is "Connections", with Last sync and Status columns.
+ *    Nothing syncs accounts from an institution — balances are entered and
+ *    then adjusted by the ledger — so those columns become Balance and the
+ *    account's share of total assets.
+ *  - Its progress module is credit utilization per card, which needs a
+ *    `credit_limit` the model does not carry. Until it does, the module shows
+ *    where the money actually sits: each account's share of the total.
+ *
+ * BACKEND FOLLOW-UP: add `credit_limit` (and, if institution sync ever lands,
+ * `last_synced_at` + `sync_status`) to `Account` and this page can render the
+ * canvas exactly.
+ */
 export const AccountManager: React.FC<{ onAdd?: () => void }> = ({ onAdd }) => {
-  const queryClient = useQueryClient()
   const [panelAccount, setPanelAccount] = useState<any | null>(null)
   const [typeFilter, setTypeFilter] = useState<string>('all')
 
@@ -458,83 +490,108 @@ export const AccountManager: React.FC<{ onAdd?: () => void }> = ({ onAdd }) => {
     queryFn: financeApi.accounts,
   })
 
-  const deleteMutation = useMutation({
-    mutationFn: financeApi.deleteAccount,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['finance', 'accounts'] })
-      toast.success('Account deleted')
-      setPanelAccount(null)
-    },
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to delete account'),
-  })
-
-  const columns = [
-    { id: 'name', header: 'Name', cell: (row: any) => row.name },
-    { id: 'type', header: 'Type', cell: (row: any) => row.type.replace('_', ' ').toUpperCase() },
-    { id: 'balance', header: 'Balance', cell: (row: any) => `${row.currency} ${Number(row.balance).toFixed(2)}` },
-    {
-      id: 'action',
-      header: 'Action',
-      cell: (row: any) => (
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <Button variant="outline" size="icon" onClick={e => { e.stopPropagation(); setPanelAccount(row) }}>
-            <PencilLine size={14} />
-          </Button>
-          <Popconfirm title="Delete account?" onConfirm={() => deleteMutation.mutate(row.id)}>
-            <Button variant="destructive" size="icon" onClick={e => e.stopPropagation()}>
-              <Trash2 size={14} />
-            </Button>
-          </Popconfirm>
-        </div>
-      ),
-    },
-  ]
-
   const accountTypes = Array.from(new Set(accounts.map((a: any) => a.type))) as string[]
   const visibleAccounts = typeFilter === 'all'
     ? accounts
     : accounts.filter((a: any) => a.type === typeFilter)
 
+  const modules = useMemo<ModuleSpec[]>(() => {
+    if (!accounts.length) return []
+
+    const isDebt = (a: any) => a.type === 'credit_card' || a.type === 'loan'
+    const assets = accounts.filter((a: any) => !isDebt(a)).reduce((s: number, a: any) => s + Number(a.balance), 0)
+    const debt = accounts.filter(isDebt).reduce((s: number, a: any) => s + Math.abs(Number(a.balance)), 0)
+    const biggest = accounts.reduce((a: any, b: any) => (Number(a.balance) >= Number(b.balance) ? a : b))
+
+    return [
+      {
+        kind: 'tiles',
+        span: 12,
+        tiles: [
+          { label: 'Cash and assets', value: formatCurrency(assets), sub: `Across ${accounts.filter((a: any) => !isDebt(a)).length} account(s)`, dotKey: 'success' },
+          { label: 'Owed on cards and loans', value: formatCurrency(debt), sub: debt > 0 ? 'Settle before interest accrues' : 'Nothing outstanding', subKey: debt > 0 ? 'warning' : 'success', dotKey: debt > 0 ? 'warning' : 'success' },
+          { label: 'Net position', value: formatCurrency(assets - debt), sub: 'Assets minus what you owe', subKey: assets - debt >= 0 ? 'success' : 'destructive' },
+          { label: 'Largest balance', value: biggest.name, sub: formatCurrency(biggest.balance) },
+        ],
+      },
+      {
+        kind: 'table',
+        span: 7,
+        title: 'Accounts',
+        subtitle: `${visibleAccounts.length} account${visibleAccounts.length === 1 ? '' : 's'} · click a row for its ledger`,
+        icon: Landmark,
+        ...(onAdd && { action: 'Add account', onAction: onAdd }),
+        gridCols: '1.8fr 1.1fr 1fr',
+        cols: [{ l: 'Account' }, { l: 'Type' }, { l: 'Balance', a: 'right' }],
+        rows: visibleAccounts.map((a: any) => [
+          { t: a.name, bold: true },
+          { t: a.type.replace('_', ' '), tag: true, colorKey: isDebt(a) ? 'warning' : 'info' },
+          { t: `${a.currency} ${Number(a.balance).toLocaleString('en-IN')}`, colorKey: isDebt(a) ? 'destructive' : undefined },
+        ]),
+        onRowClick: (i: number) => setPanelAccount(visibleAccounts[i]),
+      },
+      {
+        kind: 'progress',
+        span: 5,
+        title: 'Where the money sits',
+        subtitle: 'Share of total assets per account',
+        icon: CreditCard,
+        rows: accounts
+          .filter((a: any) => !isDebt(a) && Number(a.balance) > 0)
+          .sort((a: any, b: any) => Number(b.balance) - Number(a.balance))
+          .map((a: any) => {
+            const share = assets > 0 ? Math.round((Number(a.balance) / assets) * 100) : 0
+            return {
+              title: a.name,
+              meta: `${formatCurrency(a.balance)} of ${formatCurrency(assets)}`,
+              pct: share,
+              value: `${share}%`,
+              // A single account holding most of the cash is worth flagging.
+              colorKey: share > 70 ? 'warning' : 'accent',
+            }
+          }),
+      },
+    ]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accounts, visibleAccounts, onAdd])
+
+  if (isLoading) return <Skeleton style={{ height: 320 }} />
+
   return (
-    <>
-      <Card
-        title="Accounts"
-        subtitle="Your cash, bank, and wallet balances"
-        icon={<Wallet size={16} />}
-        action={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Select
-              size="sm"
-              fullWidth={false}
-              aria-label="Filter accounts by type"
-              value={typeFilter}
-              onChange={v => setTypeFilter(String(v))}
-              options={[
-                { value: 'all', label: 'All types' },
-                ...accountTypes.map(t => ({ value: t, label: t.replace('_', ' ').toUpperCase() })),
-              ]}
-            />
-            {onAdd && (
-              <Button size="sm" variant="primary" onClick={onAdd}>
-                <Plus size={12} style={{ marginRight: 4 }} /> Add Account
-              </Button>
-            )}
-          </div>
-        }
-      >
-        <DataTable
-          rows={visibleAccounts}
-          columns={columns}
-          getRowKey={row => row.id}
-          loading={isLoading}
-          onRowClick={row => setPanelAccount(row)}
-        />
-      </Card>
+    <AccountsRoot>
+      {accounts.length > 0 && (
+        <AccountsToolbar>
+          <Select
+            size="sm"
+            fullWidth={false}
+            aria-label="Filter accounts by type"
+            value={typeFilter}
+            onChange={v => setTypeFilter(String(v))}
+            options={[
+              { value: 'all', label: 'All types' },
+              ...accountTypes.map(t => ({ value: t, label: t.replace('_', ' ').toUpperCase() })),
+            ]}
+          />
+        </AccountsToolbar>
+      )}
+
+      {accounts.length === 0 ? (
+        <Card title="Accounts" subtitle="Your cash, bank, and wallet balances" icon={<Wallet size={16} />}>
+          <EmptyState
+            icon={<Wallet size={20} />}
+            title="No accounts yet"
+            description="Add a bank account, card or wallet so transactions have somewhere to land."
+            action={onAdd ? <Button size="sm" variant="primary" onClick={onAdd}>Add account</Button> : undefined}
+          />
+        </Card>
+      ) : (
+        <ModuleGrid modules={modules} />
+      )}
 
       <AccountSidePanel
         account={panelAccount}
         onClose={() => setPanelAccount(null)}
       />
-    </>
+    </AccountsRoot>
   )
 }

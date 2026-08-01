@@ -37,7 +37,9 @@ interface Base {
 
 export interface RowsModule extends Base {
   kind: 'rows'
-  rows: Array<{ title: string; meta?: string; value?: string; tagLabel?: string; tagColorKey?: ColorKey }>
+  rows: Array<{ title: string; meta?: string; value?: string; tagLabel?: string; tagColorKey?: ColorKey; busy?: boolean }>
+  /** Optional row affordance — see `ProgressModule.onRowClick`. */
+  onRowClick?: (index: number) => void
 }
 
 export interface ProgressModule extends Base {
@@ -118,6 +120,8 @@ export interface TableModule extends Base {
   /** Explicit track sizes, e.g. '1.6fr 1fr 1fr 0.8fr'. Defaults to equal columns. */
   gridCols?: string
   rows: TableCell[][]
+  /** Optional row affordance — see `ProgressModule.onRowClick`. */
+  onRowClick?: (index: number) => void
 }
 
 export interface ControlsModule extends Base {
@@ -131,7 +135,16 @@ export interface ControlsModule extends Base {
     swatches?: Array<{ color: string; active?: boolean }>
     pct?: number
     value?: string
+    /** Greys the control and blocks its handler while a mutation is in flight. */
+    busy?: boolean
   }>
+  /*
+   * Optional controlled mode, same contract as `notes`. Absent, the controls
+   * render inert exactly as the canvas drew them — what the gallery needs.
+   */
+  onToggle?: (index: number, next: boolean) => void
+  /** Fired by `segment` and `select` rows with the chosen option. */
+  onSelect?: (index: number, value: string) => void
 }
 
 export interface QueueModule extends Base {
@@ -149,12 +162,18 @@ export interface QueueModule extends Base {
     secondary?: string
     /** Tints the row destructive — needs attention. */
     flag?: boolean
+    busy?: boolean
   }>
+  /** Optional controlled mode — see `notes`. Absent, the buttons are inert. */
+  onPrimary?: (index: number) => void
+  onSecondary?: (index: number) => void
 }
 
 export interface ChecklistModule extends Base {
   kind: 'checklist'
-  items: Array<{ label: string; meta?: string; done?: boolean; tagLabel?: string; tagKey?: ColorKey }>
+  items: Array<{ label: string; meta?: string; done?: boolean; tagLabel?: string; tagKey?: ColorKey; busy?: boolean }>
+  /** Optional controlled mode — see `notes`. Absent, the boxes are inert. */
+  onToggle?: (index: number, next: boolean) => void
 }
 
 export interface NotesModule extends Base {
@@ -207,6 +226,8 @@ export interface TilesModule extends Base {
     /** Fills the tile with the accent wash. */
     accent?: boolean
   }>
+  /** Optional tile affordance — see `ProgressModule.onRowClick`. */
+  onTileClick?: (index: number) => void
 }
 
 export interface KanbanModule extends Base {
