@@ -1,5 +1,125 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
+## 2026-08-02 — claude-code (goals leave the areas; Overview keeps progress only)
+
+**Ask.** Goals and milestones are set in Workspace for any area now, so remove
+goals/planning from Finance and every other area. Areas may show goal
+*progress* on their Overview, nothing more.
+
+**Three decisions asked, not assumed.** (1) Finance's savings pots (the ₹
+target/current tracker) are **kept, workspace-only** — not deleted. (2) Health
+Settings' "Goals" group is **renamed "Targets"** — those are the numeric
+reference lines (goal weight, calorie/macro targets, workouts per week) that
+the Body/Nutrition/Workouts modules draw against, not goal entities; removing
+them would have silently reverted those charts to hardcoded defaults.
+(3) Overview progress comes from the recorded score **plus** a milestone
+fallback, which needed the backend change below.
+
+**What was removed.** The `goals` entry in Finance's nav subs; the `goals`
+case in `FinancePage` (now redirects to Overview via `LEGACY_SECTIONS`, so an
+old bookmark does not 404); the **"Planning" group** in Finance Settings —
+its Goals item is gone and the remaining Loans + Bills now sit under
+"Commitments". Also deleted a dead `open-new-goal` window listener there
+(no dispatcher existed anywhere in the tree).
+
+**`progress_score` was write-only and now is not.** The Weekly Review has been
+posting a score per goal every week via `POST /goals/{id}/progress` and nothing
+ever read it back. `GET /api/goals` gained a `GoalRead` schema carrying the
+latest score per goal (one ordered sweep of the user's progress rows, not a
+per-goal subquery). `null` when never scored — deliberately distinct from a
+score of 0, because only the former falls back to milestones.
+
+**One module, three pages.** `useDomainGoalsModule(domain)` in
+`packages/shared/src/hooks/` builds the `progress` ModuleSpec once and Finance
+Overview (`HomeTab`), Health Overview (`OverviewSection`) and Career's landing
+Journal all append it. Per goal: recorded score → else hit ÷ total milestones →
+else "Not scored" rather than a fake 0%. Overdue rows go destructive. The hook
+returns `null` when a domain has no active goals, so nothing renders for a user
+who has not set any. Its header action deep-links to
+`/app/workspace/goals?domain=<domain>` — the only way to *edit* from an area.
+
+**Bug found and fixed in passing.** Workspace → Goals with `domain=finance`
+rendered the savings-pot tab with `onAdd` wired to the **macro-goal** dialog.
+Once Finance lost its Goals destination that was the only surface left showing
+pots, so a pot could not be created anywhere. It now opens `BudgetTabModal`
+with `defaultTab="Goal"`.
+
+**Verified.** Backend **248 passing** (+3 new in `tests/test_goals.py`: no
+score before any progress, latest of several scores wins, scores scoped per
+goal) — the one failure, `test_api_mappings`, is **pre-existing** and belongs
+to another session's uncommitted `api/areas/finance.py` work (unmapped
+`goals/contributions`, `investments/performance`, `loans/{}/payments`), none of
+which this change touches. Frontend `tsc` clean, `pnpm build` clean, vitest 2/2.
+token-lint fails on drift from that same concurrent work — `--report` names
+none of the files touched here.
+
+**Not verified in-browser.** The affected surfaces are all behind auth and I do
+not enter credentials; the logged-in walk (module rendering at 1400px/375px,
+light/dark) is outstanding.
+
+## 2026-08-02 — claude-code (canvas-alignment pass: five screenshots → five pages)
+
+**Ask.** Utsav supplied five Claude Design screenshots (`today:overview`,
+`today:plan`, `finance:overview`, `finance:transactions`, `finance:budgets`)
+and asked for the pages to match them. Three had drifted during Phase 4; two
+were on yesterday's "deliberately not rewritten" list, which Utsav has now
+overruled for Dashboard and Transactions.
+
+**Three decisions asked, not assumed.** (1) Transactions — restyle to the
+canvas shell and 5-column grid but keep bulk ops, inline edit, keyboard nav,
+CSV import and the Calendar/Weekly/Daily views. (2) Dashboard — match the
+canvas and drop BriefingCard, OverviewInsightCard, DiscoveriesFeed and the
+300px sticky rail from the page (files kept, unreferenced). (3) `PageHeader` —
+dropped **app-wide**, not just on these five.
+
+**Kit: 18 module kinds → 21.** New `hero` (lead figure + assets/liabilities
+split), `meters` (grid of meter cards in one shell — the Budgets treatment) and
+`agenda` (time gutter + domain rule, distinct from `timeline`). Extended: `rows`
+`mono`/`monoKey`/`valueKey`, `progress` `valueKey`, `checklist`
+`groupLabel`/`chips`/`onChipToggle`, and every header gained `actionVariant`
+(`primary`/`ghost`/`link`) + `actionNode` — the one slot in the spec language
+that takes elements, because the canvas puts real `Select`s in card headers.
+
+**`PageHeader` is gone from every page**, `PageDivider` too. It survives in one
+place: `PageContent` renders a minimal eyebrow+title header inside the page's
+own content column, and only when that page has portalled a page-scoped control
+through `HeaderActionPortal` — the per-area Settings links, Career's "Log
+entry", the workspace domain filter, AreaSettingsPage's Back. Those are what
+keep `/app/{finance,health,career}/settings` reachable, since the routes are
+not in the nav tree and the area Settings button was their only entry point.
+The title comes from the nav tree via `PageIdentityProvider` in `AppShell`.
+
+**Correction, same day.** I first pointed the portal at the global **TopBar**
+and a new `usePageHeaderActions()` hook. Utsav reverted that: the TopBar is
+permanent app chrome and must not carry one page's controls. The hook survived;
+its consumer moved to `PageContent`. My earlier write-up in this file and in
+the plan claimed the TopBar design — corrected here.
+
+**`formatAmount()`** added — full Indian-grouped currency (`₹18,42,650`). The
+canvas only abbreviates on dashboard KPI tiles; `formatCurrency` keeps the lakh
+form and is now tiles-only.
+
+**Honest numbers, not the mock's.** Month-over-month deltas are cut to the
+**same day** of the previous month (comparing month-to-date against a whole
+previous month reports a fall every month until its last day). The net-worth
+delta comes from the newest prior-month snapshot and says "No earlier snapshot
+to compare" when there is none. Two canvas asks stay unanswerable and say so
+instead of inventing a denominator: Plan's "vs capacity" (no capacity model)
+and the dashboard's "Career streak ↑3 vs last wk" (no historical streak).
+
+**One casualty, flagged.** The Financial-health score has no slot in the
+canvas's finance:overview; `financeApi.healthScore()` now has no caller and the
+backend route is untouched. Re-siting or retiring it is a product call.
+
+**Verified.** tsc + `pnpm build` + vitest green. token-lint: every count
+**exactly matches HEAD** (font-size 16, radius 9, hex 34, spacing 95, rgba 27,
+inline-style 30) — zero drift added; still red overall on its stale baseline,
+which a separate task owns. Rendered all seven new/changed module shapes on a
+throwaway public route (the agent cannot log in) at 1400px light, 1400px dark
+and 375px — no horizontal overflow at any width — then removed the route.
+`test_api_mappings` fails on 10 unmapped routes that come from **uncommitted
+backend work in the same tree**, not from this pass.
+
 ## 2026-08-02 — claude-code (DC redesign Phase 4 + 6: all 34 destinations on live data)
 
 **Done.** Every destination now renders its Claude Design canvas composition

@@ -20,6 +20,7 @@ import { healthApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { AiInsightCard } from '@ct/shared/components/AiInsightCard'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
+import { useDomainGoalsModule } from '@ct/shared/hooks/useDomainGoalsModule'
 import { formatRelativeTime } from '@ct/shared/lib/utils'
 
 const Root = styled.div`
@@ -30,6 +31,10 @@ const Root = styled.div`
 
 export function OverviewSection() {
   const qc = useQueryClient()
+  /* Health's workspace goals, read-only — Overview is the only area surface
+     that shows goals. `goals` below is a different thing: the numeric targets
+     (goal weight, steps) that Health Settings owns. */
+  const goalsModule = useDomainGoalsModule('health')
 
   const { data: streak, isLoading } = useQuery({ queryKey: ['health', 'streak'], queryFn: healthApi.streak })
   const { data: summary } = useQuery({ queryKey: ['health', 'summary'], queryFn: healthApi.summary })
@@ -147,7 +152,7 @@ export function OverviewSection() {
 
   return (
     <Root>
-      <ModuleGrid modules={modules} />
+      <ModuleGrid modules={goalsModule ? [...modules, goalsModule] : modules} />
       <AiInsightCard area="health" />
     </Root>
   )

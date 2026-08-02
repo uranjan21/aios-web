@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { PageHeader } from '@ledgr/ui'
+import { useNavigate } from 'react-router-dom'
+import { Button, HeaderActionPortal } from '@ledgr/ui'
 
 import { HomeTab } from '@ct/finance/components/HomeTab'
 import { TransactionsTab } from '@ct/finance/components/TransactionsTab'
@@ -8,31 +9,37 @@ import { BudgetTab } from '@ct/finance/components/BudgetTab'
 import { PayablesTab } from '@ct/finance/components/PayablesTab'
 import { InvestmentsTab } from '@ct/finance/components/InvestmentsTab'
 import { LoansTab } from '@ct/finance/components/LoansTab'
-import { GoalsTab } from '@ct/finance/components/GoalsTab'
 import { AccountManager } from '@ct/finance/components/AccountManager'
 import { AccountsTabModal } from '@ct/finance/components/QuickAddAccounts'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
 import { useAreaSection } from '@ct/shared/hooks/useAreaSection'
-import { IndianRupee } from 'lucide-react'
+import { Settings } from 'lucide-react'
 
 /**
  * Sub-page routing, 2026-08-01: the per-area `ModuleSidebar` and its `?tab=`
  * param are gone — every section below is a route in the global nav tree
  * (`apps/shell/src/config/navigation.ts`).
  *
- * Two sections were retired here per the redesign's IA:
+ * Three sections were retired here:
  *  - `analytics` — no slot in the new nav.
  *  - `rules`     — RELOCATED, not deleted: auto-categorization becomes a
  *                  `controls` module on the Inbox page in Phase 4.
- * Both still redirect to Overview rather than 404ing an old bookmark.
+ *  - `goals`     — RELOCATED (2026-08-02). Goals and milestones are set in
+ *                  Workspace for every domain, so no area owns a goal editor.
+ *                  The savings-pot tracker still renders at
+ *                  /app/workspace/goals?domain=finance; Overview keeps a
+ *                  read-only progress module.
+ * All three redirect to Overview rather than 404ing an old bookmark.
  */
 const LEGACY_SECTIONS: Record<string, string> = {
   payables: 'bills',
   analytics: 'overview',
   rules: 'inbox',
+  goals: 'overview',
 }
 
 export function FinancePage() {
+  const navigate = useNavigate()
   const section = useAreaSection('/app/finance', 'overview', LEGACY_SECTIONS)
 
   const [accountModalOpen, setAccountModalOpen] = useState(false)
@@ -57,7 +64,6 @@ export function FinancePage() {
       case 'transactions': return <TransactionsTab />
       case 'budgets':      return <BudgetTab />
       case 'bills':        return <PayablesTab />
-      case 'goals':        return <GoalsTab />
       case 'investments':  return <InvestmentsTab onAddClick={() => openAddModal('Investment')} />
       case 'loans':        return <LoansTab onAdd={() => openAddModal('Loan')} />
       case 'inbox':        return <InboxTab />
@@ -69,12 +75,14 @@ export function FinancePage() {
   return (
     <PageContainer>
       <PageContent>
-        <PageHeader
-          icon={<IndianRupee size={24} />}
-          eyebrow="Money"
-          title="Finance"
-          subtitle="Manage your transactions, budgets, investments, and financial health in one place."
-        />
+        {/* Page-level actions portal into this page's own header block, which
+            `PageContent` renders when — and only when — something is portalled.
+            They used to land in the global TopBar. */}
+        <HeaderActionPortal>
+          <Button variant="outline" size="sm" onClick={() => navigate('/app/finance/settings')}>
+            <Settings size={14} style={{ marginRight: 6 }} /> Settings
+          </Button>
+        </HeaderActionPortal>
         {renderContent()}
         <AccountsTabModal open={accountModalOpen} onClose={() => setAccountModalOpen(false)} defaultTab={accountModalTab} />
       </PageContent>

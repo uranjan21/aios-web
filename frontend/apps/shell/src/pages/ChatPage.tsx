@@ -10,10 +10,9 @@ import { useEffect, useRef, useState } from 'react'
 import styled, { useTheme } from 'styled-components'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Bot, MessageSquare, Wifi, WifiOff } from 'lucide-react'
-import { PageHeader, Spinner } from '@ledgr/ui'
+import { Bot, Wifi, WifiOff } from 'lucide-react'
+import { Spinner } from '@ledgr/ui'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
-import { PageDivider } from '@ct/shared/components/layout/PageDivider'
 import { useChat } from '@ct/shared/hooks/useChat'
 import { chatApi } from '@ct/shared/api/chat'
 import { AssistantChatInput, AttachedFile } from '@/components/assistant/AssistantChatInput'
@@ -216,13 +215,6 @@ export function ChatPage() {
   return (
     <PageContainer>
       <PageContent>
-        <PageHeader
-          icon={<MessageSquare />}
-          eyebrow="Assistant"
-          title="Chat"
-          subtitle="Talk to Control Tower — it can log data, search your knowledge, and act across every area"
-        />
-        <PageDivider />
 
         <ChatShell>
           <Rail>

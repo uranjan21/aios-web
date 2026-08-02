@@ -317,15 +317,6 @@ export interface LoanSummary {
 export interface NetWorth {
   net_worth: number; accounts_total: number; investments_total: number; loans_outstanding: number;
 }
-export interface HealthScoreComponent {
-  key: string; label: string; available: boolean; score: number | null; display: string;
-}
-export interface FinanceHealthScore {
-  score: number; band: 'excellent' | 'good' | 'fair' | 'attention'; components: HealthScoreComponent[];
-  prev?: {
-    score: number; band: 'excellent' | 'good' | 'fair' | 'attention'; components: HealthScoreComponent[];
-  };
-}
 export interface TxnSearchItem {
   id: string; kind: 'expense' | 'income' | 'transfer'; logged_at: string;
   amount: number; category: string | null; description: string | null; account_id: string | null;

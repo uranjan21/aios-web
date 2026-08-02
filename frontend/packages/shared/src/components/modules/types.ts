@@ -7,8 +7,11 @@
  * which `useModulePalette` resolves against the active theme, so a page
  * definition is data and stays palette-agnostic.
  *
- * Faithful port of `PAGES` + `buildModules` in `Control Tower Redesign.dc.html`.
+ * Faithful port of `PAGES` + `buildModules` in `Control Tower Redesign.dc.html`,
+ * plus three kinds the canvas draws by hand on its hand-designed pages rather
+ * than declaring in `PAGES`: `hero`, `meters` and `agenda`.
  */
+import type { ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
 /** A semantic colour slot. Anything not in the palette is passed through as CSS. */
@@ -33,18 +36,104 @@ interface Base {
    * live page passes one in and the button works.
    */
   onAction?: () => void
+  /** `primary` fills the button; `link` drops the border. Defaults to ghost. */
+  actionVariant?: 'primary' | 'ghost' | 'link'
+  /*
+   * Escape hatch for header controls a string cannot express — the Budgets
+   * status filter, the Transactions filter, the week navigator. Rendered
+   * BEFORE `action`, so a page can have both a select and a button. Everything
+   * else about a spec stays data; this is the one slot that takes elements,
+   * because the canvas puts real form controls in these headers.
+   */
+  actionNode?: ReactNode
 }
 
 export interface RowsModule extends Base {
   kind: 'rows'
-  rows: Array<{ title: string; meta?: string; value?: string; tagLabel?: string; tagColorKey?: ColorKey; busy?: boolean }>
+  rows: Array<{
+    title: string
+    meta?: string
+    value?: string
+    valueKey?: ColorKey
+    tagLabel?: string
+    tagColorKey?: ColorKey
+    /**
+     * Two-letter monogram standing in for a merchant logo, same convention as
+     * `queue`. Absent, the row starts at its title as it always has.
+     */
+    mono?: string
+    monoKey?: ColorKey
+    busy?: boolean
+  }>
   /** Optional row affordance — see `ProgressModule.onRowClick`. */
   onRowClick?: (index: number) => void
 }
 
+/**
+ * A single lead figure with its supporting split — the net-worth card at the
+ * top of Finance → Overview. One number is the point of the module, so it is
+ * NOT a one-tile `tiles` row: it carries the card shell and the header.
+ */
+export interface HeroModule extends Base {
+  kind: 'hero'
+  value: string
+  /** Movement line under the value, e.g. "↑ 4.2% vs last month". */
+  delta?: string
+  deltaKey?: ColorKey
+  /** Right-aligned label/value pairs — assets and liabilities. */
+  stats?: Array<{ label: string; value: string; colorKey?: ColorKey }>
+}
+
+/**
+ * A grid of meter cards inside one shell — the Budgets page. `progress` is the
+ * same data as a stacked list; this is the canvas's card treatment, where each
+ * category is its own tile with a percentage badge and a spent/limit footer.
+ */
+export interface MetersModule extends Base {
+  kind: 'meters'
+  /** Line above the grid, e.g. "July 2026 · ₹68,400 of ₹95,000 budgeted spent". */
+  summary?: string
+  /** Shown in place of the grid when a filter leaves nothing to draw. */
+  emptyLabel?: string
+  cols?: number
+  meters: Array<{
+    title: string
+    /** Fill percentage, already clamped by the page if it can exceed 100. */
+    pct: number
+    badge?: string
+    colorKey?: ColorKey
+    /** Footer pair beneath the track. */
+    left?: string
+    right?: string
+  }>
+  /** Optional card affordance — see `ProgressModule.onRowClick`. */
+  onMeterClick?: (index: number) => void
+}
+
+/**
+ * A day's schedule: time gutter, a domain-coloured rule, then the entry. The
+ * dashboard's right-hand card. Distinct from `timeline`, which is a dotted
+ * thread of things that already happened.
+ */
+export interface AgendaModule extends Base {
+  kind: 'agenda'
+  entries: Array<{ time: string; title: string; meta?: string; colorKey?: ColorKey }>
+  /** Shown in place of the list when there is nothing scheduled. */
+  emptyLabel?: string
+  onEntryClick?: (index: number) => void
+}
+
 export interface ProgressModule extends Base {
   kind: 'progress'
-  rows: Array<{ title: string; meta?: string; value: string; pct: number; colorKey?: ColorKey }>
+  rows: Array<{
+    title: string
+    meta?: string
+    value: string
+    pct: number
+    colorKey?: ColorKey
+    /** Colours the value independently of the bar. Defaults to `colorKey`. */
+    valueKey?: ColorKey
+  }>
   /*
    * Optional row affordance. A progress row is often the only place a page
    * lists its entities, so a live page can make each one open its editor.
@@ -176,6 +265,14 @@ export interface ChecklistModule extends Base {
   items: Array<{ label: string; meta?: string; done?: boolean; tagLabel?: string; tagKey?: ColorKey; busy?: boolean }>
   /** Optional controlled mode — see `notes`. Absent, the boxes are inert. */
   onToggle?: (index: number, next: boolean) => void
+  /*
+   * Optional second group under the list — the dashboard's habit chips, which
+   * belong to Today's Focus but are toggles rather than one-off tasks. Absent,
+   * the module renders exactly as the canvas's other checklists do.
+   */
+  groupLabel?: string
+  chips?: Array<{ label: string; done?: boolean; colorKey?: ColorKey; busy?: boolean }>
+  onChipToggle?: (index: number, next: boolean) => void
 }
 
 export interface NotesModule extends Base {
@@ -285,6 +382,7 @@ export type ModuleSpec =
   | CalendarModule | WeekModule | TimelineModule | TableModule | ControlsModule
   | QueueModule | ChecklistModule | NotesModule | SpansModule
   | TilesModule | KanbanModule | AgentsModule | ChatModule
+  | HeroModule | MetersModule | AgendaModule
 
 /**
  * Kinds that render WITHOUT the card shell — they are grids of their own

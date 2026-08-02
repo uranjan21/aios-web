@@ -661,3 +661,114 @@ rgba-in-shadow 33→27, inline-style 55→30.
    are the ones that will grow in scope.
 4. **`/app/plan` changes meaning** mid-flight. Bookmarks and the `g p` shortcut
    both point at it.
+
+### Canvas-alignment pass ✅ 2026-08-02 (later)
+
+Utsav supplied five canvas screenshots — `today:overview`, `today:plan`,
+`finance:overview`, `finance:transactions`, `finance:budgets` — and asked for
+the pages to match them. Three of those five had drifted from the canvas during
+Phase 4 and two were on the "deliberately not rewritten" list above; that list
+is now **superseded for Dashboard and Transactions**, which Utsav ruled on
+directly.
+
+**Three decisions taken (asked, not assumed):**
+
+1. **Transactions — restyle, keep every feature.** The canvas draws a plain
+   5-column table; the page has ~1,400 lines of bulk ops, inline edit, keyboard
+   nav, CSV import and Calendar/Weekly/Daily views. Utsav chose the shell and
+   the column grid, not the subtraction. `TxnRowRoot` became a CSS grid on a
+   shared `TXN_COLS` track (checkbox · DATE · MERCHANT · CATEGORY chip ·
+   ACCOUNT · AMOUNT) with a matching `TxnHeaderRoot`; the action cluster
+   overlays the amount column on hover so AMOUNT stays anchored right; the
+   inline editor opts out of the grid entirely. Below `md` the grid is
+   abandoned for two stacked lines — five columns on a phone is the
+   horizontal-scroll pattern MOBILE STRICT bans. `AreaToolbar` moved INSIDE the
+   card; Filter + "+ Add transaction" moved into the card header; the
+   never-passed `navMenu` prop and its empty `WorkspaceLayout` rail are gone.
+2. **Dashboard — match the canvas, drop the extras.** BriefingCard,
+   OverviewInsightCard, DiscoveriesFeed and the 300px sticky calendar rail are
+   no longer rendered. The files stay in the repo unreferenced: the data behind
+   them (the daily brief, synergy discoveries) is still produced server-side.
+3. **`PageHeader` — dropped app-wide**, not just on these pages. Zero call
+   sites remain; `PageDivider` went with it.
+
+**Kit additions — 18 kinds → 21.** `hero` (a lead figure with its
+assets/liabilities split), `meters` (a grid of meter cards inside one shell —
+the Budgets treatment, where `progress` is the same data as a flat list), and
+`agenda` (time gutter · domain-coloured rule · entry, distinct from `timeline`,
+which is a dotted thread of things that already happened). Plus: `rows` gained
+`mono`/`monoKey`/`valueKey`, `progress` gained `valueKey` (so a bar and its
+figure can differ), `checklist` gained `groupLabel`/`chips`/`onChipToggle` (the
+dashboard's habit toggles), and `Base` gained `actionVariant`
+(`primary`/`ghost`/`link`) plus `actionNode` — the one slot in the spec
+language that takes elements, because the canvas puts real `Select`s in these
+card headers.
+
+**`formatAmount()`** added to `packages/shared/src/lib/utils.ts`. The canvas
+prints full Indian-grouped currency (`₹18,42,650`) everywhere the number IS the
+content, and only abbreviates on the dashboard's KPI tiles. `formatCurrency`
+keeps the lakh abbreviation and is now for tiles; everything else uses
+`formatAmount`.
+
+**Where actions went.** `HeaderActionPortal` used to render inside a page's own
+`PageHeader`. It is now consumed by **`PageContent`** (`@ct/shared`) through a
+new `usePageHeaderActions()` hook: when — and only when — a page portals
+something, `PageContent` renders a minimal eyebrow+title `PageHeader` at the
+top of that page's content column, with the title taken from the nav tree via
+`PageIdentityProvider` in `AppShell` (so no page hand-writes a section→label
+map). A page with no page-scoped control renders no header, which is the
+canvas's clean start. This is what kept
+`/app/{finance,health,career}/settings` reachable — those routes are not in the
+nav tree and the area page's Settings button was their only entry point.
+Career's "Log entry", the workspace domain filter and `AreaSettingsPage`'s Back
+go the same way. Card-scoped controls still belong in their card's header.
+
+> **Correction (same day).** The first implementation pointed the portal at the
+> global **TopBar**. Utsav reverted it: the TopBar is permanent app chrome —
+> breadcrumbs, search, assistant, theme, notifications, account — and must not
+> carry one page's controls. Only the consumer moved; every
+> `HeaderActionPortal` call site is unchanged.
+
+**Two departures from the canvas, both deliberate:**
+
+| Page | Canvas asks for | Rendered instead |
+|---|---|---|
+| today:plan | "Planned hours vs capacity", e.g. "18h planned of 20h capacity" | planned hours per domain as a share of the week — there is no capacity model, and a fabricated denominator is a fake number on screen (this departure predates this pass and still stands) |
+| today:overview | "Career streak · ↑ 3 vs last wk" | the streak, with the month's entry count beneath it — no historical streak is stored to compare against |
+
+Everything else the tiles show is real: the net-worth delta comes from the most
+recent prior-month `FinanceSnapshot` and says "No earlier snapshot to compare"
+when there is none; month-over-month spend and savings-rate deltas are cut to
+the **same day** of the previous month, because comparing month-to-date against
+a full previous month reports a fall every month until the last day of it.
+
+**One casualty, and it was retired (2026-08-02):** the Financial-health score
+tile had no slot in the canvas's `finance:overview` (its three KPIs are Spend /
+Savings rate / Upcoming bills), which left `financeApi.healthScore()` with no
+caller. The product call was to retire it rather than re-site it — the two
+candidate homes were both category errors (`finance:accounts` is account CRUD,
+and three of the score's four components have nothing to do with accounts;
+Finance settings is configuration, not read-only analysis), and the IA has no
+analytics page left to put it on. Deleted: `GET /areas/finance/health-score`
+and `_compute_health_score_for_date` (143 lines of `backend/app/api/areas/
+finance.py`), `financeApi.healthScore`, and the `FinanceHealthScore` /
+`HealthScoreComponent` types.
+
+What went with it, should it ever be wanted back: a four-component composite
+(savings rate, debt-to-income, emergency fund, budget adherence), each
+component scored 0–100 with a human-readable `display` line and an `available`
+flag so missing prerequisites were excluded from the average rather than
+counted as zero, plus the same computation over the previous month under
+`prev`. Every input still exists — the deletion is recoverable from git, not
+from lost data.
+
+**Verified.** tsc + `pnpm build` + vitest green. token-lint: every violation
+count **exactly matches HEAD** (font-size 16, radius 9, hex 34, spacing 95,
+rgba 27, inline-style 30) — zero drift added; it still fails overall on its
+stale baseline, which a separate task owns. Rendered all seven new/changed
+module shapes on a throwaway public route (login is unreachable to the agent)
+at 1400px light, 1400px dark and 375px: no horizontal overflow at any width,
+tiles scroll-snap and meters go single-column below `md`, then removed the
+route. `test_api_mappings` currently fails on 10 unmapped backend routes — all
+10 come from **uncommitted backend work in the same tree** (goal contributions,
+investment transactions, loan payments, pending stats), not from this pass.

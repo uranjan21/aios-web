@@ -31,12 +31,6 @@ const TwoCol = styled.div`
   gap: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
-const FilterRow = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
-`
-
 const STATUS_OPTIONS = [
   { label: 'Active', value: 'active' },
   { label: 'Paused', value: 'paused' },
@@ -190,6 +184,18 @@ export function ProjectsSection({ domainFilter }: { domainFilter?: string }) {
   const modules = useMemo<ModuleSpec[]>(() => [{
     kind: 'table',
     span: 12,
+    // The status filter belongs to this table, so it rides in the table's own
+    // card header — it used to float, unanchored, above the card.
+    actionNode: (
+      <Select
+        size="sm"
+        fullWidth={false}
+        aria-label="Filter projects by status"
+        value={statusFilter}
+        onChange={v => setStatusFilter(v as string)}
+        options={STATUS_FILTER_OPTIONS}
+      />
+    ),
     title: domainFilter ? `${domainLabel(domainFilter)} projects` : 'All projects',
     subtitle: `${rows.length} project${rows.length !== 1 ? 's' : ''} · click a row to edit`,
     icon: FolderKanban,
@@ -214,7 +220,7 @@ export function ProjectsSection({ domainFilter }: { domainFilter?: string }) {
     ]),
     onRowClick: (i: number) => openEdit(rows[i]),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }], [rows, domainFilter])
+  }], [rows, domainFilter, statusFilter])
 
   return (
     <>
@@ -232,19 +238,7 @@ export function ProjectsSection({ domainFilter }: { domainFilter?: string }) {
           />
         </Card>
       ) : (
-        <>
-          <FilterRow>
-            <Select
-              size="sm"
-              fullWidth={false}
-              aria-label="Filter projects by status"
-              value={statusFilter}
-              onChange={v => setStatusFilter(v as string)}
-              options={STATUS_FILTER_OPTIONS}
-            />
-          </FilterRow>
-          <ModuleGrid modules={modules} />
-        </>
+        <ModuleGrid modules={modules} />
       )}
 
       <Dialog

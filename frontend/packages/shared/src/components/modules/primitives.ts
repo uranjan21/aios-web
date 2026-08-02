@@ -63,6 +63,25 @@ export const Chip = styled.span<{ $bg: string; $color: string }>`
   white-space: nowrap;
 `
 
+/**
+ * Two-letter monogram standing in for a merchant logo. `queue` draws it as a
+ * rounded square; `rows` opts into `$round` for the avatar treatment the
+ * canvas gives recent transactions.
+ */
+export const Mono = styled.span<{ $round?: boolean }>`
+  width: 34px;
+  height: 34px;
+  border-radius: ${({ $round, theme }) => ($round ? '50%' : theme.radii.sm)};
+  background: ${({ theme }) => theme.color.muted};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  ${textRole('label')};
+  font-weight: 700;
+  color: ${({ theme }) => theme.color.mutedForeground};
+  flex-shrink: 0;
+`
+
 /** Section label above a control group or textarea. */
 export const FieldLabel = styled.div`
   ${textRole('micro')};
@@ -92,7 +111,7 @@ export const TrackFill = styled.div<{ $pct: string; $color: string }>`
 `
 
 /** Primary action inside a module body. */
-export const ModuleButton = styled.button<{ $variant?: 'primary' | 'ghost' }>`
+export const ModuleButton = styled.button<{ $variant?: 'primary' | 'ghost'; $borderless?: boolean }>`
   ${textRole('body-s')};
   font-weight: ${({ $variant }) => ($variant === 'primary' ? 700 : 600)};
   font-family: inherit;
@@ -128,6 +147,23 @@ export const ModuleButton = styled.button<{ $variant?: 'primary' | 'ghost' }>`
             border-color: ${theme.color.borderHover};
           }
         `}
+
+  /* The link variant — the canvas's "View all" affordance: accent text, no chrome. */
+  ${({ $borderless, theme }) =>
+    $borderless &&
+    css`
+      border-color: transparent;
+      background: transparent;
+      color: ${theme.color.accent};
+      padding-inline: ${theme.spacing[1]};
+
+      &:hover {
+        background: transparent;
+        border-color: transparent;
+        color: ${theme.color.accent};
+        text-decoration: underline;
+      }
+    `}
 `
 
 /** Toggle track. A true capsule, which the no-pill rule exempts as structural. */

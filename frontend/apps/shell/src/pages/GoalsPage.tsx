@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import styled from "styled-components";
 
 import { GoalsTab as FinanceGoalsTab } from "@ct/finance/components/GoalsTab";
+import { BudgetTabModal } from "@ct/finance/components/QuickAddBudget";
 import { ModuleGrid, type ModuleSpec } from "@ct/shared/components/modules";
 import { DomainGoalsCard } from "@ct/shared/components/workspace/DomainGoalsCard";
 import {
@@ -37,12 +38,6 @@ const TwoCol = styled.div`
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 `;
-
-const GoalsFilterRow = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
-`
 
 const StyledCard = styled(Card)`
   position: relative;
@@ -100,6 +95,8 @@ export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
   };
 
   const [deleteTarget, setDeleteTarget] = useState<MacroGoal | null>(null);
+  /** Finance savings-pot add modal — see the finance branch below. */
+  const [potModalOpen, setPotModalOpen] = useState(false);
 
   const createMutation = useMutation({
     mutationFn: goalsApi.create,
@@ -167,6 +164,17 @@ export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
         const modules: ModuleSpec[] = [{
           kind: "table",
           span: 12,
+          // Belongs to this table — see ProjectsPage.
+          actionNode: (
+            <Select
+              size="sm"
+              fullWidth={false}
+              aria-label="Filter goals by status"
+              value={goalStatusFilter}
+              onChange={(v) => setGoalStatusFilter(v as string)}
+              options={GOAL_STATUS_FILTER_OPTIONS}
+            />
+          ),
           title: "All goals",
           subtitle: `${visibleGoals.length} goal${visibleGoals.length !== 1 ? "s" : ""} · click a row to remove`,
           icon: Target,
@@ -196,25 +204,25 @@ export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
           onRowClick: (i: number) => setDeleteTarget(visibleGoals[i]),
         }];
 
-        return (
-          <>
-            <GoalsFilterRow>
-              <Select
-                size="sm"
-                fullWidth={false}
-                aria-label="Filter goals by status"
-                value={goalStatusFilter}
-                onChange={(v) => setGoalStatusFilter(v as string)}
-                options={GOAL_STATUS_FILTER_OPTIONS}
-              />
-            </GoalsFilterRow>
-            <ModuleGrid modules={modules} />
-          </>
-        );
+        return <ModuleGrid modules={modules} />;
       })()}
 
+      {/*
+        Finance's savings pots are a different entity from a macro goal (a
+        target/current ₹ balance, not a scored objective), so "Add" here opens
+        the pot modal — it used to open the macro-goal dialog, which meant a
+        savings pot could not be created from the only page that still shows
+        them once Finance lost its Goals destination (2026-08-02).
+      */}
       {domainFilter === "finance" && (
-        <FinanceGoalsTab onAdd={() => handleOpenAddGoal("finance")} />
+        <>
+          <FinanceGoalsTab onAdd={() => setPotModalOpen(true)} />
+          <BudgetTabModal
+            open={potModalOpen}
+            onClose={() => setPotModalOpen(false)}
+            defaultTab="Goal"
+          />
+        </>
       )}
 
       {domainFilter === "health" && (

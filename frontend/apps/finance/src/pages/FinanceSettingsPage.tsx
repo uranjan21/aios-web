@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react'
-import { Wallet, Tags, Target, Briefcase, Receipt, IndianRupee, Inbox } from 'lucide-react'
+import { useState } from 'react'
+import { Wallet, Tags, Briefcase, Receipt, IndianRupee, Inbox } from 'lucide-react'
 import { AreaSettingsPage } from '@ct/shared/components/layout/AreaSettingsPage'
 import { AccountManager } from '@ct/finance/components/AccountManager'
 import { CategoryManager } from '@ct/finance/components/CategoryManager'
-import { GoalsTab } from '@ct/finance/components/GoalsTab'
 import { LoansTab } from '@ct/finance/components/LoansTab'
 import { BillsTab } from '@ct/finance/components/BillsTab'
 import { AccountsTabModal } from '@ct/finance/components/QuickAddAccounts'
@@ -12,21 +11,14 @@ import { InboxSettingsTab } from '@ct/finance/components/InboxSettingsTab'
 
 export function FinanceSettingsPage() {
   const [accountsModal, setAccountsModal] = useState<{ open: boolean; tab: 'Account' | 'Loan' }>({ open: false, tab: 'Account' })
-  const [budgetModal, setBudgetModal] = useState<{ open: boolean; tab: 'Goal' | 'Bill' }>({ open: false, tab: 'Goal' })
-
-  // GoalsTab's empty-state "Add Goal" button dispatches this event instead of taking a prop
-  useEffect(() => {
-    const handler = () => setBudgetModal({ open: true, tab: 'Goal' })
-    window.addEventListener('open-new-goal', handler)
-    return () => window.removeEventListener('open-new-goal', handler)
-  }, [])
+  const [budgetModal, setBudgetModal] = useState<{ open: boolean; tab: 'Bill' }>({ open: false, tab: 'Bill' })
 
   return (
     <>
       <AreaSettingsPage
         icon={<IndianRupee />}
         title="Finance Settings"
-        subtitle="Manage accounts, categories, goals, loans, and bills in one place."
+        subtitle="Manage accounts, categories, loans, and bills in one place."
         backTo="/app/finance"
         groups={[
           {
@@ -39,13 +31,12 @@ export function FinanceSettingsPage() {
               { key: 'categories', label: 'Categories', icon: <Tags size={15} />, content: <CategoryManager /> },
             ],
           },
+          /* No "Planning" group and no Goals item (2026-08-02): planning is
+             Workspace's job now. What is left here is the two recurring
+             commitments Finance itself owns. */
           {
-            label: 'Planning',
+            label: 'Commitments',
             items: [
-              {
-                key: 'goals', label: 'Goals', icon: <Target size={15} />,
-                content: <GoalsTab onAdd={() => setBudgetModal({ open: true, tab: 'Goal' })} />,
-              },
               {
                 key: 'loans', label: 'Loans', icon: <Briefcase size={15} />,
                 content: <LoansTab onAdd={() => setAccountsModal({ open: true, tab: 'Loan' })} />,

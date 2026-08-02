@@ -25,14 +25,12 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
-import { BarChart3, CalendarCheck, CheckSquare, FileText, Flag } from 'lucide-react'
-import { PageHeader } from '@ledgr/ui'
+import { BarChart3, CheckSquare, FileText, Flag } from 'lucide-react'
 import { api } from '@ct/shared/api/client'
 import { goalsApi } from '@ct/shared/api/goals'
 import { careerApi } from '@ct/shared/api/areas'
 import { insightsApi } from '@ct/shared/api/insights'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
-import { PageDivider } from '@ct/shared/components/layout/PageDivider'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
 import { isActiveDomain } from '@ct/shared/config/domains'
 import { toCalendarDate } from '@ct/shared/lib/calendarDate'
@@ -221,13 +219,6 @@ export function ReviewPage() {
   return (
     <PageContainer>
       <PageContent>
-        <PageHeader
-          icon={<CalendarCheck />}
-          eyebrow="Routine"
-          title="Weekly Review"
-          subtitle="Your Sunday ritual to align and focus"
-        />
-        <PageDivider />
         <ModuleGrid modules={modules} />
       </PageContent>
     </PageContainer>

@@ -122,24 +122,6 @@ const HomeButton = styled.button`
   svg { width: 16px; height: 16px; }
 `
 
-const LogoBadge = styled.div`
-  width: 30px;
-  height: 30px;
-  flex-shrink: 0;
-  border-radius: ${({ theme }) => theme.radii.md};
-  background: ${({ theme }) => theme.color.primary};
-  color: ${({ theme }) => theme.color.primaryForeground};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  flex-shrink: 0;
-  margin-right: 4px;
-`
-
 const GlobalSearchContainer = styled.button`
   max-width: 220px;
   width: 220px;
@@ -299,8 +281,6 @@ export function TopBar() {
   return (
     <HeaderRoot>
       <LeftSide>
-        <LogoBadge aria-hidden>CT</LogoBadge>
-
         <Hamburger aria-label="Open mobile menu" onClick={toggleSidebar}>
           <Menu size={18} />
         </Hamburger>
@@ -330,6 +310,10 @@ export function TopBar() {
       </LeftSide>
 
       <RightCluster>
+        {/* A page's own actions do NOT land here (reverted 2026-08-02, later):
+            the TopBar is permanent app chrome and one page's Settings link or
+            domain filter has no business in it. They render in the page's own
+            header block — see `PageContent` in @ct/shared. */}
         <GlobalSearchContainer onClick={() => setCmdPaletteOpen(true)} type="button" aria-label="Global search">
           <Search className="icon-search" />
           <span className="placeholder">Search...</span>

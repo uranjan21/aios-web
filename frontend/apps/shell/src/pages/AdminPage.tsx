@@ -4,13 +4,12 @@ import { BarChart3, Cpu, Shield, Users, Search, ChevronLeft, ChevronRight, Trash
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
-import { PageHeader, Card as GlassCard, Select, Button } from '@ledgr/ui'
+import { Card as GlassCard, Select, Button } from '@ledgr/ui'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { adminApi, AdminUser } from '@ct/shared/api/admin'
 import { useAuthStore } from '@ct/shared/stores/authStore'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
-import { PageDivider } from '@ct/shared/components/layout/PageDivider'
 
 // ── User table ───────────────────────────────────────────────────────────────
 
@@ -470,13 +469,6 @@ export function AdminPage() {
   return (
     <PageContainer>
       <PageContent>
-        <PageHeader
-          title="Admin Panel"
-          subtitle="User management, plan overrides, and system overview."
-          icon={<Shield />}
-          eyebrow="Admin"
-        />
-        <PageDivider />
         <AdminModules />
         <UsersTable currentAdminId={user?.id ?? ''} />
       </PageContent>

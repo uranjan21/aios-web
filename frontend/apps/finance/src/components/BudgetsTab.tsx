@@ -1,14 +1,19 @@
 /**
  * Finance → Budgets.
  *
- * Phase 4 conversion to the canvas's `finance:budgets` design — a month summary
- * line above per-category bars showing spent against limit. That is a `tiles`
- * row plus a `progress` module, rebuilt from the live budgets and status
- * endpoints. Clicking a category row opens its editor, which is where the old
- * table's pencil/trash column went.
+ * The canvas's `finance:budgets` page is ONE card — "Limits by Category" — with
+ * the status filter and Add button in its header, a month summary line, then a
+ * three-up grid of meter cards. That is the `meters` module.
+ *
+ * 2026-08-02: this replaced a floating filter toolbar + a four-tile KPI row +
+ * a stacked `progress` list. The KPI row restated what the grid already shows
+ * (total, spent, left, needing attention are all readable off six meters), and
+ * the canvas does not draw it. Clicking a meter opens its editor, which is
+ * where the old table's pencil/trash column went.
  */
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import dayjs from 'dayjs'
 import { toast } from 'sonner'
 import styled from 'styled-components'
 import { Button, Card, Dialog, EmptyState, Input, Select } from '@ledgr/ui'
@@ -16,19 +21,13 @@ import { Gauge, Trash2 } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
-import { formatCurrency } from '@ct/shared/lib/utils'
+import { formatAmount } from '@ct/shared/lib/utils'
 import type { BudgetLimit } from '@ct/shared/types'
 
 const Root = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[5]};
-`
-
-const Toolbar = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: ${({ theme }) => theme.spacing[2]};
 `
 
 const Form = styled.div`
@@ -144,80 +143,19 @@ export function BudgetsTab({ onAddClick }: { onAddClick?: () => void }) {
   const modules = useMemo<ModuleSpec[]>(() => {
     if (!rows.length) return []
 
+    // The summary line covers EVERY budget, not the filtered subset — it is the
+    // month's headline, so a filter narrowing the grid must not restate it.
     const totalLimit = rows.reduce((s, r) => s + r.limit, 0)
     const totalSpent = rows.reduce((s, r) => s + r.used, 0)
-    const overallPct = totalLimit > 0 ? Math.round((totalSpent / totalLimit) * 100) : 0
-    const over = rows.filter(r => r.pct >= 100)
-    const near = rows.filter(r => r.pct >= 80 && r.pct < 100)
 
     return [
       {
-        kind: 'tiles',
+        kind: 'meters',
         span: 12,
-        tiles: [
-          {
-            label: 'Budgeted this month',
-            value: formatCurrency(totalLimit),
-            sub: `Across ${rows.length} categor${rows.length === 1 ? 'y' : 'ies'}`,
-          },
-          {
-            label: 'Spent',
-            value: formatCurrency(totalSpent),
-            sub: `${overallPct}% of the total budget`,
-            subKey: toneFor(overallPct),
-            bar: Math.min(100, overallPct),
-            barKey: toneFor(overallPct),
-          },
-          {
-            label: 'Left to spend',
-            value: formatCurrency(Math.max(0, totalLimit - totalSpent)),
-            sub: totalSpent > totalLimit
-              ? `${formatCurrency(totalSpent - totalLimit)} over`
-              : 'Still within budget',
-            subKey: totalSpent > totalLimit ? 'destructive' : 'success',
-          },
-          {
-            label: 'Needing attention',
-            value: String(over.length + near.length),
-            sub: over.length
-              ? `${over.length} over limit`
-              : near.length ? `${near.length} close to the limit` : 'Everything on track',
-            dotKey: over.length ? 'destructive' : near.length ? 'warning' : 'success',
-          },
-        ],
-      },
-      {
-        kind: 'progress',
-        span: 12,
-        title: 'Limits by category',
-        subtitle: `${visible.length} categor${visible.length === 1 ? 'y' : 'ies'} · click a row to edit`,
+        title: 'Limits by Category',
+        subtitle: "Monthly spending caps and how much you've used",
         icon: Gauge,
-        ...(onAddClick && { action: '+ Add budget', onAction: onAddClick }),
-        onRowClick: (i: number) => openEdit(visible[i].budget),
-        rows: visible.map(r => {
-          const pct = Math.round(r.pct)
-          return {
-            title: r.budget.category,
-            meta: `${formatCurrency(r.used)} of ${formatCurrency(r.limit)}`
-              + (r.used > r.limit
-                ? ` · ${formatCurrency(r.used - r.limit)} over`
-                : ` · ${formatCurrency(r.limit - r.used)} left`),
-            pct: Math.min(100, pct),
-            value: `${pct}%`,
-            colorKey: toneFor(pct),
-          }
-        }),
-      },
-    ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, visible, onAddClick])
-
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
-
-  return (
-    <Root>
-      {rows.length > 0 && (
-        <Toolbar>
+        actionNode: (
           <Select
             size="sm"
             fullWidth={false}
@@ -225,15 +163,38 @@ export function BudgetsTab({ onAddClick }: { onAddClick?: () => void }) {
             value={statusFilter}
             onChange={(v: any) => setStatusFilter(v as typeof statusFilter)}
             options={[
-              { value: 'all', label: 'All' },
+              { value: 'all', label: 'All budgets' },
               { value: 'over', label: 'Over' },
               { value: 'near', label: 'Near' },
               { value: 'ok', label: 'On track' },
             ]}
           />
-        </Toolbar>
-      )}
+        ),
+        ...(onAddClick && { action: '+ Add Budget', actionVariant: 'primary' as const, onAction: onAddClick }),
+        summary: `${dayjs().format('MMMM YYYY')} · ${formatAmount(totalSpent)} of ${formatAmount(totalLimit)} budgeted spent`,
+        emptyLabel: 'No budget matches this filter.',
+        onMeterClick: (i: number) => openEdit(visible[i].budget),
+        meters: visible.map(r => {
+          const pct = Math.round(r.pct)
+          return {
+            title: r.budget.category,
+            badge: `${pct}%`,
+            // The track clamps at full; the badge keeps telling the truth.
+            pct: Math.min(100, pct),
+            colorKey: toneFor(pct),
+            left: `${formatAmount(r.used)} spent`,
+            right: `${formatAmount(r.limit)} limit`,
+          }
+        }),
+      },
+    ]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, visible, statusFilter, onAddClick])
 
+  if (isLoading) return <Skeleton style={{ height: 320 }} />
+
+  return (
+    <Root>
       {rows.length === 0 ? (
         <Card title="Budgets" subtitle="Monthly limits per spending category" icon={<Gauge size={16} />}>
           <EmptyState

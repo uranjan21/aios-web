@@ -118,6 +118,77 @@ docker compose exec backend pytest
 
 ---
 
+## Recent Updates (2026-08-02, latest — goals leave the areas)
+
+Goals and milestones are set in **Workspace** for every domain. No area carries
+a goals destination, a goal editor or a "Planning" section any more; an area's
+Overview may show read-only progress and nothing else. Full entry in
+`PROGRESS.md`.
+
+- **Removed:** Finance's `goals` nav sub + `FinancePage` case (old URL redirects
+  to Overview via `LEGACY_SECTIONS`), and Finance Settings' **"Planning" group**
+  — Goals gone, Loans + Bills regrouped as "Commitments". Health Settings'
+  "Goals" group is renamed **"Targets"**: those are the numeric reference lines
+  the Body/Nutrition/Workouts modules draw against, not goal entities.
+- **Kept, relocated:** Finance's savings pots (₹ target/current) still render at
+  `/app/workspace/goals?domain=finance`. Their "Add" there used to open the
+  macro-goal dialog — with Finance's destination gone that was the last surface
+  showing pots, so a pot could not be created anywhere. Now opens
+  `BudgetTabModal defaultTab="Goal"`.
+- **`GET /api/goals` returns `progress_score`.** The Weekly Review has posted a
+  score per goal per week since forever and nothing read it back. New `GoalRead`
+  schema carries the latest score (one ordered sweep, not a per-goal subquery);
+  `null` ≠ 0 — only "never scored" falls back to milestones.
+- **`useDomainGoalsModule(domain)`** (`packages/shared/src/hooks/`) builds the
+  `progress` module once for Finance Overview, Health Overview and Career's
+  Journal. Score → else hit ÷ total milestones → else "Not scored". Returns
+  `null` when the domain has no active goals.
+- **Verified:** backend **248 passing** (+3 in `tests/test_goals.py`); tsc,
+  `pnpm build`, vitest clean. `test_api_mappings` + token-lint are red on
+  another session's uncommitted `api/areas/finance.py` work, not on this.
+  **Not** walked in-browser — every affected surface is behind auth.
+
+## Recent Updates (2026-08-02, later — canvas-alignment pass: five screenshots → five pages)
+
+Utsav supplied five Claude Design screenshots and asked for the pages to match.
+Detail: `frontend/docs/DC_REDESIGN_IMPLEMENTATION_PLAN.md` §8b, final section.
+
+- **`PageHeader` is gone from every page; `PageDivider` too.** Content starts
+  under the TopBar breadcrumbs, as the canvas draws it. It survives in exactly
+  one place: `PageContent` (`@ct/shared`) renders a minimal eyebrow+title
+  header **inside the page's own content column**, and only when that page has
+  portalled a page-scoped control through `HeaderActionPortal` — the per-area
+  Settings links, Career's "Log entry", the workspace domain filter,
+  AreaSettingsPage's Back. Those are what keep
+  `/app/{finance,health,career}/settings` reachable, since the routes are not
+  in the nav tree. The title comes from the nav tree via
+  `PageIdentityProvider` in `AppShell`, so no page hand-writes a section→label
+  map. A page with no page-scoped control renders no header at all.
+  **Note:** these controls briefly lived in the global TopBar earlier the same
+  day; that was reverted on Utsav's call — the TopBar is permanent app chrome
+  and must not carry one page's controls.
+- **Module kit: 18 kinds → 21** — `hero`, `meters`, `agenda`. Plus `rows.mono`,
+  `progress.valueKey`, `checklist.chips`, and `actionNode`/`actionVariant` on
+  every card header.
+- **Dashboard rebuilt** to greeting · 4 tiles · Focus | Schedule · 12-week heat.
+  BriefingCard, OverviewInsightCard, DiscoveriesFeed and the 300px sticky rail
+  are no longer rendered (files kept, unreferenced).
+- **Transactions restyled, not stripped** — canvas card shell + 5-column
+  DATE/MERCHANT/CATEGORY/ACCOUNT/AMOUNT grid, with bulk ops, inline edit, CSV
+  import and the alternate views all intact (Utsav's explicit call).
+- **`formatAmount()`** in `packages/shared/src/lib/utils.ts` — full
+  Indian-grouped currency. `formatCurrency` still abbreviates over a lakh and is
+  now for KPI tiles only.
+- **Deltas are same-day cuts**, not month-to-date vs a whole previous month.
+  Two canvas asks stay honestly unanswered: Plan's "vs capacity" and the
+  dashboard's "Career streak vs last week".
+- **Open:** the Financial-health score lost its tile (no slot in the canvas's
+  finance:overview); `financeApi.healthScore()` has no caller and the backend
+  route is untouched — re-site or retire is a product call.
+- **Verified:** tsc + build + vitest green; token-lint counts identical to HEAD
+  (zero drift added, still red on its stale baseline); all new module shapes
+  walked at 1400px light/dark and 375px with no horizontal overflow.
+
 ## Recent Updates (2026-08-02 — Claude Design redesign: Phase 4 complete, all 34 destinations)
 
 Every destination now renders its Claude Design canvas composition from **live

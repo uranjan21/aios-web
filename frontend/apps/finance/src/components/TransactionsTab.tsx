@@ -12,7 +12,6 @@ import {
   ChevronLeft, ChevronRight, ArrowLeftRight,
   Search, Upload as UploadIcon, Plus, Tag as TagIcon, FolderInput, Trash2, ArrowUpDown,
 } from 'lucide-react'
-import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 import { financeApi } from '@ct/shared/api/areas'
 import { TransactionCalendar } from './TransactionCalendar'
 import { ImportCsvModal } from './ImportCsvModal'
@@ -20,12 +19,12 @@ import { ImportCsvModal } from './ImportCsvModal'
 import { type Txn, type Kind, type SortBy, type SortDir, keyOf } from './transactions/types'
 import { dayTotals } from './transactions/utils'
 import { SummaryBar } from './transactions/SummaryBar'
-import { TxnListBody } from './transactions/TransactionRow'
+import { TxnHeaderRoot, TxnListBody } from './transactions/TransactionRow'
 import { BulkCategorizeDialog, BulkTagDialog } from './transactions/BulkDialogs'
 import { FilterModal } from './transactions/FilterModal'
 import { TransactionModal } from './transactions/TransactionModal'
 import {
-  StyledSkeleton, DesktopSearch, MobileSearchBtn,
+  StyledSkeleton, DesktopSearch, MobileSearchBtn, CardActions,
   ListHeaderRoot, ListHeaderLabel, ListHeaderSpacer, BulkBtnRow, SortBtn,
 } from './transactions/TransactionsTab.styles'
 
@@ -35,7 +34,12 @@ export { TransactionModal }
 
 dayjs.extend(isoWeek)
 
-export function TransactionsTab({ navMenu }: { navMenu?: React.ReactNode } = {}) {
+/*
+ * The `navMenu` prop went with the WorkspaceLayout rail on 2026-08-02. No
+ * caller ever passed it — the rail rendered empty — and the canvas's
+ * `finance:transactions` is a single full-width card.
+ */
+export function TransactionsTab() {
   const queryClient = useQueryClient()
   const [view, setView] = useState<'Daily' | 'Calendar' | 'Weekly' | 'Monthly'>('Monthly')
   const [month, setMonth] = useState(() => dayjs().startOf('month'))
@@ -265,6 +269,30 @@ export function TransactionsTab({ navMenu }: { navMenu?: React.ReactNode } = {})
     else setMonth(m => m.add(1, 'month'))
   }
 
+  /*
+   * The canvas puts only Filter + Add in the card header, so that is what goes
+   * there. The period switcher, date navigator, search and Import are controls
+   * the canvas never drew but the page genuinely has; they sit in a row INSIDE
+   * the card, above the list, rather than being deleted to match a mock.
+   */
+  const cardActions = (
+    <CardActions>
+      <ToolbarIconBtn
+        onClick={() => setFilterOpen(true)}
+        data-active={filtersActive}
+        aria-pressed={filtersActive}
+      >
+        Filter
+        {filtersActive && (
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', display: 'inline-block', marginLeft: 4 }} />
+        )}
+      </ToolbarIconBtn>
+      <Button size="sm" variant="primary" onClick={() => openAdd('Expense')}>
+        <Plus size={12} style={{ marginRight: 4 }} /> Add transaction
+      </Button>
+    </CardActions>
+  )
+
   const toolbar = (
     <AreaToolbar
       left={
@@ -283,16 +311,6 @@ export function TransactionsTab({ navMenu }: { navMenu?: React.ReactNode } = {})
           <MobileSearchBtn onClick={() => setSearchOpen(true)} aria-label="Search transactions">
             <Search size={13} />
           </MobileSearchBtn>
-          <ToolbarIconBtn
-            onClick={() => setFilterOpen(true)}
-            data-active={filtersActive}
-            aria-pressed={filtersActive}
-          >
-            Filters
-            {filtersActive && (
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', display: 'inline-block', marginLeft: 4 }} />
-            )}
-          </ToolbarIconBtn>
           {searchActive && (
             <ToolbarIconBtn onClick={clearFilters}>
               Clear
@@ -328,9 +346,6 @@ export function TransactionsTab({ navMenu }: { navMenu?: React.ReactNode } = {})
         <UploadIcon size={13} />
         Import
       </ToolbarIconBtn>
-      <Button size="sm" variant="primary" onClick={() => openAdd('Expense')}>
-        <Plus size={12} style={{ marginRight: 4 }} /> Add
-      </Button>
     </AreaToolbar>
   )
 
@@ -458,14 +473,14 @@ export function TransactionsTab({ navMenu }: { navMenu?: React.ReactNode } = {})
 
   return (
     <>
-      <WorkspaceLayout rail={navMenu}>
-        {toolbar}
-        {summaryElement}
-        <GlassCard
-          title="Transactions"
-          subtitle="Browse, search, and manage transactions for the selected period"
+      <GlassCard
+          title="All Transactions"
+          subtitle="Every income, expense and transfer"
           icon={<ArrowLeftRight size={16} />}
+          action={cardActions}
         >
+          {toolbar}
+          {summaryElement}
           {view === 'Calendar' && (
             <div style={{ marginBottom: 12 }}>
               <TransactionCalendar
@@ -481,6 +496,16 @@ export function TransactionsTab({ navMenu }: { navMenu?: React.ReactNode } = {})
           {leadNote}
           <div onKeyDown={onListKeyDown}>
             {listHeader}
+            {!showLoadingBody && bodyTxns.length > 0 && (
+              <TxnHeaderRoot aria-hidden>
+                <span />
+                <span>Date</span>
+                <span>Merchant</span>
+                <span>Category</span>
+                <span>Account</span>
+                <span style={{ textAlign: 'right' }}>Amount</span>
+              </TxnHeaderRoot>
+            )}
             {showLoadingBody ? (
               <StyledSkeleton $height="16rem" $margin="12px 0 0 0" />
             ) : (
@@ -506,7 +531,6 @@ export function TransactionsTab({ navMenu }: { navMenu?: React.ReactNode } = {})
             )}
           </div>
         </GlassCard>
-      </WorkspaceLayout>
 
       <TransactionModal open={modalOpen} onClose={closeModal} editing={editing} initialKind={quickKind} />
       <ImportCsvModal open={importOpen} onClose={() => setImportOpen(false)} />

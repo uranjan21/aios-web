@@ -7,13 +7,13 @@ import { Check, ChevronDown } from 'lucide-react'
 import { textRole } from '@ledgr/ui'
 import { useModulePalette, pct } from './palette'
 import {
-  Chip, FieldLabel, ModuleButton, Row, RowBody, RowMeta, RowTitle, RowValue,
+  Chip, FieldLabel, ModuleButton, Mono, Row, RowBody, RowMeta, RowTitle, RowValue,
   Stack, ToggleKnob, ToggleTrack, Track, TrackFill,
 } from './primitives'
 import type {
-  BarsModule, CalendarModule, ChecklistModule, ControlsModule, DonutModule,
-  HeatModule, NotesModule, ProgressModule, QueueModule, RowsModule,
-  SpansModule, TableModule, TimelineModule, WeekModule,
+  AgendaModule, BarsModule, CalendarModule, ChecklistModule, ControlsModule,
+  DonutModule, HeatModule, HeroModule, MetersModule, NotesModule, ProgressModule,
+  QueueModule, RowsModule, SpansModule, TableModule, TimelineModule, WeekModule,
 } from './types'
 
 /*
@@ -48,6 +48,14 @@ export function RowsKind({ m }: { m: RowsModule }) {
           onClick={onRowClick ? () => onRowClick(i) : undefined}
           style={r.busy ? { opacity: 0.55, pointerEvents: 'none' } : undefined}
         >
+          {r.mono && (
+            <Mono
+              $round
+              style={r.monoKey ? { background: c.alpha(r.monoKey, 0.13), color: c(r.monoKey) } : undefined}
+            >
+              {r.mono}
+            </Mono>
+          )}
           <RowBody>
             <RowTitle>{r.title}</RowTitle>
             {r.meta && <RowMeta>{r.meta}</RowMeta>}
@@ -55,7 +63,7 @@ export function RowsKind({ m }: { m: RowsModule }) {
           {r.tagLabel && (
             <Chip $bg={c.alpha(r.tagColorKey, 0.125)} $color={c(r.tagColorKey)}>{r.tagLabel}</Chip>
           )}
-          {r.value && <RowValue>{r.value}</RowValue>}
+          {r.value && <RowValue style={r.valueKey ? { color: c(r.valueKey) } : undefined}>{r.value}</RowValue>}
         </ClickableRow>
       ))}
     </Stack>
@@ -116,7 +124,7 @@ export function ProgressKind({ m }: { m: ProgressModule }) {
         >
           <ProgressHead>
             <RowTitle as="span">{r.title}</RowTitle>
-            <span style={{ fontWeight: 700, color: c(r.colorKey), fontVariantNumeric: 'tabular-nums' }}>
+            <span style={{ fontWeight: 700, color: c(r.valueKey ?? r.colorKey), fontVariantNumeric: 'tabular-nums' }}>
               {r.value}
             </span>
           </ProgressHead>
@@ -868,20 +876,6 @@ const QueueRow = styled.div<{ $bg: string; $border: string }>`
   &:hover { border-color: ${({ theme }) => theme.color.borderHover}; }
 `
 
-const Mono = styled.span`
-  width: 34px;
-  height: 34px;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  background: ${({ theme }) => theme.color.muted};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  ${textRole('label')};
-  font-weight: 700;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  flex-shrink: 0;
-`
-
 export function QueueKind({ m }: { m: QueueModule }) {
   const c = useModulePalette()
   const { onPrimary, onSecondary } = m
@@ -939,9 +933,40 @@ const CheckRow = styled(ClickableRow)`
   gap: 11px;
 `
 
+/*
+ * Habit chips under the task list. `radii.sm`, not `radii.pill`: the pill
+ * exception is scoped to badges and status chips, and these are toggles — a
+ * button by any other name.
+ */
+const HabitChip = styled.button<{ $on: boolean; $color: string; $bg: string }>`
+  ${textRole('body-s')};
+  font-weight: 600;
+  font-family: inherit;
+  padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[3.5]}`};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  border: 1px solid ${({ $on, $color, theme }) => ($on ? $color : theme.color.border)};
+  background: ${({ $on, $bg }) => ($on ? $bg : 'transparent')};
+  color: ${({ $on, $color, theme }) => ($on ? $color : theme.color.mutedForeground)};
+  white-space: nowrap;
+  transition: background 150ms, border-color 150ms, color 150ms;
+
+  &:is(button) { cursor: pointer; }
+
+  &:hover {
+    border-color: ${({ $on, $color, theme }) => ($on ? $color : theme.color.borderHover)};
+    color: ${({ theme }) => theme.color.foreground};
+  }
+`
+
+const ChipRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing[2]};
+`
+
 export function ChecklistKind({ m }: { m: ChecklistModule }) {
   const c = useModulePalette()
-  const { onToggle } = m
+  const { onToggle, onChipToggle } = m
   return (
     <Stack>
       {m.items.map((it, i) => (
@@ -967,6 +992,242 @@ export function ChecklistKind({ m }: { m: ChecklistModule }) {
           </RowBody>
           {it.tagLabel && <Chip $bg={c.alpha(it.tagKey, 0.125)} $color={c(it.tagKey)}>{it.tagLabel}</Chip>}
         </CheckRow>
+      ))}
+
+      {!!m.chips?.length && (
+        <div style={{ paddingTop: 18 }}>
+          {m.groupLabel && <FieldLabel>{m.groupLabel}</FieldLabel>}
+          <ChipRow>
+            {m.chips.map((ch, i) => (
+              <HabitChip
+                key={i}
+                type="button"
+                aria-pressed={!!ch.done}
+                $on={!!ch.done}
+                $color={c(ch.colorKey ?? 'accent')}
+                $bg={c.alpha(ch.colorKey ?? 'accent', 0.12)}
+                onClick={onChipToggle ? () => onChipToggle(i, !ch.done) : undefined}
+                style={ch.busy ? { opacity: 0.55, pointerEvents: 'none' } : undefined}
+              >
+                {ch.label}
+              </HabitChip>
+            ))}
+          </ChipRow>
+        </div>
+      )}
+    </Stack>
+  )
+}
+
+/* ── hero ─────────────────────────────────────────────────────────────── */
+
+const HeroLayout = styled.div`
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing[5]};
+  flex-wrap: wrap;
+`
+
+const HeroValue = styled.div`
+  font-size: ${({ theme }) => theme.typography.fontSize['4xl']};
+  font-weight: ${({ theme }) => theme.typography.fontWeight.bold};
+  letter-spacing: -0.025em;
+  line-height: ${({ theme }) => theme.typography.lineHeight.tight};
+  font-variant-numeric: tabular-nums;
+
+  @media ${({ theme }) => theme.media.belowMd} {
+    font-size: ${({ theme }) => theme.typography.fontSize['3xl']};
+  }
+`
+
+const HeroStats = styled.div`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing[6]};
+  flex-shrink: 0;
+
+  @media ${({ theme }) => theme.media.belowMd} {
+    gap: ${({ theme }) => theme.spacing[5]};
+  }
+`
+
+export function HeroKind({ m }: { m: HeroModule }) {
+  const c = useModulePalette()
+  return (
+    <HeroLayout>
+      <div style={{ minWidth: 0 }}>
+        <HeroValue>{m.value}</HeroValue>
+        {m.delta && (
+          <div style={{ marginTop: 7, fontWeight: 700, color: c(m.deltaKey ?? 'success') }}>
+            {m.delta}
+          </div>
+        )}
+      </div>
+      {!!m.stats?.length && (
+        <HeroStats>
+          {m.stats.map((s, i) => (
+            <div key={i} style={{ textAlign: 'right' }}>
+              <FieldLabel style={{ marginBottom: 4 }}>{s.label}</FieldLabel>
+              <div style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: c(s.colorKey ?? 'fg') }}>
+                {s.value}
+              </div>
+            </div>
+          ))}
+        </HeroStats>
+      )}
+    </HeroLayout>
+  )
+}
+
+/* ── meters ───────────────────────────────────────────────────────────── */
+
+const MeterGrid = styled.div<{ $cols: number }>`
+  display: grid;
+  grid-template-columns: repeat(${({ $cols }) => $cols}, minmax(0, 1fr));
+  gap: ${({ theme }) => theme.spacing[4]};
+
+  @media ${({ theme }) => theme.media.belowLg} {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media ${({ theme }) => theme.media.belowMd} {
+    grid-template-columns: 1fr;
+  }
+`
+
+const MeterCard = styled.div<{ $interactive: boolean }>`
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  background: ${({ theme }) => theme.color.muted};
+  padding: ${({ theme }) => theme.spacing[4]};
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  min-width: 0;
+  /* Resets for the button form a page opts into via onMeterClick. */
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: border-color 150ms, transform 150ms;
+
+  ${({ $interactive, theme }) =>
+    $interactive &&
+    css`
+      cursor: pointer;
+
+      &:hover {
+        border-color: ${theme.color.borderHover};
+        transform: translateY(-2px);
+      }
+    `}
+`
+
+const MeterFoot = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing[3]};
+  ${textRole('body-s')};
+  color: ${({ theme }) => theme.color.mutedForeground};
+  font-variant-numeric: tabular-nums;
+`
+
+export function MetersKind({ m }: { m: MetersModule }) {
+  const c = useModulePalette()
+  const { onMeterClick } = m
+  return (
+    <>
+      {m.summary && (
+        <div style={{ marginBottom: 18, color: c('mutedFg'), fontVariantNumeric: 'tabular-nums' }}>
+          {m.summary}
+        </div>
+      )}
+      {!m.meters.length && (
+        <div style={{ color: c('mutedFg'), padding: '10px 2px' }}>
+          {m.emptyLabel ?? 'Nothing to show.'}
+        </div>
+      )}
+      <MeterGrid $cols={m.cols ?? 3}>
+        {m.meters.map((mt, i) => (
+          <MeterCard
+            key={i}
+            as={onMeterClick ? 'button' : 'div'}
+            type={onMeterClick ? 'button' : undefined}
+            $interactive={!!onMeterClick}
+            onClick={onMeterClick ? () => onMeterClick(i) : undefined}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <RowTitle as="span" style={{ fontWeight: 700, flex: 1, minWidth: 0 }}>{mt.title}</RowTitle>
+              {mt.badge && (
+                <Chip $bg={c.alpha(mt.colorKey, 0.14)} $color={c(mt.colorKey)}>{mt.badge}</Chip>
+              )}
+            </div>
+            <Track $height={6}><TrackFill $pct={pct(mt.pct)} $color={c(mt.colorKey)} /></Track>
+            {(mt.left || mt.right) && (
+              <MeterFoot>
+                <span>{mt.left}</span>
+                <span>{mt.right}</span>
+              </MeterFoot>
+            )}
+          </MeterCard>
+        ))}
+      </MeterGrid>
+    </>
+  )
+}
+
+/* ── agenda ───────────────────────────────────────────────────────────── */
+
+const AgendaRow = styled(ClickableRow)`
+  gap: ${({ theme }) => theme.spacing[4]};
+`
+
+const AgendaTime = styled.span`
+  ${textRole('body-s')};
+  color: ${({ theme }) => theme.color.mutedForeground};
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  width: 46px;
+`
+
+/** The domain-coloured rule between the time gutter and the entry. */
+const AgendaRule = styled.span<{ $color: string }>`
+  width: 3px;
+  align-self: stretch;
+  min-height: 20px;
+  border-radius: ${({ theme }) => theme.radii.xs};
+  background: ${({ $color }) => $color};
+  flex-shrink: 0;
+`
+
+export function AgendaKind({ m }: { m: AgendaModule }) {
+  const c = useModulePalette()
+  const { onEntryClick } = m
+
+  if (!m.entries.length) {
+    return (
+      <div style={{ color: c('mutedFg'), padding: '10px 2px' }}>
+        {m.emptyLabel ?? 'Nothing scheduled.'}
+      </div>
+    )
+  }
+
+  return (
+    <Stack>
+      {m.entries.map((e, i) => (
+        <AgendaRow
+          key={i}
+          as={onEntryClick ? 'button' : 'div'}
+          type={onEntryClick ? 'button' : undefined}
+          onClick={onEntryClick ? () => onEntryClick(i) : undefined}
+        >
+          <AgendaTime>{e.time}</AgendaTime>
+          <AgendaRule $color={c(e.colorKey ?? 'accent')} />
+          <RowBody>
+            <RowTitle>{e.title}</RowTitle>
+            {e.meta && <RowMeta>{e.meta}</RowMeta>}
+          </RowBody>
+        </AgendaRow>
       ))}
     </Stack>
   )

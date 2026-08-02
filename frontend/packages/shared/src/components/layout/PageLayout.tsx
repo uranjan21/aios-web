@@ -1,4 +1,6 @@
+import { createContext, useContext, type ReactNode } from "react";
 import styled from "styled-components";
+import { PageHeader, usePageHeaderActions } from "@ledgr/ui";
 import { PAGE_MAX_WIDTH, PAGE_PADDING } from "@ct/shared/theme/layout";
 
 /**
@@ -50,7 +52,7 @@ export const PageContainer = styled.div`
   }
 `;
 
-export const PageContent = styled.div`
+const ContentColumn = styled.div`
   width: 100%;
   max-width: ${PAGE_MAX_WIDTH};
   margin: 0 auto;
@@ -59,3 +61,52 @@ export const PageContent = styled.div`
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[6]};
 `;
+
+/**
+ * Who the current page is, published by the shell (which owns the nav tree) and
+ * read here. Pages live in domain packages that cannot import the shell's
+ * `navigation.ts`, so the alternative was a hand-written section→label map in
+ * every area page — a second nav list, which is the exact drift the single
+ * source of truth exists to prevent.
+ */
+interface PageIdentity {
+  title: string;
+  eyebrow?: string;
+}
+
+const PageIdentityContext = createContext<PageIdentity | null>(null);
+
+export function PageIdentityProvider({
+  value,
+  children,
+}: {
+  value: PageIdentity | null;
+  children: ReactNode;
+}) {
+  return <PageIdentityContext.Provider value={value}>{children}</PageIdentityContext.Provider>;
+}
+
+/**
+ * The page's own header block, 2026-08-02 (later).
+ *
+ * Page-scoped controls — a per-area Settings link, the workspace domain filter,
+ * Career's "Log entry" — used to be portalled into the global TopBar, which put
+ * one page's controls into the app's permanent chrome. They render here instead:
+ * a titled header at the top of the page's own content column.
+ *
+ * It appears ONLY when a page has portalled something. A page with no
+ * page-scoped control keeps the redesign canvas's clean start — content under
+ * the breadcrumbs, no title block — and card-scoped controls still belong in
+ * their card's header, not up here.
+ */
+export function PageContent({ children, className }: { children: ReactNode; className?: string }) {
+  const actions = usePageHeaderActions();
+  const identity = useContext(PageIdentityContext);
+
+  return (
+    <ContentColumn className={className}>
+      {actions && identity && <PageHeader eyebrow={identity.eyebrow} title={identity.title} />}
+      {children}
+    </ContentColumn>
+  );
+}

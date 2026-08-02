@@ -2,11 +2,10 @@ import { focusRing } from '@ledgr/ui'
 import { ReactNode, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
-import { PageHeader, Button } from "@ledgr/ui";
+import { HeaderActionPortal, Button } from "@ledgr/ui";
 import { ArrowLeft, Plus } from "lucide-react";
 
 import { PageContainer, PageContent } from "./PageLayout";
-import { PageDivider } from "./PageDivider";
 import { SETTINGS_RAIL_WIDTH, TOPBAR_HEIGHT } from "@ct/shared/theme/layout";
 
 export interface SettingsItem {
@@ -210,20 +209,14 @@ export function AreaSettingsPage({
   return (
     <PageContainer>
       <PageContent>
-        <PageHeader
-          icon={icon}
-          eyebrow={eyebrow}
-          title={title}
-          subtitle={subtitle}
-          actions={
-            <Button variant="ghost" size="sm" onClick={() => navigate(backTo)}>
-              <ArrowLeft size={14} style={{ marginRight: 6 }} />
-              Back
-            </Button>
-          }
-        />
-
-        <PageDivider />
+        {/* Back renders in this page's own header block via the portal — see
+            `PageContent`. It used to go up into the global TopBar. */}
+        <HeaderActionPortal>
+          <Button variant="ghost" size="sm" onClick={() => navigate(backTo)}>
+            <ArrowLeft size={14} style={{ marginRight: 6 }} />
+            Back
+          </Button>
+        </HeaderActionPortal>
 
         <Shell>
           <NavRail aria-label="Settings sections">

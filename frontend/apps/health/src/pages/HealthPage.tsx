@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Heart, Settings } from 'lucide-react'
-import { Button, PageHeader } from '@ledgr/ui'
+import { Settings } from 'lucide-react'
+import { Button, HeaderActionPortal } from '@ledgr/ui'
 import { useNavigate } from 'react-router-dom'
 
 import { OverviewSection } from '@ct/health/components/sections/OverviewSection'
@@ -47,17 +47,12 @@ export function HealthPage() {
   return (
     <PageContainer>
       <PageContent>
-        <PageHeader
-          icon={<Heart />}
-          eyebrow="Wellness"
-          title="Health"
-          subtitle="Body, sleep, nutrition and fitness — track every metric in one place."
-          actions={
-            <Button variant="outline" size="sm" onClick={() => navigate('/app/health/settings')}>
-              <Settings size={14} style={{ marginRight: 6 }} /> Settings
-            </Button>
-          }
-        />
+        {/* No in-page title block — see FinancePage. */}
+        <HeaderActionPortal>
+          <Button variant="outline" size="sm" onClick={() => navigate('/app/health/settings')}>
+            <Settings size={14} style={{ marginRight: 6 }} /> Settings
+          </Button>
+        </HeaderActionPortal>
         {renderContent()}
         <HealthLogModal open={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} />
       </PageContent>

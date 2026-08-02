@@ -29,12 +29,6 @@ const TwoCol = styled.div`
   gap: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
-const FilterRow = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
-`
-
 const STATUS_OPTIONS = [
   { label: 'Planned', value: 'planned' },
   { label: 'Active', value: 'active' },
@@ -170,6 +164,17 @@ export function SprintsSection({ domainFilter }: { domainFilter?: string }) {
   const modules = useMemo<ModuleSpec[]>(() => [{
     kind: 'table',
     span: 12,
+    // Belongs to this table — see ProjectsPage.
+    actionNode: (
+      <Select
+        size="sm"
+        fullWidth={false}
+        aria-label="Filter sprints by status"
+        value={statusFilter}
+        onChange={v => setStatusFilter(v as string)}
+        options={STATUS_FILTER_OPTIONS}
+      />
+    ),
     title: domainFilter ? `${domainLabel(domainFilter)} sprints` : 'All sprints',
     subtitle: `${rows.length} sprint${rows.length !== 1 ? 's' : ''} · click a row to edit`,
     icon: Zap,
@@ -194,7 +199,7 @@ export function SprintsSection({ domainFilter }: { domainFilter?: string }) {
     ]),
     onRowClick: (i: number) => openEdit(rows[i]),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }], [rows, projects, domainFilter])
+  }], [rows, projects, domainFilter, statusFilter])
 
   return (
     <>
@@ -212,19 +217,7 @@ export function SprintsSection({ domainFilter }: { domainFilter?: string }) {
           />
         </Card>
       ) : (
-        <>
-          <FilterRow>
-            <Select
-              size="sm"
-              fullWidth={false}
-              aria-label="Filter sprints by status"
-              value={statusFilter}
-              onChange={v => setStatusFilter(v as string)}
-              options={STATUS_FILTER_OPTIONS}
-            />
-          </FilterRow>
-          <ModuleGrid modules={modules} />
-        </>
+        <ModuleGrid modules={modules} />
       )}
 
       <Dialog

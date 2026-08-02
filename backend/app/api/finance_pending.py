@@ -51,6 +51,43 @@ async def list_pending_transactions(
     return [_pending_out(r, last_account) for r in rows]
 
 
+@router.get("/stats")
+async def pending_stats(
+    db=Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Any:
+    """Queue counters for the inbox header.
+
+    Separate from the list endpoint deliberately — that one returns a bare
+    array and every caller indexes it, so widening it into an object would
+    break them all.
+    """
+    day_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    waiting = (await db.execute(
+        select(FinancePendingTransaction)
+        .where(FinancePendingTransaction.user_id == user.id)
+        .where(FinancePendingTransaction.status == "pending")
+    )).scalars().all()
+
+    filed_today = (await db.execute(
+        select(FinancePendingTransaction)
+        .where(FinancePendingTransaction.user_id == user.id)
+        .where(FinancePendingTransaction.status == "approved")
+        .where(FinancePendingTransaction.committed_at.is_not(None))
+        .where(FinancePendingTransaction.committed_at >= day_start)
+    )).scalars().all()
+
+    return {
+        "pending_count": len(waiting),
+        "oldest_pending_at": min(
+            (r.logged_at for r in waiting), default=None
+        ),
+        "filed_automatically_today": sum(1 for r in filed_today if r.auto_committed),
+        "filed_manually_today": sum(1 for r in filed_today if not r.auto_committed),
+    }
+
+
 async def _approve_one(db, user: User, pending: FinancePendingTransaction, data: dict) -> None:
     """Validate overrides and commit one pending row. Raises HTTPException on
     bad input or ledger duplicates; caller handles session commit."""
@@ -85,6 +122,10 @@ async def _approve_one(db, user: User, pending: FinancePendingTransaction, data:
         source="upi-tracker",
     )
     pending.status = "approved"
+    # Explicitly false: this path is a human pressing Approve, even when an
+    # auto-commit deadline was also pending on the row.
+    pending.auto_committed = False
+    pending.committed_at = datetime.utcnow()
     db.add(pending)
 
 

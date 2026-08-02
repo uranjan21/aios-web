@@ -169,3 +169,16 @@ export function HeaderActionPortal({ children }: { children: ReactNode }) {
 
   return null;
 }
+
+/**
+ * Read whatever a page has portalled up.
+ *
+ * Added 2026-08-02, when the in-page `PageHeader` was dropped app-wide to match
+ * the redesign canvas (content starts under the breadcrumbs). The portal used
+ * to render inside `PageHeader`; with no header on the page, the app chrome —
+ * the TopBar — is what consumes it, so a page-level action still has somewhere
+ * to go.
+ */
+export function usePageHeaderActions(): ReactNode | null {
+  return useContext(PageHeaderActionsContext)?.actions ?? null;
+}
