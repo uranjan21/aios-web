@@ -565,6 +565,25 @@ Each such departure is documented in the file it affects. The full list:
 | settings:security | 2FA, active sessions | the auth facts that are recorded |
 | admin | requests/hour, CPU, job runs | signups per month, plan mix, recent signups |
 
+**Five pages were deliberately NOT rewritten**, because they already satisfy
+their canvas composition and a conversion would only subtract:
+
+- `today:overview` — Dashboard already composes greeting · PulseRow · Today's
+  Focus · Schedule · heatmap. §4.1 marked it "reuse", and it does.
+- `settings:general`, `chat:overview` — likewise ✅ in §4.1.
+- `workspace:tasks` — already renders collapsible **per-project groups**
+  (`TaskGroup` keyed by project, plus "No Project"), which is exactly what the
+  canvas draws. It additionally offers a grid/list toggle the canvas does not
+  show; that is an extra affordance, not a missing one, so it stays.
+- `finance:transactions` — already a filter + Add + columnar header list, i.e.
+  the canvas's composition. Converting it to the `table` module would delete
+  bulk select/categorize/tag/delete, inline row editing, keyboard navigation,
+  sort and density persistence, CSV import and the Calendar/Weekly/Daily views
+  — roughly 1,400 lines across `TransactionsTab` and `components/transactions/`
+  — for no compositional gain. The `table` kind has no selection or inline-edit
+  affordance, so this would be a strict downgrade. **If the plainer canvas list
+  is wanted anyway, that is a product call, not a port.**
+
 **Backend follow-ups this surfaced** (none blocking — the FE ships without
 them): `credit_limit` on Account; `muscle_mass`/`hydration` log types; bedtime,
 wake and sleep stages (available from Google Fit, already an integration); an

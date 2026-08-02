@@ -33,6 +33,14 @@ Rescued as `useWebPush`.
 What-If simulator) — the new Finance IA has no slot for it. Backend route
 untouched, so re-siting it is a UI decision. **Flag for Utsav.**
 
+**Five pages deliberately not rewritten** because they already satisfy their
+canvas composition: Dashboard, Settings→General, Chat, `workspace:tasks`
+(already collapsible per-project groups) and `finance:transactions` (already
+filter + Add + columnar list). Converting Transactions to the `table` module
+would delete bulk ops, inline edit, keyboard nav, CSV import and the calendar
+view — ~1,400 lines — for no compositional gain. **Second flag for Utsav:** if
+the plainer canvas list is wanted anyway, that is a product call.
+
 **Verified.** backend 246 passing; tsc + build + vitest clean; 1280px and 375px
 walks in dark and light. token-lint still red on its stale baseline but every
 count fell (spacing 107→95, rgba 33→27, inline-style 55→30).
