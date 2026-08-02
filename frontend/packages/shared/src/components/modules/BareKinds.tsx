@@ -26,6 +26,16 @@ const AutoGrid = styled.div<{ $cols: string; $gap: number }>`
   flex: 1;
   align-content: start;
   min-width: 0;
+
+  /*
+   * An explicit cols value (agents uses 3) is a desktop instruction. Honouring
+   * it on a phone gives ~120px cards that wrap one word per line, so it
+   * collapses to a single column below md. Tiles opt out via TileScroller,
+   * which needs a scroll-snapped ROW rather than a stack.
+   */
+  @media ${({ theme }) => theme.media.belowMd} {
+    grid-template-columns: 1fr;
+  }
 `
 
 const trackFor = (m: { tileCols?: string; cols?: number }) =>

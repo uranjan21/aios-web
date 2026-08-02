@@ -692,12 +692,20 @@ export function TableKind({ m }: { m: TableModule }) {
 
 /* ── controls ─────────────────────────────────────────────────────────── */
 
+/*
+ * Wraps rather than squeezing: a four-option segment or a wide swatch strip in
+ * a span-6 card would otherwise crush the label column to a few characters.
+ * The control drops to its own line once the label needs more than ~140px.
+ */
 const ControlRow = styled.div`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing[4]};
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing[3]} ${({ theme }) => theme.spacing[4]};
   padding: 13px ${({ theme }) => theme.spacing[1]};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
+
+  > *:first-child { min-width: 140px; }
 `
 
 const Segment = styled.div`

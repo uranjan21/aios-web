@@ -20,6 +20,7 @@ import { toast } from 'sonner'
 import { Bell, Moon, Zap } from 'lucide-react'
 import { api } from '@ct/shared/api/client'
 import { insightsApi } from '@ct/shared/api/insights'
+import { useWebPush } from '@ct/shared/hooks/useWebPush'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 
 interface AutomationRule { key: string; enabled: boolean }
@@ -38,6 +39,7 @@ const DELIVERY_TIMES = ['06:00', '07:00', '08:00', '09:00']
 
 export function NotificationsModules() {
   const qc = useQueryClient()
+  const push = useWebPush()
 
   const { data: prefs } = useQuery({
     queryKey: ['insights', 'briefing', 'preferences'],
@@ -66,6 +68,25 @@ export function NotificationsModules() {
     },
     onError: () => toast.error('Could not update that rule'),
   })
+
+  /**
+   * Push is two things at once: a stored preference and a live browser
+   * subscription. Flip both together, and only record the preference if the
+   * browser actually granted permission — otherwise the channel would read as
+   * on while delivering nothing.
+   */
+  const togglePush = async (next: boolean) => {
+    if (!push.supported) {
+      toast.error('This browser cannot receive push notifications')
+      return
+    }
+    const ok = next ? await push.subscribe() : await push.unsubscribe()
+    if (!ok) {
+      toast.error(next ? 'Could not enable push — permission denied?' : 'Could not disable push')
+      return
+    }
+    patchBriefing({ channels: { ...(prefs?.channels ?? {}), push: next } })
+  }
 
   const patchBriefing = (patch: Record<string, unknown>) => {
     if (!prefs) return
@@ -101,10 +122,16 @@ export function NotificationsModules() {
           },
           {
             title: 'Push notifications',
-            meta: 'Browser push for briefings and alerts',
+            meta: !push.supported
+              ? 'This browser cannot receive push'
+              : push.subscribed
+                ? 'This browser is subscribed'
+                : 'Browser push for briefings and alerts',
             control: 'toggle',
-            on: !!channels.push,
-            busy: saveBriefing.isPending,
+            // Both halves must be true: the preference AND a live browser
+            // subscription. A flag on its own delivers nothing.
+            on: !!channels.push && push.subscribed,
+            busy: saveBriefing.isPending || push.busy,
           },
           {
             title: 'Email',
@@ -116,7 +143,7 @@ export function NotificationsModules() {
         ],
         onToggle: (i: number, next: boolean) => {
           if (i === 0) patchBriefing({ enabled: next })
-          if (i === 1) patchBriefing({ channels: { ...channels, push: next } })
+          if (i === 1) void togglePush(next)
           if (i === 2) patchBriefing({ channels: { ...channels, email: next } })
         },
       },
@@ -166,7 +193,7 @@ export function NotificationsModules() {
       },
     ]
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefs, rules, saveBriefing.isPending, saveRule.isPending])
+  }, [prefs, rules, saveBriefing.isPending, saveRule.isPending, push.supported, push.subscribed, push.busy])
 
   return <ModuleGrid modules={modules} />
 }
