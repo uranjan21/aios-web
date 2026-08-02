@@ -1,4 +1,3 @@
-import { focusRing } from '@ledgr/ui'
 import { goalsApi, type MacroGoal } from "@ct/shared/api/goals";
 import { DOMAIN_OPTIONS, domainLabel } from "@ct/shared/config/domains";
 import {
@@ -14,12 +13,13 @@ import {
 } from "@ledgr/ui";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Flag, Plus, Target, Trash2 } from "lucide-react";
+import { Flag, Plus, Target } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import styled, { useTheme } from "styled-components";
+import styled from "styled-components";
 
 import { GoalsTab as FinanceGoalsTab } from "@ct/finance/components/GoalsTab";
+import { ModuleGrid, type ModuleSpec } from "@ct/shared/components/modules";
 import { DomainGoalsCard } from "@ct/shared/components/workspace/DomainGoalsCard";
 import {
   BodyGoalsSection,
@@ -38,37 +38,11 @@ const TwoCol = styled.div`
   }
 `;
 
-const GoalsGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: ${({ theme }) => `${theme.spacing[4]}`};
-  @media ${({ theme }) => theme.media.md} {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  @media ${({ theme }) => theme.media.xl} {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-`;
-
-const IconBtn = styled.button`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: ${({ theme }) => `${theme.spacing[1]}`};
-  border: none;
-  background: transparent;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  border-radius: ${({ theme }) => theme.radii.sm};
-  cursor: pointer;
-  transition:
-    background 120ms,
-    color 120ms;
-  &:hover {
-    background: ${({ theme }) => theme.color.muted};
-    color: ${({ theme }) => theme.color.destructive};
-  }
-  ${focusRing}
-`;
+const GoalsFilterRow = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: ${({ theme }) => `${theme.spacing[4]}`};
+`
 
 const StyledCard = styled(Card)`
   position: relative;
@@ -83,43 +57,6 @@ const StyledCard = styled(Card)`
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 `
-
-const GoalCard = styled(StyledCard)`
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
-    border-color: ${({ theme }) => theme.color.accent}80;
-  }
-`
-
-const CategoryChip = styled.span`
-  display: inline-flex;
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: ${({ theme }) => theme.color.accent};
-  background: ${({ theme }) => theme.color.accent}1A;
-  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
-  border-radius: ${({ theme }) => theme.radii.sm};
-  box-shadow: 0 0 10px ${({ theme }) => theme.color.accent}40;
-`;
-
-const GoalDesc = styled.p`
-  margin: 0;
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  line-height: 1.5;
-  color: ${({ theme }) => theme.color.mutedForeground};
-`;
-
-const GoalMeta = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: ${({ theme }) => `${theme.spacing[4]}`};
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  color: ${({ theme }) => theme.color.mutedForeground};
-`;
 
 const FormGrid = styled.div`
   display: flex;
@@ -137,7 +74,6 @@ const GOAL_STATUS_FILTER_OPTIONS = [
 ];
 
 export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
-  const theme = useTheme();
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [goalStatusFilter, setGoalStatusFilter] = useState("all");
@@ -199,71 +135,81 @@ export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
   return (
     <>
       {/* Domain-specific goal surfaces live alongside the shared list. */}
+      {/*
+        Phase 4: the canvas's `workspace:goals` is a filter, a New button and a
+        goal/domain/target/progress/status table. The card grid is replaced by
+        that table module; a row click opens the delete confirmation, which is
+        where the old card's trash icon went.
+      */}
       {!domainFilter && (() => {
         const visibleGoals =
           goalStatusFilter === "all"
             ? goals
             : goals.filter((g) => g.status === goalStatusFilter);
-        return (
-          <StyledCard
-            icon={<Target size={16} />}
-            title="All Goals"
-            subtitle={`${visibleGoals.length} goal${visibleGoals.length !== 1 ? "s" : ""}`}
-            action={
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Select
-                  size="sm"
-                  fullWidth={false}
-                  value={goalStatusFilter}
-                  onChange={(v) => setGoalStatusFilter(v as string)}
-                  options={GOAL_STATUS_FILTER_OPTIONS}
-                />
-                <Button size="sm" variant="primary" onClick={() => handleOpenAddGoal()} style={{
-                  background: `linear-gradient(135deg, ${theme.color.accent} 0%, color-mix(in srgb, ${theme.color.accent} 80%, black) 100%)`,
-                  border: 'none',
-                  boxShadow: `0 4px 12px ${theme.color.accent}40`
-                }}>
-                  <Plus size={14} style={{ marginRight: 6 }} /> Add goal
-                </Button>
-              </div>
-            }
-          >
-            {isLoading ? null : visibleGoals.length === 0 ? (
+
+        if (!isLoading && visibleGoals.length === 0) {
+          return (
+            <StyledCard icon={<Target size={16} />} title="All goals" subtitle="Nothing here yet">
               <EmptyState
                 icon={<Flag size={24} />}
                 title="No goals yet"
                 description="Set a macro goal and track progress across your life areas."
                 action={
-                  <Button size="sm" variant="primary" onClick={() => handleOpenAddGoal()} style={{
-                    background: `linear-gradient(135deg, ${theme.color.accent} 0%, color-mix(in srgb, ${theme.color.accent} 80%, black) 100%)`,
-                    border: 'none',
-                    boxShadow: `0 4px 12px ${theme.color.accent}40`
-                  }}>
+                  <Button size="sm" variant="primary" onClick={() => handleOpenAddGoal()}>
                     <Plus size={14} style={{ marginRight: 6 }} /> Add goal
                   </Button>
                 }
               />
-            ) : (
-              <GoalsGrid>
-                {visibleGoals.map((g) => (
-                  <GoalCard key={g.id} size="md">
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                      <CategoryChip>{domainLabel(g.category)}</CategoryChip>
-                      <IconBtn aria-label={`Delete ${g.title}`} onClick={() => setDeleteTarget(g)}>
-                        <Trash2 size={14} />
-                      </IconBtn>
-                    </div>
-                    <h3 style={{ margin: "8px 0 0", fontSize: 15, fontWeight: 600 }}>{g.title}</h3>
-                    {g.description && <GoalDesc>{g.description}</GoalDesc>}
-                    <GoalMeta>
-                      <span>{g.status}</span>
-                      {g.target_date && <span>{g.target_date}</span>}
-                    </GoalMeta>
-                  </GoalCard>
-                ))}
-              </GoalsGrid>
-            )}
-          </StyledCard>
+            </StyledCard>
+          );
+        }
+
+        const modules: ModuleSpec[] = [{
+          kind: "table",
+          span: 12,
+          title: "All goals",
+          subtitle: `${visibleGoals.length} goal${visibleGoals.length !== 1 ? "s" : ""} · click a row to remove`,
+          icon: Target,
+          action: "+ Add goal",
+          onAction: () => handleOpenAddGoal(),
+          gridCols: "1.9fr 1fr 1.1fr 1fr 1fr",
+          cols: [
+            { l: "Goal" },
+            { l: "Area" },
+            { l: "Target" },
+            { l: "Priority" },
+            { l: "Status", a: "right" },
+          ],
+          rows: visibleGoals.map((g) => [
+            { t: g.title, bold: true },
+            domainLabel(g.category),
+            g.target_date
+              ? new Date(g.target_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+              : "No target date",
+            { t: g.priority || "medium", tag: true, colorKey: g.priority === "high" ? "destructive" : g.priority === "low" ? "mutedFg" : "info" },
+            {
+              t: g.status,
+              tag: true,
+              colorKey: g.status === "completed" ? "success" : g.status === "archived" ? "mutedFg" : "accent",
+            },
+          ]),
+          onRowClick: (i: number) => setDeleteTarget(visibleGoals[i]),
+        }];
+
+        return (
+          <>
+            <GoalsFilterRow>
+              <Select
+                size="sm"
+                fullWidth={false}
+                aria-label="Filter goals by status"
+                value={goalStatusFilter}
+                onChange={(v) => setGoalStatusFilter(v as string)}
+                options={GOAL_STATUS_FILTER_OPTIONS}
+              />
+            </GoalsFilterRow>
+            <ModuleGrid modules={modules} />
+          </>
         );
       })()}
 
