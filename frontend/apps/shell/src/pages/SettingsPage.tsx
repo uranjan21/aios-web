@@ -2,29 +2,22 @@ import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Settings, Palette, Bell, CreditCard, Lock, Cpu, SlidersHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
-import { useAuthStore } from '@ct/shared/stores/authStore'
-import { useFeatures } from '@ct/shared/hooks/useFeatures'
 import { AreaSettingsPage } from '@ct/shared/components/layout/AreaSettingsPage'
 import { useNavigate } from 'react-router-dom'
 import { useAreaSection } from '@ct/shared/hooks/useAreaSection'
 import { AppearanceSection } from './settings/sections/AppearanceSection'
-import { AiUsageSection } from './settings/sections/AiUsageSection'
 import { ProfileSection } from './settings/sections/ProfileSection'
-import { SecuritySection } from './settings/sections/SecuritySection'
-import { BillingSection } from './settings/sections/BillingSection'
 import { AccountSection } from './settings/sections/AccountSection'
-import { BriefingSection } from './settings/sections/BriefingSection'
-import { AutomationsSection } from './settings/sections/AutomationsSection'
-import { KnowledgeSection } from './settings/sections/KnowledgeSection'
-import { AiConfigSection } from './settings/sections/AiConfigSection'
 import { ConnectionsSection } from './settings/sections/ConnectionsSection'
+import { NotificationsModules } from './settings/sections/NotificationsModules'
+import { BillingModules } from './settings/sections/BillingModules'
+import { AiModules } from './settings/sections/AiModules'
+import { SecurityModules } from './settings/sections/SecurityModules'
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
   const queryClient = useQueryClient()
-  const user = useAuthStore(s => s.user)
-  const { billing_enabled: billingEnabled } = useFeatures()
   const navigate = useNavigate()
   const section = useAreaSection('/app/settings', 'general', {
     profile: 'general', account: 'general', connections: 'general',
@@ -74,17 +67,13 @@ export function SettingsPage() {
           content: <><ProfileSection /><ConnectionsSection /><AccountSection /></>,
         },
         { key: 'appearance', label: 'Appearance', icon: <Palette size={15} />, content: <AppearanceSection /> },
-        {
-          key: 'notifications', label: 'Notifications', icon: <Bell size={15} />,
-          content: <><BriefingSection /><AutomationsSection /></>,
-        },
-        ...(billingEnabled
-          ? [{ key: 'billing', label: 'Billing', icon: <CreditCard size={15} />, content: <><BillingSection /><AiUsageSection /></> }]
-          : [{ key: 'billing', label: 'Billing', icon: <CreditCard size={15} />, content: <AiUsageSection /> }]),
-        { key: 'ai', label: 'AI configuration', icon: <Cpu size={15} />, content: <><AiConfigSection /><KnowledgeSection /></> },
-        ...(user?.auth_provider === 'email'
-          ? [{ key: 'security', label: 'Security', icon: <Lock size={15} />, content: <SecuritySection /> }]
-          : []),
+        { key: 'notifications', label: 'Notifications', icon: <Bell size={15} />, content: <NotificationsModules /> },
+        { key: 'billing', label: 'Billing', icon: <CreditCard size={15} />, content: <BillingModules /> },
+        { key: 'ai', label: 'AI configuration', icon: <Cpu size={15} />, content: <AiModules /> },
+        /* Security renders for every account now: the modules cover connected
+         * apps and verification state, which a Google user has too. Only the
+         * change-password action is gated inside the section itself. */
+        { key: 'security', label: 'Security', icon: <Lock size={15} />, content: <SecurityModules /> },
       ],
     },
   ]

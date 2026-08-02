@@ -743,8 +743,11 @@ const SelectChip = styled.span`
   }
 `
 
-/** A colour chip, a button once a page wires onSwatch. */
-const Swatch = styled.span<{ $color: string; $active: boolean }>`
+/**
+ * A picker chip. Always a real button — like `ModuleButton`, it simply has no
+ * handler until a page wires `onSwatch`, which keeps the gallery unchanged.
+ */
+const PaletteSwatch = styled.button<{ $color: string; $active: boolean }>`
   width: 26px;
   height: 26px;
   border-radius: ${({ theme }) => theme.radii.xs};
@@ -752,16 +755,16 @@ const Swatch = styled.span<{ $color: string; $active: boolean }>`
   border: none;
   padding: 0;
   flex-shrink: 0;
+  cursor: pointer;
   box-shadow: 0 0 0 2px ${({ $active, theme }) => ($active ? theme.color.accent : 'transparent')};
   transition: box-shadow 150ms, transform 150ms;
 
-  &:is(button) { cursor: pointer; }
-  &:is(button):hover { transform: translateY(-1px); }
+  &:hover { transform: translateY(-1px); }
 `
 
 export function ControlsKind({ m }: { m: ControlsModule }) {
   const c = useModulePalette()
-  const { onToggle, onSelect } = m
+  const { onToggle, onSelect, onSwatch } = m
   return (
     <Stack>
       {m.rows.map((r, i) => (
@@ -804,12 +807,11 @@ export function ControlsKind({ m }: { m: ControlsModule }) {
           {r.control === 'swatches' && (
             <div style={{ display: 'flex', gap: 7, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               {(r.swatches ?? []).map((sw, j) => (
-                <Swatch
+                <PaletteSwatch
                   key={j}
-                  as={m.onSwatch ? 'button' : 'span'}
-                  type={m.onSwatch ? 'button' : undefined}
-                  aria-pressed={m.onSwatch ? !!sw.active : undefined}
-                  onClick={m.onSwatch ? () => m.onSwatch!(i, j) : undefined}
+                  type="button"
+                  aria-pressed={!!sw.active}
+                  onClick={onSwatch ? () => onSwatch(i, j) : undefined}
                   $color={sw.color}
                   $active={!!sw.active}
                 />

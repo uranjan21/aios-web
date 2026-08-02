@@ -1,80 +1,16 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Shield, Users, Search, ChevronLeft, ChevronRight, Trash2, Crown, RefreshCw } from 'lucide-react'
+import { BarChart3, Cpu, Shield, Users, Search, ChevronLeft, ChevronRight, Trash2, Crown, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
-import styled, { useTheme } from 'styled-components'
+import dayjs from 'dayjs'
+import styled from 'styled-components'
 import { PageHeader, Card as GlassCard, Select, Button } from '@ledgr/ui'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { adminApi, AdminUser } from '@ct/shared/api/admin'
 import { useAuthStore } from '@ct/shared/stores/authStore'
+import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
 import { PageDivider } from '@ct/shared/components/layout/PageDivider'
-
-// ── Stat cards ───────────────────────────────────────────────────────────────
-
-const StatsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: ${({ theme }) => `${theme.spacing[4]}`};
-  @media ${({ theme }) => theme.media.belowLg} { grid-template-columns: repeat(2, 1fr); }
-  @media ${({ theme }) => theme.media.belowXs} { grid-template-columns: 1fr; }
-`
-
-const StatCard = styled.div`
-  background: ${({ theme }) => theme.color.card};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.md};
-  padding: ${({ theme }) => `${theme.spacing[5]}`};
-  display: flex;
-  flex-direction: column;
-  gap: ${({ theme }) => `${theme.spacing[1]}`};
-`
-
-const StatValue = styled.div`
-  font-family: ${({ theme }) => theme.typography.fontFamily.display};
-  font-size: ${({ theme }) => theme.typography.fontSize['3xl']};
-  font-weight: 700;
-  color: ${({ theme }) => theme.color.foreground};
-`
-
-const StatLabel = styled.div`
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  color: ${({ theme }) => theme.color.mutedForeground};
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-`
-
-function StatsSection() {
-  const theme = useTheme()
-  const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'stats'],
-    queryFn: adminApi.stats,
-    staleTime: 30_000,
-  })
-
-  if (isLoading) return (
-    <StatsGrid>
-      {[...Array(4)].map((_, i) => (
-        <StatCard key={i}>
-          <Skeleton style={{ height: 32, width: 64 }} />
-          <Skeleton style={{ height: 12, width: 80, marginTop: 4 }} />
-        </StatCard>
-      ))}
-    </StatsGrid>
-  )
-
-  if (!data) return null
-
-  return (
-    <StatsGrid>
-      <StatCard><StatValue>{data.total_users}</StatValue><StatLabel>Total Users</StatLabel></StatCard>
-      <StatCard><StatValue>{data.free_users}</StatValue><StatLabel>Free</StatLabel></StatCard>
-      <StatCard><StatValue style={{ color: theme.color.accent }}>{data.pro_users}</StatValue><StatLabel>Pro</StatLabel></StatCard>
-      <StatCard><StatValue>{data.household_users}</StatValue><StatLabel>Household</StatLabel></StatCard>
-    </StatsGrid>
-  )
-}
 
 // ── User table ───────────────────────────────────────────────────────────────
 
@@ -402,6 +338,132 @@ function UsersTable({ currentAdminId }: { currentAdminId: string }) {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Admin → Overview.
+ *
+ * Phase 4 conversion to the canvas's `admin:overview` composition —
+ * tiles(12) · bars(7) · progress(5) · table(12) — from the admin stats and
+ * user endpoints. The interactive users table stays below it: that is where
+ * plan overrides, the admin flag and deletion live, and none of it fits a
+ * read-only module.
+ *
+ * THREE DEPARTURES. The canvas draws an instance-health console — requests per
+ * hour, CPU and memory, background job runs — and none of that is exposed. The
+ * backend publishes user and subscription state, so the modules answer the
+ * question this page can actually answer, "who is on this instance and what are
+ * they on":
+ *  - bars     → signups per month, from user `created_at`.
+ *  - progress → the plan mix as shares of the user base.
+ *  - table    → the most recent signups.
+ *
+ * BACKEND FOLLOW-UP: a metrics endpoint (request counts, worker runs, resource
+ * usage) would let this render the canvas exactly.
+ */
+function AdminModules() {
+  const { data: stats } = useQuery({
+    queryKey: ['admin', 'stats'],
+    queryFn: adminApi.stats,
+    staleTime: 30_000,
+  })
+  // A wide page of users so the signup history and recent list are real.
+  const { data: recent } = useQuery({
+    queryKey: ['admin', 'users', 'recent'],
+    queryFn: () => adminApi.listUsers({ limit: 100 }),
+    staleTime: 30_000,
+  })
+
+  const modules = useMemo<ModuleSpec[]>(() => {
+    if (!stats) return []
+
+    const users = recent?.users ?? []
+    const paid = stats.pro_users + stats.household_users
+    const admins = users.filter(u => u.is_admin).length
+
+    // Signups per month over the last six months.
+    const months = Array.from({ length: 6 }, (_, i) => dayjs().subtract(5 - i, 'month'))
+    const signupsIn = (m: dayjs.Dayjs) =>
+      users.filter(u => u.created_at && dayjs(u.created_at).isSame(m, 'month')).length
+
+    const byRecency = [...users]
+      .filter(u => !!u.created_at)
+      .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
+      .slice(0, 8)
+
+    const share = (n: number) => (stats.total_users > 0 ? Math.round((n / stats.total_users) * 100) : 0)
+
+    return [
+      {
+        kind: 'tiles',
+        span: 12,
+        tiles: [
+          { label: 'Total users', value: String(stats.total_users), sub: `${users.length} loaded` },
+          {
+            label: 'Paying',
+            value: String(paid),
+            sub: `${share(paid)}% of the base`,
+            subKey: 'success',
+            bar: share(paid),
+            barKey: 'success',
+          },
+          { label: 'Free', value: String(stats.free_users), sub: `${share(stats.free_users)}% of the base` },
+          {
+            label: 'Administrators',
+            value: String(admins),
+            sub: admins > 1 ? 'More than one full-access account' : 'Full instance access',
+            dotKey: admins > 1 ? 'warning' : undefined,
+          },
+        ],
+      },
+      {
+        kind: 'bars',
+        span: 7,
+        title: 'Signups per month',
+        subtitle: 'Last six months',
+        icon: BarChart3,
+        bars: months.map((m) => {
+          const v = signupsIn(m)
+          return {
+            label: m.format('MMM'),
+            v,
+            t: v > 0 ? String(v) : '',
+            colorKey: v > 0 ? 'accent' : 'muted',
+            dim: v === 0,
+          }
+        }),
+      },
+      {
+        kind: 'progress',
+        span: 5,
+        title: 'Plan mix',
+        subtitle: 'Share of the user base',
+        icon: Cpu,
+        rows: [
+          { title: 'Free', meta: `${stats.free_users} user(s)`, pct: share(stats.free_users), value: `${share(stats.free_users)}%`, colorKey: 'mutedFg' },
+          { title: 'Pro', meta: `${stats.pro_users} user(s)`, pct: share(stats.pro_users), value: `${share(stats.pro_users)}%`, colorKey: 'accent' },
+          { title: 'Household', meta: `${stats.household_users} user(s)`, pct: share(stats.household_users), value: `${share(stats.household_users)}%`, colorKey: 'success' },
+        ],
+      },
+      {
+        kind: 'table',
+        span: 12,
+        title: 'Recent signups',
+        subtitle: 'Newest first',
+        icon: Cpu,
+        gridCols: '1.6fr 1.2fr 1fr 0.9fr',
+        cols: [{ l: 'User' }, { l: 'Joined' }, { l: 'Provider' }, { l: 'Plan', a: 'right' }],
+        rows: byRecency.map(u => [
+          { t: u.name || u.email, bold: true },
+          dayjs(u.created_at!).format('D MMM YYYY'),
+          u.auth_provider,
+          { t: u.plan, tag: true, colorKey: u.plan === 'free' ? 'mutedFg' : 'success' },
+        ]),
+      },
+    ]
+  }, [stats, recent])
+
+  return <ModuleGrid modules={modules} />
+}
+
 export function AdminPage() {
   const user = useAuthStore(s => s.user)
 
@@ -415,7 +477,7 @@ export function AdminPage() {
           eyebrow="Admin"
         />
         <PageDivider />
-        <StatsSection />
+        <AdminModules />
         <UsersTable currentAdminId={user?.id ?? ''} />
       </PageContent>
     </PageContainer>

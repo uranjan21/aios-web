@@ -9,21 +9,20 @@
  *    Type scale is a design-system decision made in `packages/ui`, not a user
  *    preference; exposing a slider that writes nowhere would be a dead control.
  *    Mode and Palette — which are real — stay.
- *  - Its "Layout and motion" module lists four toggles. Only "start with the
- *    sidebar collapsed" is stored; reduce-motion already follows the OS
- *    `prefers-reduced-motion`, and is shown as a read-only state rather than a
- *    switch that would silently disagree with the system setting.
+ *  - Its "Layout and motion" module is four toggles over settings that are not
+ *    stored: nav collapse is remembered per section as you use the sidebar, and
+ *    reduce-motion follows the OS `prefers-reduced-motion`. Both render as
+ *    read-only `rows` — a switch here would either write nowhere or silently
+ *    disagree with the system setting.
  */
 import { useMemo } from 'react'
 import { Layers, LayoutGrid, Settings as SettingsIcon } from 'lucide-react'
-import { useTheme } from 'styled-components'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { useUIStore } from '@ct/shared/stores/uiStore'
 import { PALETTES } from '@ct/shared/theme/palettes'
 import { ACTIVE_DOMAINS } from '@ct/shared/config/domains'
 
 export function AppearanceSection() {
-  const theme = useTheme()
   const { theme: mode, setTheme, palette, setPalette, collapsedSections } = useUIStore()
 
   const prefersReducedMotion = typeof window !== 'undefined'
@@ -44,8 +43,16 @@ export function AppearanceSection() {
             title: 'Palette',
             meta: PALETTES[paletteIndex]?.label ?? 'Custom',
             control: 'swatches',
-            // One chip per palette, its own first swatch as the colour.
-            swatches: PALETTES.map((p, i) => ({ color: p.swatch[0], active: i === paletteIndex })),
+            /*
+             * Each chip shows the whole palette, not one stop: `swatch[0]` is
+             * the background, so a chip built from it would render every
+             * palette as the same near-neutral. The three stops as a gradient
+             * is what the old picker drew, and it is what tells them apart.
+             */
+            swatches: PALETTES.map((p, i) => ({
+              color: `linear-gradient(135deg, ${p.swatch[0]} 0%, ${p.swatch[0]} 33%, ${p.swatch[1]} 33%, ${p.swatch[1]} 66%, ${p.swatch[2]} 66%)`,
+              active: i === paletteIndex,
+            })),
           },
           {
             title: 'Mode',
@@ -70,8 +77,8 @@ export function AppearanceSection() {
         icon: LayoutGrid,
         rows: ACTIVE_DOMAINS.map(d => ({
           title: d.label,
-          meta: (theme.color as Record<string, string>)[d.key] ?? 'Theme default',
-          tagLabel: '●●●',
+          meta: 'Constant across every palette so nav keeps its meaning',
+          tagLabel: 'Colour',
           tagColorKey: d.key,
         })),
       },
@@ -102,7 +109,7 @@ export function AppearanceSection() {
       },
     ]
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, palette, collapsedSections, prefersReducedMotion, theme])
+  }, [mode, palette, collapsedSections, prefersReducedMotion])
 
   return <ModuleGrid modules={modules} />
 }
