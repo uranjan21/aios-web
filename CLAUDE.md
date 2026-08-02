@@ -118,6 +118,49 @@ docker compose exec backend pytest
 
 ---
 
+## Recent Updates (2026-08-02 — Claude Design redesign: Phase 4 complete, all 34 destinations)
+
+Every destination now renders its Claude Design canvas composition from **live
+data**. Detail + the full departure table: `frontend/docs/DC_REDESIGN_IMPLEMENTATION_PLAN.md`
+§8b. Branch `redesign/phase4-loans`.
+
+- **Pages are data now, not layout.** A page builds a `ModuleSpec[]` from its
+  API response and hands it to `ModuleGrid`. 18 module kinds cover all 34
+  destinations. The module kit gained optional handlers (`onAction`,
+  `onRowClick`, `onToggle`, `onTileClick`, `onCardClick`, `onPrimary`/
+  `onSecondary`, `onSelect`, `onSwatch`) — all inert when unused, so the
+  `/app/design` gallery renders exactly as before.
+- **The rule for every judgement call:** where the canvas draws a control over
+  something the backend does not store, the module becomes read-only `rows`
+  rather than a switch that writes nowhere; where it draws an analysis the data
+  cannot support, the module keeps the question and answers it from what
+  exists. 16 such departures, each documented in the file it affects.
+- **Backend follow-ups surfaced** (none blocking): `credit_limit` on Account;
+  `muscle_mass`/`hydration` log types; sleep bedtime/wake/stages (Google Fit
+  already integrated); an `agent_runs` table; quiet-hours window;
+  `custom_instructions` on the user; per-area assistant scopes; sessions table
+  + TOTP; an instance-metrics endpoint.
+- **Deleted** (unreferenced after the conversions): WealthTab, PlanningTab,
+  LedgerTab, AnalyticsTab, RulesTab, FitnessTab, NutritionTab, BodySleepTab,
+  HistoryTab, OpportunitiesTab, `features/agents/*`, ModuleLayout,
+  ModuleSidebar, ten Settings sections, DigitalCronInput, SideMenu, DocStyles,
+  WaterTrackerWidget, and **SimulatorTab** — the What-If simulator, which the
+  new Finance IA has no slot for. Its backend route is untouched.
+- **Regression caught by `test_api_mappings`:** deleting Settings → System
+  status took the Web Push handshake with it, so the Notifications push toggle
+  was setting a preference while nothing registered a service worker. Rescued
+  as `packages/shared/src/hooks/useWebPush.ts`; the toggle now subscribes the
+  browser and refuses to record the preference if permission is denied.
+- **MOBILE STRICT:** `tiles` is a scroll-snapped row below `md` (the
+  dashboard PulseRow precedent) instead of a tall loose column; `AutoGrid`
+  collapses an explicit `cols` to one column; `controls` rows wrap; the `table`
+  min-width scales with column count.
+- **Verified:** backend **246 passing** incl. the endpoint guard; tsc,
+  `pnpm build`, vitest clean; walked at 1280px and 375px, dark + light, no
+  horizontal overflow. token-lint still fails on its stale baseline (separate
+  task owns it) but every count fell — spacing 107→95, rgba-in-shadow 33→27,
+  inline-style 55→30.
+
 ## Recent Updates (2026-07-27 — VPS deploy pipeline: infra audit + auto-deploy on push to main)
 
 Full audit of the Docker/compose/CI/env configs ahead of the Hostinger VPS

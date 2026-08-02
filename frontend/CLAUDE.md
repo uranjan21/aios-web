@@ -73,7 +73,7 @@ frontend/                      # pnpm workspace root (package.json = ALL third-p
 - **Import specifiers:** `@/` = shell-internal only (`apps/shell/src`); `@ct/shared/...`, `@ct/<domain>/...` everywhere else. Aliases live in `apps/shell/vite.config.ts` + `tsconfig.json` paths + `vitest.config.ts` — keep the three in sync when adding a package.
 - **Dependency policy:** all third-party deps are declared ONCE in `frontend/package.json` (single-version policy — guarantees one React/styled-components instance). Per-package manifests only declare the workspace graph (`workspace:*`).
 - SPA via React Router v6 (in `apps/shell/src/router.tsx`); `RequireAuth` guard on all area routes.
-- Feature areas: Finance / Health / Career / Business / Content — each is an app package with `src/pages` + `src/components`, each page has `<AreaTabs>` sub-nav (never nest Tabs).
+- Feature areas: Finance / Health / Career — each is an app package with `src/pages` + `src/components`. Since the 2026-08-01 IA every sub-page is a **route** (`/app/finance/loans`), and the area page is a thin host that switches on `useAreaSection`. `AreaTabs` is retired.
 - API: functions in `packages/shared/src/api/` — no raw fetch or axios in components.
 - Styling: `styled.div` / `styled(Component)` everywhere; `className` in SC = CSS selector hook, NOT utility.
 - `WorkspaceLayout` + `RailHeading` pattern: analytics/lists → center; inputs/forms → right 300px sticky rail.
@@ -135,12 +135,14 @@ calls `buildTheme()`.
 
 ### UI/UX rules (always apply)
 
-- **Navigation**: `apps/shell/src/config/navigation.ts` is the single source of truth. Sidebar, BottomNav, CommandPalette, breadcrumb labels and the `g`-goto shortcuts all read from it — never hand-write a nav list in a component. Sidebar is top-level links only: no accordions, no sub-menus.
+- **Navigation**: `apps/shell/src/config/navigation.ts` is the single source of truth. Sidebar, BottomNav, CommandPalette, breadcrumb labels and the `g`-goto shortcuts all read from it — never hand-write a nav list in a component. The sidebar is a **two-level tree** (5 groups → 9 areas → 34 destinations) as of 2026-08-01; the old "top-level links only, no accordions" rule is retired, and per-page filter rails (`ModuleSidebar`) are gone with it.
 - **Routes have no `/areas/` prefix** — `/app/finance`, not `/app/areas/finance`. Goals/Projects/Sprints/Tasks live at `/app/plan?view=…&domain=…`; the old paths redirect.
-- **AreaTabs**: use `<AreaTabs>` from `@ct/shared/components/ui/AreaTabs`; never nest `<Tabs>`. Do NOT add a tab per life domain — that pattern produced 24 tabs across four workspace pages that were really one filter. Use a `Select` domain filter (see `PlanPage`).
+- **Pages are module compositions, not layouts.** A page builds a `ModuleSpec[]` with `useMemo` from its API response and hands it to `ModuleGrid` (`@ct/shared/components/modules`). 18 module kinds cover every destination. Do not hand-roll a card grid — if a kind is missing, extend the kit. Interactivity is opt-in via optional handlers (`onAction`, `onRowClick`, `onToggle`, `onTileClick`, `onCardClick`, `onPrimary`/`onSecondary`, `onSelect`, `onSwatch`); a module with no handler renders inert, which is what `/app/design` needs.
+- **Never render a control that writes nowhere.** If the design asks for a switch over something the backend does not store, use read-only `rows` instead. Reference: `AppearanceSection` and `SecurityModules`.
+- **Dialogs own destructive actions.** A `table`/`progress` row has no action column, so Edit opens on row click and Delete lives in the dialog footer.
 - **No page-level titles** rendered inside content — breadcrumbs only in TopBar
 - **Dashboard layout**: two-column shell, right column 300px fixed, left `1fr`
-- **Density**: body baseline is **16px** and cards breathe (`spacing[5]`–`spacing[6]`). The old "13–14px, tight padding" rule was retired on 2026-07-21 — it was the main reason the UI read as an admin panel rather than a product.
+- **Density**: body baseline is **13px** (`body-m` 13/19) — re-scaled on 2026-08-01 to match the Claude Design canvas. This reversed the 2026-07-21 16px decision. Consume it through `textRole`, never a raw `font-size`.
 - **Agents page**: dense table pattern — status, schedule, last-run, actions columns
 - **Action-Rail**: inputs/forms always in right WorkspaceLayout rail; data/analytics in center
 - **No pill/capsule shapes anywhere** — buttons, inputs, toggles, badges, progress bars all use `theme.radii.sm`/`md` (flat, ~8–10px corners), never `9999px`/`theme.radii.full`. Exception: true circles (avatars, status dots, the `Switch` track/thumb) where the shape is structural, not a corner-rounding choice. When adding any new rounded element, reference a `theme.radii.*` token — never hardcode a radius value.

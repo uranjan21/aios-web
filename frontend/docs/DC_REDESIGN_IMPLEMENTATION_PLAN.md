@@ -530,6 +530,81 @@ Date('2026-08-09')` parses as UTC midnight and renders as the 8th west of UTC.
 outside `AgentsPage`; `AnalyticsTab`, `RulesTab`, `HistoryTab`,
 `ShortcutsSection` and `SystemStatusSection` are unreferenced.
 
+### Phases 4 + 6 — every remaining page ✅ 2026-08-02
+
+All 34 destinations now render their canvas composition from live data, and the
+code the conversions orphaned is gone. Branch `redesign/phase4-loans`.
+
+**Order it went in:** Finance (loans first as the pattern, then bills, goals,
+investments, inbox, accounts) → Health (5 new section components; HealthPage is
+now a thin route host) → Career opportunities, Weekly review, Agents → Settings
+×5 + Admin → the §4.1 hand-designed pages.
+
+**The rule that decided every judgement call:** where the canvas draws a control
+for something the backend does not store, the module becomes read-only `rows`
+rather than a switch that writes nowhere; where it draws an analysis the data
+cannot support, the module keeps the question and answers it from what exists.
+Each such departure is documented in the file it affects. The full list:
+
+| Page | Canvas asks for | Rendered instead |
+|---|---|---|
+| finance:loans | interest paid to date, principal-vs-interest of past payments | interest *ahead* and principal outstanding — no payment history exists |
+| finance:goals | per-goal monthly contributions | monthly savings from snapshots vs the rate the deadlines demand |
+| finance:investments | XIRR, monthly SIP, portfolio value over time | absolute return, holding count, gain/loss per holding |
+| finance:inbox | "filed automatically today" | ledger rows carrying the tracker's origin tag |
+| finance:accounts | Last sync / Status, credit utilization | balance and share-of-assets |
+| health:body | muscle / fat / hydration from a smart scale | body fat, BMI, distance to goal weight |
+| health:sleep | bedtime→wake `spans`, stage-mix donut | hours-per-night bars, last night vs target; correlations grouped by the quality word |
+| career:opportunities | dated next actions | every lead by time-in-stage |
+| today:review | generated cross-domain chores | the user's open goals, where ticking has a real effect |
+| agents | 14-run sparkline, cross-agent run log | the one run an agent row stores |
+| settings:appearance | density segment, font-size slider | dropped — type scale is a design-system decision |
+| settings:notifications | quiet-hours window | the briefing delivery window |
+| settings:billing | invoices | owned modules + the Stripe portal |
+| settings:ai | custom instructions, per-area access matrix | knowledge source, entitlement |
+| settings:security | 2FA, active sessions | the auth facts that are recorded |
+| admin | requests/hour, CPU, job runs | signups per month, plan mix, recent signups |
+
+**Backend follow-ups this surfaced** (none blocking — the FE ships without
+them): `credit_limit` on Account; `muscle_mass`/`hydration` log types; bedtime,
+wake and sleep stages (available from Google Fit, already an integration); an
+`agent_runs` table; a quiet-hours window; `custom_instructions` on the user;
+per-area assistant scopes; a sessions table and TOTP; an instance-metrics
+endpoint.
+
+**Module kit gained optional handlers**, all inert when unused so `/app/design`
+renders exactly as before: `onAction` on every module header; `onRowClick` on
+`rows`/`progress`/`table`; `onTileClick`; `onToggle`/`onSelect`/`onSwatch` on
+`controls`; `onPrimary`/`onSecondary` on `queue`; `onToggle` on `checklist`;
+`onCardClick` on `kanban`; `onToggle`+`onCardClick` on `agents`. Rows carry an
+optional `busy` flag so an in-flight mutation greys its own control.
+
+**CRUD was preserved everywhere.** Where a card's action icons vanished with the
+card, Delete moved into the dialog footer and a row click opens the editor.
+
+**Deleted** (all unreferenced after the conversions): WealthTab, PlanningTab,
+LedgerTab, AnalyticsTab, RulesTab, FitnessTab, NutritionTab, BodySleepTab,
+HistoryTab, OpportunitiesTab, features/agents/*, ModuleLayout, ModuleSidebar,
+ten Settings sections, DigitalCronInput, SideMenu, DocStyles, WaterTrackerWidget
+and **SimulatorTab** — the What-If simulator, which the new Finance IA has no
+slot for. Its backend route is untouched, so re-siting it is a UI decision.
+
+**Regression caught by `test_api_mappings`:** deleting the Settings "System
+status" section took the Web Push handshake with it, leaving the Notifications
+push toggle setting a preference while nothing registered a service worker.
+Rescued as `packages/shared/src/hooks/useWebPush.ts`.
+
+**Mobile (risk #1, now addressed):** `tiles` became a scroll-snapped row below
+`md` — the dashboard's PulseRow precedent — instead of a tall loose column;
+`AutoGrid` collapses an explicit `cols` to one column; `controls` rows wrap;
+the `table` min-width scales with column count. Walked at 375px with no
+horizontal page overflow.
+
+**Verified:** backend **246 passing** incl. the endpoint guard; tsc, `pnpm build`
+and vitest clean. token-lint still fails against its stale baseline, but every
+count fell: font-size 22→16, radius 10→9, hex 42→34, spacing 107→95,
+rgba-in-shadow 33→27, inline-style 55→30.
+
 ## 9. Verification (every phase, not just the end)
 
 - `./node_modules/.bin/tsc -p tsconfig.json` clean

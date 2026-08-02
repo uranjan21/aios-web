@@ -1,5 +1,47 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
+## 2026-08-02 — claude-code (DC redesign Phase 4 + 6: all 34 destinations on live data)
+
+**Done.** Every destination now renders its Claude Design canvas composition
+from the real API instead of the designer's sample rows. Finance ×6, Health ×6,
+Career opportunities, Weekly review, Agents, Settings ×5, Admin, and the §4.1
+hand-designed pages (finance overview/budgets, health overview, workspace
+projects/sprints/goals). HealthPage is now a thin route host; its six sections
+live under `apps/health/src/components/sections/`.
+
+**Method.** A page builds a `ModuleSpec[]` with `useMemo` and hands it to
+`ModuleGrid`. The kit gained optional handlers so a module can be live
+(`onAction`, `onRowClick`, `onToggle`, `onTileClick`, `onCardClick`,
+`onPrimary`/`onSecondary`, `onSelect`, `onSwatch`) while staying inert in the
+`/app/design` gallery.
+
+**Judgement rule, applied 16 times:** where the canvas draws a control for
+something the backend does not store, the module became read-only `rows`; where
+it draws an analysis the data cannot support, the module kept the question and
+answered it from what exists. Every one is documented in the file it affects and
+tabulated in the plan's §8b.
+
+**CRUD preserved.** Where card action icons vanished with the card, Delete moved
+into the dialog footer and Edit opens on row click.
+
+**Caught a real regression.** `test_api_mappings` failed on newly orphaned
+routes: deleting Settings → System status had taken the Web Push handshake with
+it, so the push toggle set a preference while nothing subscribed the browser.
+Rescued as `useWebPush`.
+
+**Deleted** ~20 now-unreferenced components including **SimulatorTab** (the
+What-If simulator) — the new Finance IA has no slot for it. Backend route
+untouched, so re-siting it is a UI decision. **Flag for Utsav.**
+
+**Verified.** backend 246 passing; tsc + build + vitest clean; 1280px and 375px
+walks in dark and light. token-lint still red on its stale baseline but every
+count fell (spacing 107→95, rgba 33→27, inline-style 55→30).
+
+**Next.** Backend follow-ups listed in the plan (credit_limit, sleep stages,
+agent_runs, sessions/TOTP, metrics endpoint) — none block the frontend. The
+branch is `redesign/phase4-loans` and is not merged or pushed.
+
+
 ## 2026-07-28 — claude-code (repo restructure: flattened folder, frontend/ + backend/ split, per-folder AI context)
 - Shipped: **Reorganised the repo into two self-contained top-level folders.** (1) Flattened + renamed the project dir: `Projects - Agentic AI/Project - AiOs/control-tower/` → `Projects - Agentic AI/Project - Control Tower/` (the redundant wrapper is gone; the repo IS the project folder). (2) **Moved the whole pnpm workspace root into `frontend/`** — `apps/`, `packages/`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `tsconfig.json`, `vitest.config.ts`, `.npmrc`, `.dockerignore`, `scripts/`, plus the two frontend-only docs. `backend/` unchanged. 373 files moved via `git mv`, history preserved. (3) **Split `CLAUDE.md` + `AGENTS.md` three ways**: root keeps product/stack/deploy/history/backlog, `frontend/CLAUDE.md` owns the design system + UI/UX rules + monorepo graph, `backend/CLAUDE.md` owns FastAPI/SQLModel/migrations/multi-tenancy. Skills moved `.agent/skills/` → `frontend/.claude/skills/`; `.gitignore` switched to `**/.claude/*` + `!**/.claude/skills/` so skills stay versioned. `.agent/` deleted (it pointed at `SAAS_IMPLEMENTATION_PLAN.md` + `lessons.md`, neither of which exists). Config follow-through: `docker-compose.yml` frontend context → `./frontend` **and a pinned `name: control-tower`** (Compose derives the project name from the directory — the rename would have orphaned `control-tower_pgdata`); `deploy/Caddyfile` → `frontend/Caddyfile` (a `COPY` can't reach above its build context); `deploy.yml` web build context + file; CI frontend job now `defaults.run.working-directory: frontend` with `package_json_file`/`cache-dependency-path` spelled out (action inputs ignore that default); `run.sh`; `backend/tests/test_api_mappings.py` frontend scan path. Also finished the 2026-07-23 rename that had been missed: `/health` now reports `"service": "control-tower"` (was `aios-web`), plus a stale comment and a `docs/DEPLOYMENT.md` image example.
 - Blockers: none. **Manual step left for Utsav:** rename the GitHub repo `uranjan21/aios-web` → `control-tower` in Settings, then `git remote set-url origin https://github.com/uranjan21/control-tower.git`. Until then GHCR image names stay `aios-web-*` (they derive from `github.repository`). Changes are staged but NOT committed — review then commit.
