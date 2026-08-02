@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
-import { Button, EmptyState, Select, Card, Input, Sheet } from '@ledgr/ui'
+import { Button, Card, EmptyState, HeaderActionPortal, Input, Select, Sheet } from '@ledgr/ui'
 import { Trash2, Wallet, PencilLine, ArrowLeftRight, TrendingUp, TrendingDown, Landmark, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import styled from 'styled-components'
@@ -17,11 +17,6 @@ const AccountsRoot = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[5]};
-`
-
-const AccountsToolbar = styled.div`
-  display: flex;
-  justify-content: flex-end;
 `
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -559,8 +554,10 @@ export const AccountManager: React.FC<{ onAdd?: () => void }> = ({ onAdd }) => {
 
   return (
     <AccountsRoot>
+      {/* Tab-scoped: it drives every module below, so it belongs in the
+          page header, not floating in the gap above the cards. */}
       {accounts.length > 0 && (
-        <AccountsToolbar>
+        <HeaderActionPortal>
           <Select
             size="sm"
             fullWidth={false}
@@ -572,7 +569,7 @@ export const AccountManager: React.FC<{ onAdd?: () => void }> = ({ onAdd }) => {
               ...accountTypes.map(t => ({ value: t, label: t.replace('_', ' ').toUpperCase() })),
             ]}
           />
-        </AccountsToolbar>
+        </HeaderActionPortal>
       )}
 
       {accounts.length === 0 ? (

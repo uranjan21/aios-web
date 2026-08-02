@@ -29,7 +29,7 @@ import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { Moon, Zap } from 'lucide-react'
-import { Button, Card, Dialog, EmptyState, Input, Select } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, HeaderActionPortal, Input, Select } from '@ledgr/ui'
 import { healthApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
@@ -38,11 +38,6 @@ const Root = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[5]};
-`
-
-const Toolbar = styled.div`
-  display: flex;
-  justify-content: flex-end;
 `
 
 const Form = styled.div`
@@ -231,9 +226,11 @@ export function SleepSection() {
 
   return (
     <Root>
-      <Toolbar>
+      {/* Tab-scoped: it drives every module below, so it belongs in the page
+          header rather than floating in the gap above the cards. */}
+      <HeaderActionPortal>
         <Button size="sm" variant="primary" onClick={() => setLogOpen(true)}>Log sleep</Button>
-      </Toolbar>
+      </HeaderActionPortal>
 
       {nights.length === 0 ? (
         <Card title="Sleep" subtitle="Duration, consistency and what helps" icon={<Moon size={16} />}>

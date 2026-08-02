@@ -20,7 +20,7 @@ import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { Briefcase, CheckSquare, Trash2 } from 'lucide-react'
-import { Button, Card, Dialog, EmptyState, Input, Select } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, HeaderActionPortal, Input, Select } from '@ledgr/ui'
 import { careerApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
@@ -31,11 +31,6 @@ const Root = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[5]};
-`
-
-const Toolbar = styled.div`
-  display: flex;
-  justify-content: flex-end;
 `
 
 const Form = styled.div`
@@ -184,9 +179,11 @@ export function OpportunitiesSection() {
 
   return (
     <Root>
-      <Toolbar>
+      {/* Tab-scoped: it drives every module below, so it belongs in the page
+          header rather than floating in the gap above the cards. */}
+      <HeaderActionPortal>
         <Button size="sm" variant="primary" onClick={() => setAddOpen(true)}>Add lead</Button>
-      </Toolbar>
+      </HeaderActionPortal>
 
       {rows.length === 0 ? (
         <Card title="Opportunities" subtitle="Roles you are talking to" icon={<Briefcase size={16} />}>

@@ -132,8 +132,14 @@ export function AppShell() {
     const current = resolvePath(location.pathname);
     if (!current) return null;
     const title = PAGE_NAMES[location.pathname] ?? current.sub?.label ?? current.item.label;
-    // The eyebrow is the area, and only when the title is not the area itself.
-    return { title, eyebrow: title === current.item.label ? undefined : current.item.label };
+    const Icon = current.sub?.icon ?? current.item.icon;
+    return {
+      title,
+      // The eyebrow is the area, and only when the title is not the area itself.
+      eyebrow: title === current.item.label ? undefined : current.item.label,
+      icon: <Icon />,
+      domain: current.item.domain,
+    };
   }, [location.pathname]);
 
   const handleCompleteWizard = () => {

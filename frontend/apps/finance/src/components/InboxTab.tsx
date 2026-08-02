@@ -21,7 +21,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
-import { Button, Card, Dialog, EmptyState, Input, Select } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, HeaderActionPortal, Input, Select } from '@ledgr/ui'
 import { CheckSquare, Inbox as InboxIcon, Zap } from 'lucide-react'
 import { financeApi, type FinancePendingTransaction } from '@ct/shared/api/areas'
 import { agentsApi } from '@ct/shared/api/agents'
@@ -34,12 +34,6 @@ const Root = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[5]};
-`
-
-const Toolbar = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: ${({ theme }) => theme.spacing[2]};
 `
 
 const Form = styled.div`
@@ -332,7 +326,9 @@ export function InboxTab() {
 
   return (
     <Root>
-      <Toolbar>
+      {/* Tab-scoped: it drives every module below, so it belongs in the page
+          header rather than floating in the gap above the cards. */}
+      <HeaderActionPortal>
         <Button size="sm" variant="outline" onClick={() => fetchNow.mutate()} loading={fetchNow.isPending}>
           Fetch now
         </Button>
@@ -346,7 +342,7 @@ export function InboxTab() {
             Dismiss all
           </Button>
         )}
-      </Toolbar>
+      </HeaderActionPortal>
 
       {rows.length === 0 && (
         <Card title="Review queue" subtitle="Transactions captured from your email" icon={<InboxIcon size={16} />}>

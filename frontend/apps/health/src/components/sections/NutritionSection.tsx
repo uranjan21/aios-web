@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { BarChart3, Circle, Flag, Plus } from 'lucide-react'
-import { Button, Dialog, Input, Select } from '@ledgr/ui'
+import { Button, Dialog, HeaderActionPortal, Input, Select } from '@ledgr/ui'
 import { healthApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
@@ -22,12 +22,6 @@ const Root = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[5]};
-`
-
-const Toolbar = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: ${({ theme }) => theme.spacing[2]};
 `
 
 const Form = styled.div`
@@ -258,14 +252,16 @@ export function NutritionSection() {
 
   return (
     <Root>
-      <Toolbar>
+      {/* Tab-scoped: it drives every module below, so it belongs in the page
+          header rather than floating in the gap above the cards. */}
+      <HeaderActionPortal>
         <Button size="sm" variant="outline" onClick={() => logWater.mutate()} loading={logWater.isPending}>
           + Glass of water
         </Button>
         <Button size="sm" variant="primary" onClick={() => setLogOpen(true)}>
           <Plus size={12} style={{ marginRight: 4 }} /> Log meal
         </Button>
-      </Toolbar>
+      </HeaderActionPortal>
 
       <ModuleGrid modules={modules} />
 

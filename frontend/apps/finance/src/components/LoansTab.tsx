@@ -21,7 +21,7 @@ import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
-import { Button, Switch, Dialog, Input, Card, Select, EmptyState } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, HeaderActionPortal, Input, Select, Switch } from '@ledgr/ui'
 import { Landmark, FileText, PieChart, Trash2 } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
@@ -34,11 +34,6 @@ const RootContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[5]};
-`
-
-const FilterRow = styled.div`
-  display: flex;
-  justify-content: flex-end;
 `
 
 const LoadingContainer = styled.div`
@@ -452,8 +447,10 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
 
   return (
     <RootContainer>
+      {/* Tab-scoped: it drives every module below, so it belongs in the
+          page header, not floating in the gap above the cards. */}
       {all.length > 0 && (
-        <FilterRow>
+        <HeaderActionPortal>
           <Select
             size="sm"
             fullWidth={false}
@@ -466,7 +463,7 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
               { value: 'paid', label: 'Paid off' },
             ]}
           />
-        </FilterRow>
+        </HeaderActionPortal>
       )}
 
       {all.length === 0 ? (

@@ -1,7 +1,8 @@
 import { createContext, useContext, type ReactNode } from "react";
-import styled from "styled-components";
+import styled, { useTheme } from "styled-components";
 import { PageHeader, usePageHeaderActions } from "@ledgr/ui";
 import { PAGE_MAX_WIDTH, PAGE_PADDING } from "@ct/shared/theme/layout";
+import type { DomainKey } from "@ct/shared/theme/ctTheme";
 
 /**
  * Page shell.
@@ -72,7 +73,55 @@ const ContentColumn = styled.div`
 interface PageIdentity {
   title: string;
   eyebrow?: string;
+  /** The destination's own nav icon, already rendered. */
+  icon?: ReactNode;
+  /** Area identity colour key, resolved against `theme.domain` here. */
+  domain?: DomainKey;
 }
+
+/*
+ * Glass, in the same family as the TopBar and Sidebar — `glass.shell` is the
+ * chrome gradient those already use, so the header reads as chrome rather than
+ * as a second card competing with the content below it. It lands in the top
+ * ~520px where `PageContainer` paints its ambient mesh, and the backdrop filter
+ * is the point: the mesh comes through the header instead of being covered by it.
+ *
+ * The wash carries the area's identity colour in from the left edge, which is
+ * what keeps this from being the thing the old PageHeader was rightly killed for
+ * — a heavy empty capsule wrapped around small text. Its `z-index: -1` (with
+ * `isolation` below) puts it under the text but over the header's own gradient;
+ * a positioned pseudo-element otherwise paints ON TOP of non-positioned content.
+ *
+ * `glass.hi` is a 1px top inner highlight that resolves to `none` in light mode
+ * — a white inset on a light surface is banned (feedback-no-white-shadows) —
+ * and dark mode is the one place it is allowed, where it is the only depth cue.
+ */
+const GlassPageHeader = styled(PageHeader)<{ $tone: string }>`
+  position: relative;
+  isolation: isolate;
+  padding: ${({ theme }) => `${theme.spacing[4]} ${theme.spacing[5]}`};
+  border-radius: ${({ theme }) => theme.radii.lg};
+
+  background: ${({ theme }) => theme.glass.shell};
+  backdrop-filter: ${({ theme }) => theme.glass.filter};
+  -webkit-backdrop-filter: ${({ theme }) => theme.glass.filter};
+  border: 1px solid ${({ theme }) => theme.glass.border};
+  box-shadow: ${({ theme }) => theme.glass.hi};
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    border-radius: inherit;
+    background: radial-gradient(
+      120% 190% at 0% 50%,
+      ${({ $tone }) => `color-mix(in oklab, ${$tone} 15%, transparent)`} 0%,
+      transparent 58%
+    );
+  }
+`;
 
 const PageIdentityContext = createContext<PageIdentity | null>(null);
 
@@ -102,10 +151,18 @@ export function PageIdentityProvider({
 export function PageContent({ children, className }: { children: ReactNode; className?: string }) {
   const actions = usePageHeaderActions();
   const identity = useContext(PageIdentityContext);
+  const theme = useTheme();
 
   return (
     <ContentColumn className={className}>
-      {actions && identity && <PageHeader eyebrow={identity.eyebrow} title={identity.title} />}
+      {actions && identity && (
+        <GlassPageHeader
+          icon={identity.icon}
+          eyebrow={identity.eyebrow}
+          title={identity.title}
+          $tone={theme.domain[identity.domain ?? 'general']}
+        />
+      )}
       {children}
     </ContentColumn>
   );

@@ -22,7 +22,7 @@ import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import styled from 'styled-components'
-import { Button, Dialog, EmptyState, Input, Select, Card } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, HeaderActionPortal, Input, Select } from '@ledgr/ui'
 import { Target, TrendingUp, Flag, Plus, Trash2 } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
@@ -36,12 +36,6 @@ const Root = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[5]};
-`
-
-const FilterRow = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: ${({ theme }) => theme.spacing[2]};
 `
 
 const FormContainer = styled.form`
@@ -304,8 +298,10 @@ export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
 
   return (
     <Root>
+      {/* Tab-scoped: it drives every module below, so it belongs in the
+          page header, not floating in the gap above the cards. */}
       {(goals ?? []).length > 0 && (
-        <FilterRow>
+        <HeaderActionPortal>
           <Select
             size="sm"
             fullWidth={false}
@@ -324,7 +320,7 @@ export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
               <Plus size={12} style={{ marginRight: 4 }} /> Add Goal
             </Button>
           )}
-        </FilterRow>
+        </HeaderActionPortal>
       )}
 
       {modules.length === 0 ? (
