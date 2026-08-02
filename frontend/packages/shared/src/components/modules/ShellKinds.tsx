@@ -743,6 +743,22 @@ const SelectChip = styled.span`
   }
 `
 
+/** A colour chip, a button once a page wires onSwatch. */
+const Swatch = styled.span<{ $color: string; $active: boolean }>`
+  width: 26px;
+  height: 26px;
+  border-radius: ${({ theme }) => theme.radii.xs};
+  background: ${({ $color }) => $color};
+  border: none;
+  padding: 0;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px ${({ $active, theme }) => ($active ? theme.color.accent : 'transparent')};
+  transition: box-shadow 150ms, transform 150ms;
+
+  &:is(button) { cursor: pointer; }
+  &:is(button):hover { transform: translateY(-1px); }
+`
+
 export function ControlsKind({ m }: { m: ControlsModule }) {
   const c = useModulePalette()
   const { onToggle, onSelect } = m
@@ -786,13 +802,17 @@ export function ControlsKind({ m }: { m: ControlsModule }) {
           )}
 
           {r.control === 'swatches' && (
-            <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 7, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               {(r.swatches ?? []).map((sw, j) => (
-                <span key={j} style={{
-                  width: 26, height: 26, borderRadius: 8, background: sw.color, cursor: 'pointer',
-                  boxShadow: `0 0 0 2px ${sw.active ? c('accent') : 'transparent'}`,
-                  transition: 'transform 150ms',
-                }} />
+                <Swatch
+                  key={j}
+                  as={m.onSwatch ? 'button' : 'span'}
+                  type={m.onSwatch ? 'button' : undefined}
+                  aria-pressed={m.onSwatch ? !!sw.active : undefined}
+                  onClick={m.onSwatch ? () => m.onSwatch!(i, j) : undefined}
+                  $color={sw.color}
+                  $active={!!sw.active}
+                />
               ))}
             </div>
           )}

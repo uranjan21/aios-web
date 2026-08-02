@@ -145,6 +145,8 @@ export interface ControlsModule extends Base {
   onToggle?: (index: number, next: boolean) => void
   /** Fired by `segment` and `select` rows with the chosen option. */
   onSelect?: (index: number, value: string) => void
+  /** Fired by `swatches` rows with the index of the chip that was picked. */
+  onSwatch?: (index: number, swatchIndex: number) => void
 }
 
 export interface QueueModule extends Base {
