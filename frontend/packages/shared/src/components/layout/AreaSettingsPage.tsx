@@ -60,7 +60,7 @@ export const NavRail = styled.nav`
 
   padding: ${({ theme }) => `${theme.spacing[3.5]} ${theme.spacing[3]}`};
 
-  border-radius: ${({ theme }) => theme.radii.lg};
+  border-radius: ${({ theme }) => theme.radii.md};
   border: 1px solid ${({ theme }) =>
     theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'};
   background: ${({ theme }) =>

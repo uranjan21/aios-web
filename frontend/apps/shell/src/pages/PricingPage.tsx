@@ -123,7 +123,7 @@ const Layout = styled.div`
 const Panel = styled.div`
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.lg};
+  border-radius: ${({ theme }) => theme.radii.md};
   padding: 1.75rem;
 `
 
@@ -178,7 +178,7 @@ const ModuleTile = styled.button<{ $selected: boolean }>`
 const Summary = styled.div`
   background: ${({ theme }) => theme.color.card};
   border: 2px solid ${({ theme }) => theme.color.accent};
-  border-radius: ${({ theme }) => theme.radii.lg};
+  border-radius: ${({ theme }) => theme.radii.md};
   padding: 1.75rem;
   position: sticky;
   top: 1.5rem;

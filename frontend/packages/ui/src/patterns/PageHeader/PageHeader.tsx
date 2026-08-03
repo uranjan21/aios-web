@@ -6,35 +6,57 @@ import { textRole, truncate } from '../../theme/mixins';
 export interface PageHeaderProps {
   /** Small uppercase label stacked above the title (e.g. "Wellness"). */
   eyebrow?: ReactNode;
-  /** Decorative icon — rendered inside an accent chip, normalised to 20px. */
+  /** Decorative icon — rendered inside a tinted chip, normalised to 20px. */
   icon?: ReactNode;
   /** Page title (h1). */
   title: ReactNode;
-  /** Optional subtitle — sits under the title, aligned to the same text column. */
+  /** Meta line under the title — counts, status, "last updated". One line. */
   subtitle?: ReactNode;
   /** Right-aligned slot — typically action buttons. */
   actions?: ReactNode;
+  /**
+   * Colour the icon chip carries. Defaults to the accent. Pass an area's
+   * identity colour to keep the header recognisable per domain.
+   */
+  tone?: string;
   className?: string;
 }
 
 /*
- * The header used to be a full-bleed glass capsule holding a 13px title: the
- * heaviest surface on the page wrapped around its lightest text, with ~85% of
- * the bar left empty on a desktop viewport, and the subtitle stranded outside
- * it at a different left inset. It also blurred a backdrop that is flat page
- * background — a compositing layer bought nothing.
+ * A solid card, 2026-08-03.
  *
- * It is a typographic block now. Hierarchy comes from the type scale, the
- * accent chip carries the domain identity, and the three text lines share one
- * left edge. No rule underneath: `PageDivider` owns that decision per the
- * workspace-vs-area convention.
+ * It was a bare typographic block that the shared `PageContent` wrapper then
+ * dressed in glass plus a domain-tinted radial wash. Two owners for one
+ * surface, and the glass put a compositing layer over the page's own ambient
+ * mesh to show a title. The surface lives here now, in the component the app
+ * actually calls: card background, hairline border, one elevation step, and
+ * `radii.md` — the same corner as `Card`, `KpiCard` and every module tile, so
+ * the header reads as the first card on the page rather than a different
+ * material. The domain colour survives as the icon chip's tint (`tone`), which
+ * is the whole of the identity the wash was carrying.
+ *
+ * The three text lines share one left edge and the subtitle is a meta line
+ * *under* the title — visible at every width, unlike the old one, which was
+ * `display: none` below `sm` to free a grid row for the actions. The actions
+ * take their own row there instead; the meta line is the header's content, not
+ * decoration to drop first.
  */
 const Root = styled.header`
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   column-gap: ${({ theme }) => theme.spacing[3.5]};
-  row-gap: ${({ theme }) => theme.spacing[2]};
+  row-gap: ${({ theme }) => theme.spacing[3]};
+
+  background: ${({ theme }) => theme.color.card};
+  border: ${({ theme }) => theme.border.hairline} solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radii.md};
+  box-shadow: ${({ theme }) => theme.elevation[1]};
+  padding: ${({ theme }) => `${theme.spacing[4]}`};
+
+  @media ${({ theme }) => theme.media.sm} {
+    padding: ${({ theme }) => `${theme.spacing[5]} ${theme.spacing[6]}`};
+  }
 
   /* Below sm the actions take their own row — see Actions. */
   @media ${({ theme }) => theme.media.belowSm} {
@@ -42,7 +64,7 @@ const Root = styled.header`
   }
 `;
 
-const IconWrap = styled.div`
+const IconWrap = styled.div<{ $tone?: string }>`
   grid-column: 1;
   grid-row: 1;
   flex-shrink: 0;
@@ -51,10 +73,10 @@ const IconWrap = styled.div`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: ${({ theme }) => theme.radii.md};
-  background: ${({ theme }) =>
-    `color-mix(in oklab, ${theme.color.accent} 14%, ${theme.color.background})`};
-  color: ${({ theme }) => theme.color.accent};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  background: ${({ theme, $tone }) =>
+    `color-mix(in oklab, ${$tone ?? theme.color.accent} 14%, ${theme.color.card})`};
+  color: ${({ theme, $tone }) => $tone ?? theme.color.accent};
 
   & svg {
     width: 20px;
@@ -62,12 +84,12 @@ const IconWrap = styled.div`
   }
 
   @media ${({ theme }) => theme.media.belowSm} {
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
 
     & svg {
-      width: 17px;
-      height: 17px;
+      width: 18px;
+      height: 18px;
     }
   }
 `;
@@ -98,6 +120,16 @@ const Title = styled.h1`
   }
 `;
 
+/* The meta line: "24 Projects · 8 Active · Last updated 2h ago". One line,
+   aligned to the title's left edge, truncating rather than wrapping — a header
+   that grows a second text row pushes the page's real content down. */
+const Subtitle = styled.p`
+  ${textRole('body-s')}
+  color: ${({ theme }) => theme.color.mutedForeground};
+  margin: ${({ theme }) => `${theme.spacing[0.5]} 0 0`};
+  ${truncate}
+`;
+
 /*
  * Actions share the title's row on desktop. Below `sm` they take row 2 instead.
  *
@@ -108,9 +140,6 @@ const Title = styled.h1`
  * the header became the home for page-scoped controls: a Select plus a button
  * at 375px left the title rendering as "Pro…", and a page whose title is three
  * characters is not worth the 44px it saved.
- *
- * Row 2 is free below `sm` — the subtitle that also claims it is `display: none`
- * at that width.
  */
 const Actions = styled.div`
   grid-column: 3;
@@ -129,36 +158,27 @@ const Actions = styled.div`
   }
 `;
 
-/* Aligned to the title's left edge, not the icon's — the three text lines read
-   as one block. Hidden below sm to protect vertical space on mobile, which is
-   also what frees row 2 for the actions at that width (see Actions). */
-const Subtitle = styled.p`
-  grid-column: 2 / -1;
-  grid-row: 2;
-  ${textRole('body-s')}
-  color: ${({ theme }) => theme.color.mutedForeground};
-  margin: 0;
-  max-width: 68ch;
-
-  display: none;
-  @media ${({ theme }) => theme.media.sm} {
-    display: block;
-  }
-`;
-
-export function PageHeader({ eyebrow, icon, title, subtitle, actions, className }: PageHeaderProps) {
+export function PageHeader({
+  eyebrow,
+  icon,
+  title,
+  subtitle,
+  actions,
+  tone,
+  className,
+}: PageHeaderProps) {
   const portalled = usePageHeaderActions();
   const finalActions = portalled || actions ? <>{portalled}{actions}</> : null;
 
   return (
     <Root className={className}>
-      {icon && <IconWrap aria-hidden="true">{icon}</IconWrap>}
+      {icon && <IconWrap $tone={tone} aria-hidden="true">{icon}</IconWrap>}
       <Titles>
         {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
         <Title>{title}</Title>
+        {subtitle && <Subtitle>{subtitle}</Subtitle>}
       </Titles>
       {finalActions && <Actions>{finalActions}</Actions>}
-      {subtitle && <Subtitle>{subtitle}</Subtitle>}
     </Root>
   );
 }

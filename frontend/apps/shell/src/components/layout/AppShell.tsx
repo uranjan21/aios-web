@@ -135,8 +135,8 @@ export function AppShell() {
     const Icon = current.sub?.icon ?? current.item.icon;
     return {
       title,
-      // The eyebrow is the area, and only when the title is not the area itself.
-      eyebrow: title === current.item.label ? undefined : current.item.label,
+      // The meta line is the area, and only when the title is not the area itself.
+      subtitle: title === current.item.label ? undefined : current.item.label,
       icon: <Icon />,
       domain: current.item.domain,
     };
