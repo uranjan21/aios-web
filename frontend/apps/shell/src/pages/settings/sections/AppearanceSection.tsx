@@ -4,29 +4,30 @@
  * Phase 4 conversion to the canvas's `settings:appearance` composition —
  * controls(12) · rows(6) · controls(6) — driven by the uiStore.
  *
- * TWO DEPARTURES, both because the setting the canvas draws does not exist:
- *  - Its Theme module carries a Density segment and a base-font-size slider.
- *    Type scale is a design-system decision made in `packages/ui`, not a user
- *    preference; exposing a slider that writes nowhere would be a dead control.
- *    Mode and Palette — which are real — stay.
- *  - Its "Layout and motion" module is four toggles over settings that are not
- *    stored: nav collapse is remembered per section as you use the sidebar, and
- *    reduce-motion follows the OS `prefers-reduced-motion`. Both render as
- *    read-only `rows` — a switch here would either write nowhere or silently
- *    disagree with the system setting.
+ * ONE DEPARTURE: the canvas's Theme module carries a Density segment and a
+ * base-font-size slider. Type scale is a design-system decision made in
+ * `packages/ui`, not a user preference; exposing a slider that writes nowhere
+ * would be a dead control. Mode and Palette — which are real — stay.
+ *
+ * TRIMMED TO ONE MODULE, 2026-08-03. Two others were deleted for reporting
+ * things rather than setting them: "Layout and motion" showed a count of
+ * collapsed nav sections and whether the OS asks for reduced motion, and
+ * "Domain colours" was a three-row legend explaining that area colours are
+ * fixed. Neither could be acted on.
+ *
+ * `uiStore` persists exactly three things — `theme`, `palette` and
+ * `collapsedSections` — and the first two ARE the module below. So one card is
+ * not this tab being thin; it is this tab being complete. Anything more would
+ * have to be invented.
  */
 import { useMemo } from 'react'
-import { Layers, LayoutGrid, Settings as SettingsIcon } from 'lucide-react'
+import { Layers } from 'lucide-react'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { useUIStore } from '@ct/shared/stores/uiStore'
 import { PALETTES } from '@ct/shared/theme/palettes'
-import { ACTIVE_DOMAINS } from '@ct/shared/config/domains'
 
 export function AppearanceSection() {
-  const { theme: mode, setTheme, palette, setPalette, collapsedSections } = useUIStore()
-
-  const prefersReducedMotion = typeof window !== 'undefined'
-    && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  const { theme: mode, setTheme, palette, setPalette } = useUIStore()
 
   const modules = useMemo<ModuleSpec[]>(() => {
     const paletteIndex = PALETTES.findIndex(p => p.id === palette)
@@ -69,47 +70,9 @@ export function AppearanceSection() {
           if (i === 0) setPalette(PALETTES[swatchIndex].id)
         },
       },
-      {
-        kind: 'rows',
-        span: 6,
-        title: 'Domain colours',
-        subtitle: 'Fixed per area so nav keeps its meaning',
-        icon: LayoutGrid,
-        rows: ACTIVE_DOMAINS.map(d => ({
-          title: d.label,
-          meta: 'Constant across every palette so nav keeps its meaning',
-          tagLabel: 'Colour',
-          tagColorKey: d.key,
-        })),
-      },
-      /*
-       * Read-only `rows`, not `controls`: both of these are state the app
-       * derives rather than a preference it stores, so rendering switches here
-       * would put controls on screen that write nowhere.
-       */
-      {
-        kind: 'rows',
-        span: 6,
-        title: 'Layout and motion',
-        subtitle: 'Chrome behaviour and animation',
-        icon: SettingsIcon,
-        rows: [
-          {
-            title: 'Collapsed nav sections',
-            meta: 'Remembered per section as you collapse them in the sidebar',
-            value: String(Object.values(collapsedSections ?? {}).filter(Boolean).length),
-          },
-          {
-            title: 'Reduce motion',
-            meta: 'Follows your system setting',
-            tagLabel: prefersReducedMotion ? 'On' : 'Off',
-            tagColorKey: prefersReducedMotion ? 'success' : 'mutedFg',
-          },
-        ],
-      },
     ]
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, palette, collapsedSections, prefersReducedMotion])
+  }, [mode, palette])
 
   return <ModuleGrid modules={modules} />
 }

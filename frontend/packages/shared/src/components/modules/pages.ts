@@ -667,6 +667,27 @@ export const PAGES: Record<string, ModuleSpec[]> = {
       ]
     },
     {
+      kind: "series",
+      span: 7,
+      title: "Invested vs value",
+      subtitle: "Daily valuations",
+      icon: TrendingUp,
+      xKey: "date",
+      emptyLabel: "Daily valuations start building tonight.",
+      lines: [
+        { key: "value", label: "Current value", colorKey: "career" },
+        { key: "invested", label: "Invested", colorKey: "mutedFg", dashed: true }
+      ],
+      points: [
+        { date: "Mar", invested: 452000, value: 468000 },
+        { date: "Apr", invested: 467000, value: 471000 },
+        { date: "May", invested: 482000, value: 463000 },
+        { date: "Jun", invested: 497000, value: 552000 },
+        { date: "Jul", invested: 512000, value: 601000 },
+        { date: "Aug", invested: 512000, value: 640200 }
+      ]
+    },
+    {
       kind: "bars",
       span: 7,
       title: "Portfolio value",

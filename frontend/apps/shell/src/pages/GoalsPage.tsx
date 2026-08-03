@@ -14,7 +14,7 @@ import {
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Flag, Plus, Target } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import styled from "styled-components";
 
@@ -68,7 +68,19 @@ const GOAL_STATUS_FILTER_OPTIONS = [
   { label: "Archived", value: "archived" },
 ];
 
-export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
+export function GoalsSection({
+  domainFilter,
+  filterNode,
+}: {
+  domainFilter?: string
+  /**
+   * PlanPage's shared domain filter. This section renders a different surface
+   * per domain, so the filter is threaded into whichever card is showing rather
+   * than living in one place — otherwise selecting a domain would unmount the
+   * only control that can deselect it.
+   */
+  filterNode?: ReactNode
+}) {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [goalStatusFilter, setGoalStatusFilter] = useState("all");
@@ -146,7 +158,24 @@ export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
 
         if (!isLoading && visibleGoals.length === 0) {
           return (
-            <StyledCard icon={<Target size={16} />} title="All goals" subtitle="Nothing here yet">
+            <StyledCard
+              icon={<Target size={16} />}
+              title="All goals"
+              subtitle="Nothing here yet"
+              action={
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  {filterNode}
+                  <Select
+                    size="sm"
+                    fullWidth={false}
+                    aria-label="Filter goals by status"
+                    value={goalStatusFilter}
+                    onChange={(v) => setGoalStatusFilter(v as string)}
+                    options={GOAL_STATUS_FILTER_OPTIONS}
+                  />
+                </div>
+              }
+            >
               <EmptyState
                 icon={<Flag size={24} />}
                 title="No goals yet"
@@ -164,16 +193,19 @@ export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
         const modules: ModuleSpec[] = [{
           kind: "table",
           span: 12,
-          // Belongs to this table — see ProjectsPage.
+          // Both belong to this table — see ProjectsPage.
           actionNode: (
-            <Select
-              size="sm"
-              fullWidth={false}
-              aria-label="Filter goals by status"
-              value={goalStatusFilter}
-              onChange={(v) => setGoalStatusFilter(v as string)}
-              options={GOAL_STATUS_FILTER_OPTIONS}
-            />
+            <>
+              {filterNode}
+              <Select
+                size="sm"
+                fullWidth={false}
+                aria-label="Filter goals by status"
+                value={goalStatusFilter}
+                onChange={(v) => setGoalStatusFilter(v as string)}
+                options={GOAL_STATUS_FILTER_OPTIONS}
+              />
+            </>
           ),
           title: "All goals",
           subtitle: `${visibleGoals.length} goal${visibleGoals.length !== 1 ? "s" : ""} · click a row to remove`,
@@ -216,7 +248,7 @@ export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
       */}
       {domainFilter === "finance" && (
         <>
-          <FinanceGoalsTab onAdd={() => setPotModalOpen(true)} />
+          <FinanceGoalsTab onAdd={() => setPotModalOpen(true)} filterNode={filterNode} />
           <BudgetTabModal
             open={potModalOpen}
             onClose={() => setPotModalOpen(false)}
@@ -228,7 +260,7 @@ export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
       {domainFilter === "health" && (
         <>
           <div style={{ marginBottom: "24px" }}>
-            <DomainGoalsCard domain="health" onAdd={() => handleOpenAddGoal("health")} />
+            <DomainGoalsCard domain="health" onAdd={() => handleOpenAddGoal("health")} filterNode={filterNode} />
           </div>
           <TwoCol>
             <BodyGoalsSection />
@@ -239,7 +271,7 @@ export function GoalsSection({ domainFilter }: { domainFilter?: string }) {
       )}
 
       {domainFilter === "career" && (
-        <DomainGoalsCard domain="career" onAdd={() => handleOpenAddGoal("career")} />
+        <DomainGoalsCard domain="career" onAdd={() => handleOpenAddGoal("career")} filterNode={filterNode} />
       )}
 
 

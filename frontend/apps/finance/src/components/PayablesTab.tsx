@@ -14,7 +14,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
-import { Button, HeaderActionPortal } from '@ledgr/ui'
+import { Button } from '@ledgr/ui'
 import { Bell, ChevronLeft, ChevronRight, FileText, Settings } from 'lucide-react'
 import styled from 'styled-components'
 import { financeApi, type PayableItem } from '@ct/shared/api/areas'
@@ -27,19 +27,6 @@ const Root = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[5]};
-`
-
-const MonthNav = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing[2]};
-`
-
-const MonthLabel = styled.span`
-  font-weight: 700;
-  min-width: 88px;
-  text-align: center;
-  white-space: nowrap;
 `
 
 /** The automation rule that sends the pre-due-date nudge. */
@@ -185,6 +172,19 @@ export function PayablesTab() {
         title: start.format('MMMM YYYY'),
         subtitle: `${formatCurrency(data?.total_unpaid ?? 0)} still due across ${unpaidCount} item${unpaidCount === 1 ? '' : 's'}`,
         icon: FileText,
+        /* The month steppers sit on the calendar because its title IS the
+         * month — no separate label needed, which is why this is two chevrons
+         * and not the old MonthNav. They used to portal into a page header. */
+        actionNode: (
+          <>
+            <Button variant="ghost" size="icon" aria-label="Previous month" onClick={() => shift(-1)}>
+              <ChevronLeft size={16} />
+            </Button>
+            <Button variant="ghost" size="icon" aria-label="Next month" onClick={() => shift(1)}>
+              <ChevronRight size={16} />
+            </Button>
+          </>
+        ),
         lead,
         days: daysInMonth,
         trail,
@@ -262,20 +262,6 @@ export function PayablesTab() {
 
   return (
     <Root>
-      {/* The month drives every module on the page, so it is page-scoped and
-          belongs in the page header — not floating in the gap above the cards. */}
-      <HeaderActionPortal>
-        <MonthNav>
-          <Button variant="ghost" size="icon" aria-label="Previous month" onClick={() => shift(-1)}>
-            <ChevronLeft size={16} />
-          </Button>
-          <MonthLabel>{dayjs(month + '-01').format('MMM YYYY')}</MonthLabel>
-          <Button variant="ghost" size="icon" aria-label="Next month" onClick={() => shift(1)}>
-            <ChevronRight size={16} />
-          </Button>
-        </MonthNav>
-      </HeaderActionPortal>
-
       <ModuleGrid modules={modules} />
     </Root>
   )

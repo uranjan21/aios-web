@@ -11,8 +11,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
-import { BarChart3, Circle, Flag, Plus } from 'lucide-react'
-import { Button, Dialog, HeaderActionPortal, Input, Select } from '@ledgr/ui'
+import { BarChart3, Circle, Flag } from 'lucide-react'
+import { Button, Dialog, Input, Select } from '@ledgr/ui'
 import { healthApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
@@ -168,6 +168,11 @@ export function NutritionSection() {
         title: 'Daily targets',
         subtitle: `Where today stands at ${dayjs().format('h A')}`,
         icon: Flag,
+        /* Water is one of this card's own rows, so the glass button lives here.
+         * "Log meal" is on "Meals today" — each control sits on the card it
+         * actually moves, instead of both portalling into a page header. */
+        action: '+ Glass of water',
+        onAction: () => logWater.mutate(),
         rows: [
           {
             title: 'Calories',
@@ -215,6 +220,7 @@ export function NutritionSection() {
           : 'Nothing logged yet today',
         icon: Circle,
         action: 'Log meal',
+        actionVariant: 'primary',
         onAction: () => setLogOpen(true),
         entries: meals.map((m) => {
           const parsed = parseMealNotes(m.notes)
@@ -246,23 +252,12 @@ export function NutritionSection() {
         }),
       },
     ]
-  }, [today, goals, water, mealLogs])
+  }, [today, goals, water, mealLogs, logWater])
 
   if (isLoading) return <Skeleton style={{ height: 320 }} />
 
   return (
     <Root>
-      {/* Tab-scoped: it drives every module below, so it belongs in the page
-          header rather than floating in the gap above the cards. */}
-      <HeaderActionPortal>
-        <Button size="sm" variant="outline" onClick={() => logWater.mutate()} loading={logWater.isPending}>
-          + Glass of water
-        </Button>
-        <Button size="sm" variant="primary" onClick={() => setLogOpen(true)}>
-          <Plus size={12} style={{ marginRight: 4 }} /> Log meal
-        </Button>
-      </HeaderActionPortal>
-
       <ModuleGrid modules={modules} />
 
       <Dialog

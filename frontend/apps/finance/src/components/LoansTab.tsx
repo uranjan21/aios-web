@@ -21,12 +21,13 @@ import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
-import { Button, Card, Dialog, EmptyState, HeaderActionPortal, Input, Select, Switch } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, Input, Select, Switch } from '@ledgr/ui'
 import { Landmark, FileText, PieChart, Trash2 } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import type { FinanceLoan } from '@ct/shared/types'
+import { LoanPaymentsPanel } from './LoanPaymentsPanel'
 import { PayoffPlanner } from './PayoffPlanner'
 import styled from 'styled-components'
 
@@ -214,6 +215,22 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
     queryFn: financeApi.loans,
   })
 
+  const { data: loanSummary } = useQuery({
+    queryKey: ['finance', 'loans', 'summary'],
+    queryFn: financeApi.loansSummary,
+    staleTime: 60_000,
+  })
+
+  /* Payment history for the loan whose dialog is open. Amortization splits are
+     captured per payment and cannot be recomputed later, so this is the only
+     place the real principal/interest breakdown exists. */
+  const { data: payments } = useQuery({
+    queryKey: ['finance', 'loans', updatingLoan?.id, 'payments'],
+    queryFn: () => financeApi.loanPayments(updatingLoan!.id),
+    enabled: !!updatingLoan,
+    staleTime: 30_000,
+  })
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['finance', 'loans'] })
     queryClient.invalidateQueries({ queryKey: ['finance', 'loans', 'summary'] })
@@ -357,19 +374,53 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
             sub: `Blended rate ${blended.toFixed(1)}% · projected at current EMIs`,
             subKey: 'warning',
           },
+          /* Actual interest paid, from the per-payment amortization splits. The
+           * tile beside it is a projection; this one is history. Shown as "—"
+           * rather than ₹0 when no split has ever been recorded, so an
+           * un-tracked loan does not read as an interest-free one. */
+          {
+            label: 'Interest paid so far',
+            value: loanSummary?.payments_recorded
+              ? inr(loanSummary.interest_paid_to_date)
+              : '—',
+            sub: loanSummary?.payments_recorded
+              ? `Over ${loanSummary.payments_recorded} recorded payment${loanSummary.payments_recorded === 1 ? '' : 's'}`
+              : 'Mark an EMI paid to start tracking this',
+            ...(loanSummary?.payments_recorded ? { subKey: 'destructive' as const } : {}),
+          },
         ],
       },
     ]
 
-    if (listed.length) {
+    /* Gated on `all`, not `listed`: this card owns the status filter, so it has
+     * to survive a filter that matches nothing — otherwise the control that
+     * caused the empty result unmounts with the rows and the filter can never
+     * be cleared. */
+    if (all.length) {
       specs.push({
         kind: 'progress',
         span: 12,
         title: 'Payoff progress',
-        subtitle: statusFilter === 'paid'
-          ? 'Principal cleared on closed loans'
-          : 'Principal cleared against original amount',
+        subtitle: listed.length === 0
+          ? 'No loans match this filter'
+          : statusFilter === 'paid'
+            ? 'Principal cleared on closed loans'
+            : 'Principal cleared against original amount',
         icon: Landmark,
+        actionNode: (
+          <Select
+            size="sm"
+            fullWidth={false}
+            aria-label="Filter loans by status"
+            value={statusFilter}
+            onChange={(v: any) => setStatusFilter(v as typeof statusFilter)}
+            options={[
+              { value: 'all', label: 'All Loans' },
+              { value: 'active', label: 'Active' },
+              { value: 'paid', label: 'Paid off' },
+            ]}
+          />
+        ),
         ...(onAdd && { action: '+ Add loan', onAction: onAdd }),
         onRowClick: (i: number) => openUpdate(listed[i]),
         rows: listed.map(l => {
@@ -441,31 +492,16 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
 
     return specs
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [all, active, listed, statusFilter, onAdd])
+  }, [all, active, listed, statusFilter, onAdd, loanSummary])
 
   if (isLoading) return <LoadingContainer><LoadHead /><LoadBody /></LoadingContainer>
 
   return (
     <RootContainer>
-      {/* Tab-scoped: it drives every module below, so it belongs in the
-          page header, not floating in the gap above the cards. */}
-      {all.length > 0 && (
-        <HeaderActionPortal>
-          <Select
-            size="sm"
-            fullWidth={false}
-            aria-label="Filter loans by status"
-            value={statusFilter}
-            onChange={(v: any) => setStatusFilter(v as typeof statusFilter)}
-            options={[
-              { value: 'all', label: 'All Loans' },
-              { value: 'active', label: 'Active' },
-              { value: 'paid', label: 'Paid off' },
-            ]}
-          />
-        </HeaderActionPortal>
-      )}
-
+      {/* The status filter lives in the "Payoff progress" card header — it is
+          the only module it drives (the tiles read `all`/`active`). It used to
+          portal into the page header, which is what kept a header block on this
+          page. */}
       {all.length === 0 ? (
         <Card title="Loans & EMIs" subtitle="Outstanding balances and monthly EMI obligations" icon={<Landmark size={16} />}>
           <EmptyState
@@ -566,6 +602,8 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
             </Popconfirm>
           </FormActions>
         </UpdateForm>
+
+        {updatingLoan && <LoanPaymentsPanel data={payments} />}
       </Dialog>
     </RootContainer>
   )

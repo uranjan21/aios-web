@@ -6,24 +6,26 @@
  * Tiles are the goals; clicking one opens its editor, which is where the old
  * table's pencil/trash column went.
  *
- * TWO DEPARTURES FROM THE CANVAS, both because a goal row stores a balance and
- * not a contribution history:
- *  - The canvas's bars are "monthly contributions across all goals". There is
- *    no per-goal contribution ledger, so the bars show **monthly savings**
- *    (take-home minus expenses, from the finance snapshots) against the
- *    contribution rate every goal deadline collectively demands. Same question
- *    — are you putting enough aside — answered with data that exists.
- *  - The canvas's timeline projects completion "at your current contribution
- *    rate". Without that rate, each entry instead states the rate the goal's
- *    own deadline requires, and flags it at risk when that exceeds what you
- *    have actually been saving.
+ * 2026-08-03: the two documented departures are RESOLVED. Both existed because
+ * a goal row stored only a running balance; `finance_goal_contributions` is a
+ * real per-deposit ledger, so both questions are now answered from actual data.
+ *  - The bars are monthly CONTRIBUTIONS (from /goals/contributions/monthly),
+ *    not take-home-minus-expenses as a stand-in for them. A month with no
+ *    deposit is a real zero, and a withdrawal plots negative.
+ *  - The timeline projects completion at the rate you have ACTUALLY been
+ *    contributing over the window, and compares it to what the deadline needs.
+ *
+ * ONE REMAINING DEPARTURE: the canvas stacks the bars per goal. The `bars` kind
+ * draws a single series and cannot stack, so these are the monthly TOTAL across
+ * goals against the rate every deadline collectively demands — the same
+ * question. Per-goal detail lives in the timeline and in each goal's ledger.
  */
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import styled from 'styled-components'
-import { Button, Card, Dialog, EmptyState, HeaderActionPortal, Input, Select } from '@ledgr/ui'
-import { Target, TrendingUp, Flag, Plus, Trash2 } from 'lucide-react'
+import { Button, Card, Dialog, EmptyState, Input, Select } from '@ledgr/ui'
+import { Target, TrendingUp, Flag, Trash2 } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
@@ -31,6 +33,7 @@ import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { formatCurrency } from '@ct/shared/lib/utils'
 import { fromCalendarDate } from '@ct/shared/lib/calendarDate'
 import type { FinancialGoal } from '@ct/shared/types'
+import { GoalContributionsPanel } from './GoalContributionsPanel'
 
 const Root = styled.div`
   display: flex;
@@ -89,7 +92,18 @@ const fmtMonth = (deadline: string | null) =>
 type EditForm = { name: string; icon: string; target_amount: string; current_amount: string; deadline: string; color: string }
 const EMPTY_FORM: EditForm = { name: '', icon: '', target_amount: '0', current_amount: '0', deadline: '', color: '' }
 
-export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
+export function GoalsTab({
+  onAdd,
+  filterNode,
+}: {
+  onAdd?: () => void
+  /**
+   * An optional page-level filter to render beside this tab's own. Workspace →
+   * Goals mounts this tab under its domain filter and passes it here, so the
+   * control stays reachable while "finance" is the selected domain.
+   */
+  filterNode?: React.ReactNode
+} = {}) {
   const queryClient = useQueryClient()
   const [updatingGoal, setUpdatingGoal] = useState<FinancialGoal | null>(null)
   const [editForm, setEditForm] = useState<EditForm>(EMPTY_FORM)
@@ -103,10 +117,10 @@ export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
   // Monthly savings history — the only real series that speaks to whether the
   // goals are fundable. Sparse for new users, which the bars module handles by
   // simply not rendering.
-  const { data: snapshots } = useQuery({
-    queryKey: ['finance', 'snapshots'],
-    queryFn: financeApi.snapshots,
-    staleTime: 5 * 60_000,
+  const { data: contribMonthly } = useQuery({
+    queryKey: ['finance', 'goals', 'contributions', 'monthly'],
+    queryFn: () => financeApi.goalContributionsMonthly(6),
+    staleTime: 60_000,
   })
 
   const updateMutation = useMutation({
@@ -176,16 +190,59 @@ export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
   }), [goals, statusFilter])
 
   /** Take-home minus expenses per snapshot month, most recent six. */
-  const savingsSeries = useMemo(() => (snapshots ?? [])
-    .filter(s => s.take_home != null && s.total_expenses != null)
-    .sort((a, b) => a.snapshot_month.localeCompare(b.snapshot_month))
-    .slice(-6)
-    .map(s => ({ month: s.snapshot_month, saved: Number(s.take_home) - Number(s.total_expenses) })),
-    [snapshots])
+  /* Real contributions per month, summed across goals. Zeros are meaningful —
+     the endpoint emits them rather than skipping a month — and a month can be
+     NEGATIVE when the user withdrew from a pot. */
+  const savingsSeries = useMemo(() => {
+    if (!contribMonthly) return []
+    return contribMonthly.months.map((month, i) => ({
+      month,
+      saved: contribMonthly.goals.reduce((sum, g) => sum + (g.series[i] ?? 0), 0),
+    }))
+  }, [contribMonthly])
 
+  /* The rate actually achieved over the window — what the timeline projects
+     from. Averaged over every month in the window including the empty ones,
+     because a month you put nothing aside is part of your real rate. */
   const avgSaved = savingsSeries.length
     ? savingsSeries.reduce((sum, s) => sum + s.saved, 0) / savingsSeries.length
     : null
+
+  /* Per-goal achieved rate — goal_id -> average per month over the window.
+     This is what makes "Behind" a per-pot judgement instead of comparing one
+     goal's requirement against the whole portfolio's savings. */
+  const ratePerGoal = useMemo(() => {
+    const m = new Map<string, number>()
+    if (!contribMonthly?.months.length) return m
+    for (const g of contribMonthly.goals) {
+      const total = g.series.reduce((sum, v) => sum + v, 0)
+      m.set(g.goal_id, total / contribMonthly.months.length)
+    }
+    return m
+  }, [contribMonthly])
+
+  /* One instance, used by the goals card and by the empty state it collapses
+   * into, so the control survives a filter that matches nothing. */
+  const statusFilterNode = (
+    <>
+      {filterNode}
+      {(goals ?? []).length > 0 && (
+        <Select
+          size="sm"
+          fullWidth={false}
+          aria-label="Filter goals by status"
+          value={statusFilter}
+          onChange={(v: any) => setStatusFilter(v as typeof statusFilter)}
+          options={[
+            { value: 'all', label: 'All Goals' },
+            { value: 'active', label: 'Active' },
+            { value: 'completed', label: 'Done' },
+            { value: 'overdue', label: 'Overdue' },
+          ]}
+        />
+      )}
+    </>
+  )
 
   const modules = useMemo<ModuleSpec[]>(() => {
     if (!visible.length) return []
@@ -207,7 +264,10 @@ export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
       const days = daysLeft(g.deadline)
       if (days !== null && days < 0) return { label: 'Overdue', key: 'destructive' }
       const req = requiredFor(g)
-      if (req !== null && avgSaved !== null && req > avgSaved) return { label: 'Behind', key: 'warning' }
+      /* Compare against THIS pot's own achieved rate where there is one; fall
+         back to the portfolio average only when the pot has no history yet. */
+      const achieved = ratePerGoal.get(g.id) ?? avgSaved
+      if (req !== null && achieved !== null && req > achieved) return { label: 'Behind', key: 'warning' }
       return { label: 'On track', key: 'success' }
     }
 
@@ -242,21 +302,27 @@ export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
       specs.push({
         kind: 'bars',
         span: 7,
-        title: 'Monthly savings',
+        title: 'Monthly contributions',
         subtitle: totalRequired > 0
           ? `Against the ${formatCurrency(Math.round(totalRequired))}/mo every deadline needs`
-          : 'Take-home minus expenses',
+          : 'What you actually put into your pots',
         icon: TrendingUp,
         ...(totalRequired > 0 && {
           target: Math.round(totalRequired / 1000),
           targetLabel: 'Needed',
         }),
+        /* Bars share one magnitude axis, so a withdrawal plots as a positive
+         * height in destructive red with a signed label — the height is "how
+         * much moved", the colour and the sign say which way. */
         bars: savingsSeries.map((s, i) => ({
           label: fromCalendarDate(s.month.length === 7 ? `${s.month}-01` : s.month)
             .toLocaleDateString(undefined, { month: 'short' }),
-          v: Math.max(0, inK[i]),
-          t: `${inK[i]}k`,
-          colorKey: totalRequired > 0 && s.saved >= totalRequired ? 'success' : s.saved > 0 ? 'accent' : 'destructive',
+          v: Math.abs(inK[i]),
+          t: s.saved < 0 ? `−${Math.abs(inK[i])}k` : `${inK[i]}k`,
+          colorKey: s.saved < 0
+            ? 'destructive'
+            : totalRequired > 0 && s.saved >= totalRequired ? 'success' : s.saved > 0 ? 'accent' : 'mutedFg',
+          dim: s.saved === 0,
         })),
       })
     }
@@ -266,9 +332,16 @@ export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
       span: savingsSeries.length ? 5 : 12,
       title: 'What each goal needs',
       subtitle: avgSaved !== null
-        ? `You have been saving ${formatCurrency(Math.round(avgSaved))}/mo`
-        : 'Log a monthly snapshot to compare against your savings',
+        ? `You have been contributing ${formatCurrency(Math.round(avgSaved))}/mo across all pots`
+        : 'Log a contribution to project finish dates',
       icon: Flag,
+      /* This is the card that lists the goals, so it owns the status filter.
+       * The tiles strip above reads the same filtered set; `bars` is unfiltered
+       * (it is monthly savings, not per-goal). When the filter matches nothing
+       * the whole grid collapses to the empty-state Card below, which carries
+       * the same control so the filter can always be cleared. */
+      actionNode: statusFilterNode,
+      ...(onAdd && { action: '+ Add Goal', onAction: onAdd, actionVariant: 'primary' as const }),
       entries: [...visible]
         .sort((a, b) => (daysLeft(a.deadline) ?? 1e9) - (daysLeft(b.deadline) ?? 1e9))
         .map((g) => {
@@ -278,11 +351,21 @@ export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
           const months = monthsUntil(g.deadline)
           return {
             title: g.name,
+            /* With a real contribution history the projection is answerable:
+             * how long this pot takes at the rate it has actually been fed. */
             body: remaining <= 0
               ? 'Fully funded.'
-              : req === null
-                ? `${formatCurrency(remaining)} to go. Set a deadline to get a monthly figure.`
-                : `Needs ${formatCurrency(Math.round(req))}/month for the remaining ${months === 0 ? 'part-month' : `${months} month${months === 1 ? '' : 's'}`}.`,
+              : (() => {
+                  const need = req === null
+                    ? `${formatCurrency(remaining)} to go. Set a deadline to get a monthly figure.`
+                    : `Needs ${formatCurrency(Math.round(req))}/month for the remaining ${months === 0 ? 'part-month' : `${months} month${months === 1 ? '' : 's'}`}.`
+                  const rate = ratePerGoal.get(g.id)
+                  if (!rate || rate <= 0) {
+                    return `${need} No contributions logged yet, so there is nothing to project from.`
+                  }
+                  const atRate = Math.ceil(remaining / rate)
+                  return `${need} At your ${formatCurrency(Math.round(rate))}/mo into this pot that is about ${atRate} more month${atRate === 1 ? '' : 's'}.`
+                })(),
             date: fmtMonth(g.deadline),
             tagLabel: st.label,
             colorKey: st.key,
@@ -292,39 +375,19 @@ export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
 
     return specs
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, savingsSeries, avgSaved])
+  }, [visible, savingsSeries, avgSaved, ratePerGoal, statusFilterNode, onAdd])
 
   if (isLoading) return <Skeleton style={{ height: 320 }} />
 
   return (
     <Root>
-      {/* Tab-scoped: it drives every module below, so it belongs in the
-          page header, not floating in the gap above the cards. */}
-      {(goals ?? []).length > 0 && (
-        <HeaderActionPortal>
-          <Select
-            size="sm"
-            fullWidth={false}
-            aria-label="Filter goals by status"
-            value={statusFilter}
-            onChange={(v: any) => setStatusFilter(v as typeof statusFilter)}
-            options={[
-              { value: 'all', label: 'All Goals' },
-              { value: 'active', label: 'Active' },
-              { value: 'completed', label: 'Done' },
-              { value: 'overdue', label: 'Overdue' },
-            ]}
-          />
-          {onAdd && (
-            <Button size="sm" variant="primary" onClick={onAdd}>
-              <Plus size={12} style={{ marginRight: 4 }} /> Add Goal
-            </Button>
-          )}
-        </HeaderActionPortal>
-      )}
-
       {modules.length === 0 ? (
-        <Card title="Savings Goals" subtitle="Track progress toward each savings target" icon={<Target size={16} />}>
+        <Card
+          title="Savings Goals"
+          subtitle="Track progress toward each savings target"
+          icon={<Target size={16} />}
+          action={statusFilterNode}
+        >
           <EmptyState
             icon={<Target size={20} />}
             title={(goals ?? []).length ? 'Nothing matches that filter' : 'No goals yet'}
@@ -342,7 +405,7 @@ export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
         eyebrow="Finance"
         title={`Edit goal${updatingGoal?.name ? ` — ${updatingGoal.name}` : ''}`}
         onOpenChange={(open) => { if (!open) closeEdit() }}
-        size="sm"
+        size="md"
       >
         <FormContainer onSubmit={e => { e.preventDefault(); handleSave() }}>
           <FormGroup>
@@ -358,7 +421,10 @@ export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
             <Input type="number" startAdornment="₹" min="0" step="100" value={editForm.target_amount} onChange={e => setEditForm(f => ({ ...f, target_amount: e.target.value }))} required />
           </FormGroup>
           <FormGroup>
-            <Label>Current amount (₹)</Label>
+            {/* Correction path only. Adding money should go through the
+                Contributions panel below, which writes a ledger row AND moves
+                this total server-side; setting it here moves the total alone. */}
+            <Label>Current amount (₹) — correction only</Label>
             <Input type="number" startAdornment="₹" min="0" step="100" value={editForm.current_amount} onChange={e => setEditForm(f => ({ ...f, current_amount: e.target.value }))} required />
           </FormGroup>
           <FormGroup>
@@ -386,6 +452,8 @@ export function GoalsTab({ onAdd }: { onAdd?: () => void } = {}) {
             </Popconfirm>
           </ActionsContainer>
         </FormContainer>
+
+        {updatingGoal && <GoalContributionsPanel goalId={updatingGoal.id} />}
       </Dialog>
     </Root>
   )

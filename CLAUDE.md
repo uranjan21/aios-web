@@ -118,7 +118,57 @@ docker compose exec backend pytest
 
 ---
 
-## Recent Updates (2026-08-03, latest — PageHeader redesigned; one card corner app-wide)
+## Recent Updates (2026-08-03, latest — Settings: one nav level, 6 sections → 7 real ones)
+
+The global sidebar expanded Settings into the same six entries the page's own
+rail already drew. Utsav asked for the local rail only, plus an audit of the
+sections themselves. Full entry in `PROGRESS.md`.
+
+- **`settings` lost its `subs`.** One list was rendered twice — once by the
+  sidebar tree, once by `AreaSettingsPage`'s rail. The rail wins: it sits
+  beside what it switches. **Routes unchanged** — every tab is still its own
+  URL, breadcrumbs still resolve via `resolvePath`'s `startsWith` branch, and
+  ⌘K offers one "Settings" entry instead of six near-identical ones.
+- **Three sections rendered dead controls.** `control: 'select'` draws a chip
+  with a chevron and **no handler** (`ShellKinds.ControlsKind`), so "OpenAI
+  model", "Anthropic model", "Password", "Email verification" and "Billing
+  status" read as dropdowns that could not be opened. All removed. **Do not
+  use `control: 'select'`** until the kit gives it an `onSelect` path —
+  `segment` and `toggle` are the controls that actually write.
+- **Duplication removed:** sign-in method/email appeared in three sections; AI
+  credits in three places across two; `ai`'s "Data access" table restated
+  `sub.entitled` which `billing` already listed. Appearance's "Layout and
+  motion" reported derived state (collapsed-section count, OS reduce-motion),
+  not settings.
+- **Endpoint-only config now has UI.** `knowledgeApi.save`/`.remove` had **no
+  caller** (a source could be synced but never configured or removed);
+  `billingApi.setFreeArea` had **no caller anywhere**; `integrationsApi.authUrl`
+  works for all five providers and only Gmail called it. All built.
+- **Seven tabs in three rail groups:** Account (Profile · Security & privacy ·
+  Plan & usage) · Workspace (Appearance · Notifications) · Data & AI
+  (Connections · AI & knowledge). Deleted `ProfileSection`, `AccountSection`,
+  `ConnectionsSection`, `BillingModules`, `settings/shared.tsx`.
+- **A settings card must be configurable** (second pass, same day). The rule:
+  a card either contains a control that writes, is click-through to one, or
+  shows status that actually changes. **All five `tiles` rows were deleted** —
+  a KPI tile cannot be clicked, and each was restating the cards below it.
+  Facts worth keeping moved to where they can be acted on (AI's model + key
+  state → the card subtitle; Plan's monthly total → a row beside the portal
+  button; connection expiry → the row next to its switch). Also gone:
+  Appearance's domain-colour legend, Security's httpOnly-cookie "Session" row,
+  Plan's "Modules in use" bar.
+- **`onRowClick` makes EVERY row in a module a button.** So a module with one
+  actionable row and one inert row must not use it — Security's Sign-in card
+  keeps its header button instead, because there is no resend-verification
+  endpoint for the email row. Same reason the empty Gmail row is not clickable.
+- **Verified:** tsc, `pnpm build`, vitest clean. Six of seven tabs walked at
+  1280px and 375px — zero console errors, `scrollWidth == clientWidth == 375`.
+  token-lint fails identically on a pristine `git archive` of HEAD (stale
+  baseline, separate task owns it) and **no file this task touched appears in
+  any violation category**. **Plan & usage not walked with live data** — its
+  modules need an authenticated `/billing/*` response.
+
+## Recent Updates (2026-08-03 — PageHeader redesigned; one card corner app-wide)
 
 Utsav supplied a "minimal Apple-style" header reference and asked every page
 header to match it, with cards and KPIs sharing its corner radius.

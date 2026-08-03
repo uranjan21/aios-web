@@ -1,7 +1,4 @@
 import { useState } from 'react'
-import { Settings } from 'lucide-react'
-import { Button, HeaderActionPortal } from '@ledgr/ui'
-import { useNavigate } from 'react-router-dom'
 
 import { OverviewSection } from '@ct/health/components/sections/OverviewSection'
 import { WorkoutsSection } from '@ct/health/components/sections/WorkoutsSection'
@@ -30,7 +27,6 @@ export function HealthPage() {
   })
 
   const [isLogModalOpen, setIsLogModalOpen] = useState(false)
-  const navigate = useNavigate()
 
   const renderContent = () => {
     switch (section) {
@@ -47,12 +43,8 @@ export function HealthPage() {
   return (
     <PageContainer>
       <PageContent>
-        {/* No in-page title block — see FinancePage. */}
-        <HeaderActionPortal>
-          <Button variant="outline" size="sm" onClick={() => navigate('/app/health/settings')}>
-            <Settings size={14} style={{ marginRight: 6 }} /> Settings
-          </Button>
-        </HeaderActionPortal>
+        {/* No header block and nothing page-scoped — Health Targets is a nav
+            destination now (2026-08-03). See FinancePage. */}
         {renderContent()}
         <HealthLogModal open={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} />
       </PageContent>

@@ -1,5 +1,98 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
+## 2026-08-03 — claude-code (Settings: one nav level, 6 sections → 7 real ones)
+
+**Ask.** The global sidebar expanded Settings into the same six entries the
+page's own rail already drew — one list, twice. Keep only the local rail, and
+audit the sections themselves: most were redundant, so remove them and add the
+tabs that actually let you configure the app.
+
+**The duplication.** `navigation.ts` gave `settings` a `subs` array; the page
+then handed the identical six to `AreaSettingsPage`, which rendered them again
+beside the content. The `subs` are gone. The `/app/settings/:section` **routes
+are untouched** — each tab is still its own URL, `resolvePath`'s `startsWith`
+branch still resolves the breadcrumb, and ⌘K now offers one "Settings" entry
+instead of six near-identical ones.
+
+**What the audit found.** The Phase-4 canvas conversion had left a lot of
+filler. `general` was a grab-bag (display-name form + Gmail list + account
+deletion). Sign-in method and email were stated in `general`, again in
+`security`'s tiles, and a third time in its "Sign-in" table. AI credits
+appeared in `ai`'s tiles *and* twice in `billing`. `ai`'s "Data access" table
+re-rendered `sub.entitled`, which `billing` listed as owned modules.
+Appearance reported a count of collapsed nav sections and the OS
+reduce-motion flag — neither is a setting.
+
+**The worst of it: three sections drew `control: 'select'` rows.** That control
+renders a chip with a chevron and **no handler at all**
+(`ShellKinds.ControlsKind`) — so "OpenAI model", "Anthropic model", "Password",
+"Email verification" and "Billing status" all looked like dropdowns and could
+not be opened. Every one is gone.
+
+**Config that existed in the backend with no UI, now built.**
+`knowledgeApi.save`/`.remove` had **no caller** — a knowledge source could be
+synced but never set up or removed; it is a full dialog now (Obsidian path or
+Notion, sync interval, enable/pause, remove). `billingApi.setFreeArea` had **no
+caller anywhere** — the free area was unpickable; it is a segment control.
+`integrationsApi.authUrl` works for all five providers and only Gmail ever
+called it — `gcal`, `gfit`, `notion` and `github` are connectable now.
+
+**Seven tabs, in three rail groups.** Account (Profile · Security & privacy ·
+Plan & usage) · Workspace (Appearance · Notifications) · Data & AI
+(Connections · AI & knowledge). Account deletion moved out of `general` to sit
+with the password and sign-out actions rather than beside the display-name
+field. Deleted: `ProfileSection`, `AccountSection`, `ConnectionsSection`,
+`BillingModules`, `settings/shared.tsx`.
+
+**Two things the UI deliberately still refuses to claim** (unchanged, and the
+reason Security has no session list or 2FA switch): there is no sessions table
+— auth is one httpOnly cookie plus a `token_version` counter — and no TOTP
+enrolment. GitHub is excluded from Manual sync because `SYNCABLE_PROVIDERS`
+does not include it.
+
+**SECOND PASS, same day — "too many cards are just dummy text".** The first
+pass removed duplication between sections but kept the canvas's `tiles`
+summaries and several read-only rows. Utsav was right that those are not
+settings. Every card was re-tested against one rule: **it must contain a
+control that writes, be click-through to one, or show status that actually
+changes.** Everything else deleted.
+
+- **Five `tiles` rows deleted** — Profile, Connections, AI, Plan and Security
+  each opened with 3–4 KPI tiles restating the cards below them, and a tile
+  cannot be clicked. Facts worth keeping moved to where they can be acted on:
+  the AI card's active model and key state are now its subtitle, Plan's monthly
+  total is a row on the Payment card beside the portal button, and connection
+  expiry sits in the row next to the switch that reconnects it.
+- **Rows became buttons where an action exists.** Profile's two rows open the
+  edit dialog; the unconfigured knowledge sources are now "Set up" rows that
+  open the dialog **with that source preselected** (they were inert "Available"
+  chips that merely named the options); Security's Sign out and Delete rows
+  both act.
+- **Also deleted:** Appearance's "Domain colours" legend (three rows explaining
+  that area colours are fixed) — that tab is now ONE card, which is not thin,
+  it is complete: `uiStore` persists exactly `theme`, `palette` and
+  `collapsedSections`, and the first two are that card. Security's "Session"
+  row ("One httpOnly, SameSite=Strict cookie") — implementation detail, not a
+  setting. Plan's "Modules in use" progress bar — a percentage of the toggle
+  list beside it.
+- **One trap avoided twice:** `onRowClick` turns EVERY row in a module into a
+  button. Security's Sign-in card has an actionable password row and a
+  non-actionable email row (there is **no resend-verification endpoint**), so
+  it deliberately has no `onRowClick` — the header button is its control.
+  Same reason the empty Gmail row is not clickable.
+
+- Shipped: settings nav de-duplicated; 6 sections → 7, all duplicate/dead-control
+  modules removed; knowledge-source CRUD, free-area picker, module picker and
+  four provider connections built (all previously endpoint-only). Second pass
+  stripped every non-configurable card — 5 tiles rows + 3 read-only modules.
+- Blockers: **Plan & usage was not walked with live data** — its modules need an
+  authenticated `/billing/*` response and I do not enter passwords. tsc, build,
+  vitest green; the other six tabs walked at 1280px and 375px, light, zero
+  console errors, no horizontal overflow (`scrollWidth == clientWidth == 375`).
+- Next: sign in once and confirm the module + free-area toggles round-trip
+  (`POST /billing/modules`, `/billing/free-area`), and that connecting a
+  non-Gmail provider returns cleanly through `/integrations/:provider/callback`.
+
 ## 2026-08-02 — claude-code (goals leave the areas; Overview keeps progress only)
 
 **Ask.** Goals and milestones are set in Workspace for any area now, so remove

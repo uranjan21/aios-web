@@ -22,24 +22,20 @@
 import {
   Activity,
   Apple,
-  Bell,
   Bot,
   Briefcase,
   CalendarCheck,
-  CreditCard,
-  Cpu,
   FolderKanban,
   Gem,
+  GraduationCap,
   Heart,
   IndianRupee,
   Inbox,
-  Landmark,
   LayoutDashboard,
   ListChecks,
   MessageSquare,
   Milestone,
   Moon,
-  Palette,
   PiggyBank,
   Receipt,
   Repeat,
@@ -156,9 +152,18 @@ export const NAV_SECTIONS: NavSection[] = [
              Overview, and the savings-pot tracker lives at
              /app/workspace/goals?domain=finance. */
           { key: 'investments',  label: 'Investments',  icon: Gem,             to: '/app/finance/investments' },
-          { key: 'loans',        label: 'Loans',        icon: Landmark,        to: '/app/finance/loans' },
           { key: 'inbox',        label: 'Inbox',        icon: Inbox,           to: '/app/finance/inbox' },
-          { key: 'accounts',     label: 'Accounts',     icon: CreditCard,      to: '/app/finance/accounts' },
+          /* No Accounts and no Loans entry (2026-08-03). Finance Setup's rail
+             already renders the SAME components — `AccountManager` and
+             `LoansTab`, not settings-only variants of them — so the two lived
+             at two paths in two sidebars. They are Setup's now; the old routes
+             redirect into the matching rail section.
+
+             Setup is named for what it holds (accounts, categories, loan and
+             bill defaults, inbox automation) rather than "Settings", which is
+             the System group's word. Reaching it used to require a button in
+             the page header; that header is gone and this is its entry point. */
+          { key: 'setup',        label: 'Setup',        icon: SlidersHorizontal, to: '/app/finance/settings' },
         ],
       },
       {
@@ -177,6 +182,10 @@ export const NAV_SECTIONS: NavSection[] = [
           { key: 'body',      label: 'Body metrics', icon: Scale,           to: '/app/health/body' },
           { key: 'sleep',     label: 'Sleep',        icon: Moon,            to: '/app/health/sleep' },
           { key: 'habits',    label: 'Habits',       icon: Repeat,          to: '/app/health/habits' },
+          /* The page is one group literally labelled "Targets" (body, fitness,
+             nutrition). Calling it that here is the honest name, and keeps
+             "Settings" meaning the System group's page. */
+          { key: 'targets',   label: 'Targets',      icon: Target,          to: '/app/health/settings' },
         ],
       },
       {
@@ -190,7 +199,18 @@ export const NAV_SECTIONS: NavSection[] = [
         module: 'career',
         subs: [
           { key: 'journal',       label: 'Journal',       icon: CalendarCheck, to: '/app/career' },
+          /* Promoted out of Career Settings 2026-08-03. The inventory is the
+             substance of the area, not a preference — and `day_0` in the level
+             enum makes the learning queue a first-class view. */
+          { key: 'skills',        label: 'Skills',        icon: GraduationCap, to: '/app/career/skills' },
           { key: 'opportunities', label: 'Opportunities', icon: TrendingUp,    to: '/app/career/opportunities' },
+          /* No Preferences entry (2026-08-03). Career Settings hosted exactly
+             one thing — the skills inventory — so once Skills became its own
+             destination the page had no content left. `/app/career/settings`
+             redirects to Skills for old bookmarks; CareerSettingsPage.tsx and
+             SkillsManager.tsx are kept on disk, unreferenced, the same way the
+             redesign kept BriefingCard and CareerLogModal. Restore an entry
+             here if Career ever gains a real preference. */
         ],
       },
     ],
@@ -230,6 +250,20 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'System',
     key: 'group-sys',
     items: [
+      /*
+       * NO `subs` (2026-08-03). Settings carried the same six entries here AND
+       * in the rail that `AreaSettingsPage` renders inside the page, so the
+       * user saw one list twice — the global sidebar expanded it, and the page
+       * repeated it verbatim beside the content. The rail is the better home:
+       * it sits next to what it switches, and it is the pattern every area
+       * settings page already uses.
+       *
+       * The `/app/settings/:section` routes are untouched — each tab is still
+       * its own URL, still bookmarkable, and `resolvePath`'s `startsWith`
+       * branch keeps the breadcrumb resolving to Settings. What changed is
+       * only that the sidebar stops enumerating them, and ⌘K offers one
+       * "Settings" entry instead of six near-identical ones.
+       */
       {
         key: 'settings',
         label: 'Settings',
@@ -237,14 +271,6 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Settings,
         group: 'System',
         shortcut: 's',
-        subs: [
-          { key: 'general',       label: 'General',          icon: SlidersHorizontal, to: '/app/settings' },
-          { key: 'appearance',    label: 'Appearance',       icon: Palette,           to: '/app/settings/appearance' },
-          { key: 'notifications', label: 'Notifications',    icon: Bell,              to: '/app/settings/notifications' },
-          { key: 'billing',       label: 'Billing',          icon: CreditCard,        to: '/app/settings/billing' },
-          { key: 'ai',            label: 'AI configuration', icon: Cpu,               to: '/app/settings/ai' },
-          { key: 'security',      label: 'Security',         icon: Shield,            to: '/app/settings/security' },
-        ],
       },
       { key: 'admin', label: 'Admin', to: '/app/admin', icon: Shield, group: 'System', adminOnly: true },
     ],
@@ -335,7 +361,4 @@ export function resolvePath(pathname: string): { item: NavItem; sub?: SubNavItem
 export const PAGE_NAMES: Record<string, string> = {
   ...Object.fromEntries(NAV_ITEMS.map((i) => [i.to, i.label])),
   ...Object.fromEntries(DESTINATIONS.map((d) => [d.path, d.label])),
-  '/app/finance/settings': 'Settings',
-  '/app/health/settings': 'Settings',
-  '/app/career/settings': 'Settings',
 };

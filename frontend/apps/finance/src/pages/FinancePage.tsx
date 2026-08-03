@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Button, HeaderActionPortal } from '@ledgr/ui'
 
 import { HomeTab } from '@ct/finance/components/HomeTab'
 import { TransactionsTab } from '@ct/finance/components/TransactionsTab'
@@ -8,12 +6,9 @@ import { InboxTab } from '@ct/finance/components/InboxTab'
 import { BudgetTab } from '@ct/finance/components/BudgetTab'
 import { PayablesTab } from '@ct/finance/components/PayablesTab'
 import { InvestmentsTab } from '@ct/finance/components/InvestmentsTab'
-import { LoansTab } from '@ct/finance/components/LoansTab'
-import { AccountManager } from '@ct/finance/components/AccountManager'
 import { AccountsTabModal } from '@ct/finance/components/QuickAddAccounts'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
 import { useAreaSection } from '@ct/shared/hooks/useAreaSection'
-import { Settings } from 'lucide-react'
 
 /**
  * Sub-page routing, 2026-08-01: the per-area `ModuleSidebar` and its `?tab=`
@@ -39,7 +34,6 @@ const LEGACY_SECTIONS: Record<string, string> = {
 }
 
 export function FinancePage() {
-  const navigate = useNavigate()
   const section = useAreaSection('/app/finance', 'overview', LEGACY_SECTIONS)
 
   const [accountModalOpen, setAccountModalOpen] = useState(false)
@@ -65,9 +59,10 @@ export function FinancePage() {
       case 'budgets':      return <BudgetTab />
       case 'bills':        return <PayablesTab />
       case 'investments':  return <InvestmentsTab onAddClick={() => openAddModal('Investment')} />
-      case 'loans':        return <LoansTab onAdd={() => openAddModal('Loan')} />
       case 'inbox':        return <InboxTab />
-      case 'accounts':     return <AccountManager />
+      /* No 'loans' or 'accounts' case (2026-08-03): both now live only in
+       * Finance Setup, and `finance/accounts` / `finance/loans` redirect there
+       * from router.tsx before this switch is ever reached. */
       default:             return <HomeTab />
     }
   }
@@ -75,14 +70,10 @@ export function FinancePage() {
   return (
     <PageContainer>
       <PageContent>
-        {/* Page-level actions portal into this page's own header block, which
-            `PageContent` renders when — and only when — something is portalled.
-            They used to land in the global TopBar. */}
-        <HeaderActionPortal>
-          <Button variant="outline" size="sm" onClick={() => navigate('/app/finance/settings')}>
-            <Settings size={14} style={{ marginRight: 6 }} /> Settings
-          </Button>
-        </HeaderActionPortal>
+        {/* No page header and no page-scoped controls. Finance Setup is a nav
+            destination now (2026-08-03) — it used to be reachable only through
+            a Settings button portalled up here, which is what kept a header
+            block on all nine Finance pages. */}
         {renderContent()}
         <AccountsTabModal open={accountModalOpen} onClose={() => setAccountModalOpen(false)} defaultTab={accountModalTab} />
       </PageContent>

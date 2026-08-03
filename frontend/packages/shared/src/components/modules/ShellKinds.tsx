@@ -2,8 +2,12 @@
  * The fourteen module kinds that render inside the standard card shell.
  * Ported from the modular page renderer in `Control Tower Redesign.dc.html`.
  */
-import styled, { css } from 'styled-components'
+import styled, { css, useTheme } from 'styled-components'
 import { Check, ChevronDown } from 'lucide-react'
+import {
+  Area, AreaChart, CartesianGrid, ResponsiveContainer,
+  Tooltip as ReTooltip, XAxis, YAxis,
+} from 'recharts'
 import { textRole } from '@ledgr/ui'
 import { useModulePalette, pct } from './palette'
 import {
@@ -13,7 +17,8 @@ import {
 import type {
   AgendaModule, BarsModule, CalendarModule, ChecklistModule, ControlsModule,
   DonutModule, HeatModule, HeroModule, MetersModule, NotesModule, ProgressModule,
-  QueueModule, RowsModule, SpansModule, TableModule, TimelineModule, WeekModule,
+  QueueModule, RowsModule, SeriesModule, SpansModule, TableModule, TimelineModule,
+  WeekModule,
 } from './types'
 
 /*
@@ -329,6 +334,114 @@ export function DonutKind({ m }: { m: DonutModule }) {
         ))}
       </Legend>
     </DonutWrap>
+  )
+}
+
+/* ── series ───────────────────────────────────────────────────────────── */
+
+/* Shared by every kind that can come back with nothing to draw. Inline styles
+   would bypass the token scale (and token-lint counts them), so the empty note
+   is a real styled component. */
+const EmptyNote = styled.div`
+  ${textRole('body-s')};
+  color: ${({ theme }) => theme.color.mutedForeground};
+  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[1]}`};
+`
+
+const SeriesLegend = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing[4]};
+  margin-bottom: ${({ theme }) => theme.spacing[3]};
+`
+
+const SeriesLegendItem = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing[2]};
+  ${textRole('body-s')};
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+/* A short rule rather than a dot, so a dashed series reads as dashed in the
+   legend too — colour is never the only signal. */
+const SeriesSwatch = styled.span<{ $color: string; $dashed?: boolean }>`
+  width: 14px;
+  height: 0;
+  flex-shrink: 0;
+  border-top: ${({ $dashed }) => ($dashed ? '2px dashed' : '2px solid')};
+  border-color: ${({ $color }) => $color};
+`
+
+export function SeriesKind({ m }: { m: SeriesModule }) {
+  const c = useModulePalette()
+  const theme = useTheme()
+  const fmt = m.valueFormat ?? ((n: number) => String(n))
+
+  if (!m.points.length) {
+    return <EmptyNote>{m.emptyLabel ?? 'No data yet.'}</EmptyNote>
+  }
+
+  return (
+    <div>
+      <SeriesLegend>
+        {m.lines.map((l) => (
+          <SeriesLegendItem key={l.key}>
+            <SeriesSwatch $color={c(l.colorKey ?? 'accent')} $dashed={l.dashed} />
+            {l.label}
+          </SeriesLegendItem>
+        ))}
+      </SeriesLegend>
+      <ResponsiveContainer width="100%" height={m.height ?? 220}>
+        <AreaChart data={m.points} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+          <defs>
+            {m.lines.map((l) => (
+              <linearGradient key={l.key} id={`sk-${l.key}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={c(l.colorKey ?? 'accent')} stopOpacity={0.22} />
+                <stop offset="100%" stopColor={c(l.colorKey ?? 'accent')} stopOpacity={0} />
+              </linearGradient>
+            ))}
+          </defs>
+          <CartesianGrid stroke={theme.color.border} strokeDasharray="3 3" vertical={false} />
+          <XAxis
+            dataKey={m.xKey}
+            tick={{ fill: theme.color.mutedForeground, fontSize: 11 }}
+            tickLine={false}
+            axisLine={{ stroke: theme.color.border }}
+            minTickGap={24}
+          />
+          <YAxis
+            tick={{ fill: theme.color.mutedForeground, fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
+            width={56}
+            tickFormatter={(v: number) => fmt(v)}
+          />
+          <ReTooltip
+            formatter={(v: number | string, name: string) => [fmt(Number(v)), name]}
+            contentStyle={{
+              background: theme.color.card,
+              border: `1px solid ${theme.color.border}`,
+              borderRadius: theme.radii.sm,
+              color: theme.color.foreground,
+            }}
+          />
+          {m.lines.map((l) => (
+            <Area
+              key={l.key}
+              type="monotone"
+              dataKey={l.key}
+              name={l.label}
+              stroke={c(l.colorKey ?? 'accent')}
+              strokeWidth={2}
+              strokeDasharray={l.dashed ? '5 4' : undefined}
+              fill={l.dashed ? 'transparent' : `url(#sk-${l.key})`}
+              isAnimationActive={false}
+            />
+          ))}
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
   )
 }
 

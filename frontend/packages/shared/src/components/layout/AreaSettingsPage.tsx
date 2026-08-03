@@ -1,9 +1,9 @@
 import { focusRing } from '@ledgr/ui'
 import { ReactNode, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import styled from "styled-components";
-import { HeaderActionPortal, Button } from "@ledgr/ui";
-import { ArrowLeft, Plus } from "lucide-react";
+import { Button } from "@ledgr/ui";
+import { Plus } from "lucide-react";
 
 import { PageContainer, PageContent } from "./PageLayout";
 import { SETTINGS_RAIL_WIDTH, TOPBAR_HEIGHT } from "@ct/shared/theme/layout";
@@ -26,7 +26,6 @@ interface AreaSettingsPageProps {
   icon: ReactNode;
   title: string;
   subtitle: string;
-  backTo: string;
   groups: SettingsGroup[];
   eyebrow?: string;
   /**
@@ -171,13 +170,11 @@ export function AreaSettingsPage({
   icon,
   title,
   subtitle,
-  backTo,
   groups,
   eyebrow = "Settings",
   activeKey: controlledKey,
   onSelect,
 }: AreaSettingsPageProps) {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const allItems = useMemo(
@@ -209,15 +206,11 @@ export function AreaSettingsPage({
   return (
     <PageContainer>
       <PageContent>
-        {/* Back renders in this page's own header block via the portal — see
-            `PageContent`. It used to go up into the global TopBar. */}
-        <HeaderActionPortal>
-          <Button variant="ghost" size="sm" onClick={() => navigate(backTo)}>
-            <ArrowLeft size={14} style={{ marginRight: 6 }} />
-            Back
-          </Button>
-        </HeaderActionPortal>
-
+        {/* No Back button (2026-08-03). These pages are nav destinations now
+            — Finance → Setup, Health → Targets, Career → Preferences — so the
+            sidebar is the way back, same as every other page. Back existed
+            only because they were reachable exclusively from a header button,
+            and it was the last thing keeping a header block on them. */}
         <Shell>
           <NavRail aria-label="Settings sections">
             {groups.map((group) => (
