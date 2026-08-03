@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import styled from "styled-components";
@@ -15,7 +15,8 @@ import { GlobalAssistant } from "@/components/assistant/GlobalAssistant";
 import { WelcomeWizard } from "@/components/onboarding/WelcomeWizard";
 
 import { useKeyboardShortcuts } from "@ct/shared/hooks/useKeyboardShortcuts";
-import { GOTO_SHORTCUTS } from "@/config/navigation";
+import { GOTO_SHORTCUTS, PAGE_NAMES, resolvePath } from "@/config/navigation";
+import { PageIdentityProvider } from "@ct/shared/components/layout/PageLayout";
 import { useNotifications } from "@ct/shared/hooks/useNotifications";
 import { useSubscription } from "@ct/shared/hooks/useSubscription";
 import { useUIStore } from "@ct/shared/stores/uiStore";
@@ -127,6 +128,20 @@ export function AppShell() {
     }
   }, [location.pathname, pushRecentPage, sidebarOpen, setSidebarOpen]);
 
+  const pageIdentity = useMemo(() => {
+    const current = resolvePath(location.pathname);
+    if (!current) return null;
+    const title = PAGE_NAMES[location.pathname] ?? current.sub?.label ?? current.item.label;
+    const Icon = current.sub?.icon ?? current.item.icon;
+    return {
+      title,
+      // The eyebrow is the area, and only when the title is not the area itself.
+      eyebrow: title === current.item.label ? undefined : current.item.label,
+      icon: <Icon />,
+      domain: current.item.domain,
+    };
+  }, [location.pathname]);
+
   const handleCompleteWizard = () => {
     localStorage.setItem("ct_onboarded", "true");
     trackOnce("onboarding_completed");
@@ -157,7 +172,12 @@ export function AppShell() {
 
         <ContentArea id="main-content" tabIndex={-1}>
           <AnimatePresence mode="wait">
-            <Outlet key={location.pathname} />
+            {/* The nav tree lives here, the pages live in domain packages that
+                cannot import it, so the shell publishes who the current page is
+                and `PageContent` renders the header. */}
+            <PageIdentityProvider value={pageIdentity}>
+              <Outlet key={location.pathname} />
+            </PageIdentityProvider>
           </AnimatePresence>
         </ContentArea>
       </MainColumn>

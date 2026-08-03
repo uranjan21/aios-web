@@ -14,9 +14,9 @@ import { textRole } from '@ledgr/ui'
 import { useModulePalette } from './palette'
 import { ModuleButton } from './primitives'
 import {
-  BarsKind, CalendarKind, ChecklistKind, ControlsKind, DonutKind, HeatKind,
-  NotesKind, ProgressKind, QueueKind, RowsKind, SpansKind, TableKind,
-  TimelineKind, WeekKind,
+  AgendaKind, BarsKind, CalendarKind, ChecklistKind, ControlsKind, DonutKind,
+  HeatKind, HeroKind, MetersKind, NotesKind, ProgressKind, QueueKind, RowsKind,
+  SpansKind, TableKind, TimelineKind, WeekKind,
 } from './ShellKinds'
 import { AgentsKind, ChatKind, KanbanKind, TilesKind } from './BareKinds'
 import { BARE_KINDS, type ModuleSpec } from './types'
@@ -69,6 +69,18 @@ const ShellHeader = styled.div`
   align-items: flex-start;
   gap: ${({ theme }) => theme.spacing[3]};
   padding: ${({ theme }) => `${theme.spacing[4]} ${theme.spacing[5]}`};
+
+  /* Without this the header cannot wrap, so a second control in the actions
+     slot crushes the title column to one word per line instead. */
+  flex-wrap: wrap;
+`
+
+/* Holds the title + subtitle. The min-width is what makes the wrap happen at
+   the right moment: the block gives up width to the actions until it would go
+   below a readable measure, and the actions take their own row after that. */
+const TitleBlock = styled.div`
+  flex: 1 1 auto;
+  min-width: 45%;
 `
 
 const IconChip = styled.span<{ $bg: string; $color: string }>`
@@ -92,6 +104,20 @@ const ShellSubtitle = styled.div`
   ${textRole('body-s')};
   color: ${({ theme }) => theme.color.mutedForeground};
   margin-top: 2px;
+`
+
+/*
+ * Header controls sit on one baseline, and take their own row (see ShellHeader)
+ * rather than crushing the title column when they no longer fit beside it.
+ */
+const HeaderActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing[2]};
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-left: auto;
 `
 
 const ShellBody = styled.div`
@@ -120,6 +146,9 @@ function KindBody({ m }: { m: ModuleSpec }) {
     case 'kanban':    return <KanbanKind m={m} />
     case 'agents':    return <AgentsKind m={m} />
     case 'chat':      return <ChatKind m={m} />
+    case 'hero':      return <HeroKind m={m} />
+    case 'meters':    return <MetersKind m={m} />
+    case 'agenda':    return <AgendaKind m={m} />
   }
 }
 
@@ -145,11 +174,25 @@ export function ModuleGrid({ modules }: { modules: ModuleSpec[] }) {
                   >
                     <Icon size={16} />
                   </IconChip>
-                  <div style={{ minWidth: 0, flex: 1 }}>
+                  <TitleBlock>
                     <ShellTitle>{m.title}</ShellTitle>
                     {m.subtitle && <ShellSubtitle>{m.subtitle}</ShellSubtitle>}
-                  </div>
-                  {m.action && <ModuleButton>{m.action}</ModuleButton>}
+                  </TitleBlock>
+                  {(m.actionNode || m.action) && (
+                    <HeaderActions>
+                      {m.actionNode}
+                      {m.action && (
+                        <ModuleButton
+                          type="button"
+                          $variant={m.actionVariant === 'primary' ? 'primary' : 'ghost'}
+                          $borderless={m.actionVariant === 'link'}
+                          onClick={m.onAction}
+                        >
+                          {m.action}
+                        </ModuleButton>
+                      )}
+                    </HeaderActions>
+                  )}
                 </ShellHeader>
                 <ShellBody>
                   <KindBody m={m} />

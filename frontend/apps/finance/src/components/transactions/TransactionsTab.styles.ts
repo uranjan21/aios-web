@@ -22,6 +22,13 @@ export const MobileSearchBtn = styled(ToolbarIconBtn)`
   }
 `
 
+/** The Card `action` slot's control row — Filter + Add, on one baseline. */
+export const CardActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => `${theme.spacing[2]}`};
+`
+
 export const ListHeaderRoot = styled.div<{ $selecting: boolean }>`
   display: flex;
   align-items: center;

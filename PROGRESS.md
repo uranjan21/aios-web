@@ -1,5 +1,175 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
+## 2026-08-02 — claude-code (goals leave the areas; Overview keeps progress only)
+
+**Ask.** Goals and milestones are set in Workspace for any area now, so remove
+goals/planning from Finance and every other area. Areas may show goal
+*progress* on their Overview, nothing more.
+
+**Three decisions asked, not assumed.** (1) Finance's savings pots (the ₹
+target/current tracker) are **kept, workspace-only** — not deleted. (2) Health
+Settings' "Goals" group is **renamed "Targets"** — those are the numeric
+reference lines (goal weight, calorie/macro targets, workouts per week) that
+the Body/Nutrition/Workouts modules draw against, not goal entities; removing
+them would have silently reverted those charts to hardcoded defaults.
+(3) Overview progress comes from the recorded score **plus** a milestone
+fallback, which needed the backend change below.
+
+**What was removed.** The `goals` entry in Finance's nav subs; the `goals`
+case in `FinancePage` (now redirects to Overview via `LEGACY_SECTIONS`, so an
+old bookmark does not 404); the **"Planning" group** in Finance Settings —
+its Goals item is gone and the remaining Loans + Bills now sit under
+"Commitments". Also deleted a dead `open-new-goal` window listener there
+(no dispatcher existed anywhere in the tree).
+
+**`progress_score` was write-only and now is not.** The Weekly Review has been
+posting a score per goal every week via `POST /goals/{id}/progress` and nothing
+ever read it back. `GET /api/goals` gained a `GoalRead` schema carrying the
+latest score per goal (one ordered sweep of the user's progress rows, not a
+per-goal subquery). `null` when never scored — deliberately distinct from a
+score of 0, because only the former falls back to milestones.
+
+**One module, three pages.** `useDomainGoalsModule(domain)` in
+`packages/shared/src/hooks/` builds the `progress` ModuleSpec once and Finance
+Overview (`HomeTab`), Health Overview (`OverviewSection`) and Career's landing
+Journal all append it. Per goal: recorded score → else hit ÷ total milestones →
+else "Not scored" rather than a fake 0%. Overdue rows go destructive. The hook
+returns `null` when a domain has no active goals, so nothing renders for a user
+who has not set any. Its header action deep-links to
+`/app/workspace/goals?domain=<domain>` — the only way to *edit* from an area.
+
+**Bug found and fixed in passing.** Workspace → Goals with `domain=finance`
+rendered the savings-pot tab with `onAdd` wired to the **macro-goal** dialog.
+Once Finance lost its Goals destination that was the only surface left showing
+pots, so a pot could not be created anywhere. It now opens `BudgetTabModal`
+with `defaultTab="Goal"`.
+
+**Verified.** Backend **248 passing** (+3 new in `tests/test_goals.py`: no
+score before any progress, latest of several scores wins, scores scoped per
+goal) — the one failure, `test_api_mappings`, is **pre-existing** and belongs
+to another session's uncommitted `api/areas/finance.py` work (unmapped
+`goals/contributions`, `investments/performance`, `loans/{}/payments`), none of
+which this change touches. Frontend `tsc` clean, `pnpm build` clean, vitest 2/2.
+token-lint fails on drift from that same concurrent work — `--report` names
+none of the files touched here.
+
+**Not verified in-browser.** The affected surfaces are all behind auth and I do
+not enter credentials; the logged-in walk (module rendering at 1400px/375px,
+light/dark) is outstanding.
+
+## 2026-08-02 — claude-code (canvas-alignment pass: five screenshots → five pages)
+
+**Ask.** Utsav supplied five Claude Design screenshots (`today:overview`,
+`today:plan`, `finance:overview`, `finance:transactions`, `finance:budgets`)
+and asked for the pages to match them. Three had drifted during Phase 4; two
+were on yesterday's "deliberately not rewritten" list, which Utsav has now
+overruled for Dashboard and Transactions.
+
+**Three decisions asked, not assumed.** (1) Transactions — restyle to the
+canvas shell and 5-column grid but keep bulk ops, inline edit, keyboard nav,
+CSV import and the Calendar/Weekly/Daily views. (2) Dashboard — match the
+canvas and drop BriefingCard, OverviewInsightCard, DiscoveriesFeed and the
+300px sticky rail from the page (files kept, unreferenced). (3) `PageHeader` —
+dropped **app-wide**, not just on these five.
+
+**Kit: 18 module kinds → 21.** New `hero` (lead figure + assets/liabilities
+split), `meters` (grid of meter cards in one shell — the Budgets treatment) and
+`agenda` (time gutter + domain rule, distinct from `timeline`). Extended: `rows`
+`mono`/`monoKey`/`valueKey`, `progress` `valueKey`, `checklist`
+`groupLabel`/`chips`/`onChipToggle`, and every header gained `actionVariant`
+(`primary`/`ghost`/`link`) + `actionNode` — the one slot in the spec language
+that takes elements, because the canvas puts real `Select`s in card headers.
+
+**`PageHeader` is gone from every page**, `PageDivider` too. It survives in one
+place: `PageContent` renders a minimal eyebrow+title header inside the page's
+own content column, and only when that page has portalled a page-scoped control
+through `HeaderActionPortal` — the per-area Settings links, Career's "Log
+entry", the workspace domain filter, AreaSettingsPage's Back. Those are what
+keep `/app/{finance,health,career}/settings` reachable, since the routes are
+not in the nav tree and the area Settings button was their only entry point.
+The title comes from the nav tree via `PageIdentityProvider` in `AppShell`.
+
+**Correction, same day.** I first pointed the portal at the global **TopBar**
+and a new `usePageHeaderActions()` hook. Utsav reverted that: the TopBar is
+permanent app chrome and must not carry one page's controls. The hook survived;
+its consumer moved to `PageContent`. My earlier write-up in this file and in
+the plan claimed the TopBar design — corrected here.
+
+**`formatAmount()`** added — full Indian-grouped currency (`₹18,42,650`). The
+canvas only abbreviates on dashboard KPI tiles; `formatCurrency` keeps the lakh
+form and is now tiles-only.
+
+**Honest numbers, not the mock's.** Month-over-month deltas are cut to the
+**same day** of the previous month (comparing month-to-date against a whole
+previous month reports a fall every month until its last day). The net-worth
+delta comes from the newest prior-month snapshot and says "No earlier snapshot
+to compare" when there is none. Two canvas asks stay unanswerable and say so
+instead of inventing a denominator: Plan's "vs capacity" (no capacity model)
+and the dashboard's "Career streak ↑3 vs last wk" (no historical streak).
+
+**One casualty, flagged.** The Financial-health score has no slot in the
+canvas's finance:overview; `financeApi.healthScore()` now has no caller and the
+backend route is untouched. Re-siting or retiring it is a product call.
+
+**Verified.** tsc + `pnpm build` + vitest green. token-lint: every count
+**exactly matches HEAD** (font-size 16, radius 9, hex 34, spacing 95, rgba 27,
+inline-style 30) — zero drift added; still red overall on its stale baseline,
+which a separate task owns. Rendered all seven new/changed module shapes on a
+throwaway public route (the agent cannot log in) at 1400px light, 1400px dark
+and 375px — no horizontal overflow at any width — then removed the route.
+`test_api_mappings` fails on 10 unmapped routes that come from **uncommitted
+backend work in the same tree**, not from this pass.
+
+## 2026-08-02 — claude-code (DC redesign Phase 4 + 6: all 34 destinations on live data)
+
+**Done.** Every destination now renders its Claude Design canvas composition
+from the real API instead of the designer's sample rows. Finance ×6, Health ×6,
+Career opportunities, Weekly review, Agents, Settings ×5, Admin, and the §4.1
+hand-designed pages (finance overview/budgets, health overview, workspace
+projects/sprints/goals). HealthPage is now a thin route host; its six sections
+live under `apps/health/src/components/sections/`.
+
+**Method.** A page builds a `ModuleSpec[]` with `useMemo` and hands it to
+`ModuleGrid`. The kit gained optional handlers so a module can be live
+(`onAction`, `onRowClick`, `onToggle`, `onTileClick`, `onCardClick`,
+`onPrimary`/`onSecondary`, `onSelect`, `onSwatch`) while staying inert in the
+`/app/design` gallery.
+
+**Judgement rule, applied 16 times:** where the canvas draws a control for
+something the backend does not store, the module became read-only `rows`; where
+it draws an analysis the data cannot support, the module kept the question and
+answered it from what exists. Every one is documented in the file it affects and
+tabulated in the plan's §8b.
+
+**CRUD preserved.** Where card action icons vanished with the card, Delete moved
+into the dialog footer and Edit opens on row click.
+
+**Caught a real regression.** `test_api_mappings` failed on newly orphaned
+routes: deleting Settings → System status had taken the Web Push handshake with
+it, so the push toggle set a preference while nothing subscribed the browser.
+Rescued as `useWebPush`.
+
+**Deleted** ~20 now-unreferenced components including **SimulatorTab** (the
+What-If simulator) — the new Finance IA has no slot for it. Backend route
+untouched, so re-siting it is a UI decision. **Flag for Utsav.**
+
+**Five pages deliberately not rewritten** because they already satisfy their
+canvas composition: Dashboard, Settings→General, Chat, `workspace:tasks`
+(already collapsible per-project groups) and `finance:transactions` (already
+filter + Add + columnar list). Converting Transactions to the `table` module
+would delete bulk ops, inline edit, keyboard nav, CSV import and the calendar
+view — ~1,400 lines — for no compositional gain. **Second flag for Utsav:** if
+the plainer canvas list is wanted anyway, that is a product call.
+
+**Verified.** backend 246 passing; tsc + build + vitest clean; 1280px and 375px
+walks in dark and light. token-lint still red on its stale baseline but every
+count fell (spacing 107→95, rgba 33→27, inline-style 55→30).
+
+**Next.** Backend follow-ups listed in the plan (credit_limit, sleep stages,
+agent_runs, sessions/TOTP, metrics endpoint) — none block the frontend. The
+branch is `redesign/phase4-loans` and is not merged or pushed.
+
+
 ## 2026-07-28 — claude-code (repo restructure: flattened folder, frontend/ + backend/ split, per-folder AI context)
 - Shipped: **Reorganised the repo into two self-contained top-level folders.** (1) Flattened + renamed the project dir: `Projects - Agentic AI/Project - AiOs/control-tower/` → `Projects - Agentic AI/Project - Control Tower/` (the redundant wrapper is gone; the repo IS the project folder). (2) **Moved the whole pnpm workspace root into `frontend/`** — `apps/`, `packages/`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `tsconfig.json`, `vitest.config.ts`, `.npmrc`, `.dockerignore`, `scripts/`, plus the two frontend-only docs. `backend/` unchanged. 373 files moved via `git mv`, history preserved. (3) **Split `CLAUDE.md` + `AGENTS.md` three ways**: root keeps product/stack/deploy/history/backlog, `frontend/CLAUDE.md` owns the design system + UI/UX rules + monorepo graph, `backend/CLAUDE.md` owns FastAPI/SQLModel/migrations/multi-tenancy. Skills moved `.agent/skills/` → `frontend/.claude/skills/`; `.gitignore` switched to `**/.claude/*` + `!**/.claude/skills/` so skills stay versioned. `.agent/` deleted (it pointed at `SAAS_IMPLEMENTATION_PLAN.md` + `lessons.md`, neither of which exists). Config follow-through: `docker-compose.yml` frontend context → `./frontend` **and a pinned `name: control-tower`** (Compose derives the project name from the directory — the rename would have orphaned `control-tower_pgdata`); `deploy/Caddyfile` → `frontend/Caddyfile` (a `COPY` can't reach above its build context); `deploy.yml` web build context + file; CI frontend job now `defaults.run.working-directory: frontend` with `package_json_file`/`cache-dependency-path` spelled out (action inputs ignore that default); `run.sh`; `backend/tests/test_api_mappings.py` frontend scan path. Also finished the 2026-07-23 rename that had been missed: `/health` now reports `"service": "control-tower"` (was `aios-web`), plus a stale comment and a `docs/DEPLOYMENT.md` image example.
 - Blockers: none. **Manual step left for Utsav:** rename the GitHub repo `uranjan21/aios-web` → `control-tower` in Settings, then `git remote set-url origin https://github.com/uranjan21/control-tower.git`. Until then GHCR image names stay `aios-web-*` (they derive from `github.repository`). Changes are staged but NOT committed — review then commit.

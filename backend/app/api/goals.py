@@ -41,7 +41,30 @@ async def create_goal(
     await db.refresh(goal)
     return goal
 
-@router.get("", response_model=List[MacroGoal])
+class GoalRead(BaseModel):
+    """
+    A goal plus the last progress score recorded against it.
+
+    `progress_score` was write-only until now: the Weekly Review posts one every
+    week via `POST /goals/{id}/progress` and nothing ever read it back. The area
+    Overview pages need it to draw domain goal progress, so the list carries the
+    most recent score (None when the goal has never been scored — the caller
+    then falls back to its milestone completion ratio).
+    """
+    id: uuid.UUID
+    user_id: uuid.UUID
+    title: str
+    description: Optional[str] = None
+    category: str
+    target_date: Optional[date] = None
+    status: str
+    priority: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    progress_score: Optional[int] = None
+
+
+@router.get("", response_model=List[GoalRead])
 async def list_goals(
     current_user: User = Depends(get_current_user),
     db = Depends(get_db)
@@ -51,7 +74,27 @@ async def list_goals(
         .where(MacroGoal.user_id == current_user.id)
         .order_by(desc(MacroGoal.created_at))
     )
-    return result.scalars().all()
+    goals = result.scalars().all()
+    if not goals:
+        return []
+
+    # One sweep of this user's progress rows, newest first; the first row seen
+    # per goal is its latest. Cheaper than a correlated subquery per goal and
+    # the table is small (one row per goal per weekly review).
+    rows = (await db.execute(
+        select(GoalProgress)
+        .where(GoalProgress.user_id == current_user.id)
+        .order_by(desc(GoalProgress.date_recorded), desc(GoalProgress.created_at))
+    )).scalars().all()
+    latest: dict[uuid.UUID, int] = {}
+    for r in rows:
+        if r.goal_id not in latest and r.progress_score is not None:
+            latest[r.goal_id] = r.progress_score
+
+    return [
+        GoalRead(**g.model_dump(), progress_score=latest.get(g.id))
+        for g in goals
+    ]
 
 class GoalUpdate(BaseModel):
     title: Optional[str] = Field(default=None, min_length=1)

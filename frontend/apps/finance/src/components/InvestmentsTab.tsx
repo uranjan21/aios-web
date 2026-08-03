@@ -1,104 +1,44 @@
-import { useState } from 'react'
+/**
+ * Finance → Investments.
+ *
+ * Phase 4 conversion to the canvas's `finance:investments` composition —
+ * tiles(12) · donut(5) · bars(7) · table(12) — rebuilt from the live
+ * investments API. Clicking a holdings row opens its editor, which is where
+ * the old table's pencil/trash column went.
+ *
+ * TWO DEPARTURES FROM THE CANVAS, both for want of a contribution ledger:
+ *  - Its third tile is XIRR, which needs dated cash flows. A holding stores an
+ *    invested total and a current value, so the tile shows the absolute return
+ *    those two give exactly. Its fourth is "monthly SIP" — there is no SIP
+ *    model at all, so it counts holdings and names the best performer instead.
+ *  - Its bars are portfolio value over eight months. Nothing records portfolio
+ *    value historically, so the bars show gain and loss per holding: still the
+ *    "where is the money working" question, from data that exists.
+ */
+import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
-import { Button, Dialog, Input, DataTable, Select, Card } from '@ledgr/ui'
-import { Trash2, PencilLine, TrendingUp, Plus } from 'lucide-react'
-import { financeApi } from '@ct/shared/api/areas'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
-import type { FinanceInvestment } from '@ct/shared/types'
 import styled from 'styled-components'
-import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
+import { Button, Card, Dialog, EmptyState, HeaderActionPortal, Input, Select } from '@ledgr/ui'
+import { Gem, PieChart, TrendingUp, Trash2 } from 'lucide-react'
+import { financeApi } from '@ct/shared/api/areas'
+import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
+import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
+import { Skeleton } from '@ct/shared/components/ui/skeleton'
+import { formatCurrency } from '@ct/shared/lib/utils'
+import type { FinanceInvestment } from '@ct/shared/types'
 
-const AssetCell = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-`
-
-const AssetIcon = styled.span`
-  font-size: 1.25rem;
-  line-height: 1;
-`
-
-const AssetName = styled.div`
-  font-weight: 500;
-  color: ${({ theme }) => theme.color.foreground};
-`
-
-const AssetLabel = styled.div`
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  color: ${({ theme }) => theme.color.mutedForeground};
-`
-
-const ReturnAmount = styled.div<{ $positive: boolean }>`
-  font-weight: 500;
-  color: ${({ $positive, theme }) => $positive ? theme.color.success : theme.color.destructive};
-`
-
-const ReturnPct = styled.div<{ $positive: boolean }>`
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  color: ${({ $positive, theme }) => $positive ? theme.color.success : theme.color.destructive};
-  opacity: 0.8;
-`
-
-const ActionContainer = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  opacity: 1;
-  transition: opacity 0.2s;
-
-  @media ${({ theme }) => theme.media.md} {
-    opacity: 0;
-    tr:hover & {
-      opacity: 1;
-    }
-  }
-`
-
-const LoadingContainer = styled.div`
+const Root = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-`
-
-const LoadingHeader = styled(Skeleton)`
-  height: 40px;
-`
-
-const LoadingBody = styled(Skeleton)`
-  height: 200px;
-`
-
-const SummaryGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
-  padding: 0.75rem;
-  background-color: ${({ theme }) => theme.color.muted}33;
-  border-top: 1px solid ${({ theme }) => theme.color.border};
-  font-weight: 500;
-  font-size: ${({ theme }) => theme.typography.fontSize.base};
-`
-
-const SummaryReturnText = styled.span<{ $positive: boolean }>`
-  color: ${({ $positive, theme }) => $positive ? theme.color.success : theme.color.destructive};
-`
-
-const SummaryReturnPctText = styled.span`
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  margin-left: 0.25rem;
-`
-
-const ModalTitle = styled.span`
-  color: ${({ theme }) => theme.color.foreground};
+  gap: ${({ theme }) => theme.spacing[5]};
 `
 
 const FormContainer = styled.form`
-  margin-top: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: ${({ theme }) => theme.spacing[3]};
+  margin-top: ${({ theme }) => theme.spacing[3]};
 `
 
 const FormGroup = styled.div``
@@ -106,21 +46,21 @@ const FormGroup = styled.div``
 const Label = styled.label`
   font-size: ${({ theme }) => theme.typography.fontSize.xs};
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-bottom: 0.25rem;
+  margin-bottom: ${({ theme }) => theme.spacing[1]};
   display: block;
 `
 
 const ActionsContainer = styled.div`
   display: flex;
-  gap: 0.5rem;
-  padding-top: 0.5rem;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing[2]};
+  padding-top: ${({ theme }) => theme.spacing[2]};
 `
 
-/**
- * Asset types. Only `label` and `icon` are read — this used to carry a `color`
- * per type too, but there is no chart in this tab and nothing ever consumed it,
- * so the seven hexes were dead weight drifting from the palette.
- */
+const Spacer = styled.div`
+  flex: 1;
+`
+
 const TYPE_META: Record<string, { label: string; icon: string }> = {
   stock: { label: 'Stocks', icon: '📈' },
   mutual_fund: { label: 'Mutual Funds', icon: '💼' },
@@ -132,20 +72,19 @@ const TYPE_META: Record<string, { label: string; icon: string }> = {
   other: { label: 'Other', icon: '📦' },
 }
 
-export function InvestmentsTab({ onAddClick, navMenu }: { onAddClick?: () => void, navMenu?: React.ReactNode }) {
-  type HoldingForm = {
-    name: string
-    type: string
-    units: string
-    invested_amount: string
-    current_value: string
-    purchase_date: string
-    notes: string
-  }
-  const EMPTY_HOLDING_FORM: HoldingForm = {
-    name: '', type: 'stock', units: '', invested_amount: '0', current_value: '0', purchase_date: '', notes: '',
-  }
+/** Distinct slots so the donut's segments stay tellable apart. */
+const SLICE_KEYS = ['accent', 'info', 'success', 'warning', 'career', 'health', 'destructive']
 
+type HoldingForm = {
+  name: string; type: string; units: string
+  invested_amount: string; current_value: string
+  purchase_date: string; notes: string
+}
+const EMPTY_HOLDING_FORM: HoldingForm = {
+  name: '', type: 'stock', units: '', invested_amount: '0', current_value: '0', purchase_date: '', notes: '',
+}
+
+export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void } = {}) {
   const queryClient = useQueryClient()
   const [updatingHolding, setUpdatingHolding] = useState<FinanceInvestment | null>(null)
   const [holdingForm, setHoldingForm] = useState<HoldingForm>(EMPTY_HOLDING_FORM)
@@ -161,12 +100,16 @@ export function InvestmentsTab({ onAddClick, navMenu }: { onAddClick?: () => voi
     queryFn: financeApi.investmentsSummary,
   })
 
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['finance', 'investments'] })
+    queryClient.invalidateQueries({ queryKey: ['finance', 'investments', 'summary'] })
+  }
+
   const updateMutation = useMutation({
     mutationFn: (patch: Parameters<typeof financeApi.patchInvestment>[1]) =>
       financeApi.patchInvestment(updatingHolding!.id, patch),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['finance', 'investments'] })
-      queryClient.invalidateQueries({ queryKey: ['finance', 'investments', 'summary'] })
+      invalidate()
       toast.success('Holding updated')
       setUpdatingHolding(null)
       setHoldingForm(EMPTY_HOLDING_FORM)
@@ -177,8 +120,10 @@ export function InvestmentsTab({ onAddClick, navMenu }: { onAddClick?: () => voi
   const deleteMutation = useMutation({
     mutationFn: (id: string) => financeApi.deleteInvestment(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['finance', 'investments'] })
-      toast.success(`Holding removed`)
+      invalidate()
+      toast.success('Holding removed')
+      setUpdatingHolding(null)
+      setHoldingForm(EMPTY_HOLDING_FORM)
     },
     onError: () => toast.error('Failed to delete holding'),
   })
@@ -191,8 +136,8 @@ export function InvestmentsTab({ onAddClick, navMenu }: { onAddClick?: () => voi
       units: holding.units != null ? String(holding.units) : '',
       invested_amount: String(holding.invested_amount ?? 0),
       current_value: String(holding.current_value ?? 0),
-      purchase_date: (holding as any).purchase_date ? String((holding as any).purchase_date).slice(0, 10) : '',
-      notes: (holding as any).notes ?? '',
+      purchase_date: holding.purchase_date ? String(holding.purchase_date).slice(0, 10) : '',
+      notes: holding.notes ?? '',
     })
   }
 
@@ -221,182 +166,218 @@ export function InvestmentsTab({ onAddClick, navMenu }: { onAddClick?: () => voi
     })
   }
 
-  const columns = [
-    {
-      id: 'asset',
-      header: 'Asset',
-      cell: (row: any) => {
-        const record = row as FinanceInvestment;
-        const meta = TYPE_META[record.type] ?? TYPE_META.other;
-        return (
-          <AssetCell>
-            <AssetIcon>{meta.icon}</AssetIcon>
-            <div>
-              <AssetName>{record.name}</AssetName>
-              <AssetLabel>{meta.label}</AssetLabel>
-            </div>
-          </AssetCell>
-        );
-      }
-    },
-    {
-      id: 'units',
-      header: 'Units',
-      cell: (row: any) => row.units ? Number(row.units).toLocaleString('en-IN') : '-'
-    },
-    {
-      id: 'invested_amount',
-      header: 'Invested',
-      cell: (row: any) => `₹${Number(row.invested_amount).toLocaleString('en-IN')}`
-    },
-    {
-      id: 'current_value',
-      header: 'Current Value',
-      cell: (row: any) => `₹${Number(row.current_value).toLocaleString('en-IN')}`
-    },
-    {
-      id: 'returns',
-      header: 'Returns',
-      cell: (row: any) => {
-        const record = row as FinanceInvestment;
-        const returns = Number(record.current_value) - Number(record.invested_amount);
-        const returnsPct = Number(record.invested_amount) > 0 ? (returns / Number(record.invested_amount)) * 100 : 0;
-        const positive = returns >= 0;
-        return (
-          <div>
-            <ReturnAmount $positive={positive}>
-              {positive ? '+' : ''}₹{Math.abs(returns).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-            </ReturnAmount>
-            <ReturnPct $positive={positive}>
-              {positive ? '+' : ''}{returnsPct.toFixed(1)}%
-            </ReturnPct>
-          </div>
-        );
-      }
-    },
-    {
-      id: 'action',
-      header: 'Action',
-      cell: (row: any) => {
-        const record = row as FinanceInvestment;
-        return (
-          <ActionContainer>
-            <Button variant="ghost" size="icon" onClick={() => openUpdate(record)}>
-              <PencilLine size={14} />
-            </Button>
-            <Popconfirm title="Delete this holding?" onConfirm={() => deleteMutation.mutate(record.id)} okText="Delete" cancelText="Cancel" okButtonProps={{ danger: true }}>
-              <Button variant="destructive" size="icon">
-                <Trash2 size={14} />
-              </Button>
-            </Popconfirm>
-          </ActionContainer>
-        )
-      },
-    }
-  ];
-
-  const holdingTypes = Array.from(new Set((holdings ?? []).map(h => h.type))) as string[]
-  const visibleHoldings = (holdings ?? []).filter(h => typeFilter === 'all' || h.type === typeFilter)
-
-  if (isLoading) return (
-    <WorkspaceLayout rail={navMenu}>
-      <LoadingContainer><LoadingHeader /><LoadingBody /></LoadingContainer>
-    </WorkspaceLayout>
+  const all = useMemo(() => holdings ?? [], [holdings])
+  const visible = useMemo(
+    () => (typeFilter === 'all' ? all : all.filter(h => h.type === typeFilter)),
+    [all, typeFilter],
   )
 
-  return (
-    <WorkspaceLayout rail={navMenu}>
-      <Card
-        title="Portfolio Holdings"
-        subtitle="Your investments and their current returns"
-        icon={<TrendingUp size={16} />}
-        action={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Select
-              size="sm"
-              fullWidth={false}
-              aria-label="Filter holdings by asset type"
-              value={typeFilter}
-              onChange={(v) => setTypeFilter(String(v))}
-              options={[
-                { value: 'all', label: 'All assets' },
-                ...holdingTypes.map(t => ({ value: t, label: TYPE_META[t]?.label ?? t })),
-              ]}
-            />
-            {onAddClick && (
-              <Button size="sm" variant="primary" onClick={onAddClick}>
-                <Plus size={12} style={{ marginRight: 4 }} /> Add Investment
-              </Button>
-            )}
-          </div>
-        }
-      >
-        <DataTable
-          rows={visibleHoldings}
-          columns={columns}
-          getRowKey={row => row.id}
-          empty={{ icon: <TrendingUp size={20} />, title: 'No holdings yet', description: 'Track stocks, mutual funds, and crypto to monitor your portfolio performance.' }}
-        />
-        {summary && (
-          <SummaryGrid>
-            <div>Total</div>
-            <div>Invested: ₹{summary.total_invested.toLocaleString('en-IN')}</div>
-            <div>Current: ₹{summary.current_value.toLocaleString('en-IN')}</div>
-            <div>
-              Returns: <SummaryReturnText $positive={summary.returns_amount >= 0}>
-                {summary.returns_amount >= 0 ? '+' : ''}₹{Math.abs(summary.returns_amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                <SummaryReturnPctText>({summary.returns_amount >= 0 ? '+' : ''}{summary.returns_pct.toFixed(1)}%)</SummaryReturnPctText>
-              </SummaryReturnText>
-            </div>
-          </SummaryGrid>
-        )}
+  const modules = useMemo<ModuleSpec[]>(() => {
+    if (!all.length) return []
 
-        <Dialog
-          open={!!updatingHolding}
-          title={<ModalTitle>Edit Holding{updatingHolding?.name ? ` — ${updatingHolding.name}` : ''}</ModalTitle>}
-          onOpenChange={(open) => { if (!open) closeEdit() }}
-          size="md"
-        >
-          <FormContainer onSubmit={e => { e.preventDefault(); handleSave() }}>
+    const invested = summary?.total_invested ?? all.reduce((s, h) => s + Number(h.invested_amount), 0)
+    const value = summary?.current_value ?? all.reduce((s, h) => s + Number(h.current_value), 0)
+    const gain = summary?.returns_amount ?? value - invested
+    const gainPct = summary?.returns_pct ?? (invested > 0 ? (gain / invested) * 100 : 0)
+
+    const gainOf = (h: FinanceInvestment) => Number(h.current_value) - Number(h.invested_amount)
+    const best = all.reduce((a, b) => (gainOf(a) >= gainOf(b) ? a : b))
+
+    const allocation = summary?.allocation?.length
+      ? summary.allocation
+      : Object.entries(all.reduce<Record<string, number>>((acc, h) => {
+          acc[h.type] = (acc[h.type] ?? 0) + Number(h.current_value)
+          return acc
+        }, {})).map(([type, v]) => ({ type, value: v }))
+    const allocTotal = allocation.reduce((s, a) => s + Number(a.value), 0)
+
+    // Bars run on a shared scale, so a loss has to plot as a positive height
+    // with a destructive colour — the axis is magnitude, the colour is sign.
+    const byGain = [...all].sort((a, b) => Math.abs(gainOf(b)) - Math.abs(gainOf(a))).slice(0, 8)
+
+    return [
+      {
+        kind: 'tiles',
+        span: 12,
+        tiles: [
+          {
+            label: 'Portfolio value',
+            value: formatCurrency(value),
+            sub: `${gain >= 0 ? '+' : ''}${formatCurrency(gain)} against cost`,
+            subKey: gain >= 0 ? 'success' : 'destructive',
+          },
+          { label: 'Invested', value: formatCurrency(invested), sub: `${all.length} holding${all.length === 1 ? '' : 's'}` },
+          {
+            label: 'Total return',
+            value: `${gainPct >= 0 ? '+' : ''}${gainPct.toFixed(1)}%`,
+            sub: 'Absolute, not annualised',
+            subKey: gainPct >= 0 ? 'success' : 'destructive',
+            dotKey: gainPct >= 0 ? 'success' : 'destructive',
+          },
+          {
+            label: 'Best performer',
+            value: best.name,
+            sub: `${gainOf(best) >= 0 ? '+' : ''}${formatCurrency(gainOf(best))}`,
+            subKey: gainOf(best) >= 0 ? 'success' : 'destructive',
+          },
+        ],
+      },
+      {
+        kind: 'donut',
+        span: 5,
+        title: 'Allocation',
+        subtitle: 'By current value',
+        icon: PieChart,
+        centerValue: formatCurrency(value),
+        centerLabel: 'Total',
+        slices: allocation.map((a, i) => ({
+          label: TYPE_META[a.type]?.label ?? a.type,
+          pct: allocTotal > 0 ? Math.round((Number(a.value) / allocTotal) * 100) : 0,
+          value: formatCurrency(Number(a.value)),
+          colorKey: SLICE_KEYS[i % SLICE_KEYS.length],
+        })),
+      },
+      {
+        kind: 'bars',
+        span: 7,
+        title: 'Gain and loss by holding',
+        subtitle: 'Current value against what you put in',
+        icon: TrendingUp,
+        bars: byGain.map((h) => ({
+          label: h.name.length > 10 ? `${h.name.slice(0, 9)}…` : h.name,
+          v: Math.round(Math.abs(gainOf(h))),
+          t: `${gainOf(h) >= 0 ? '+' : '−'}${formatCurrency(Math.abs(gainOf(h)))}`,
+          colorKey: gainOf(h) >= 0 ? 'success' : 'destructive',
+        })),
+      },
+      {
+        kind: 'table',
+        span: 12,
+        title: 'Holdings',
+        subtitle: `${visible.length} instrument${visible.length === 1 ? '' : 's'} · click a row to edit`,
+        icon: Gem,
+        ...(onAddClick && { action: 'Add holding', onAction: onAddClick }),
+        gridCols: '2.2fr 1.2fr 1fr 1fr 0.9fr',
+        cols: [
+          { l: 'Instrument' },
+          { l: 'Type' },
+          { l: 'Invested', a: 'right' },
+          { l: 'Current', a: 'right' },
+          { l: 'Return', a: 'right' },
+        ],
+        rows: visible.map((h) => {
+          const g = gainOf(h)
+          const pctH = Number(h.invested_amount) > 0 ? (g / Number(h.invested_amount)) * 100 : 0
+          return [
+            { t: `${TYPE_META[h.type]?.icon ?? '📦'} ${h.name}`, bold: true },
+            TYPE_META[h.type]?.label ?? h.type,
+            formatCurrency(h.invested_amount),
+            formatCurrency(h.current_value),
+            { t: `${pctH >= 0 ? '+' : ''}${pctH.toFixed(1)}%`, colorKey: g >= 0 ? 'success' : 'destructive' },
+          ]
+        }),
+        onRowClick: (i: number) => openUpdate(visible[i]),
+      },
+    ]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all, visible, summary, onAddClick])
+
+  if (isLoading) return <Skeleton style={{ height: 320 }} />
+
+  return (
+    <Root>
+      {/* Tab-scoped: it drives every module below, so it belongs in the
+          page header, not floating in the gap above the cards. */}
+      {all.length > 0 && (
+        <HeaderActionPortal>
+          <Select
+            size="sm"
+            fullWidth={false}
+            aria-label="Filter holdings by type"
+            value={typeFilter}
+            onChange={(v: any) => setTypeFilter(String(v))}
+            options={[
+              { value: 'all', label: 'All types' },
+              ...Object.entries(TYPE_META)
+                .filter(([key]) => all.some(h => h.type === key))
+                .map(([value, meta]) => ({ value, label: meta.label })),
+            ]}
+          />
+        </HeaderActionPortal>
+      )}
+
+      {all.length === 0 ? (
+        <Card title="Portfolio" subtitle="Track what you hold and how it is doing" icon={<Gem size={16} />}>
+          <EmptyState
+            icon={<Gem size={20} />}
+            title="No holdings yet"
+            description="Add a mutual fund, stock or deposit to see allocation and returns."
+            action={onAddClick ? <Button size="sm" variant="primary" onClick={onAddClick}>Add holding</Button> : undefined}
+          />
+        </Card>
+      ) : (
+        <ModuleGrid modules={modules} />
+      )}
+
+      <Dialog
+        open={!!updatingHolding}
+        icon={<Gem size={18} />}
+        eyebrow="Finance"
+        title={`Edit holding${updatingHolding?.name ? ` — ${updatingHolding.name}` : ''}`}
+        onOpenChange={(open) => { if (!open) closeEdit() }}
+        size="md"
+      >
+        <FormContainer onSubmit={e => { e.preventDefault(); handleSave() }}>
+          <FormGroup>
+            <Label>Name</Label>
+            <Input value={holdingForm.name} onChange={(e: any) => setHoldingForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. HDFC Top 100" autoFocus required />
+          </FormGroup>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <FormGroup>
-              <Label>Name</Label>
-              <Input value={holdingForm.name} onChange={(e: any) => setHoldingForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. HDFC Top 100" autoFocus required />
-            </FormGroup>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <FormGroup>
-                <Label>Type</Label>
-                <Select fullWidth value={holdingForm.type} onChange={(v: any) => setHoldingForm(f => ({ ...f, type: String(v) }))} options={Object.entries(TYPE_META).map(([value, meta]) => ({ value, label: meta.label }))} />
-              </FormGroup>
-              <FormGroup>
-                <Label>Units (optional)</Label>
-                <Input type="number" min="0" step="0.0001" value={holdingForm.units} onChange={(e: any) => setHoldingForm(f => ({ ...f, units: e.target.value }))} placeholder="0" />
-              </FormGroup>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <FormGroup>
-                <Label>Invested amount</Label>
-                <Input type="number" startAdornment="₹" min="0" value={holdingForm.invested_amount} onChange={(e: any) => setHoldingForm(f => ({ ...f, invested_amount: e.target.value }))} required />
-              </FormGroup>
-              <FormGroup>
-                <Label>Current value</Label>
-                <Input type="number" startAdornment="₹" min="0" value={holdingForm.current_value} onChange={(e: any) => setHoldingForm(f => ({ ...f, current_value: e.target.value }))} required />
-              </FormGroup>
-            </div>
-            <FormGroup>
-              <Label>Purchase date</Label>
-              <Input type="date" value={holdingForm.purchase_date} onChange={(e: any) => setHoldingForm(f => ({ ...f, purchase_date: e.target.value }))} />
+              <Label>Type</Label>
+              <Select fullWidth value={holdingForm.type} onChange={(v: any) => setHoldingForm(f => ({ ...f, type: String(v) }))} options={Object.entries(TYPE_META).map(([value, meta]) => ({ value, label: meta.label }))} />
             </FormGroup>
             <FormGroup>
-              <Label>Notes</Label>
-              <Input value={holdingForm.notes} onChange={(e: any) => setHoldingForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional" />
+              <Label>Units (optional)</Label>
+              <Input type="number" min="0" step="0.0001" value={holdingForm.units} onChange={(e: any) => setHoldingForm(f => ({ ...f, units: e.target.value }))} placeholder="0" />
             </FormGroup>
-            <ActionsContainer>
-              <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save changes</Button>
-              <Button variant="ghost" type="button" onClick={closeEdit} disabled={updateMutation.isPending}>Cancel</Button>
-            </ActionsContainer>
-          </FormContainer>
-        </Dialog>
-      </Card>
-    </WorkspaceLayout>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <FormGroup>
+              <Label>Invested amount</Label>
+              <Input type="number" startAdornment="₹" min="0" value={holdingForm.invested_amount} onChange={(e: any) => setHoldingForm(f => ({ ...f, invested_amount: e.target.value }))} required />
+            </FormGroup>
+            <FormGroup>
+              <Label>Current value</Label>
+              <Input type="number" startAdornment="₹" min="0" value={holdingForm.current_value} onChange={(e: any) => setHoldingForm(f => ({ ...f, current_value: e.target.value }))} required />
+            </FormGroup>
+          </div>
+          <FormGroup>
+            <Label>Purchase date</Label>
+            <Input type="date" value={holdingForm.purchase_date} onChange={(e: any) => setHoldingForm(f => ({ ...f, purchase_date: e.target.value }))} />
+          </FormGroup>
+          <FormGroup>
+            <Label>Notes</Label>
+            <Input value={holdingForm.notes} onChange={(e: any) => setHoldingForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional" />
+          </FormGroup>
+          <ActionsContainer>
+            <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save changes</Button>
+            <Button variant="ghost" type="button" onClick={closeEdit} disabled={updateMutation.isPending}>Cancel</Button>
+            <Spacer />
+            <Popconfirm
+              title="Delete this holding?"
+              onConfirm={() => { if (updatingHolding) deleteMutation.mutate(updatingHolding.id) }}
+              okText="Delete"
+              cancelText="Cancel"
+              okButtonProps={{ danger: true }}
+            >
+              <Button variant="destructive" type="button" size="sm" loading={deleteMutation.isPending}>
+                <Trash2 size={14} style={{ marginRight: 4 }} /> Delete
+              </Button>
+            </Popconfirm>
+          </ActionsContainer>
+        </FormContainer>
+      </Dialog>
+    </Root>
   )
 }

@@ -28,7 +28,6 @@ import {
   CalendarCheck,
   CreditCard,
   Cpu,
-  Flag,
   FolderKanban,
   Gem,
   Heart,
@@ -152,7 +151,10 @@ export const NAV_SECTIONS: NavSection[] = [
           { key: 'transactions', label: 'Transactions', icon: Wallet,          to: '/app/finance/transactions' },
           { key: 'budgets',      label: 'Budgets',      icon: PiggyBank,       to: '/app/finance/budgets' },
           { key: 'bills',        label: 'Bills',        icon: Receipt,         to: '/app/finance/bills' },
-          { key: 'goals',        label: 'Goals',        icon: Flag,            to: '/app/finance/goals' },
+          /* No Goals entry: goals and milestones are set in Workspace for every
+             domain (2026-08-02). Finance keeps read-only goal progress on its
+             Overview, and the savings-pot tracker lives at
+             /app/workspace/goals?domain=finance. */
           { key: 'investments',  label: 'Investments',  icon: Gem,             to: '/app/finance/investments' },
           { key: 'loans',        label: 'Loans',        icon: Landmark,        to: '/app/finance/loans' },
           { key: 'inbox',        label: 'Inbox',        icon: Inbox,           to: '/app/finance/inbox' },

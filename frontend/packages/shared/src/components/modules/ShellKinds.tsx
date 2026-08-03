@@ -2,28 +2,60 @@
  * The fourteen module kinds that render inside the standard card shell.
  * Ported from the modular page renderer in `Control Tower Redesign.dc.html`.
  */
-import styled from 'styled-components'
+import styled, { css } from 'styled-components'
 import { Check, ChevronDown } from 'lucide-react'
 import { textRole } from '@ledgr/ui'
 import { useModulePalette, pct } from './palette'
 import {
-  Chip, FieldLabel, ModuleButton, Row, RowBody, RowMeta, RowTitle, RowValue,
+  Chip, FieldLabel, ModuleButton, Mono, Row, RowBody, RowMeta, RowTitle, RowValue,
   Stack, ToggleKnob, ToggleTrack, Track, TrackFill,
 } from './primitives'
 import type {
-  BarsModule, CalendarModule, ChecklistModule, ControlsModule, DonutModule,
-  HeatModule, NotesModule, ProgressModule, QueueModule, RowsModule,
-  SpansModule, TableModule, TimelineModule, WeekModule,
+  AgendaModule, BarsModule, CalendarModule, ChecklistModule, ControlsModule,
+  DonutModule, HeatModule, HeroModule, MetersModule, NotesModule, ProgressModule,
+  QueueModule, RowsModule, SpansModule, TableModule, TimelineModule, WeekModule,
 } from './types'
+
+/*
+ * `Row` rendered as a real button when a page wires a handler. The UA button
+ * chrome has to be reset back down to what `Row` draws — hence the explicit
+ * border-bottom rather than a blanket `border: none`.
+ */
+const ClickableRow = styled(Row)`
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-bottom: 1px solid ${({ theme }) => theme.color.border};
+
+  &:is(button) { cursor: pointer; }
+`
 
 /* ── rows ─────────────────────────────────────────────────────────────── */
 
 export function RowsKind({ m }: { m: RowsModule }) {
   const c = useModulePalette()
+  const { onRowClick } = m
   return (
     <Stack>
       {m.rows.map((r, i) => (
-        <Row key={i}>
+        <ClickableRow
+          key={i}
+          as={onRowClick ? 'button' : 'div'}
+          type={onRowClick ? 'button' : undefined}
+          onClick={onRowClick ? () => onRowClick(i) : undefined}
+          style={r.busy ? { opacity: 0.55, pointerEvents: 'none' } : undefined}
+        >
+          {r.mono && (
+            <Mono
+              $round
+              style={r.monoKey ? { background: c.alpha(r.monoKey, 0.13), color: c(r.monoKey) } : undefined}
+            >
+              {r.mono}
+            </Mono>
+          )}
           <RowBody>
             <RowTitle>{r.title}</RowTitle>
             {r.meta && <RowMeta>{r.meta}</RowMeta>}
@@ -31,8 +63,8 @@ export function RowsKind({ m }: { m: RowsModule }) {
           {r.tagLabel && (
             <Chip $bg={c.alpha(r.tagColorKey, 0.125)} $color={c(r.tagColorKey)}>{r.tagLabel}</Chip>
           )}
-          {r.value && <RowValue>{r.value}</RowValue>}
-        </Row>
+          {r.value && <RowValue style={r.valueKey ? { color: c(r.valueKey) } : undefined}>{r.value}</RowValue>}
+        </ClickableRow>
       ))}
     </Stack>
   )
@@ -48,21 +80,57 @@ const ProgressHead = styled.div`
   margin-bottom: 7px;
 `
 
+/*
+ * A progress row becomes a button only when the page hands in `onRowClick`.
+ * `ProgressRow` resets the button chrome so the two paths render identically.
+ */
+const ProgressRow = styled.div<{ $interactive: boolean }>`
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+
+  ${({ $interactive, theme }) =>
+    $interactive &&
+    css`
+      cursor: pointer;
+      border-radius: ${theme.radii.xs};
+      padding: ${theme.spacing[2]};
+      margin: -${theme.spacing[2]};
+      transition: background 150ms;
+
+      &:hover {
+        background: ${theme.color.muted};
+      }
+    `}
+`
+
 export function ProgressKind({ m }: { m: ProgressModule }) {
   const c = useModulePalette()
+  const onRowClick = m.onRowClick
   return (
     <Stack $gap={17}>
       {m.rows.map((r, i) => (
-        <div key={i}>
+        <ProgressRow
+          key={i}
+          as={onRowClick ? 'button' : 'div'}
+          type={onRowClick ? 'button' : undefined}
+          $interactive={!!onRowClick}
+          onClick={onRowClick ? () => onRowClick(i) : undefined}
+        >
           <ProgressHead>
             <RowTitle as="span">{r.title}</RowTitle>
-            <span style={{ fontWeight: 700, color: c(r.colorKey), fontVariantNumeric: 'tabular-nums' }}>
+            <span style={{ fontWeight: 700, color: c(r.valueKey ?? r.colorKey), fontVariantNumeric: 'tabular-nums' }}>
               {r.value}
             </span>
           </ProgressHead>
           <Track><TrackFill $pct={pct(r.pct)} $color={c(r.colorKey)} /></Track>
           {r.meta && <RowMeta>{r.meta}</RowMeta>}
-        </div>
+        </ProgressRow>
       ))}
     </Stack>
   )
@@ -93,6 +161,11 @@ const TargetLine = styled.div<{ $top: string }>`
     ${textRole('micro')};
     text-transform: uppercase;
     color: ${({ theme }) => theme.color.mutedForeground};
+    /* A tall right-hand bar puts its own value label right here, so the target
+       label needs an opaque backing to stay readable over it. */
+    background: ${({ theme }) => theme.color.card};
+    padding: 0 ${({ theme }) => theme.spacing[1]};
+    border-radius: ${({ theme }) => theme.radii.xs};
   }
 `
 
@@ -545,15 +618,30 @@ const TableRow = styled.div<{ $cols: string }>`
   align-items: center;
   border-radius: ${({ theme }) => theme.radii.xs};
   transition: background 150ms;
+  /* Resets for the button form a page opts into via onRowClick. */
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
 
+  &:is(button) { cursor: pointer; }
   &:hover { background: ${({ theme }) => theme.color.muted}; }
 `
 
-/** Horizontal scroll container — a 5-column table must not widen the page. */
-const TableScroll = styled.div`
+/*
+ * Horizontal scroll container — a wide table must not widen the page. The
+ * floor scales with the column count rather than being a flat 520px: that
+ * figure was set for the 5-column tables and forced a 4-column one to scroll
+ * inside a span-7 card, clipping its last column at rest.
+ */
+const TableScroll = styled.div<{ $min: number }>`
   overflow-x: auto;
 
-  > * { min-width: 520px; }
+  > * { min-width: ${({ $min }) => $min}px; }
 `
 
 export function TableKind({ m }: { m: TableModule }) {
@@ -561,7 +649,7 @@ export function TableKind({ m }: { m: TableModule }) {
   const cols = m.gridCols ?? `repeat(${m.cols.length},minmax(0,1fr))`
 
   return (
-    <TableScroll>
+    <TableScroll $min={m.cols.length * 110}>
       <div>
         <TableHead $cols={cols}>
           {m.cols.map((col, i) => (
@@ -569,7 +657,13 @@ export function TableKind({ m }: { m: TableModule }) {
           ))}
         </TableHead>
         {m.rows.map((row, i) => (
-          <TableRow key={i} $cols={cols}>
+          <TableRow
+            key={i}
+            $cols={cols}
+            as={m.onRowClick ? 'button' : 'div'}
+            type={m.onRowClick ? 'button' : undefined}
+            onClick={m.onRowClick ? () => m.onRowClick!(i) : undefined}
+          >
             {row.map((cell, j) => {
               const cc = typeof cell === 'object' ? cell : { t: cell }
               const align = m.cols[j]?.a ?? 'left'
@@ -606,12 +700,20 @@ export function TableKind({ m }: { m: TableModule }) {
 
 /* ── controls ─────────────────────────────────────────────────────────── */
 
+/*
+ * Wraps rather than squeezing: a four-option segment or a wide swatch strip in
+ * a span-6 card would otherwise crush the label column to a few characters.
+ * The control drops to its own line once the label needs more than ~140px.
+ */
 const ControlRow = styled.div`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing[4]};
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing[3]} ${({ theme }) => theme.spacing[4]};
   padding: 13px ${({ theme }) => theme.spacing[1]};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
+
+  > *:first-child { min-width: 140px; }
 `
 
 const Segment = styled.div`
@@ -657,19 +759,49 @@ const SelectChip = styled.span`
   }
 `
 
+/**
+ * A picker chip. Always a real button — like `ModuleButton`, it simply has no
+ * handler until a page wires `onSwatch`, which keeps the gallery unchanged.
+ */
+const PaletteSwatch = styled.button<{ $color: string; $active: boolean }>`
+  width: 26px;
+  height: 26px;
+  border-radius: ${({ theme }) => theme.radii.xs};
+  background: ${({ $color }) => $color};
+  border: none;
+  padding: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px ${({ $active, theme }) => ($active ? theme.color.accent : 'transparent')};
+  transition: box-shadow 150ms, transform 150ms;
+
+  &:hover { transform: translateY(-1px); }
+`
+
 export function ControlsKind({ m }: { m: ControlsModule }) {
   const c = useModulePalette()
+  const { onToggle, onSelect, onSwatch } = m
   return (
     <Stack>
       {m.rows.map((r, i) => (
-        <ControlRow key={i}>
+        <ControlRow key={i} style={r.busy ? { opacity: 0.55, pointerEvents: 'none' } : undefined}>
           <RowBody>
             <div style={{ fontWeight: 600 }}>{r.title}</div>
             {r.meta && <RowMeta>{r.meta}</RowMeta>}
           </RowBody>
 
           {r.control === 'toggle' && (
-            <ToggleTrack $on={!!r.on} role="switch" aria-checked={!!r.on} aria-label={r.title}>
+            <ToggleTrack
+              $on={!!r.on}
+              role="switch"
+              aria-checked={!!r.on}
+              aria-label={r.title}
+              tabIndex={onToggle ? 0 : undefined}
+              onClick={onToggle ? () => onToggle(i, !r.on) : undefined}
+              onKeyDown={onToggle ? (e) => {
+                if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onToggle(i, !r.on) }
+              } : undefined}
+            >
               <ToggleKnob $on={!!r.on} />
             </ToggleTrack>
           )}
@@ -677,19 +809,28 @@ export function ControlsKind({ m }: { m: ControlsModule }) {
           {r.control === 'segment' && (
             <Segment>
               {(r.options ?? []).map((op) => (
-                <SegmentOption key={op} $active={op === r.value}>{op}</SegmentOption>
+                <SegmentOption
+                  key={op}
+                  $active={op === r.value}
+                  onClick={onSelect ? () => onSelect(i, op) : undefined}
+                >
+                  {op}
+                </SegmentOption>
               ))}
             </Segment>
           )}
 
           {r.control === 'swatches' && (
-            <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 7, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               {(r.swatches ?? []).map((sw, j) => (
-                <span key={j} style={{
-                  width: 26, height: 26, borderRadius: 8, background: sw.color, cursor: 'pointer',
-                  boxShadow: `0 0 0 2px ${sw.active ? c('accent') : 'transparent'}`,
-                  transition: 'transform 150ms',
-                }} />
+                <PaletteSwatch
+                  key={j}
+                  type="button"
+                  aria-pressed={!!sw.active}
+                  onClick={onSwatch ? () => onSwatch(i, j) : undefined}
+                  $color={sw.color}
+                  $active={!!sw.active}
+                />
               ))}
             </div>
           )}
@@ -735,22 +876,9 @@ const QueueRow = styled.div<{ $bg: string; $border: string }>`
   &:hover { border-color: ${({ theme }) => theme.color.borderHover}; }
 `
 
-const Mono = styled.span`
-  width: 34px;
-  height: 34px;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  background: ${({ theme }) => theme.color.muted};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  ${textRole('label')};
-  font-weight: 700;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  flex-shrink: 0;
-`
-
 export function QueueKind({ m }: { m: QueueModule }) {
   const c = useModulePalette()
+  const { onPrimary, onSecondary } = m
   return (
     <Stack $gap={9}>
       {m.rows.map((r, i) => (
@@ -758,6 +886,7 @@ export function QueueKind({ m }: { m: QueueModule }) {
           key={i}
           $bg={r.flag ? c.alpha('destructive', 0.06) : 'transparent'}
           $border={r.flag ? c.alpha('destructive', 0.33) : c('border')}
+          style={r.busy ? { opacity: 0.55, pointerEvents: 'none' } : undefined}
         >
           <Mono>{r.mono}</Mono>
           <div style={{ minWidth: 130, flex: 1 }}>
@@ -771,8 +900,12 @@ export function QueueKind({ m }: { m: QueueModule }) {
             <Chip $bg={c.alpha(r.suggestKey, 0.12)} $color={c(r.suggestKey)}>{r.suggestion}</Chip>
           )}
           <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
-            <ModuleButton $variant="primary">{r.primary ?? 'Approve'}</ModuleButton>
-            <ModuleButton>{r.secondary ?? 'Skip'}</ModuleButton>
+            <ModuleButton type="button" $variant="primary" onClick={onPrimary ? () => onPrimary(i) : undefined}>
+              {r.primary ?? 'Approve'}
+            </ModuleButton>
+            <ModuleButton type="button" onClick={onSecondary ? () => onSecondary(i) : undefined}>
+              {r.secondary ?? 'Skip'}
+            </ModuleButton>
           </div>
         </QueueRow>
       ))}
@@ -794,12 +927,56 @@ const CheckBox = styled.span<{ $done: boolean }>`
   flex-shrink: 0;
 `
 
+/** A checklist row is a `label` in the canvas, or a button once wired. */
+const CheckRow = styled(ClickableRow)`
+  cursor: pointer;
+  gap: 11px;
+`
+
+/*
+ * Habit chips under the task list. `radii.sm`, not `radii.pill`: the pill
+ * exception is scoped to badges and status chips, and these are toggles — a
+ * button by any other name.
+ */
+const HabitChip = styled.button<{ $on: boolean; $color: string; $bg: string }>`
+  ${textRole('body-s')};
+  font-weight: 600;
+  font-family: inherit;
+  padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[3.5]}`};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  border: 1px solid ${({ $on, $color, theme }) => ($on ? $color : theme.color.border)};
+  background: ${({ $on, $bg }) => ($on ? $bg : 'transparent')};
+  color: ${({ $on, $color, theme }) => ($on ? $color : theme.color.mutedForeground)};
+  white-space: nowrap;
+  transition: background 150ms, border-color 150ms, color 150ms;
+
+  &:is(button) { cursor: pointer; }
+
+  &:hover {
+    border-color: ${({ $on, $color, theme }) => ($on ? $color : theme.color.borderHover)};
+    color: ${({ theme }) => theme.color.foreground};
+  }
+`
+
+const ChipRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing[2]};
+`
+
 export function ChecklistKind({ m }: { m: ChecklistModule }) {
   const c = useModulePalette()
+  const { onToggle, onChipToggle } = m
   return (
     <Stack>
       {m.items.map((it, i) => (
-        <Row key={i} as="label" style={{ cursor: 'pointer', gap: 11 }}>
+        <CheckRow
+          key={i}
+          as={onToggle ? 'button' : 'label'}
+          type={onToggle ? 'button' : undefined}
+          onClick={onToggle ? () => onToggle(i, !it.done) : undefined}
+          style={it.busy ? { opacity: 0.55, pointerEvents: 'none' } : undefined}
+        >
           <CheckBox $done={!!it.done}>
             {it.done && <Check size={11} strokeWidth={3.4} color={c('accentForeground')} />}
           </CheckBox>
@@ -814,7 +991,243 @@ export function ChecklistKind({ m }: { m: ChecklistModule }) {
             {it.meta && <RowMeta>{it.meta}</RowMeta>}
           </RowBody>
           {it.tagLabel && <Chip $bg={c.alpha(it.tagKey, 0.125)} $color={c(it.tagKey)}>{it.tagLabel}</Chip>}
-        </Row>
+        </CheckRow>
+      ))}
+
+      {!!m.chips?.length && (
+        <div style={{ paddingTop: 18 }}>
+          {m.groupLabel && <FieldLabel>{m.groupLabel}</FieldLabel>}
+          <ChipRow>
+            {m.chips.map((ch, i) => (
+              <HabitChip
+                key={i}
+                type="button"
+                aria-pressed={!!ch.done}
+                $on={!!ch.done}
+                $color={c(ch.colorKey ?? 'accent')}
+                $bg={c.alpha(ch.colorKey ?? 'accent', 0.12)}
+                onClick={onChipToggle ? () => onChipToggle(i, !ch.done) : undefined}
+                style={ch.busy ? { opacity: 0.55, pointerEvents: 'none' } : undefined}
+              >
+                {ch.label}
+              </HabitChip>
+            ))}
+          </ChipRow>
+        </div>
+      )}
+    </Stack>
+  )
+}
+
+/* ── hero ─────────────────────────────────────────────────────────────── */
+
+const HeroLayout = styled.div`
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing[5]};
+  flex-wrap: wrap;
+`
+
+const HeroValue = styled.div`
+  font-size: ${({ theme }) => theme.typography.fontSize['4xl']};
+  font-weight: ${({ theme }) => theme.typography.fontWeight.bold};
+  letter-spacing: -0.025em;
+  line-height: ${({ theme }) => theme.typography.lineHeight.tight};
+  font-variant-numeric: tabular-nums;
+
+  @media ${({ theme }) => theme.media.belowMd} {
+    font-size: ${({ theme }) => theme.typography.fontSize['3xl']};
+  }
+`
+
+const HeroStats = styled.div`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing[6]};
+  flex-shrink: 0;
+
+  @media ${({ theme }) => theme.media.belowMd} {
+    gap: ${({ theme }) => theme.spacing[5]};
+  }
+`
+
+export function HeroKind({ m }: { m: HeroModule }) {
+  const c = useModulePalette()
+  return (
+    <HeroLayout>
+      <div style={{ minWidth: 0 }}>
+        <HeroValue>{m.value}</HeroValue>
+        {m.delta && (
+          <div style={{ marginTop: 7, fontWeight: 700, color: c(m.deltaKey ?? 'success') }}>
+            {m.delta}
+          </div>
+        )}
+      </div>
+      {!!m.stats?.length && (
+        <HeroStats>
+          {m.stats.map((s, i) => (
+            <div key={i} style={{ textAlign: 'right' }}>
+              <FieldLabel style={{ marginBottom: 4 }}>{s.label}</FieldLabel>
+              <div style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: c(s.colorKey ?? 'fg') }}>
+                {s.value}
+              </div>
+            </div>
+          ))}
+        </HeroStats>
+      )}
+    </HeroLayout>
+  )
+}
+
+/* ── meters ───────────────────────────────────────────────────────────── */
+
+const MeterGrid = styled.div<{ $cols: number }>`
+  display: grid;
+  grid-template-columns: repeat(${({ $cols }) => $cols}, minmax(0, 1fr));
+  gap: ${({ theme }) => theme.spacing[4]};
+
+  @media ${({ theme }) => theme.media.belowLg} {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media ${({ theme }) => theme.media.belowMd} {
+    grid-template-columns: 1fr;
+  }
+`
+
+const MeterCard = styled.div<{ $interactive: boolean }>`
+  border: 1px solid ${({ theme }) => theme.color.border};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  background: ${({ theme }) => theme.color.muted};
+  padding: ${({ theme }) => theme.spacing[4]};
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  min-width: 0;
+  /* Resets for the button form a page opts into via onMeterClick. */
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: border-color 150ms, transform 150ms;
+
+  ${({ $interactive, theme }) =>
+    $interactive &&
+    css`
+      cursor: pointer;
+
+      &:hover {
+        border-color: ${theme.color.borderHover};
+        transform: translateY(-2px);
+      }
+    `}
+`
+
+const MeterFoot = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing[3]};
+  ${textRole('body-s')};
+  color: ${({ theme }) => theme.color.mutedForeground};
+  font-variant-numeric: tabular-nums;
+`
+
+export function MetersKind({ m }: { m: MetersModule }) {
+  const c = useModulePalette()
+  const { onMeterClick } = m
+  return (
+    <>
+      {m.summary && (
+        <div style={{ marginBottom: 18, color: c('mutedFg'), fontVariantNumeric: 'tabular-nums' }}>
+          {m.summary}
+        </div>
+      )}
+      {!m.meters.length && (
+        <div style={{ color: c('mutedFg'), padding: '10px 2px' }}>
+          {m.emptyLabel ?? 'Nothing to show.'}
+        </div>
+      )}
+      <MeterGrid $cols={m.cols ?? 3}>
+        {m.meters.map((mt, i) => (
+          <MeterCard
+            key={i}
+            as={onMeterClick ? 'button' : 'div'}
+            type={onMeterClick ? 'button' : undefined}
+            $interactive={!!onMeterClick}
+            onClick={onMeterClick ? () => onMeterClick(i) : undefined}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <RowTitle as="span" style={{ fontWeight: 700, flex: 1, minWidth: 0 }}>{mt.title}</RowTitle>
+              {mt.badge && (
+                <Chip $bg={c.alpha(mt.colorKey, 0.14)} $color={c(mt.colorKey)}>{mt.badge}</Chip>
+              )}
+            </div>
+            <Track $height={6}><TrackFill $pct={pct(mt.pct)} $color={c(mt.colorKey)} /></Track>
+            {(mt.left || mt.right) && (
+              <MeterFoot>
+                <span>{mt.left}</span>
+                <span>{mt.right}</span>
+              </MeterFoot>
+            )}
+          </MeterCard>
+        ))}
+      </MeterGrid>
+    </>
+  )
+}
+
+/* ── agenda ───────────────────────────────────────────────────────────── */
+
+const AgendaRow = styled(ClickableRow)`
+  gap: ${({ theme }) => theme.spacing[4]};
+`
+
+const AgendaTime = styled.span`
+  ${textRole('body-s')};
+  color: ${({ theme }) => theme.color.mutedForeground};
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  width: 46px;
+`
+
+/** The domain-coloured rule between the time gutter and the entry. */
+const AgendaRule = styled.span<{ $color: string }>`
+  width: 3px;
+  align-self: stretch;
+  min-height: 20px;
+  border-radius: ${({ theme }) => theme.radii.xs};
+  background: ${({ $color }) => $color};
+  flex-shrink: 0;
+`
+
+export function AgendaKind({ m }: { m: AgendaModule }) {
+  const c = useModulePalette()
+  const { onEntryClick } = m
+
+  if (!m.entries.length) {
+    return (
+      <div style={{ color: c('mutedFg'), padding: '10px 2px' }}>
+        {m.emptyLabel ?? 'Nothing scheduled.'}
+      </div>
+    )
+  }
+
+  return (
+    <Stack>
+      {m.entries.map((e, i) => (
+        <AgendaRow
+          key={i}
+          as={onEntryClick ? 'button' : 'div'}
+          type={onEntryClick ? 'button' : undefined}
+          onClick={onEntryClick ? () => onEntryClick(i) : undefined}
+        >
+          <AgendaTime>{e.time}</AgendaTime>
+          <AgendaRule $color={c(e.colorKey ?? 'accent')} />
+          <RowBody>
+            <RowTitle>{e.title}</RowTitle>
+            {e.meta && <RowMeta>{e.meta}</RowMeta>}
+          </RowBody>
+        </AgendaRow>
       ))}
     </Stack>
   )

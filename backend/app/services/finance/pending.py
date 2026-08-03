@@ -141,6 +141,10 @@ async def run_auto_commit_pending_transactions(user_id: uuid.UUID) -> None:
                     source="upi-tracker-auto",
                 )
                 pending.status = "approved"
+                # Marked here, not inferred from auto_commit_at later — that
+                # column is a deadline and stays set even when the user beat it.
+                pending.auto_committed = True
+                pending.committed_at = datetime.utcnow()
                 session.add(pending)
                 committed += 1
 

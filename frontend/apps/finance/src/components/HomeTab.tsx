@@ -1,492 +1,272 @@
-
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+/**
+ * Finance → Overview.
+ *
+ * The canvas's `finance:overview` composition, exactly: a full-width net-worth
+ * hero splitting assets from liabilities, three KPIs, then spend-by-category
+ * and recent transactions side by side.
+ *
+ * 2026-08-02: the hero was previously the first tile of a four-tile row and the
+ * transactions were a full-width table below a "Coming up" list. The canvas
+ * gives net worth its own card — it is the page's lead figure, not one KPI
+ * among four — and pairs the two half-width cards underneath.
+ *
+ * MONTH-OVER-MONTH DELTAS ARE MEASURED TO THE SAME DAY. Comparing this month
+ * to date against ALL of last month would report a fall every month until the
+ * last day of it. Previous-month rows are filtered to day-of-month <= today's
+ * before summing. The net-worth delta is the one figure with no same-day
+ * equivalent — it comes from the most recent prior-month snapshot, and is
+ * omitted rather than invented when no snapshot exists.
+ */
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
-import { Select, Badge, EmptyState, KpiCard } from '@ledgr/ui'
+import dayjs from 'dayjs'
+import { CreditCard, PieChart, Receipt } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
-import { formatCurrency } from '@ct/shared/lib/utils'
+import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
-import { ErrorState } from '@ledgr/ui'
-import { ProgressBar } from '@ct/shared/components/lumina';
-import { Card } from '@ledgr/ui';
-import styled, { useTheme, type DefaultTheme } from 'styled-components'
-import { TrendingDown, TrendingUp, Wallet, PiggyBank, CalendarClock, HeartPulse } from 'lucide-react'
+import { useDomainGoalsModule } from '@ct/shared/hooks/useDomainGoalsModule'
+import { formatAmount } from '@ct/shared/lib/utils'
 
-
-const StyledSkeleton = styled(Skeleton)<{ $height: string }>`
-  height: ${({ $height }) => $height};
-  width: 100%;
-`
-
-const LoadingWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: ${({ theme }) => `${theme.spacing[3]}`};
-`
-
-const LoadingHeader = styled(Skeleton)`
-  width: 100%;
-  height: 4rem;
-  border-radius: 0.75rem;
-`
-
-const LoadingGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: ${({ theme }) => `${theme.spacing[3]}`};
-`
-
-const LoadingGridItem7 = styled(Skeleton)`
-  grid-column: span 12 / span 12;
-  height: 300px;
-  border-radius: 0.75rem;
-  @media ${({ theme }) => theme.media.lg} {
-    grid-column: span 7 / span 7;
-  }
-`
-
-const LoadingGridItem5 = styled(Skeleton)`
-  grid-column: span 12 / span 12;
-  height: 300px;
-  border-radius: 0.75rem;
-  @media ${({ theme }) => theme.media.lg} {
-    grid-column: span 5 / span 5;
-  }
-`
-
-const KpiGrid = styled.div`
-  display: flex;
-  overflow-x: auto;
-  gap: ${({ theme }) => `${theme.spacing[2]}`};
-  padding-bottom: ${({ theme }) => `${theme.spacing[1]}`};
-  
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  &::-webkit-scrollbar { display: none; }
-  
-  > * {
-    flex: 0 0 auto;
-    min-width: 140px;
-  }
-
-  @media ${({ theme }) => theme.media.sm} {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: ${({ theme }) => `${theme.spacing[3]}`};
-    padding-bottom: 0;
-    
-    > * { min-width: 0; }
-  }
-`
-
-
-
-
-const AnalyticsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
-  gap: ${({ theme }) => `${theme.spacing[3]}`};
-  @media ${({ theme }) => theme.media.lg} {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-`
-
-/* Fixed height only where the 2-col grid needs equal cards — on mobile the
-   stacked cards auto-size so a short list doesn't leave a large dead area. */
-const AnalyticsCell = styled.div`
-  display: flex;
-  flex-direction: column;
-  @media ${({ theme }) => theme.media.lg} {
-    height: 380px;
-  }
-`
-
-const ListContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-`
-
-const ListItem = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.375rem 0;
-  border-bottom: 1px solid ${({ theme }) => theme.color.border}33;
-  
-  &:last-child {
-    border-bottom: 0;
-  }
-`
-
-const ItemTitle = styled.div`
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  font-weight: 500;
-  color: ${({ theme }) => theme.color.foreground};
-`
-
-const ItemSubtitle = styled.div`
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  color: ${({ theme }) => theme.color.mutedForeground};
-`
-
-const ItemAmountText = styled.span<{ $color?: string }>`
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  color: ${({ $color, theme }) => $color || theme.color.foreground};
-`
-
-const AmountContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`
-
-const NavBtn = styled.button`
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  padding: 0.125rem 0.375rem;
-  background-color: ${({ theme }) => theme.color.muted}80;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  border-radius: 0.25rem;
-  transition: background-color 0.2s;
-  font-weight: 500;
-  border: none;
-  cursor: pointer;
-
-  &:hover {
-    background-color: ${({ theme }) => theme.color.muted};
-  }
-`
-
-const HealthScoreTop = styled.div`
-  display: flex;
-  align-items: baseline;
-  gap: 0.25rem;
-  margin-bottom: 0.5rem;
-`
-
-const HealthScoreValue = styled.span`
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  font-weight: 600;
-  color: ${({ theme }) => theme.color.foreground};
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.025em;
-`
-
-const HealthScoreMax = styled.span`
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  color: ${({ theme }) => theme.color.mutedForeground};
-`
-
-const HealthScoreComponents = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-`
-
-const ComponentHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.125rem;
-`
-
-const ComponentLabel = styled.span`
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  font-weight: 500;
-  color: ${({ theme }) => theme.color.foreground};
-`
-
-const ComponentValue = styled.span`
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  font-variant-numeric: tabular-nums;
-  color: ${({ theme }) => theme.color.mutedForeground};
-`
-
-const ComponentDisplay = styled.div`
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  color: ${({ theme }) => theme.color.mutedForeground};
-  margin-top: 0.125rem;
-`
-
+/** Days until the next occurrence of a day-of-month. */
 function getDaysUntilDue(dueDay: number): number {
   const today = new Date()
   const currentDay = today.getDate()
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
-  if (dueDay >= currentDay) {
-    return dueDay - currentDay
-  }
+  if (dueDay >= currentDay) return dueDay - currentDay
   return daysInMonth - currentDay + dueDay
 }
 
-function ordinal(n: number) {
-  const s = ['th', 'st', 'nd', 'rd']
-  const v = n % 100
-  return n + (s[(v - 20) % 10] || s[v] || s[0])
+/** Two-letter monogram for a merchant, the canvas's stand-in for a logo. */
+function monogram(label: string): string {
+  const words = label.trim().split(/\s+/).filter(Boolean)
+  if (!words.length) return '—'
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
+  return (words[0][0] + words[1][0]).toUpperCase()
 }
 
-function urgencyColor(days: number): 'destructive' | 'warning' | 'success' {
-  if (days <= 3) return 'destructive'
-  if (days <= 7) return 'warning'
-  return 'success'
+/** "↑ 4.2%" / "↓ 6%" with the arrow the direction actually earns. */
+function deltaLabel(pct: number, suffix: string): string {
+  const arrow = pct >= 0 ? '↑' : '↓'
+  return `${arrow} ${Math.abs(pct).toFixed(Math.abs(pct) < 10 ? 1 : 0)}% ${suffix}`
 }
-
-
-
-/**
- * Financial-health score bands.
- *
- * These are STATUS, not chart series — they say "this is fine / this needs
- * you", so they read from the semantic status tokens and must never borrow a
- * categorical slot from theme.chart.
- *
- * Note "Fair" and "Needs Attention" previously shared the exact same hex
- * (#F4A261), so the two worst bands were visually identical — the bar looked
- * the same whether a metric was merely fair or actually needed attention.
- */
-const BAND_STYLES: Record<string, { label: string; tag: string; barColor: (t: DefaultTheme) => string }> = {
-  excellent: { label: 'Excellent', tag: 'success', barColor: t => t.color.success },
-  good: { label: 'Good', tag: 'processing', barColor: t => t.color.mutedForeground },
-  fair: { label: 'Fair', tag: 'warning', barColor: t => t.color.warning },
-  attention: { label: 'Needs Attention', tag: 'error', barColor: t => t.color.destructive },
-}
-
-function scoreBand(score: number): string {
-  return score >= 80 ? 'excellent' : score >= 60 ? 'good' : score >= 40 ? 'fair' : 'attention'
-}
-
-function HealthScoreCard({ data, delay = 0 }: { data: import('@ct/shared/types').FinanceHealthScore | undefined; delay?: 0 | 100 | 200 | 300 }) {
-  const theme = useTheme()
-  const [healthPeriod, setHealthPeriod] = useState('current')
-
-  if (!data) {
-    return (
-      <Card title="Financial Health" subtitle="Your overall financial score" icon={<HeartPulse size={16} />} hoverable style={{ height: '100%' }}>
-        <StyledSkeleton $height="10rem" />
-      </Card>
-    )
-  }
-  const currentData = (healthPeriod === 'prev' && data.prev) ? data.prev : data
-  return (
-    <Card
-      title="Financial Health"
-      subtitle="Your overall financial score"
-      icon={<HeartPulse size={16} />}
-      action={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Select
-            size="sm"
-            fullWidth={false}
-            options={[
-              { label: 'Current', value: 'current' },
-              { label: 'Previous', value: 'prev' },
-            ]}
-            value={healthPeriod}
-            onChange={(val) => setHealthPeriod(val as string)}
-          />
-        </div>
-      }
-      hoverable
-      style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-    >
-      <HealthScoreTop>
-        <HealthScoreValue>{currentData.score}</HealthScoreValue>
-        <HealthScoreMax>/ 100</HealthScoreMax>
-      </HealthScoreTop>
-      <HealthScoreComponents>
-        {currentData.components.map(c => (
-          <div key={c.key}>
-            <ComponentHeader>
-              <ComponentLabel>{c.label}</ComponentLabel>
-              <ComponentValue>{c.available ? c.score : '—'}</ComponentValue>
-            </ComponentHeader>
-            <ProgressBar
-              size="sm"
-              value={c.available ? (c.score ?? 0) : 0}
-              color={c.available ? BAND_STYLES[scoreBand(c.score ?? 0)].barColor(theme) : theme.color.muted}
-            />
-            <ComponentDisplay>{c.display}</ComponentDisplay>
-          </div>
-        ))}
-      </HealthScoreComponents>
-    </Card>
-  )
-}
-
-function NavButton({ onClick }: { onClick: () => void }) {
-  return (
-    <NavBtn onClick={onClick}>
-      See all
-    </NavBtn>
-  )
-}
-
 
 export function HomeTab() {
   const navigate = useNavigate()
-
-  const [upcomingFilter, setUpcomingFilter] = useState('all')
-
+  /* Overview is the ONLY area surface that shows goals — they are set in
+     Workspace. Renders nothing when this domain has no active goals. */
+  const goalsModule = useDomainGoalsModule('finance')
+  const now = dayjs()
   const month = format(new Date(), 'yyyy-MM')
+  const prevMonth = now.subtract(1, 'month').format('YYYY-MM')
 
-  const { data: netWorth, isLoading: loadingSnapshot, isError: errorSnapshot } = useQuery({
+  const { data: netWorth, isLoading: loadingSnapshot } = useQuery({
     queryKey: ['finance', 'net-worth'],
     queryFn: financeApi.netWorth,
   })
-
-  const { data: bills } = useQuery({
-    queryKey: ['finance', 'bills'],
-    queryFn: financeApi.bills,
+  const { data: snapshots } = useQuery({
+    queryKey: ['finance', 'snapshots'],
+    queryFn: financeApi.snapshots,
+    staleTime: 300_000,
   })
-
-  const { data: loans } = useQuery({
-    queryKey: ['finance', 'loans'],
-    queryFn: financeApi.loans,
-  })
-
+  const { data: bills } = useQuery({ queryKey: ['finance', 'bills'], queryFn: financeApi.bills })
+  const { data: loans } = useQuery({ queryKey: ['finance', 'loans'], queryFn: financeApi.loans })
+  /*
+   * 500, not the default 50: every figure on this page is a SUM over the
+   * month's rows, so a truncated page would silently under-report the total.
+   */
   const { data: expenses, isLoading: loadingExpenses } = useQuery({
     queryKey: ['finance', 'expenses', month],
-    queryFn: () => financeApi.expenses(month, undefined, 100, 0),
+    queryFn: () => financeApi.expenses(month, undefined, 500, 0),
   })
-
-
+  const { data: prevExpenses } = useQuery({
+    queryKey: ['finance', 'expenses', prevMonth],
+    queryFn: () => financeApi.expenses(prevMonth, undefined, 500, 0),
+    staleTime: 300_000,
+  })
   const { data: income } = useQuery({
     queryKey: ['finance', 'income', month],
     queryFn: () => financeApi.income(month),
   })
-
-  const { data: healthScore } = useQuery({
-    queryKey: ['finance', 'health-score'],
-    queryFn: financeApi.healthScore,
+  const { data: prevIncome } = useQuery({
+    queryKey: ['finance', 'income', prevMonth],
+    queryFn: () => financeApi.income(prevMonth),
+    staleTime: 300_000,
   })
 
-  const expenseItems = expenses?.items ?? []
+  const modules = useMemo<ModuleSpec[]>(() => {
+    const today = now.date()
+    const expenseItems = expenses?.items ?? []
 
-  const totalExpenses = useMemo(() => expenseItems.reduce((acc, e) => acc + Number(e.amount), 0), [expenseItems])
-  const totalIncome = useMemo(() => (income ?? []).reduce((acc, i) => acc + Number(i.amount), 0), [income])
-  const savingsRate = totalIncome > 0 ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100) : null
+    const sum = (rows: Array<{ amount: number | string }>) =>
+      rows.reduce((acc, r) => acc + Number(r.amount), 0)
+    /** Same-day cut: only rows from the first N days of the previous month. */
+    const toDate = <T extends { logged_at: string }>(rows: T[]) =>
+      rows.filter(r => dayjs(r.logged_at).date() <= today)
 
-  const upcoming = useMemo(() => {
-    const billItems = (bills ?? []).filter(b => b.is_active).map(b => ({
-      id: `bill-${b.id}`,
-      name: b.name,
-      amount: Number(b.amount),
-      days: getDaysUntilDue(b.due_day),
-      dueDay: b.due_day,
-      type: 'Bill' as const,
-    }))
-    const loanItems = (loans ?? []).filter(l => l.is_active).map(l => ({
-      id: `loan-${l.id}`,
-      name: l.name,
-      amount: Number(l.emi_amount),
-      days: getDaysUntilDue(l.emi_day),
-      dueDay: l.emi_day,
-      type: 'EMI' as const,
-    }))
-    const filtered = [...billItems, ...loanItems].filter(item => {
-      if (upcomingFilter === '7d') return item.days <= 7
-      return true
-    })
-    return filtered.sort((a, b) => a.days - b.days).slice(0, 5)
-  }, [bills, loans, upcomingFilter])
+    const totalExpenses = sum(expenseItems)
+    const totalIncome = sum(income ?? [])
+    const prevExpenseTotal = sum(toDate(prevExpenses?.items ?? []))
+    const prevIncomeTotal = sum(toDate(prevIncome ?? []))
 
-  if (loadingSnapshot || loadingExpenses) {
-    return (
-      <LoadingWrapper>
-        <LoadingHeader />
-        <LoadingGrid>
-          <LoadingGridItem7 />
-          <LoadingGridItem5 />
-        </LoadingGrid>
-      </LoadingWrapper>
-    )
-  }
+    const savingsRate = totalIncome > 0
+      ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100)
+      : null
+    const prevSavingsRate = prevIncomeTotal > 0
+      ? Math.round(((prevIncomeTotal - prevExpenseTotal) / prevIncomeTotal) * 100)
+      : null
 
-  if (errorSnapshot) {
-    return <ErrorState title="Could not load financial data" />
-  }
+    const assets = (netWorth?.accounts_total ?? 0) + (netWorth?.investments_total ?? 0)
+    const liabilities = netWorth?.loans_outstanding ?? 0
 
-  return (
-    <>
-      <KpiGrid>
-        <KpiCard
-          label="Net Worth"
-          value={formatCurrency(Number(netWorth?.net_worth ?? 0))}
-          color={Number(netWorth?.net_worth ?? 0) < 0 ? 'rose' : undefined}
-          icon={Wallet}
-        />
-        <KpiCard
-          label="Spent"
-          value={formatCurrency(totalExpenses)}
-          color="rose"
-          icon={TrendingDown}
-        />
-        <KpiCard
-          label="Income"
-          value={formatCurrency(totalIncome)}
-          color="primary"
-          icon={TrendingUp}
-        />
-        <KpiCard
-          label="Savings Rate"
-          value={savingsRate === null ? '—' : `${savingsRate}%`}
-          color={savingsRate !== null && savingsRate >= 20 ? 'primary' : undefined}
-          icon={PiggyBank}
-        />
-      </KpiGrid>
+    /* Most recent snapshot from a month before this one, with a usable figure. */
+    const priorSnapshot = (snapshots ?? [])
+      .filter(s => s.net_worth != null && s.snapshot_month < month)
+      .sort((a, b) => b.snapshot_month.localeCompare(a.snapshot_month))[0]
+    const nwDelta = priorSnapshot && Number(priorSnapshot.net_worth) !== 0
+      ? ((netWorth?.net_worth ?? 0) - Number(priorSnapshot.net_worth)) / Math.abs(Number(priorSnapshot.net_worth)) * 100
+      : null
 
-      <AnalyticsGrid>
-        <AnalyticsCell>
-          <Card
-            title="Upcoming Payments"
-            subtitle="Upcoming bills and EMIs"
-            icon={<CalendarClock size={16} />}
-            action={
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Select
-                  size="sm"
-                  fullWidth={false}
-                  options={[
-                    { label: 'All Due', value: 'all' },
-                    { label: 'Next 7 Days', value: '7d' },
-                  ]}
-                  value={upcomingFilter}
-                  onChange={(val) => setUpcomingFilter(val as string)}
-                />
-                <NavButton onClick={() => navigate('/app/finance/settings?section=bills')} />
-              </div>
-            } 
-            hoverable style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
-          >
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-              {upcoming.length === 0 ? (
-                <EmptyState title="No bills or EMIs due" />
-              ) : (
-                <ListContainer>
-                  {upcoming.map(item => (
-                    <ListItem key={item.id}>
-                      <div>
-                        <ItemTitle>{item.name}</ItemTitle>
-                        <ItemSubtitle>{item.type} · due {ordinal(item.dueDay)}</ItemSubtitle>
-                      </div>
-                      <AmountContainer>
-                        <ItemAmountText>{formatCurrency(item.amount)}</ItemAmountText>
-                        <Badge tone={urgencyColor(item.days)} style={{ fontSize: '10px', lineHeight: '1.2', padding: '0 4px', margin: 0 }}>{item.days === 0 ? 'Today' : `${item.days}d`}</Badge>
-                      </AmountContainer>
-                    </ListItem>
-                  ))}
-                </ListContainer>
-              )}
-            </div>
-          </Card>
-        </AnalyticsCell>
+    // Next obligations across bills and loan EMIs, soonest first.
+    const upcoming = [
+      ...(bills ?? []).filter(b => b.is_active).map(b => ({
+        amount: Number(b.amount), days: getDaysUntilDue(b.due_day),
+      })),
+      ...(loans ?? []).filter(l => l.is_active).map(l => ({
+        amount: Number(l.emi_amount), days: getDaysUntilDue(l.emi_day),
+      })),
+    ].sort((a, b) => a.days - b.days)
+    const dueSoon = upcoming.filter(u => u.days <= 7)
+    const soonest = upcoming[0]
 
-        <AnalyticsCell>
-          <HealthScoreCard data={healthScore} delay={300} />
-        </AnalyticsCell>
-      </AnalyticsGrid>
-    </>
-  )
+    const byCategory = new Map<string, number>()
+    for (const e of expenseItems) {
+      const key = e.category || 'Uncategorised'
+      byCategory.set(key, (byCategory.get(key) ?? 0) + Number(e.amount))
+    }
+    const topCategories = [...byCategory.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6)
+    const topSpend = topCategories[0]?.[1] ?? 0
+
+    const recent = [...expenseItems]
+      .sort((a, b) => b.logged_at.localeCompare(a.logged_at))
+      .slice(0, 5)
+
+    const specs: ModuleSpec[] = [
+      {
+        kind: 'hero',
+        span: 12,
+        title: 'Net Worth',
+        subtitle: 'Combined value across all accounts',
+        icon: CreditCard,
+        value: formatAmount(netWorth?.net_worth ?? 0),
+        ...(nwDelta !== null && {
+          delta: deltaLabel(nwDelta, 'vs last month'),
+          deltaKey: nwDelta >= 0 ? 'success' : 'destructive',
+        }),
+        stats: [
+          { label: 'Assets', value: formatAmount(assets) },
+          { label: 'Liabilities', value: formatAmount(liabilities) },
+        ],
+      },
+      {
+        kind: 'tiles',
+        span: 12,
+        cols: 3,
+        tiles: [
+          {
+            label: 'Spend this month',
+            value: formatAmount(totalExpenses),
+            ...(prevExpenseTotal > 0 && {
+              // Spending less than last month is the good direction here.
+              sub: deltaLabel(
+                (totalExpenses - prevExpenseTotal) / prevExpenseTotal * 100,
+                'vs last month',
+              ),
+              subKey: totalExpenses <= prevExpenseTotal ? 'success' : 'destructive',
+            }),
+          },
+          {
+            label: 'Savings rate',
+            value: savingsRate === null ? '—' : `${savingsRate}%`,
+            ...(savingsRate === null
+              ? { sub: 'Log income to see this' }
+              : prevSavingsRate === null
+                ? { sub: `${formatAmount(totalIncome)} in, ${formatAmount(totalExpenses)} out` }
+                : {
+                    sub: `${savingsRate >= prevSavingsRate ? '↑' : '↓'} ${Math.abs(savingsRate - prevSavingsRate)}pts`,
+                    subKey: savingsRate >= prevSavingsRate ? 'success' : 'destructive',
+                  }),
+          },
+          {
+            label: 'Upcoming bills',
+            value: formatAmount(dueSoon.reduce((acc, u) => acc + u.amount, 0)),
+            sub: !soonest
+              ? 'Nothing scheduled'
+              : soonest.days === 0
+                ? 'Due today'
+                : `Due in ${soonest.days} day${soonest.days === 1 ? '' : 's'}`,
+            subKey: soonest && soonest.days <= 3 ? 'destructive' : 'warning',
+          },
+        ],
+      },
+    ]
+
+    if (topCategories.length) {
+      specs.push({
+        kind: 'progress',
+        span: 6,
+        title: 'Spend by Category',
+        subtitle: 'Where your money went this month',
+        icon: PieChart,
+        /*
+         * Bars are scaled against the LARGEST category, not the month's total.
+         * Against the total every bar but the first is a sliver; against the
+         * leader the comparison the card exists to make is legible.
+         */
+        rows: topCategories.map(([name, amount]) => ({
+          title: name,
+          value: formatAmount(amount),
+          valueKey: 'fg',
+          pct: topSpend > 0 ? (amount / topSpend) * 100 : 0,
+          colorKey: 'finance',
+        })),
+      })
+    }
+
+    if (recent.length) {
+      specs.push({
+        kind: 'rows',
+        span: topCategories.length ? 6 : 12,
+        title: 'Recent Transactions',
+        subtitle: 'Latest activity across accounts',
+        icon: Receipt,
+        action: 'View all',
+        actionVariant: 'link',
+        onAction: () => navigate('/app/finance/transactions'),
+        rows: recent.map(e => {
+          const label = e.description || e.category || 'Transaction'
+          const when = dayjs(e.logged_at)
+          return {
+            mono: monogram(label),
+            title: label,
+            meta: when.isSame(now, 'day')
+              ? `Today, ${when.format('h:mm A')}`
+              : when.isSame(now.subtract(1, 'day'), 'day')
+                ? 'Yesterday'
+                : when.format('D MMM'),
+            value: `-${formatAmount(Number(e.amount))}`,
+            valueKey: 'destructive',
+          }
+        }),
+      })
+    }
+
+    return specs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [netWorth, snapshots, bills, loans, expenses, prevExpenses, income, prevIncome])
+
+  if (loadingSnapshot || loadingExpenses) return <Skeleton style={{ height: 360 }} />
+
+  return <ModuleGrid modules={goalsModule ? [...modules, goalsModule] : modules} />
 }

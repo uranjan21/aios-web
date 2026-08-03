@@ -15,8 +15,7 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import styled from 'styled-components'
-import { LayoutGrid } from 'lucide-react'
-import { PageHeader, textRole } from '@ledgr/ui'
+import { textRole } from '@ledgr/ui'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
 import { ModuleGrid } from '@ct/shared/components/modules'
 import { PAGES, PAGE_META } from '@ct/shared/components/modules/pages'
@@ -65,14 +64,9 @@ export function DesignGalleryPage() {
   return (
     <PageContainer>
       <PageContent>
-        <PageHeader
-          icon={<LayoutGrid size={24} />}
-          eyebrow="Design"
-          title={key}
-          subtitle={PAGE_META[key] ?? 'Module composition from the redesign canvas'}
-        />
 
         <Note>
+          <strong>{key}</strong> — {PAGE_META[key] ?? 'Module composition from the redesign canvas'}.
           Layouts from <strong>Control Tower Redesign.dc.html</strong>, rendered by the
           production <code>ModuleGrid</code>. The numbers are the designer&rsquo;s sample data —
           each page moves to its real route once Phase 4 builds its modules from live API data.

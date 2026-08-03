@@ -1,330 +1,225 @@
-import { useState } from 'react'
-import styled from 'styled-components'
-import { useQuery } from '@tanstack/react-query'
-import { Card, PageHeader, Button, Input, EmptyState, focusRing } from '@ledgr/ui'
-import { goalsApi } from '@ct/shared/api/goals'
-import { capturesApi } from '@ct/shared/api/areas'
-import { insightsApi } from '@ct/shared/api/insights'
-import { CheckCircle2, XCircle, ArrowRight, CalendarCheck } from 'lucide-react'
+/**
+ * Today → Weekly review.
+ *
+ * Phase 4 conversion to the canvas's `today:review` composition —
+ * progress(7) · checklist(5) · notes(7) · timeline(5) — rebuilt from live data.
+ * It replaces the old four-step wizard: the canvas puts the whole ritual on one
+ * page, so the scorecard, the check-in, the reflection composer and the week's
+ * writing all read at once instead of behind Next buttons.
+ *
+ * Where each module comes from:
+ *  - scorecard  → `/insights/pulse`, the same per-domain deltas the dashboard
+ *                 shows, scored as movement in the direction that is good.
+ *  - checklist  → the user's open goals. Ticking one records progress, which is
+ *                 exactly what the old wizard's step 2 did.
+ *  - reflection → writes a real journal entry, which is what the canvas's own
+ *                 subtitle promises.
+ *  - timeline   → what was written this week, falling back to the latest brief.
+ *
+ * ONE DEPARTURE: the canvas's checklist is cross-domain chores ("move
+ * unfinished sprint tasks"). Nothing generates that list, so the checklist is
+ * the goals — the thing a weekly review is for, and the one list where ticking
+ * a box has a real effect.
+ */
+import { useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { PageDivider } from '@ct/shared/components/layout/PageDivider'
+import dayjs from 'dayjs'
+import { BarChart3, CheckSquare, FileText, Flag } from 'lucide-react'
+import { api } from '@ct/shared/api/client'
+import { goalsApi } from '@ct/shared/api/goals'
+import { careerApi } from '@ct/shared/api/areas'
+import { insightsApi } from '@ct/shared/api/insights'
+import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
+import { isActiveDomain } from '@ct/shared/config/domains'
+import { toCalendarDate } from '@ct/shared/lib/calendarDate'
 
-const ReviewContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: ${({ theme }) => `${theme.spacing[6]}`};
-  max-width: 860px;
-  margin: 0 auto;
-  width: 100%;
-`
+interface PulseTile {
+  domain: string
+  label: string
+  value: number
+  unit: 'currency' | 'count'
+  delta_pct: number | null
+  delta_good_when: 'up' | 'down'
+  series: number[] | null
+}
 
-const SummaryBox = styled.div`
-  padding: ${({ theme }) => `${theme.spacing[4]}`};
-  background: ${({ theme }) => theme.color.muted};
-  border-radius: ${({ theme }) => theme.radii.md};
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  line-height: 1.6;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  white-space: pre-wrap;
-`
-
-const Attribution = styled.div`
-  margin-top: ${({ theme }) => `${theme.spacing[2]}`};
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  font-weight: 500;
-  color: ${({ theme }) => theme.color.mutedForeground};
-`
-
-const GoalRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: ${({ theme }) => `${theme.spacing[3]}`};
-  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[4]}`};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.md};
-`
-
-const GoalTitle = styled.div`
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  font-weight: 600;
-  color: ${({ theme }) => theme.color.foreground};
-`
-
-const GoalCategory = styled.div`
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  margin-top: ${({ theme }) => `${theme.spacing[0.5]}`};
-`
-
-const RateBtn = styled.button<{ $tone: 'good' | 'bad'; $selected?: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: ${({ theme }) => `${theme.spacing[2]}`};
-  border: none;
-  background: ${({ theme, $selected, $tone }) =>
-    $selected ? ($tone === 'good' ? `${theme.color.success}1A` : `${theme.color.destructive}1A`) : 'transparent'};
-  color: ${({ theme, $tone }) => ($tone === 'good' ? theme.color.success : theme.color.destructive)};
-  border-radius: ${({ theme }) => theme.radii.sm};
-  cursor: pointer;
-  transition: background 120ms;
-  &:hover {
-    background: ${({ theme, $tone }) =>
-      $tone === 'good' ? `${theme.color.success}1A` : `${theme.color.destructive}1A`};
-  }
-  ${focusRing}
-`
-
-const FocusRow = styled.div`
-  display: flex;
-  gap: ${({ theme }) => `${theme.spacing[2]}`};
-`
-
-const FocusList = styled.ul`
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: ${({ theme }) => `${theme.spacing[2]}`};
-`
-
-const FocusItem = styled.li`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: ${({ theme }) => `${theme.spacing[3]}`};
-  padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[3.5]}`};
-  background: ${({ theme }) => theme.color.muted};
-  border-radius: ${({ theme }) => theme.radii.sm};
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  color: ${({ theme }) => theme.color.foreground};
-`
-
-const RemoveBtn = styled.button`
-  background: none;
-  border: none;
-  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
-  font-size: ${({ theme }) => theme.typography.fontSize.base};
-  color: ${({ theme }) => theme.color.mutedForeground};
-  cursor: pointer;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  &:hover {
-    color: ${({ theme }) => theme.color.foreground};
-    background: ${({ theme }) => theme.color.background};
-  }
-`
-
-const StepActions = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  margin-top: ${({ theme }) => `${theme.spacing[4]}`};
-`
-
-const DoneWrap = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[3]}`};
-  padding: ${({ theme }) => `${theme.spacing[8]} 0`};
-  text-align: center;
-`
-
-const DoneIcon = styled.div`
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: ${({ theme }) => theme.color.success}1F;
-  color: ${({ theme }) => theme.color.success};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`
-
-const DoneTitle = styled.h2`
-  margin: 0;
-  font-size: ${({ theme }) => theme.typography.fontSize.lg};
-  font-weight: 600;
-  color: ${({ theme }) => theme.color.foreground};
-`
-
-const DoneSub = styled.p`
-  margin: 0;
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  color: ${({ theme }) => theme.color.mutedForeground};
-`
+const PROMPTS = [
+  { label: 'What actually moved this week', placeholder: 'One or two things that mattered…', height: '82px' },
+  { label: 'What slipped, and why', placeholder: 'Be specific about the cause, not the guilt…', height: '82px' },
+  { label: 'One priority for next week', placeholder: 'The single thing that would make next week a win…', height: '62px' },
+]
 
 export function ReviewPage() {
-  const [step, setStep] = useState(1)
-  const [focusInput, setFocusInput] = useState('')
-  const [focusItems, setFocusItems] = useState<string[]>([])
-  const [marked, setMarked] = useState<Record<string, 'good' | 'bad'>>({})
-  const [submitting, setSubmitting] = useState(false)
+  const qc = useQueryClient()
+  const [answers, setAnswers] = useState<string[]>(['', '', ''])
 
+  const weekStart = dayjs().startOf('week')
+  const weekEnd = weekStart.add(6, 'day')
+
+  const { data: tiles = [] } = useQuery({
+    queryKey: ['insights', 'pulse'],
+    queryFn: () => api.get<PulseTile[]>('/insights/pulse').then(r => r.data),
+    staleTime: 5 * 60_000,
+  })
   const { data: goals = [] } = useQuery({ queryKey: ['goals'], queryFn: goalsApi.list, staleTime: 60_000 })
   const { data: briefing } = useQuery({
     queryKey: ['insights', 'briefing', 'today'],
     queryFn: insightsApi.briefingToday,
     staleTime: 10 * 60_000,
   })
+  const { data: journal = [] } = useQuery({
+    queryKey: ['career', 'journal'],
+    queryFn: () => careerApi.journal(30),
+    staleTime: 60_000,
+  })
 
-  // SummaryBox renders plain text — strip markdown bold markers from the briefing.
-  const summaryText =
-    briefing?.status === 'ready' && briefing.briefing
-      ? briefing.briefing.content_md.replace(/\*\*/g, '')
-      : 'No AI summary available yet — walk through your week below and check in on each goal.'
+  /** Ticking a goal records a check-in — the old wizard's step 2. */
+  const checkIn = useMutation({
+    mutationFn: ({ id, onTrack }: { id: string; onTrack: boolean }) =>
+      goalsApi.addProgress(id, { progress_score: onTrack ? 100 : 0, ai_insight: 'Weekly review' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals'] })
+      toast.success('Goal checked in')
+    },
+    onError: () => toast.error('Failed to update progress'),
+  })
 
-  const handleGoalProgress = async (goalId: string, onTrack: boolean) => {
-    setMarked(prev => ({ ...prev, [goalId]: onTrack ? 'good' : 'bad' }))
-    try {
-      await goalsApi.addProgress(goalId, { progress_score: onTrack ? 100 : 0, ai_insight: 'Weekly review' })
-    } catch {
-      toast.error('Failed to update progress')
+  const submitReflection = useMutation({
+    mutationFn: () => {
+      const body = PROMPTS
+        .map((p, i) => (answers[i].trim() ? `**${p.label}**\n\n${answers[i].trim()}` : null))
+        .filter(Boolean)
+        .join('\n\n')
+      return careerApi.createJournalEntry({
+        body,
+        title: `Weekly review — ${weekStart.format('D MMM')} to ${weekEnd.format('D MMM')}`,
+        entry_date: toCalendarDate(new Date()),
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['career', 'journal'] })
+      setAnswers(['', '', ''])
+      toast.success('Week closed — reflection saved to your journal')
+    },
+    onError: () => toast.error('Could not save that reflection'),
+  })
+
+  /** Journal entries dated inside this week are the week's record. */
+  const thisWeeksEntries = useMemo(
+    () => journal.filter(e => {
+      const d = dayjs(e.entry_date)
+      return !d.isBefore(weekStart, 'day') && !d.isAfter(weekEnd, 'day')
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [journal],
+  )
+
+  const modules = useMemo<ModuleSpec[]>(() => {
+    const active = tiles.filter(t => isActiveDomain(t.domain))
+
+    // A domain scores on how far it moved in the direction that is good for it.
+    // No comparison reads as 50 — holding steady, neither win nor slip.
+    const scoreOf = (t: PulseTile) => {
+      if (t.delta_pct === null) return 50
+      const signed = t.delta_good_when === 'up' ? t.delta_pct : -t.delta_pct
+      return Math.max(0, Math.min(100, Math.round(50 + signed)))
     }
-  }
 
-  const handleAddFocus = () => {
-    if (!focusInput.trim() || focusItems.length >= 3) return
-    setFocusItems([...focusItems, focusInput.trim()])
-    setFocusInput('')
-  }
+    const openGoals = goals.filter(g => g.status !== 'completed' && g.status !== 'archived')
+    const specs: ModuleSpec[] = []
 
-  const handleFinish = async () => {
-    setSubmitting(true)
-    try {
-      for (const item of focusItems) {
-        await capturesApi.create(`focus ${item}`)
-      }
-      toast.success('Weekly review completed!')
-      setStep(4)
-    } catch {
-      toast.error('Failed to save focus items')
-    } finally {
-      setSubmitting(false)
+    if (active.length) {
+      specs.push({
+        kind: 'progress',
+        span: 7,
+        title: 'Week scorecard',
+        subtitle: `${weekStart.format('ddd D MMM')} – ${weekEnd.format('ddd D MMM')}`,
+        icon: BarChart3,
+        rows: active.map((t) => {
+          const score = scoreOf(t)
+          return {
+            title: t.label,
+            meta: t.delta_pct === null
+              ? 'No comparison against last week yet'
+              : `${t.delta_pct >= 0 ? '+' : ''}${t.delta_pct.toFixed(0)}% vs last week · better when ${t.delta_good_when}`,
+            pct: score,
+            value: String(score),
+            colorKey: t.domain,
+          }
+        }),
+      })
     }
-  }
+
+    specs.push({
+      kind: 'checklist',
+      span: active.length ? 5 : 12,
+      title: 'Goal check-in',
+      subtitle: openGoals.length
+        ? `${openGoals.length} open goal${openGoals.length === 1 ? '' : 's'} · tick the ones on track`
+        : 'No open goals to review',
+      icon: CheckSquare,
+      items: openGoals.map(g => ({
+        label: g.title,
+        meta: g.target_date ? `Target ${dayjs(g.target_date).format('D MMM YYYY')}` : 'No target date',
+        done: false,
+        tagLabel: g.category,
+        tagKey: isActiveDomain(g.category) ? g.category : 'mutedFg',
+        busy: checkIn.isPending && checkIn.variables?.id === g.id,
+      })),
+      onToggle: (i: number) => checkIn.mutate({ id: openGoals[i].id, onTrack: true }),
+    })
+
+    specs.push({
+      kind: 'notes',
+      span: 7,
+      title: 'Reflection',
+      subtitle: 'Saved to your career journal on submit',
+      icon: FileText,
+      cta: 'Close the week',
+      prompts: PROMPTS,
+      values: answers,
+      onValueChange: (i: number, v: string) => setAnswers(a => a.map((x, j) => (j === i ? v : x))),
+      onSubmit: () => submitReflection.mutate(),
+      submitting: submitReflection.isPending,
+      hideDraft: true,
+    })
+
+    specs.push({
+      kind: 'timeline',
+      span: 5,
+      title: 'Written this week',
+      subtitle: thisWeeksEntries.length
+        ? `${thisWeeksEntries.length} journal entr${thisWeeksEntries.length === 1 ? 'y' : 'ies'}`
+        : 'Nothing written yet this week',
+      icon: Flag,
+      entries: thisWeeksEntries.length
+        ? thisWeeksEntries.map(e => ({
+            title: e.title ?? 'Journal entry',
+            body: e.body.replace(/\*\*/g, ' ').slice(0, 140),
+            date: dayjs(e.entry_date).format('ddd'),
+            ...(e.tags ? { tagLabel: e.tags.split(',')[0], colorKey: 'career' } : {}),
+          }))
+        : briefing?.status === 'ready' && briefing.briefing
+          ? [{
+              title: 'Latest daily brief',
+              body: briefing.briefing.content_md.replace(/\*\*/g, '').slice(0, 240),
+              date: dayjs(briefing.briefing.date).format('ddd'),
+              tagLabel: 'AI',
+              colorKey: 'accent',
+            }]
+          : [],
+    })
+
+    return specs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tiles, goals, answers, thisWeeksEntries, briefing, checkIn.isPending, submitReflection.isPending])
 
   return (
     <PageContainer>
       <PageContent>
-        <ReviewContainer>
-      <PageHeader 
-        icon={<CalendarCheck />}
-        eyebrow="Routine"
-        title="Weekly Review" 
-        subtitle="Your Sunday ritual to align and focus" 
-      />
-      <PageDivider />
-
-      {step === 1 && (
-        <Card title="1. Week in Review" icon={<CalendarCheck size={16} />}>
-          <SummaryBox>{summaryText}</SummaryBox>
-          {briefing?.status === 'ready' && <Attribution>AI · from your daily briefing</Attribution>}
-          <StepActions>
-            <Button variant="primary" size="sm" onClick={() => setStep(2)}>
-              Next: Goal Check-in <ArrowRight size={14} style={{ marginLeft: 4 }} />
-            </Button>
-          </StepActions>
-        </Card>
-      )}
-
-      {step === 2 && (
-        <Card title="2. Goal Check-in" icon={<CalendarCheck size={16} />}>
-          {goals.length === 0 ? (
-            <EmptyState
-              title="No active goals"
-              description="Add goals on the Goals page to check in on them each week."
-            />
-          ) : (
-            <FocusList as="div">
-              {goals.map(goal => (
-                <GoalRow key={goal.id}>
-                  <div>
-                    <GoalTitle>{goal.title}</GoalTitle>
-                    <GoalCategory>{goal.category}</GoalCategory>
-                  </div>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    <RateBtn
-                      $tone="bad"
-                      $selected={marked[goal.id] === 'bad'}
-                      onClick={() => handleGoalProgress(goal.id, false)}
-                      aria-label={`Mark ${goal.title} behind`}
-                    >
-                      <XCircle size={18} />
-                    </RateBtn>
-                    <RateBtn
-                      $tone="good"
-                      $selected={marked[goal.id] === 'good'}
-                      onClick={() => handleGoalProgress(goal.id, true)}
-                      aria-label={`Mark ${goal.title} on track`}
-                    >
-                      <CheckCircle2 size={18} />
-                    </RateBtn>
-                  </div>
-                </GoalRow>
-              ))}
-            </FocusList>
-          )}
-          <StepActions>
-            <Button variant="primary" size="sm" onClick={() => setStep(3)}>
-              Next: Set Focus <ArrowRight size={14} style={{ marginLeft: 4 }} />
-            </Button>
-          </StepActions>
-        </Card>
-      )}
-
-      {step === 3 && (
-        <Card title="3. Focus for Next Week" icon={<CalendarCheck size={16} />}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <FocusRow>
-              <Input
-                value={focusInput}
-                onChange={e => setFocusInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAddFocus()}
-                placeholder={focusItems.length >= 3 ? 'Three is plenty — stay focused' : 'e.g. Finalize the pricing page'}
-                disabled={focusItems.length >= 3}
-                aria-label="Focus item"
-              />
-              <Button variant="outline" size="sm" onClick={handleAddFocus} disabled={focusItems.length >= 3 || !focusInput.trim()}>
-                Add
-              </Button>
-            </FocusRow>
-            {focusItems.length > 0 && (
-              <FocusList>
-                {focusItems.map((item, idx) => (
-                  <FocusItem key={idx}>
-                    <span>{item}</span>
-                    <RemoveBtn onClick={() => setFocusItems(focusItems.filter((_, i) => i !== idx))} aria-label={`Remove ${item}`}>
-                      ×
-                    </RemoveBtn>
-                  </FocusItem>
-                ))}
-              </FocusList>
-            )}
-          </div>
-          <StepActions>
-            <Button variant="primary" size="sm" onClick={handleFinish} loading={submitting} disabled={focusItems.length === 0}>
-              Finish Review <CheckCircle2 size={14} style={{ marginLeft: 4 }} />
-            </Button>
-          </StepActions>
-        </Card>
-      )}
-
-      {step === 4 && (
-        <Card>
-          <DoneWrap>
-            <DoneIcon><CheckCircle2 size={28} /></DoneIcon>
-            <DoneTitle>Review Complete</DoneTitle>
-            <DoneSub>Your {focusItems.length} focus item{focusItems.length === 1 ? '' : 's'} will appear on the Dashboard Focus card.</DoneSub>
-          </DoneWrap>
-        </Card>
-      )}
-        </ReviewContainer>
+        <ModuleGrid modules={modules} />
       </PageContent>
     </PageContainer>
   )

@@ -1,18 +1,21 @@
-import { useState } from 'react'
+/**
+ * Workspace → Sprints.
+ *
+ * Phase 4 conversion to the canvas's `workspace:sprints` design — a status
+ * filter, a New button, and a sprint table. The old collapsible card grid is
+ * replaced; the dialog and its mutations are unchanged, a row click opens the
+ * editor, and Delete moved into the dialog footer because a table row has no
+ * action column to hang it off.
+ */
+import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Zap, Trash2, PencilLine, CalendarRange, Target } from 'lucide-react'
+import { Zap, Trash2 } from 'lucide-react'
 import { Button, Card, EmptyState, Input, Dialog, DialogFooter, Select, Label } from '@ledgr/ui'
-import { workspaceApi, Sprint, SprintPayload } from '@ct/shared/api/workspace'
-import styled, { useTheme } from 'styled-components'
+import styled from 'styled-components'
 import { toast } from 'sonner'
+import { workspaceApi, Sprint, SprintPayload } from '@ct/shared/api/workspace'
+import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { domainLabel } from '@ct/shared/config/domains'
-import { CollapsibleSection } from '@ct/shared/components/workspace/CollapsibleSection'
-
-const Grid = styled.div`
-  display: grid;
-  gap: ${({ theme }) => `${theme.spacing[4]}`};
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-`
 
 const FormGrid = styled.div`
   display: flex;
@@ -26,77 +29,19 @@ const TwoCol = styled.div`
   gap: ${({ theme }) => `${theme.spacing[3]}`};
 `
 
-const SprintGoals = styled.p`
-  margin: ${({ theme }) => `0 0 ${theme.spacing[2]}`};
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  line-height: 1.5;
-  color: ${({ theme }) => theme.color.mutedForeground};
-`
-
-const SprintMeta = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[2]}`};
-  margin-top: ${({ theme }) => `${theme.spacing[2]}`};
-`
-
-const MetaItem = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[1]}`};
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  color: ${({ theme }) => theme.color.mutedForeground};
-`
-
-const MetaChip = styled.span<{ $tone?: 'accent' | 'default' }>`
-  display: inline-flex;
-  align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[0.5]}`};
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
-  border-radius: ${({ theme }) => theme.radii.sm};
-  background: ${({ theme, $tone }) => $tone === 'accent' ? `${theme.color.accent}18` : theme.color.muted};
-  color: ${({ theme, $tone }) => $tone === 'accent' ? theme.color.accent : theme.color.mutedForeground};
-`
-
-const StyledCard = styled(Card)`
-  position: relative;
-  overflow: hidden;
-  border: 1px solid ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : theme.color.border};
-  background: ${({ theme }) =>
-    theme.mode === 'dark'
-      ? 'linear-gradient(180deg, rgba(30, 32, 40, 0.8) 0%, rgba(20, 21, 26, 0.6) 100%)'
-      : 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 250, 252, 0.8) 100%)'};
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-`
-
-const SprintCard = styled(StyledCard)`
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
-    border-color: ${({ theme }) => theme.color.accent}80;
-  }
-`
-
 const STATUS_OPTIONS = [
   { label: 'Planned', value: 'planned' },
   { label: 'Active', value: 'active' },
   { label: 'Completed', value: 'completed' },
 ]
 
-const STATUS_FILTER_OPTIONS = [
-  { label: 'All statuses', value: 'all' },
-  { label: 'Planned', value: 'planned' },
-  { label: 'Active', value: 'active' },
-  { label: 'Completed', value: 'completed' },
-]
+const STATUS_FILTER_OPTIONS = [{ label: 'All statuses', value: 'all' }, ...STATUS_OPTIONS]
+
+const STATUS_KEY: Record<string, string> = {
+  planned: 'info',
+  active: 'accent',
+  completed: 'success',
+}
 
 function fmtDate(d?: string) {
   if (!d) return null
@@ -209,201 +154,143 @@ export function SprintsSection({ domainFilter }: { domainFilter?: string }) {
     ...projects.map(p => ({ label: p.name, value: p.id })),
   ]
 
-  const getSprintDomain = (sprint: Sprint) => {
-    const project = projects.find(p => p.id === sprint.project_id)
-    return project?.domain || 'general'
-  }
-  const theme = useTheme()
+  const rows = useMemo(() => {
+    /** A sprint inherits its area from the project it belongs to. */
+    const domainOf = (s: Sprint) => projects.find(p => p.id === s.project_id)?.domain || 'general'
+    const byDomain = domainFilter ? sprints.filter(s => domainOf(s) === domainFilter) : sprints
+    return statusFilter === 'all' ? byDomain : byDomain.filter(s => s.status === statusFilter)
+  }, [sprints, projects, domainFilter, statusFilter])
 
-  const renderSprintsList = (list: Sprint[], loading: boolean) => {
-    if (!loading && list.length === 0) {
-      return (
-        <EmptyState
-          icon={<Zap size={24} />}
-          title="No sprints yet"
-          description="Create a sprint to focus your tasks for a time period."
-          action={<Button variant="primary" onClick={() => setIsAddOpen(true)} style={{
-            background: `linear-gradient(135deg, ${theme.color.accent} 0%, color-mix(in srgb, ${theme.color.accent} 80%, black) 100%)`,
-            border: 'none',
-            boxShadow: `0 4px 12px ${theme.color.accent}40`
-          }}>Create Sprint</Button>}
-        />
-      )
-    }
-
-    const active = list.filter(s => s.status === 'active')
-    const planned = list.filter(s => s.status === 'planned' || !s.status)
-    const completed = list.filter(s => s.status === 'completed')
-
-    const renderSection = (statusKey: string, label: string, items: Sprint[]) => {
-      if (items.length === 0) return null
-      return (
-        <CollapsibleSection
-          key={statusKey}
-          sectionId={`sprints-${domainFilter ?? 'all'}-${statusKey}`}
-          label={label}
-          count={`${items.length} sprint${items.length !== 1 ? 's' : ''}`}
-        >
-          <Grid>
-            {items.map((s) => {
-              const projectName = projects.find(p => p.id === s.project_id)?.name
-              return (
-                <SprintCard
-                  key={s.id}
-                  title={s.name}
-                  subtitle={projectName || 'Unknown Project'}
-                  icon={<Zap size={14} />}
-                  action={
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <MetaChip $tone={s.status === 'active' ? 'accent' : 'default'}>{s.status}</MetaChip>
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(s)} aria-label="Edit">
-                        <PencilLine size={14} />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(s.id)} aria-label="Delete">
-                        <Trash2 size={14} />
-                      </Button>
-                    </div>
-                  }
-                >
-                  {s.goals && <SprintGoals>{s.goals}</SprintGoals>}
-                  <SprintMeta>
-                    {(s.start_date || s.end_date) && (
-                      <MetaItem>
-                        <CalendarRange size={11} />
-                        {fmtDate(s.start_date) || '—'} → {fmtDate(s.end_date) || '—'}
-                      </MetaItem>
-                    )}
-                    {s.capacity && (
-                      <MetaItem>
-                        <Target size={11} />
-                        {s.capacity} pts
-                      </MetaItem>
-                    )}
-                    {!s.goals && !s.start_date && !s.end_date && (
-                      <MetaItem style={{ fontStyle: 'italic' }}>No goal or dates set</MetaItem>
-                    )}
-                  </SprintMeta>
-                </SprintCard>
-              )
-            })}
-          </Grid>
-        </CollapsibleSection>
-      )
-    }
-
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-        {renderSection('active', 'Active', active)}
-        {renderSection('planned', 'Planned', planned)}
-        {renderSection('completed', 'Completed', completed)}
-      </div>
-    )
-  }
-
-  const renderTabContent = (domainFilter?: string) => {
-    const byDomain = domainFilter
-      ? sprints.filter(s => getSprintDomain(s) === domainFilter)
-      : sprints
-    const byStatus = statusFilter === 'all'
-      ? byDomain
-      : byDomain.filter(s => s.status === statusFilter)
-
-    const cardTitle = domainFilter
-      ? `${domainLabel(domainFilter)} Sprints`
-      : 'All Sprints'
-    const count = byStatus.length
-    const subtitle = `${count} sprint${count !== 1 ? 's' : ''}`
-
-    return (
-      <StyledCard
-        icon={<Zap size={16} />}
-        title={cardTitle}
-        subtitle={subtitle}
-        action={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Select
-              size="sm"
-              fullWidth={false}
-              value={statusFilter}
-              onChange={v => setStatusFilter(v as string)}
-              options={STATUS_FILTER_OPTIONS}
-            />
-            <Button variant="primary" size="sm" onClick={() => setIsAddOpen(true)} style={{
-              background: `linear-gradient(135deg, ${theme.color.accent} 0%, color-mix(in srgb, ${theme.color.accent} 80%, black) 100%)`,
-              border: 'none',
-              boxShadow: `0 4px 12px ${theme.color.accent}40`
-            }}>
-              <Plus size={14} style={{ marginRight: 6 }} /> New Sprint
-            </Button>
-          </div>
-        }
-      >
-        {renderSprintsList(byStatus, isLoading)}
-      </StyledCard>
-    )
-  }
+  const modules = useMemo<ModuleSpec[]>(() => [{
+    kind: 'table',
+    span: 12,
+    // Belongs to this table — see ProjectsPage.
+    actionNode: (
+      <Select
+        size="sm"
+        fullWidth={false}
+        aria-label="Filter sprints by status"
+        value={statusFilter}
+        onChange={v => setStatusFilter(v as string)}
+        options={STATUS_FILTER_OPTIONS}
+      />
+    ),
+    title: domainFilter ? `${domainLabel(domainFilter)} sprints` : 'All sprints',
+    subtitle: `${rows.length} sprint${rows.length !== 1 ? 's' : ''} · click a row to edit`,
+    icon: Zap,
+    action: '+ New sprint',
+    onAction: () => setIsAddOpen(true),
+    gridCols: '1.6fr 1.3fr 1.4fr 0.8fr 1fr',
+    cols: [
+      { l: 'Sprint' },
+      { l: 'Project' },
+      { l: 'Dates' },
+      { l: 'Capacity', a: 'right' },
+      { l: 'Status', a: 'right' },
+    ],
+    rows: rows.map(s => [
+      { t: s.name, bold: true },
+      projects.find(p => p.id === s.project_id)?.name ?? 'Unknown project',
+      s.start_date || s.end_date
+        ? `${fmtDate(s.start_date) ?? '—'} → ${fmtDate(s.end_date) ?? '—'}`
+        : 'No dates set',
+      s.capacity ? `${s.capacity} pts` : '—',
+      { t: s.status || 'planned', tag: true, colorKey: STATUS_KEY[s.status || 'planned'] ?? 'info' },
+    ]),
+    onRowClick: (i: number) => openEdit(rows[i]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }], [rows, projects, domainFilter, statusFilter])
 
   return (
     <>
-      {renderTabContent(domainFilter)}
-
-        <Dialog
-          open={isOpen}
-          onOpenChange={handleDialogClose}
+      {!isLoading && rows.length === 0 ? (
+        <Card
           icon={<Zap size={16} />}
-          eyebrow="Workspace"
-          title={editingSprint ? 'Edit Sprint' : 'New Sprint'}
-          description="Define the scope and timeline for this iteration."
-          size="md"
+          title={domainFilter ? `${domainLabel(domainFilter)} sprints` : 'All sprints'}
+          subtitle="Nothing here yet"
         >
-          <FormGrid>
+          <EmptyState
+            icon={<Zap size={24} />}
+            title="No sprints yet"
+            description="Create a sprint to focus your tasks for a time period."
+            action={<Button variant="primary" onClick={() => setIsAddOpen(true)}>Create sprint</Button>}
+          />
+        </Card>
+      ) : (
+        <ModuleGrid modules={modules} />
+      )}
+
+      <Dialog
+        open={isOpen}
+        onOpenChange={handleDialogClose}
+        icon={<Zap size={16} />}
+        eyebrow="Workspace"
+        title={editingSprint ? 'Edit sprint' : 'New sprint'}
+        description="Define the scope and timeline for this iteration."
+        size="md"
+      >
+        <FormGrid>
+          <div>
+            <Label>Project</Label>
+            <Select value={projectId} onChange={v => setProjectId(v as string)} options={projectOptions} />
+          </div>
+          <div>
+            <Label htmlFor="sprint-name">Sprint name</Label>
+            <Input id="sprint-name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Sprint 12 — Launch" />
+          </div>
+          <div>
+            <Label htmlFor="sprint-goals">Sprint goal</Label>
+            <Input id="sprint-goals" value={goals} onChange={e => setGoals(e.target.value)} placeholder="What does this sprint aim to deliver?" />
+          </div>
+          <TwoCol>
             <div>
-              <Label>Project</Label>
-              <Select value={projectId} onChange={v => setProjectId(v as string)} options={projectOptions} />
+              <Label htmlFor="sprint-start">Start date</Label>
+              <Input id="sprint-start" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
             </div>
             <div>
-              <Label htmlFor="sprint-name">Sprint name</Label>
-              <Input id="sprint-name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Sprint 12 — Launch" />
+              <Label htmlFor="sprint-end">End date</Label>
+              <Input id="sprint-end" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
             </div>
+          </TwoCol>
+          <TwoCol>
             <div>
-              <Label htmlFor="sprint-goals">Sprint goal</Label>
-              <Input id="sprint-goals" value={goals} onChange={e => setGoals(e.target.value)} placeholder="What does this sprint aim to deliver?" />
+              <Label htmlFor="sprint-cap">Capacity (story pts)</Label>
+              <Input id="sprint-cap" type="number" min="0" step="1" value={capacity} onChange={e => setCapacity(e.target.value)} placeholder="e.g. 40" />
             </div>
-            <TwoCol>
+            {editingSprint && (
               <div>
-                <Label htmlFor="sprint-start">Start date</Label>
-                <Input id="sprint-start" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                <Label>Status</Label>
+                <Select value={status} onChange={v => setStatus(v as string)} options={STATUS_OPTIONS} />
               </div>
-              <div>
-                <Label htmlFor="sprint-end">End date</Label>
-                <Input id="sprint-end" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-              </div>
-            </TwoCol>
-            <TwoCol>
-              <div>
-                <Label htmlFor="sprint-cap">Capacity (story pts)</Label>
-                <Input id="sprint-cap" type="number" min="0" step="1" value={capacity} onChange={e => setCapacity(e.target.value)} placeholder="e.g. 40" />
-              </div>
-              {editingSprint && (
-                <div>
-                  <Label>Status</Label>
-                  <Select value={status} onChange={v => setStatus(v as string)} options={STATUS_OPTIONS} />
-                </div>
-              )}
-            </TwoCol>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => handleDialogClose(false)}>Cancel</Button>
+            )}
+          </TwoCol>
+          <DialogFooter>
+            {editingSprint && (
               <Button
-                variant="primary"
-                disabled={!projectId || !name.trim()}
-                loading={createMutation.isPending || updateMutation.isPending}
-                onClick={handleSave}
+                variant="destructive"
+                size="sm"
+                loading={deleteMutation.isPending}
+                onClick={() => {
+                  deleteMutation.mutate(editingSprint.id)
+                  handleDialogClose(false)
+                }}
+                style={{ marginRight: 'auto' }}
               >
-                {editingSprint ? 'Save Changes' : 'Create Sprint'}
+                <Trash2 size={14} style={{ marginRight: 4 }} /> Delete
               </Button>
-            </DialogFooter>
-          </FormGrid>
-        </Dialog>
+            )}
+            <Button variant="outline" onClick={() => handleDialogClose(false)}>Cancel</Button>
+            <Button
+              variant="primary"
+              disabled={!projectId || !name.trim()}
+              loading={createMutation.isPending || updateMutation.isPending}
+              onClick={handleSave}
+            >
+              {editingSprint ? 'Save changes' : 'Create sprint'}
+            </Button>
+          </DialogFooter>
+        </FormGrid>
+      </Dialog>
     </>
   )
 }

@@ -17,12 +17,11 @@
  * into the week time-blocking planner.
  */
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Button, PageHeader, Select } from '@ledgr/ui';
+import { Button, HeaderActionPortal, Select } from '@ledgr/ui';
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout';
-import { PageDivider } from '@ct/shared/components/layout/PageDivider';
 import { DOMAIN_OPTIONS } from '@ct/shared/config/domains';
 import { useAreaSection } from '@ct/shared/hooks/useAreaSection';
-import { Settings, Target } from 'lucide-react';
+import { Settings } from 'lucide-react';
 
 import { GoalsSection } from '@/pages/GoalsPage';
 import { MilestonesSection } from '@/pages/workspace/MilestonesSection';
@@ -32,22 +31,11 @@ import { TasksSection } from '@/pages/workspace/TasksPage';
 
 type Entity = 'goals' | 'projects' | 'sprints' | 'milestones' | 'tasks';
 
-const ENTITY_LABEL: Record<Entity, string> = {
-  projects: 'Projects',
-  goals: 'Goals',
-  milestones: 'Milestones',
-  sprints: 'Sprints',
-  tasks: 'Tasks',
-};
-
-const ENTITY_SUBTITLE: Record<Entity, string> = {
-  projects: 'Bodies of work, their timeline and how far along each one is',
-  goals: 'The outcomes you are steering toward, across every life area',
-  milestones: 'Dated checkpoints on the way to a goal',
-  sprints: 'Time-boxed cycles and what shipped in each',
-  tasks: 'Everything outstanding, grouped by project',
-};
-
+/*
+ * The per-entity title and subtitle were dropped with the PageHeader on
+ * 2026-08-02. Which entity you are looking at is the last breadcrumb in the
+ * TopBar, which is where the redesign puts it.
+ */
 const DOMAIN_FILTER_OPTIONS = [{ label: 'All domains', value: 'all' }, ...DOMAIN_OPTIONS];
 
 export function PlanPage() {
@@ -80,28 +68,24 @@ export function PlanPage() {
   return (
     <PageContainer>
       <PageContent>
-          <PageHeader
-            icon={<Target />}
-            eyebrow="Workspace"
-            title={ENTITY_LABEL[entity] ?? 'Workspace'}
-            subtitle={ENTITY_SUBTITLE[entity] ?? 'Goals, projects, sprints and tasks across every life area'}
-            actions={
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <Select
-                  size="sm"
-                  fullWidth={false}
-                  value={domainParam}
-                  onChange={(v) => setParam('domain', String(v))}
-                  options={DOMAIN_FILTER_OPTIONS}
-                  aria-label="Filter by life area"
-                />
-                <Button variant="outline" size="sm" onClick={() => navigate('/app/settings')}>
-                  <Settings size={14} style={{ marginRight: 6 }} /> Settings
-                </Button>
-              </div>
-            }
-          />
-          <PageDivider />
+          {/* Page-scoped, so it lives in this page's header block — see
+              FinancePage. The per-entity status filter is card-scoped and lives
+              in that card's own header instead. */}
+          <HeaderActionPortal>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <Select
+                size="sm"
+                fullWidth={false}
+                value={domainParam}
+                onChange={(v) => setParam('domain', String(v))}
+                options={DOMAIN_FILTER_OPTIONS}
+                aria-label="Filter by life area"
+              />
+              <Button variant="outline" size="sm" onClick={() => navigate('/app/settings')}>
+                <Settings size={14} style={{ marginRight: 6 }} /> Settings
+              </Button>
+            </div>
+          </HeaderActionPortal>
           {renderContent()}
       </PageContent>
     </PageContainer>

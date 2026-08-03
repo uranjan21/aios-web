@@ -6,6 +6,7 @@ The payables view unifies recurring bills, loan EMIs, and CC statement dues into
 """
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -153,6 +154,31 @@ async def _owns_obligation(db, user_id, kind: str, oid: uuid.UUID) -> bool:
     return bool(row and row.user_id == user_id)
 
 
+def _amortize(loan: FinanceLoan, paid_amount: Decimal) -> tuple[Decimal, Decimal]:
+    """Split one EMI into (principal, interest) on a reducing balance.
+
+    Interest accrues on what is outstanding *at the moment of payment*, so this
+    has to be computed when the payment lands and stored — recomputing it later
+    against a since-reduced balance would understate the interest paid.
+
+    A payment smaller than the month's interest (an underpayment) yields zero
+    principal rather than a negative one; the balance legitimately does not
+    fall in that case.
+    """
+    monthly_rate = (loan.interest_rate or Decimal("0")) / Decimal("1200")
+    interest = (loan.outstanding_amount * monthly_rate).quantize(Decimal("0.01"))
+    if interest < 0:
+        interest = Decimal("0")
+    principal = paid_amount - interest
+    if principal < 0:
+        # Underpayment: it all went to interest and the balance stands still.
+        return Decimal("0"), paid_amount
+    # Never amortize past zero — the final EMI is usually smaller than the rest.
+    if principal > loan.outstanding_amount:
+        principal = loan.outstanding_amount
+    return principal.quantize(Decimal("0.01")), interest
+
+
 @router.post("/payables/pay")
 async def toggle_paid(
     body: PayToggle,
@@ -177,6 +203,8 @@ async def toggle_paid(
     ).scalar_one_or_none()
 
     now = datetime.utcnow()
+    was_paid = bool(existing and existing.paid)
+
     if existing:
         existing.paid = body.paid
         existing.paid_at = now if body.paid else None
@@ -194,6 +222,32 @@ async def toggle_paid(
             account_id=body.account_id,
             paid_amount=body.paid_amount,
         )
+
+    # Loans amortize: record how this EMI split and move the balance. Guarded on
+    # the paid-state TRANSITION, not on `body.paid` — re-sending paid=true for an
+    # already-paid month must not amortize the loan a second time.
+    if body.obligation_type == "loan":
+        loan = await db.get(FinanceLoan, body.obligation_id)
+        if loan:
+            if body.paid and not was_paid:
+                amount = Decimal(str(body.paid_amount)) if body.paid_amount is not None else loan.emi_amount
+                principal, interest = _amortize(loan, amount)
+                row.principal_component = principal
+                row.interest_component = interest
+                loan.outstanding_amount = loan.outstanding_amount - principal
+                loan.updated_at = now
+                db.add(loan)
+            elif not body.paid and was_paid:
+                # Un-paying restores exactly what this row took off, so the
+                # balance returns to where it was even if the rate has since
+                # been edited.
+                if row.principal_component is not None:
+                    loan.outstanding_amount = loan.outstanding_amount + row.principal_component
+                    loan.updated_at = now
+                    db.add(loan)
+                row.principal_component = None
+                row.interest_component = None
+
     db.add(row)
 
     # Mirror onto the CC bill so its own paid state stays consistent.

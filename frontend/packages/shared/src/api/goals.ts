@@ -9,6 +9,12 @@ export interface MacroGoal {
   status: string;
   priority?: string;
   created_at: string;
+  /**
+   * Most recent score posted by the Weekly Review, or null when the goal has
+   * never been scored. The area Overview modules fall back to the goal's
+   * milestone completion ratio in that case.
+   */
+  progress_score?: number | null;
 }
 
 export interface GoalProgress {

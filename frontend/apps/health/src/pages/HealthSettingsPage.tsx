@@ -201,8 +201,12 @@ export function HealthSettingsPage() {
       subtitle="Body, fitness, and nutrition targets used across your dashboards."
       backTo="/app/health"
       groups={[
+        /* "Targets", not "Goals": these are the numeric reference lines the
+           Body/Nutrition/Workouts modules draw against (goal weight, calorie
+           and macro targets, workouts per week). Goals proper are set in
+           Workspace — no area owns a goal editor (2026-08-02). */
         {
-          label: 'Goals',
+          label: 'Targets',
           items: [
             { key: 'body', label: 'Body', icon: <Scale size={15} />, content: <BodyGoalsSection /> },
             { key: 'fitness', label: 'Fitness', icon: <Dumbbell size={15} />, content: <FitnessGoalsSection /> },

@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import { PencilLine, Trash2, Check, X, Tag as TagIcon, FolderInput, MoreHorizontal, Split } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
-import { formatCurrency } from '@ct/shared/lib/utils'
+import { formatAmount, formatCurrency } from '@ct/shared/lib/utils'
 import styled from 'styled-components'
 
 import type { Txn, SortBy, SortDir } from './types'
@@ -15,11 +15,24 @@ import { keyOf, buildRenderModel, getCategoryIcon, txnColors, useCategoryLabel, 
 
 // ── Transaction row styled ───────────────────────────────────────────────────
 
+/*
+ * The redesign canvas draws this page as a five-column table — DATE, MERCHANT,
+ * CATEGORY, ACCOUNT, AMOUNT — rather than the icon + stacked-meta list it used
+ * to be. One track definition is shared by the header and every row so the
+ * columns actually line up; change it in one place.
+ *
+ * Below `md` the grid is abandoned entirely: five columns on a phone is the
+ * horizontal-scroll pattern MOBILE STRICT bans, so the row falls back to two
+ * stacked lines with the amount pinned right.
+ */
+export const TXN_COLS = '20px 72px minmax(0, 1.7fr) minmax(0, 1.05fr) minmax(0, 1.05fr) 116px'
+
 export const TxnRowRoot = styled.div<{ $selected: boolean; $active: boolean; $compact: boolean }>`
-  display: flex;
+  display: grid;
+  grid-template-columns: ${TXN_COLS};
   align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
-  padding: ${({ $compact }) => ($compact ? '5px 8px' : '9px 8px')};
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  padding: ${({ $compact }) => ($compact ? '6px 8px' : '11px 8px')};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   &:last-child { border-bottom: none; }
   position: relative;
@@ -29,86 +42,118 @@ export const TxnRowRoot = styled.div<{ $selected: boolean; $active: boolean; $co
   transition: background 100ms ease;
   &:hover { background: ${({ theme, $selected }) => $selected ? `color-mix(in srgb, ${theme.color.primary} 9%, transparent)` : theme.color.muted}; }
   &:hover .txn-actions { opacity: 1; }
+
+  @media ${({ theme }) => theme.media.belowMd} {
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    row-gap: ${({ theme }) => `${theme.spacing[1]}`};
+  }
+`
+
+/** Header row above the list. Same tracks, so the labels sit over their cells. */
+export const TxnHeaderRoot = styled.div`
+  display: grid;
+  grid-template-columns: ${TXN_COLS};
+  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  padding: ${({ theme }) => `0 ${theme.spacing[2]} ${theme.spacing[2.5]}`};
+  border-bottom: 1px solid ${({ theme }) => theme.color.border};
+
+  span {
+    font-size: ${({ theme }) => theme.typography.fontSize.xs};
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: ${({ theme }) => theme.color.mutedForeground};
+  }
+
+  /* The mobile row has no columns to label. */
+  @media ${({ theme }) => theme.media.belowMd} { display: none; }
 `
 
 const RowCheck = styled.div<{ $show: boolean }>`
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   opacity: ${({ $show }) => ($show ? 1 : 0)};
   transition: opacity 100ms ease;
   ${TxnRowRoot}:hover & { opacity: 1; }
+
+  @media ${({ theme }) => theme.media.belowMd} {
+    opacity: 1;
+    grid-row: span 2;
+  }
 `
 
-const TxnLeft = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
+const TxnDate = styled.div`
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
+  color: ${({ theme }) => theme.color.mutedForeground};
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+
+  @media ${({ theme }) => theme.media.belowMd} {
+    grid-column: 2;
+    grid-row: 2;
+  }
+`
+
+const TxnCell = styled.div`
   min-width: 0;
-  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
+  color: ${({ theme }) => theme.color.mutedForeground};
 `
 
-const TxnIconWrap = styled.div<{ $bg: string; $color: string; $compact: boolean }>`
-  flex-shrink: 0;
-  width: ${({ $compact }) => ($compact ? '26px' : '32px')};
-  height: ${({ $compact }) => ($compact ? '26px' : '32px')};
-  border-radius: 50%;
-  background: ${({ $bg }) => $bg};
-  color: ${({ $color }) => $color};
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/** CATEGORY and ACCOUNT collapse into the date line on a phone. */
+const SecondaryCell = styled(TxnCell)`
+  @media ${({ theme }) => theme.media.belowMd} { display: none; }
 `
 
 const TxnDesc = styled.span`
   font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  font-weight: 500;
+  font-weight: 600;
   color: ${({ theme }) => theme.color.foreground};
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 `
 
-const TxnMeta = styled.div`
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  color: ${({ theme }) => theme.color.mutedForeground};
-  display: flex;
+const CategoryChip = styled.span<{ $bg: string; $color: string }>`
+  display: inline-flex;
   align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[1]}`};
+  max-width: 100%;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[2.5]}`};
+  border-radius: ${({ theme }) => theme.radii.pill};
+  background: ${({ $bg }) => $bg};
+  color: ${({ $color }) => $color};
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
+  font-weight: 600;
   overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 `
 
-const MetaDot = styled.span`
-  opacity: 0.5;
-`
-
-const AccountChip = styled.span`
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 6px;
-  border-radius: ${({ theme }) => theme.radii.xs};
-  background: ${({ theme }) => theme.color.muted};
-  color: ${({ theme }) => theme.color.mutedForeground};
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  font-weight: 500;
-  flex-shrink: 0;
-`
-
-const TxnRight = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[1]}`};
-  flex-shrink: 0;
-  margin-left: ${({ theme }) => `${theme.spacing[2]}`};
-`
-
+/*
+ * The action cluster overlays the amount column on hover rather than taking a
+ * column of its own — a permanent actions column would push AMOUNT off the
+ * right edge the canvas anchors it to.
+ */
 const TxnActions = styled.div`
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
+  align-items: center;
   gap: ${({ theme }) => `${theme.spacing[0.5]}`};
+  padding-left: ${({ theme }) => `${theme.spacing[3]}`};
+  background: linear-gradient(
+    to right,
+    transparent,
+    ${({ theme }) => theme.color.muted} ${({ theme }) => theme.spacing[3]}
+  );
   opacity: 0;
   transition: opacity 120ms;
-  @media ${({ theme }) => theme.media.belowMd} { opacity: 1; }
+  @media ${({ theme }) => theme.media.belowMd} { opacity: 1; position: static; transform: none; background: none; }
 `
 
 const TxnActionBtn = styled.button<{ $danger?: boolean }>`
@@ -133,6 +178,12 @@ const TxnAmount = styled.div<{ $color: string }>`
   font-variant-numeric: tabular-nums;
   color: ${({ $color }) => $color};
   white-space: nowrap;
+`
+
+/** The inline editor ignores the column grid — see the note at its call site. */
+const TxnEditRow = styled(TxnRowRoot)`
+  display: flex;
+  @media ${({ theme }) => theme.media.belowMd} { display: flex; }
 `
 
 const InlineEditWrap = styled.div`
@@ -250,9 +301,10 @@ export function TransactionRow({
   const amtValid = parseFloat(amt) > 0
 
   if (isEditing) {
+    /* The editor takes the whole row rather than trying to fit the columns —
+       an amount field inside a 116px cell is unusable. */
     return (
-      <TxnRowRoot ref={innerRef as any} $selected={selected} $active={active} $compact={compact}>
-        <TxnIconWrap $bg={iconBg} $color={iconColor} $compact={compact}>{getCategoryIcon(txn.category)}</TxnIconWrap>
+      <TxnEditRow ref={innerRef as any} $selected={selected} $active={active} $compact={compact}>
         <InlineEditWrap>
           <Input
             type="number" size="sm" startAdornment="₹" min="0" step="0.01" value={amt}
@@ -265,16 +317,14 @@ export function TransactionRow({
             onChange={e => setDesc(e.target.value)} style={{ flex: 1, height: 32 }} aria-label="Edit description"
             onKeyDown={e => { if (e.key === 'Enter' && amtValid) saveInline.mutate(); if (e.key === 'Escape') onCancelEdit() }}
           />
-        </InlineEditWrap>
-        <TxnRight>
           <TxnActionBtn onClick={() => amtValid && saveInline.mutate()} aria-label="Save" disabled={!amtValid || saveInline.isPending}>
             <Check size={15} />
           </TxnActionBtn>
           <TxnActionBtn onClick={onCancelEdit} aria-label="Cancel">
             <X size={15} />
           </TxnActionBtn>
-        </TxnRight>
-      </TxnRowRoot>
+        </InlineEditWrap>
+      </TxnEditRow>
     )
   }
 
@@ -291,32 +341,36 @@ export function TransactionRow({
               onClick so we can read shiftKey, which a checkbox change event drops. */}
           <Checkbox size="sm" checked={selected} readOnly tabIndex={-1} aria-hidden />
         </RowCheck>
-        <TxnLeft>
-          <TxnIconWrap $bg={iconBg} $color={iconColor} $compact={compact}>
+        <TxnDate>{dayjs(txn.logged_at).format('D MMM')}</TxnDate>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <TxnDesc>{txn.description || categoryLabel}</TxnDesc>
+          {txn.split_group_id && (
+            <span style={{ fontSize: 10, color: 'var(--primary)', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 2 }} title="Part of a split payment">
+              <Split size={10} /> split
+            </span>
+          )}
+        </div>
+
+        <SecondaryCell>
+          <CategoryChip $bg={iconBg} $color={iconColor} title={categoryLabel}>
             {getCategoryIcon(txn.category)}
-          </TxnIconWrap>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-              <TxnDesc>{txn.description || categoryLabel}</TxnDesc>
-              {txn.split_group_id && (
-                <span style={{ fontSize: 10, color: 'var(--primary)', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 2 }} title="Part of a split payment">
-                  <Split size={10} /> split
-                </span>
-              )}
-            </div>
-            <TxnMeta>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{categoryLabel}</span>
-              <MetaDot>·</MetaDot>
-              <span>{dayjs(txn.logged_at).format('MMM D, h:mm A')}</span>
-              {accountName && <AccountChip>{accountName}</AccountChip>}
-              {txn.tags && txn.tags.split(',').filter(Boolean).slice(0, 2).map(t => (
-                <Badge key={t}>{t}</Badge>
-              ))}
-            </TxnMeta>
-          </div>
-        </TxnLeft>
-        <TxnRight>
-          <TxnActions className="txn-actions">
+            <span style={{ marginLeft: 5, overflow: 'hidden', textOverflow: 'ellipsis' }}>{categoryLabel}</span>
+          </CategoryChip>
+          {txn.tags && txn.tags.split(',').filter(Boolean).slice(0, 1).map(t => (
+            <Badge key={t} style={{ marginLeft: 6 }}>{t}</Badge>
+          ))}
+        </SecondaryCell>
+
+        <SecondaryCell title={accountName ?? undefined}>{accountName || '—'}</SecondaryCell>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minWidth: 0 }}>
+          <TxnAmount $color={amtColor}>
+            {sign}{formatAmount(txn.amount)}
+          </TxnAmount>
+        </div>
+
+        <TxnActions className="txn-actions">
             {!isTransfer && (
               <TxnActionBtn onClick={() => onStartEdit(txn)} aria-label="Quick edit" title="Quick edit amount & note">
                 <PencilLine size={13} />
@@ -336,11 +390,7 @@ export function TransactionRow({
                 <DropdownMenuItem destructive onSelect={() => setConfirmOpen(true)}><Trash2 size={14} /> Delete</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </TxnActions>
-          <TxnAmount $color={amtColor}>
-            {sign}{formatCurrency(txn.amount)}
-          </TxnAmount>
-        </TxnRight>
+        </TxnActions>
       </TxnRowRoot>
       <ConfirmDialog
         open={confirmOpen}

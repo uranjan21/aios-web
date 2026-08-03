@@ -6,7 +6,8 @@ from pydantic import BaseModel, AfterValidator, Field
 from sqlmodel import select, desc
 
 from app.core.deps import get_current_user, get_db
-from app.models.finance import FinanceSnapshot, FinanceExpense, BudgetLimit, Account, Category, AccountType, FinancialGoal, FinanceBill, FinanceIncome, FinanceInvestment, FinanceLoan, FinanceTransfer, FinancePendingTransaction, FinanceSettings
+from app.models.finance import FinanceSnapshot, FinanceExpense, BudgetLimit, Account, Category, AccountType, FinancialGoal, FinanceBill, FinanceIncome, FinanceInvestment, FinanceLoan, FinanceTransfer, FinancePendingTransaction, FinanceSettings, GoalContribution, InvestmentTransaction, InvestmentValuation, ObligationPayment
+from app.services.finance.xirr import portfolio_xirr
 import uuid
 
 router = APIRouter(prefix="/api/areas/finance", tags=["finance"])
@@ -234,149 +235,6 @@ async def import_commit(body: ImportCommitBody, current_user=Depends(get_current
 
     await db.commit()
     return {"imported_expenses": imported_expenses, "imported_income": imported_income, "skipped": skipped}
-
-
-async def _compute_health_score_for_date(db, target_date: datetime, user_id: uuid.UUID) -> dict:
-    from sqlalchemy import func
-    
-    month_start = target_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    if month_start.month == 12:
-        next_month_start = month_start.replace(year=month_start.year + 1, month=1)
-    else:
-        next_month_start = month_start.replace(month=month_start.month + 1)
-
-    def clamp(v: float, lo: float = 0.0, hi: float = 100.0) -> float:
-        return max(lo, min(hi, v))
-
-    income_total = float((await db.execute(
-        select(func.coalesce(func.sum(FinanceIncome.amount), 0))
-        .where(FinanceIncome.user_id == user_id)
-        .where(FinanceIncome.logged_at >= month_start)
-        .where(FinanceIncome.logged_at < next_month_start)
-    )).scalar_one())
-    expense_total = float((await db.execute(
-        select(func.coalesce(func.sum(FinanceExpense.amount), 0))
-        .where(FinanceExpense.user_id == user_id)
-        .where(FinanceExpense.logged_at >= month_start)
-        .where(FinanceExpense.logged_at < next_month_start)
-    )).scalar_one())
-
-    components = []
-
-    # 1. Savings rate — full marks at >=20% of income saved
-    if income_total > 0:
-        rate = (income_total - expense_total) / income_total * 100
-        components.append({
-            "key": "savings_rate", "label": "Savings Rate", "available": True,
-            "score": round(clamp(rate / 20 * 100)),
-            "display": f"{rate:.0f}% of income saved this month",
-        })
-    else:
-        components.append({
-            "key": "savings_rate", "label": "Savings Rate", "available": False,
-            "score": None, "display": "No income logged this month",
-        })
-
-    # 2. Debt-to-income — full marks at <=30% of income going to EMIs, zero at >=60%
-    loans = (await db.execute(select(FinanceLoan).where(FinanceLoan.user_id == user_id, FinanceLoan.is_active == True))).scalars().all()
-    total_emi = sum(float(l.emi_amount) for l in loans)
-    if not loans:
-        components.append({
-            "key": "dti", "label": "Debt-to-Income", "available": True,
-            "score": 100, "display": "No active loans",
-        })
-    elif income_total > 0:
-        dti = total_emi / income_total * 100
-        components.append({
-            "key": "dti", "label": "Debt-to-Income", "available": True,
-            "score": round(clamp((60 - dti) / 30 * 100)),
-            "display": f"{dti:.0f}% of income goes to EMIs",
-        })
-    else:
-        components.append({
-            "key": "dti", "label": "Debt-to-Income", "available": False,
-            "score": None, "display": "No income logged this month",
-        })
-
-    # 3. Emergency fund — liquid balances vs avg monthly spend (last 90 days), full at >=6 months
-    accounts = (await db.execute(select(Account).where(Account.user_id == user_id))).scalars().all()
-    liquid = sum(max(float(a.balance), 0) for a in accounts if a.type in (AccountType.CHECKING, AccountType.SAVINGS))
-    spend_90d = float((await db.execute(
-        select(func.coalesce(func.sum(FinanceExpense.amount), 0))
-        .where(FinanceExpense.user_id == user_id)
-        .where(FinanceExpense.logged_at >= target_date - timedelta(days=90))
-        .where(FinanceExpense.logged_at < target_date)
-    )).scalar_one())
-    avg_monthly = spend_90d / 3
-    if avg_monthly > 0:
-        months = liquid / avg_monthly
-        components.append({
-            "key": "emergency_fund", "label": "Emergency Fund", "available": True,
-            "score": round(clamp(months / 6 * 100)),
-            "display": f"{months:.1f} months of expenses covered",
-        })
-    else:
-        components.append({
-            "key": "emergency_fund", "label": "Emergency Fund", "available": False,
-            "score": None, "display": "No expense history yet",
-        })
-
-    # 4. Budget adherence — share of budgeted categories still within their limit
-    limits = (await db.execute(select(BudgetLimit).where(BudgetLimit.user_id == user_id))).scalars().all()
-    limits = [l for l in limits if float(l.monthly_limit) > 0]
-    if limits:
-        within = 0
-        limit_categories = [l.category for l in limits]
-        spent_query = await db.execute(
-            select(FinanceExpense.category, func.coalesce(func.sum(FinanceExpense.amount), 0))
-            .where(FinanceExpense.user_id == user_id)
-            .where(FinanceExpense.category.in_(limit_categories))
-            .where(FinanceExpense.logged_at >= month_start)
-            .where(FinanceExpense.logged_at < next_month_start)
-            .group_by(FinanceExpense.category)
-        )
-        spent_by_category = {cat: float(amount) for cat, amount in spent_query.all()}
-        
-        for limit in limits:
-            spent = spent_by_category.get(limit.category, 0.0)
-            if spent <= float(limit.monthly_limit):
-                within += 1
-        components.append({
-            "key": "budget_adherence", "label": "Budget Adherence", "available": True,
-            "score": round(within / len(limits) * 100),
-            "display": f"{within} of {len(limits)} budgets on track",
-        })
-    else:
-        components.append({
-            "key": "budget_adherence", "label": "Budget Adherence", "available": False,
-            "score": None, "display": "No budgets set",
-        })
-
-    available = [c["score"] for c in components if c["available"]]
-    score = round(sum(available) / len(available)) if available else 0
-    band = "excellent" if score >= 80 else "good" if score >= 60 else "fair" if score >= 40 else "attention"
-
-    return {"score": score, "band": band, "components": components}
-
-
-@router.get("/health-score")
-async def health_score(current_user=Depends(get_current_user), db=Depends(get_db)):
-    """Composite financial health score (0-100) from four components.
-
-    Components with missing prerequisites (e.g. no income logged this month)
-    are marked unavailable and excluded from the composite.
-    """
-    now = datetime.utcnow()
-    current_data = await _compute_health_score_for_date(db, now, current_user.id)
-    
-    # Previous month score calculation
-    prev_month_date = now.replace(day=1) - timedelta(days=1)
-    prev_data = await _compute_health_score_for_date(db, prev_month_date, current_user.id)
-    
-    return {
-        **current_data,
-        "prev": prev_data
-    }
 
 
 @router.get("/snapshots")
@@ -816,6 +674,171 @@ async def delete_goal(goal_id: uuid.UUID, current_user=Depends(get_current_user)
     return {"status": "deleted"}
 
 
+# ── Goal contributions ───────────────────────────────
+# `FinancialGoal.current_amount` is a running total, so "contributed per month"
+# — which the canvas draws per goal — is not recoverable from it. These rows
+# are the ledger behind that total; writing one moves the total too, so the
+# two can never disagree.
+
+async def _owned_goal(db, goal_id: uuid.UUID, user_id: uuid.UUID) -> FinancialGoal:
+    result = await db.execute(
+        select(FinancialGoal).where(
+            FinancialGoal.id == goal_id, FinancialGoal.user_id == user_id
+        )
+    )
+    goal = result.scalar_one_or_none()
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    return goal
+
+
+@router.get("/goals/contributions/monthly")
+async def goal_contributions_monthly(
+    months: int = 6, current_user=Depends(get_current_user), db=Depends(get_db)
+):
+    """Per-goal contribution totals bucketed by month, newest bucket last.
+
+    Drives the canvas's "monthly contributions" bars. Months with no
+    contribution are emitted as zero rather than skipped — a gap in a bar chart
+    reads as missing data, but a zero month is a real fact about the goal.
+    """
+    months = max(1, min(24, months))
+    now = datetime.utcnow()
+
+    # Walk back N calendar months from this one. Day arithmetic would drift
+    # across months of different lengths; (year, month) arithmetic cannot.
+    buckets: list[str] = []
+    year, month = now.year, now.month
+    for _ in range(months):
+        buckets.append(f"{year:04d}-{month:02d}")
+        month -= 1
+        if month == 0:
+            year, month = year - 1, 12
+    buckets.reverse()
+
+    start = datetime(int(buckets[0][:4]), int(buckets[0][5:]), 1)
+
+    goals = (await db.execute(
+        select(FinancialGoal).where(FinancialGoal.user_id == current_user.id)
+    )).scalars().all()
+
+    rows = (await db.execute(
+        select(GoalContribution).where(
+            GoalContribution.user_id == current_user.id,
+            GoalContribution.contributed_at >= start,
+        )
+    )).scalars().all()
+
+    by_goal: dict[uuid.UUID, dict[str, float]] = {}
+    for row in rows:
+        label = row.contributed_at.strftime("%Y-%m")
+        bucket = by_goal.setdefault(row.goal_id, {})
+        bucket[label] = bucket.get(label, 0.0) + float(row.amount)
+
+    return {
+        "months": buckets,
+        "goals": [
+            {
+                "goal_id": str(g.id),
+                "name": g.name,
+                "color": g.color,
+                "series": [round(by_goal.get(g.id, {}).get(m, 0.0), 2) for m in buckets],
+            }
+            for g in goals
+        ],
+    }
+
+
+@router.get("/goals/{goal_id}/contributions")
+async def list_goal_contributions(
+    goal_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)
+):
+    await _owned_goal(db, goal_id, current_user.id)
+    result = await db.execute(
+        select(GoalContribution)
+        .where(
+            GoalContribution.goal_id == goal_id,
+            GoalContribution.user_id == current_user.id,
+        )
+        .order_by(desc(GoalContribution.contributed_at))
+    )
+    return result.scalars().all()
+
+
+class GoalContributionCreate(BaseModel):
+    # Deliberately not `gt=0`: a withdrawal from a goal is a real event and the
+    # series has to be able to go down.
+    amount: float
+    contributed_at: NaiveDateTime = None
+    note: Optional[str] = None
+    account_id: Optional[uuid.UUID] = None
+
+
+@router.post("/goals/{goal_id}/contributions")
+async def create_goal_contribution(
+    goal_id: uuid.UUID,
+    body: GoalContributionCreate,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    if body.amount == 0:
+        raise HTTPException(status_code=422, detail="amount must be non-zero")
+    goal = await _owned_goal(db, goal_id, current_user.id)
+
+    row = GoalContribution(
+        user_id=current_user.id,
+        goal_id=goal_id,
+        amount=Decimal(str(body.amount)),
+        contributed_at=body.contributed_at or datetime.utcnow(),
+        note=body.note,
+        account_id=body.account_id,
+    )
+    db.add(row)
+
+    # Keep the running total in step, and move the money out of the funding
+    # account when one is named — otherwise saving toward a goal would create
+    # value out of nothing.
+    goal.current_amount = (goal.current_amount or Decimal("0")) + Decimal(str(body.amount))
+    goal.updated_at = datetime.utcnow()
+    db.add(goal)
+    if body.account_id is not None:
+        await _adjust_balance(db, body.account_id, -body.amount, current_user.id)
+
+    await db.commit()
+    await db.refresh(row)
+    return row
+
+
+@router.delete("/goals/{goal_id}/contributions/{contribution_id}")
+async def delete_goal_contribution(
+    goal_id: uuid.UUID,
+    contribution_id: uuid.UUID,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    goal = await _owned_goal(db, goal_id, current_user.id)
+    result = await db.execute(
+        select(GoalContribution).where(
+            GoalContribution.id == contribution_id,
+            GoalContribution.goal_id == goal_id,
+            GoalContribution.user_id == current_user.id,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Contribution not found")
+
+    goal.current_amount = (goal.current_amount or Decimal("0")) - row.amount
+    goal.updated_at = datetime.utcnow()
+    db.add(goal)
+    if row.account_id is not None:
+        await _adjust_balance(db, row.account_id, float(row.amount), current_user.id)
+
+    await db.delete(row)
+    await db.commit()
+    return {"status": "deleted"}
+
+
 # ── Bills ────────────────────────────────────────────
 
 @router.get("/bills")
@@ -1219,10 +1242,20 @@ class AccountCreate(BaseModel):
     type: AccountType
     balance: float = 0
     currency: str = "INR"
+    # Only meaningful on a credit card. Left NULL, utilization is reported as
+    # unknown rather than as 0% of nothing.
+    credit_limit: Optional[float] = Field(default=None, gt=0)
 
 @router.post("/accounts")
 async def create_account(body: AccountCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    account = Account(user_id=current_user.id, name=body.name, type=body.type, balance=body.balance, currency=body.currency)
+    account = Account(
+        user_id=current_user.id,
+        name=body.name,
+        type=body.type,
+        balance=body.balance,
+        currency=body.currency,
+        credit_limit=body.credit_limit,
+    )
     db.add(account)
     await db.commit()
     await db.refresh(account)
@@ -1297,6 +1330,7 @@ class AccountUpdate(BaseModel):
     name: Optional[str] = None
     type: Optional[AccountType] = None
     currency: Optional[str] = None
+    credit_limit: Optional[float] = None
 
 
 @router.patch("/accounts/{account_id}")
@@ -1324,6 +1358,13 @@ async def update_account(
         if not currency:
             raise HTTPException(status_code=400, detail="Currency cannot be empty")
         account.currency = currency
+    # Presence-checked, not truthiness-checked: an explicit null is how the UI
+    # clears a limit, and 0 is not a valid limit anyway.
+    if "credit_limit" in updates:
+        limit = updates["credit_limit"]
+        if limit is not None and limit <= 0:
+            raise HTTPException(status_code=422, detail="credit_limit must be positive")
+        account.credit_limit = Decimal(str(limit)) if limit is not None else None
 
     await db.commit()
     await db.refresh(account)
@@ -1552,6 +1593,230 @@ async def investments_summary(current_user=Depends(get_current_user), db=Depends
     }
 
 
+@router.get("/investments/performance")
+async def investments_performance(
+    days: int = 180, current_user=Depends(get_current_user), db=Depends(get_db)
+):
+    """XIRR, realised SIP rate and the portfolio value series.
+
+    All three are things `invested_amount`/`current_value` cannot express:
+    those two scalars know the size of the position but not *when* the money
+    went in, and timing is what separates a good return from a lucky one.
+    """
+    from datetime import date as date_type
+
+    days = max(7, min(1095, days))
+    today = date_type.today()
+    since = today - timedelta(days=days)
+
+    holdings = (await db.execute(
+        select(FinanceInvestment).where(FinanceInvestment.user_id == current_user.id)
+    )).scalars().all()
+
+    txns = (await db.execute(
+        select(InvestmentTransaction)
+        .where(InvestmentTransaction.user_id == current_user.id)
+        .order_by(InvestmentTransaction.transacted_at)
+    )).scalars().all()
+
+    total_current = sum(float(h.current_value) for h in holdings)
+
+    # Portfolio-level XIRR over every cashflow, closed off at today's value.
+    portfolio_rate = portfolio_xirr(
+        [(t.transacted_at, t.kind, float(t.amount)) for t in txns],
+        total_current,
+        today,
+    )
+
+    # Per-holding, so a single bad position is visible instead of averaged away.
+    by_holding: dict[uuid.UUID, list[InvestmentTransaction]] = {}
+    for t in txns:
+        by_holding.setdefault(t.investment_id, []).append(t)
+
+    holdings_out = []
+    for h in holdings:
+        rows = by_holding.get(h.id, [])
+        rate = portfolio_xirr(
+            [(t.transacted_at, t.kind, float(t.amount)) for t in rows],
+            float(h.current_value),
+            today,
+        )
+        invested = float(h.invested_amount)
+        holdings_out.append({
+            "id": str(h.id),
+            "name": h.name,
+            "type": h.type,
+            "invested": invested,
+            "current_value": float(h.current_value),
+            "gain": float(h.current_value) - invested,
+            "gain_pct": round(((float(h.current_value) - invested) / invested) * 100, 2)
+            if invested > 0 else 0.0,
+            # None means "not enough dated cashflows to compute it" — the UI
+            # must render that as unknown, never as 0%.
+            "xirr_pct": round(rate * 100, 2) if rate is not None else None,
+            "cashflow_count": len(rows),
+        })
+
+    # Realised SIP: what actually went in per month over the last 3 months,
+    # as opposed to `committed_monthly`, which is only an intention.
+    sip_window_start = datetime.utcnow() - timedelta(days=92)
+    sip_flows = [
+        float(t.amount) for t in txns
+        if t.kind == "buy" and t.is_sip and t.transacted_at >= sip_window_start
+    ]
+    realised_sip_monthly = round(sum(sip_flows) / 3, 2) if sip_flows else 0.0
+
+    valuations = (await db.execute(
+        select(InvestmentValuation)
+        .where(
+            InvestmentValuation.user_id == current_user.id,
+            InvestmentValuation.as_of >= since,
+        )
+        .order_by(InvestmentValuation.as_of)
+    )).scalars().all()
+
+    return {
+        "xirr_pct": round(portfolio_rate * 100, 2) if portfolio_rate is not None else None,
+        "committed_monthly": sum(
+            float(h.committed_monthly) for h in holdings if h.committed_monthly is not None
+        ),
+        "realised_sip_monthly": realised_sip_monthly,
+        "holdings": holdings_out,
+        "series": [
+            {"date": v.as_of.isoformat(), "invested": float(v.invested), "value": float(v.value)}
+            for v in valuations
+        ],
+    }
+
+
+@router.get("/investments/transactions")
+async def list_investment_transactions(
+    investment_id: Optional[uuid.UUID] = None,
+    limit: int = 200,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    query = select(InvestmentTransaction).where(
+        InvestmentTransaction.user_id == current_user.id
+    )
+    if investment_id is not None:
+        query = query.where(InvestmentTransaction.investment_id == investment_id)
+    result = await db.execute(
+        query.order_by(desc(InvestmentTransaction.transacted_at)).limit(max(1, min(1000, limit)))
+    )
+    return result.scalars().all()
+
+
+_INVESTMENT_TXN_KINDS = {"buy", "sell", "dividend"}
+
+
+class InvestmentTransactionCreate(BaseModel):
+    investment_id: uuid.UUID
+    kind: str = "buy"
+    amount: float = Field(gt=0)
+    units: Optional[float] = None
+    transacted_at: NaiveDateTime = None
+    is_sip: bool = False
+    notes: Optional[str] = None
+    account_id: Optional[uuid.UUID] = None
+
+
+@router.post("/investments/transactions")
+async def create_investment_transaction(
+    body: InvestmentTransactionCreate,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    if body.kind not in _INVESTMENT_TXN_KINDS:
+        raise HTTPException(
+            status_code=422, detail=f"kind must be one of {sorted(_INVESTMENT_TXN_KINDS)}"
+        )
+    holding = (await db.execute(
+        select(FinanceInvestment).where(
+            FinanceInvestment.id == body.investment_id,
+            FinanceInvestment.user_id == current_user.id,
+        )
+    )).scalar_one_or_none()
+    if not holding:
+        raise HTTPException(status_code=404, detail="Investment not found")
+
+    row = InvestmentTransaction(
+        user_id=current_user.id,
+        investment_id=body.investment_id,
+        kind=body.kind,
+        amount=Decimal(str(body.amount)),
+        units=Decimal(str(body.units)) if body.units is not None else None,
+        transacted_at=body.transacted_at or datetime.utcnow(),
+        is_sip=body.is_sip,
+        notes=body.notes,
+        account_id=body.account_id,
+    )
+    db.add(row)
+
+    # Keep the holding's own totals true, so the summary endpoint and the
+    # cashflow ledger cannot drift apart.
+    delta = Decimal(str(body.amount))
+    if body.kind == "buy":
+        holding.invested_amount = holding.invested_amount + delta
+        holding.current_value = holding.current_value + delta
+        if body.units is not None:
+            holding.units = (holding.units or Decimal("0")) + Decimal(str(body.units))
+    elif body.kind == "sell":
+        holding.current_value = max(Decimal("0"), holding.current_value - delta)
+        if body.units is not None:
+            holding.units = max(Decimal("0"), (holding.units or Decimal("0")) - Decimal(str(body.units)))
+    # A dividend is cash out of the holding, not a change in its book value.
+
+    holding.updated_at = datetime.utcnow()
+    db.add(holding)
+
+    if body.account_id is not None:
+        # Buying moves money out of the funding account; selling and dividends
+        # move it back in.
+        signed = -body.amount if body.kind == "buy" else body.amount
+        await _adjust_balance(db, body.account_id, signed, current_user.id)
+
+    await db.commit()
+    await db.refresh(row)
+    return row
+
+
+@router.delete("/investments/transactions/{transaction_id}")
+async def delete_investment_transaction(
+    transaction_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)
+):
+    row = (await db.execute(
+        select(InvestmentTransaction).where(
+            InvestmentTransaction.id == transaction_id,
+            InvestmentTransaction.user_id == current_user.id,
+        )
+    )).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    holding = await db.get(FinanceInvestment, row.investment_id)
+    if holding and holding.user_id == current_user.id:
+        if row.kind == "buy":
+            holding.invested_amount = max(Decimal("0"), holding.invested_amount - row.amount)
+            holding.current_value = max(Decimal("0"), holding.current_value - row.amount)
+            if row.units is not None:
+                holding.units = max(Decimal("0"), (holding.units or Decimal("0")) - row.units)
+        elif row.kind == "sell":
+            holding.current_value = holding.current_value + row.amount
+            if row.units is not None:
+                holding.units = (holding.units or Decimal("0")) + row.units
+        holding.updated_at = datetime.utcnow()
+        db.add(holding)
+
+    if row.account_id is not None:
+        signed = float(row.amount) if row.kind == "buy" else -float(row.amount)
+        await _adjust_balance(db, row.account_id, signed, current_user.id)
+
+    await db.delete(row)
+    await db.commit()
+    return {"status": "deleted"}
+
+
 class InvestmentCreate(BaseModel):
     name: str
     type: str = "mutual_fund"
@@ -1638,10 +1903,70 @@ async def loans_summary(current_user=Depends(get_current_user), db=Depends(get_d
     loans = result.scalars().all()
     total_outstanding = sum(float(l.outstanding_amount) for l in loans)
     total_emi = sum(float(l.emi_amount) for l in loans)
+
+    # Interest paid TO DATE — the figure the canvas asks for, and the one the
+    # loan row alone could never answer. Reads the amortization split recorded
+    # on each paid EMI; loans paid before that split existed contribute 0
+    # rather than a fabricated estimate.
+    payments = (await db.execute(
+        select(ObligationPayment).where(
+            ObligationPayment.user_id == current_user.id,
+            ObligationPayment.obligation_type == "loan",
+            ObligationPayment.paid == True,  # noqa: E712 — SQL, not Python truthiness
+        )
+    )).scalars().all()
+    interest_paid = sum(float(p.interest_component or 0) for p in payments)
+    principal_paid = sum(float(p.principal_component or 0) for p in payments)
+
     return {
         "total_outstanding": total_outstanding,
         "total_emi": total_emi,
         "active_count": len(loans),
+        "interest_paid_to_date": round(interest_paid, 2),
+        "principal_paid_to_date": round(principal_paid, 2),
+        "payments_recorded": len(payments),
+    }
+
+
+@router.get("/loans/{loan_id}/payments")
+async def loan_payments(
+    loan_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)
+):
+    """Payment history for one loan, with the principal/interest split per EMI."""
+    loan = (await db.execute(
+        select(FinanceLoan).where(
+            FinanceLoan.id == loan_id, FinanceLoan.user_id == current_user.id
+        )
+    )).scalar_one_or_none()
+    if not loan:
+        raise HTTPException(status_code=404, detail="Loan not found")
+
+    rows = (await db.execute(
+        select(ObligationPayment)
+        .where(
+            ObligationPayment.user_id == current_user.id,
+            ObligationPayment.obligation_type == "loan",
+            ObligationPayment.obligation_id == loan_id,
+            ObligationPayment.paid == True,  # noqa: E712
+        )
+        .order_by(ObligationPayment.period)
+    )).scalars().all()
+
+    return {
+        "loan_id": str(loan_id),
+        "outstanding": float(loan.outstanding_amount),
+        "payments": [
+            {
+                "period": r.period,
+                "paid_at": r.paid_at.isoformat() if r.paid_at else None,
+                "amount": float(r.paid_amount) if r.paid_amount is not None else float(loan.emi_amount),
+                # None (not 0) for payments recorded before the split existed —
+                # the UI has to distinguish "no interest" from "not known".
+                "principal": float(r.principal_component) if r.principal_component is not None else None,
+                "interest": float(r.interest_component) if r.interest_component is not None else None,
+            }
+            for r in rows
+        ],
     }
 
 

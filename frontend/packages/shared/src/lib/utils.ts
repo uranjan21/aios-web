@@ -22,6 +22,20 @@ export function formatCurrency(amount: number | null | undefined, currency = '�
   return `${sign}${currency}${abs.toLocaleString('en-IN')}`
 }
 
+/**
+ * Full-precision currency, Indian digit grouping — `₹18,42,650`.
+ *
+ * `formatCurrency` abbreviates anything over a lakh so it fits a KPI tile. The
+ * redesign canvas only wants that abbreviation on the dashboard tiles; every
+ * exact figure it draws — a net-worth hero, a budget limit, a ledger amount —
+ * is grouped in full. Use this wherever the number IS the content.
+ */
+export function formatAmount(amount: number | null | undefined, currency = '₹'): string {
+  if (amount == null) return '—'
+  const sign = amount < 0 ? '-' : ''
+  return `${sign}${currency}${Math.abs(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+}
+
 export function formatRelativeTime(isoString: string | null | undefined): string {
   if (!isoString) return 'Never'
   const diff = Date.now() - new Date(isoString).getTime()

@@ -19,10 +19,10 @@ import { useQuery } from '@tanstack/react-query'
 import { Activity, BookOpen, Briefcase, Plus, Settings } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
-import { Button, KpiCard, KpiGrid, PageHeader } from '@ledgr/ui'
+import { Button, HeaderActionPortal, KpiCard, KpiGrid } from '@ledgr/ui'
 import { useAreaSection } from '@ct/shared/hooks/useAreaSection'
 import { JournalSection } from '@ct/career/components/JournalSection'
-import { OpportunitiesTab } from '@ct/career/components/OpportunitiesTab'
+import { OpportunitiesSection } from '@ct/career/components/sections/OpportunitiesSection'
 import { CareerLogModal } from '@ct/career/components/CareerLogModal'
 import { careerApi } from '@ct/shared/api/areas'
 
@@ -46,22 +46,17 @@ export function CareerPage() {
   return (
     <PageContainer>
       <PageContent>
-        <PageHeader
-          icon={<Briefcase />}
-          eyebrow="Growth"
-          title="Career"
-          subtitle="Track the roles you're pursuing and where each one stands."
-          actions={
-            <>
-              <Button variant="secondary" size="sm" onClick={() => setIsLogModalOpen(true)}>
-                <Plus size={14} style={{ marginRight: 6 }} /> Log entry
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate('/app/career/settings')}>
-                <Settings size={14} style={{ marginRight: 6 }} /> Settings
-              </Button>
-            </>
-          }
-        />
+        {/* No in-page title block — see FinancePage. */}
+        <HeaderActionPortal>
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setIsLogModalOpen(true)}>
+              <Plus size={14} style={{ marginRight: 6 }} /> Log entry
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate('/app/career/settings')}>
+              <Settings size={14} style={{ marginRight: 6 }} /> Settings
+            </Button>
+          </>
+        </HeaderActionPortal>
 
         {section === 'journal' ? (
           <JournalSection />
@@ -78,7 +73,7 @@ export function CareerPage() {
           <KpiCard label="Skills tracked" value={String(skills?.length ?? 0)} icon={BookOpen} />
         </KpiGrid>
 
-        <OpportunitiesTab />
+        <OpportunitiesSection />
         </>
         )}
 

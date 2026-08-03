@@ -5,7 +5,7 @@ import type {
   FinancialGoal, FinanceBill, FinanceIncome, CashFlowData, HealthGoal, NutritionToday,
   FinanceInvestment, InvestmentSummary, FinanceLoan, LoanSummary, SleepRecent, HabitItem,
   WorkoutSessionItem, WorkoutPR, FoodDbItem,
-  FinanceTransfer, BudgetStatus, LedgerEntry, NetWorth, TxnSearchResult, FinanceHealthScore,
+  FinanceTransfer, BudgetStatus, LedgerEntry, NetWorth, TxnSearchResult,
   Account, Category, Capture,
 } from '@ct/shared/types'
 
@@ -114,7 +114,6 @@ export interface SimulationParams {
 
 export const financeApi = {
   netWorth: () => api.get<NetWorth>('/areas/finance/net-worth').then(r => r.data),
-  healthScore: () => api.get<FinanceHealthScore>('/areas/finance/health-score').then(r => r.data),
   simulate: (params: SimulationParams) =>
     api.post<SimulationResult>('/areas/finance/simulate', params).then(r => r.data),
   importCheck: (items: { logged_at: string; amount: number; kind: string; category?: string; description?: string }[]) =>

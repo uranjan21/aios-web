@@ -1,20 +1,39 @@
-import { useState } from 'react'
+/**
+ * Finance → Loans.
+ *
+ * Phase 4 conversion: the page keeps the redesign canvas's module COMPOSITION
+ * for `finance:loans` — tiles(12) · progress(12) · table(7) · donut(5) — and
+ * rebuilds every module from the live `/areas/finance/loans` response instead
+ * of the designer's sample rows. All CRUD the old table carried is preserved:
+ * create (header action), read, update, delete and active/paid-off toggle now
+ * live on the payoff-progress rows and in the edit dialog.
+ *
+ * ONE DELIBERATE DEPARTURE FROM THE CANVAS. The canvas's donut is "What you
+ * have paid so far — principal vs interest", and its third tile is "Interest
+ * paid in 2026". Neither is derivable: a loan row carries current terms, not a
+ * payment history, so interest already paid cannot be known without inventing
+ * it. Both are flipped to the forward-looking half of the same question —
+ * principal outstanding vs interest still to pay — which IS exact from the
+ * stated balance, rate and EMI. Same question, answered with data that exists.
+ * (Principal *cleared* needs no history and is shown as-is on tile 1.)
+ */
+import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
-import { Button, Switch, Dialog, Badge, Input, DataTable, Card, Select } from '@ledgr/ui'
-import { Trash2, PencilLine, Landmark, Plus } from 'lucide-react'
+import { Button, Card, Dialog, EmptyState, HeaderActionPortal, Input, Select, Switch } from '@ledgr/ui'
+import { Landmark, FileText, PieChart, Trash2 } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
+import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import type { FinanceLoan } from '@ct/shared/types'
 import { PayoffPlanner } from './PayoffPlanner'
 import styled from 'styled-components'
-import { WorkspaceLayout } from '@ct/shared/components/layout/WorkspaceLayout'
 
 const RootContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: ${({ theme }) => theme.spacing[5]};
 `
 
 const LoadingContainer = styled.div`
@@ -31,62 +50,6 @@ const LoadBody = styled(Skeleton)`
   height: 12.5rem;
 `
 
-const LoanCell = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-`
-
-const IconWrap = styled.span`
-  font-size: 1.25rem;
-  line-height: 1;
-`
-
-const NameText = styled.div`
-  font-weight: 500;
-  color: ${({ theme }) => theme.color.foreground};
-`
-
-const SubText = styled.div`
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  color: ${({ theme }) => theme.color.mutedForeground};
-`
-
-const NumberWrap = styled.div`
-  display: flex;
-  flex-direction: column;
-`
-
-const MainNum = styled.div`
-  font-weight: 500;
-`
-
-const ActionWrap = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  opacity: 1;
-  transition: opacity 0.2s;
-  
-  @media ${({ theme }) => theme.media.md} {
-    opacity: 0;
-    tr:hover & {
-      opacity: 1;
-    }
-  }
-`
-
-
-const SummaryRow = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  background-color: ${({ theme }) => theme.color.muted}33;
-  border-top: 1px solid ${({ theme }) => theme.color.border};
-  font-weight: 500;
-  font-size: 0.875rem;
-`
-
 const UpdateForm = styled.form`
   margin-top: 1rem;
   display: flex;
@@ -101,10 +64,23 @@ const FieldLabel = styled.label`
   display: block;
 `
 
+const ToggleRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.25rem;
+`
+
 const FormActions = styled.div`
   display: flex;
+  align-items: center;
   gap: 0.5rem;
   padding-top: 0.5rem;
+`
+
+const Spacer = styled.div`
+  flex: 1;
 `
 
 const LOAN_TYPE_META: Record<string, { label: string; icon: string }> = {
@@ -115,6 +91,8 @@ const LOAN_TYPE_META: Record<string, { label: string; icon: string }> = {
   credit_card: { label: 'Credit Card', icon: '💳' },
   other: { label: 'Other', icon: '📄' },
 }
+
+const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`
 
 function getDaysUntilDue(dueDay: number): number {
   const today = new Date()
@@ -136,6 +114,77 @@ function ordinal(n: number) {
   return n + (s[(v - 20) % 10] || s[v] || s[0])
 }
 
+/** A day-of-month recurrence clamped to months that are too short for it. */
+function onDayOf(year: number, month: number, day: number): Date {
+  const lastDay = new Date(year, month + 1, 0).getDate()
+  return new Date(year, month, Math.min(day, lastDay))
+}
+
+/** Date of the `index`-th upcoming EMI (0 = the next one due). */
+function emiDateAfter(emiDay: number, index: number): Date {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  let first = onDayOf(today.getFullYear(), today.getMonth(), emiDay)
+  if (first < today) first = onDayOf(today.getFullYear(), today.getMonth() + 1, emiDay)
+  return onDayOf(first.getFullYear(), first.getMonth() + index, emiDay)
+}
+
+const fmtDay = (d: Date) => d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+
+/**
+ * Instalments left on a standard amortising loan. `null` when the EMI never
+ * clears the balance because it does not even cover the monthly interest —
+ * that is a real state worth naming rather than rendering as a big number.
+ */
+function emisRemaining(balance: number, annualRate: number, emi: number): number | null {
+  if (!(balance > 0)) return 0
+  if (!(emi > 0)) return null
+  const r = annualRate / 1200
+  if (r === 0) return Math.ceil(balance / emi)
+  if (emi <= balance * r) return null
+  return Math.ceil(-Math.log(1 - (balance * r) / emi) / Math.log(1 + r))
+}
+
+interface Instalment { date: Date; loan: string; principal: number; interest: number }
+
+/** The next `count` instalments across all loans, principal/interest split. */
+function buildSchedule(loans: FinanceLoan[], count: number): Instalment[] {
+  const out: Instalment[] = []
+  for (const l of loans) {
+    let balance = Number(l.outstanding_amount)
+    const r = Number(l.interest_rate) / 1200
+    const emi = Number(l.emi_amount)
+    if (!(balance > 0) || !(emi > 0)) continue
+    for (let i = 0; i < count && balance > 0; i++) {
+      const interest = balance * r
+      const pay = Math.min(emi, balance + interest)
+      const principal = pay - interest
+      if (principal <= 0) break
+      out.push({ date: emiDateAfter(l.emi_day, i), loan: l.name, principal, interest })
+      balance = balance + interest - pay
+    }
+  }
+  return out.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, count)
+}
+
+/** Total interest still owed at the current EMIs, summed across loans. */
+function interestAhead(loans: FinanceLoan[]): number {
+  let total = 0
+  for (const l of loans) {
+    let balance = Number(l.outstanding_amount)
+    const r = Number(l.interest_rate) / 1200
+    const emi = Number(l.emi_amount)
+    const n = emisRemaining(balance, Number(l.interest_rate), emi)
+    if (n === null) continue
+    for (let i = 0; i < n && balance > 0; i++) {
+      const interest = balance * r
+      total += interest
+      balance = balance + interest - Math.min(emi, balance + interest)
+    }
+  }
+  return total
+}
+
 type LoanForm = {
   name: string
   loan_type: string
@@ -147,13 +196,14 @@ type LoanForm = {
   emi_day: string
   tenure_months: string
   notes: string
+  is_active: boolean
 }
 const EMPTY_LOAN_FORM: LoanForm = {
   name: '', loan_type: 'home', lender: '', principal_amount: '0', outstanding_amount: '0',
-  interest_rate: '0', emi_amount: '0', emi_day: '1', tenure_months: '', notes: '',
+  interest_rate: '0', emi_amount: '0', emi_day: '1', tenure_months: '', notes: '', is_active: true,
 }
 
-export function LoansTab({ onAdd, navMenu }: { onAdd?: () => void, navMenu?: React.ReactNode } = {}) {
+export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
   const queryClient = useQueryClient()
   const [updatingLoan, setUpdatingLoan] = useState<FinanceLoan | null>(null)
   const [loanForm, setLoanForm] = useState<LoanForm>(EMPTY_LOAN_FORM)
@@ -164,17 +214,16 @@ export function LoansTab({ onAdd, navMenu }: { onAdd?: () => void, navMenu?: Rea
     queryFn: financeApi.loans,
   })
 
-  const { data: summary } = useQuery({
-    queryKey: ['finance', 'loans', 'summary'],
-    queryFn: financeApi.loansSummary,
-  })
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['finance', 'loans'] })
+    queryClient.invalidateQueries({ queryKey: ['finance', 'loans', 'summary'] })
+  }
 
   const updateMutation = useMutation({
     mutationFn: (patch: Parameters<typeof financeApi.patchLoan>[1]) =>
       financeApi.patchLoan(updatingLoan!.id, patch),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['finance', 'loans'] })
-      queryClient.invalidateQueries({ queryKey: ['finance', 'loans', 'summary'] })
+      invalidate()
       toast.success('Loan updated')
       setUpdatingLoan(null)
       setLoanForm(EMPTY_LOAN_FORM)
@@ -182,20 +231,13 @@ export function LoansTab({ onAdd, navMenu }: { onAdd?: () => void, navMenu?: Rea
     onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to update loan'),
   })
 
-  const toggleMutation = useMutation({
-    mutationFn: ({ id, active }: { id: string; active: boolean }) => financeApi.patchLoan(id, { is_active: active }),
-    onSuccess: (_data, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['finance', 'loans'] })
-      toast.success(vars.active ? 'Loan marked active' : 'Loan marked paid off')
-    },
-    onError: () => toast.error('Failed to update loan'),
-  })
-
   const deleteMutation = useMutation({
     mutationFn: (id: string) => financeApi.deleteLoan(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['finance', 'loans'] })
-      toast.success(`Loan removed`)
+      invalidate()
+      toast.success('Loan removed')
+      setUpdatingLoan(null)
+      setLoanForm(EMPTY_LOAN_FORM)
     },
     onError: () => toast.error('Failed to delete loan'),
   })
@@ -212,7 +254,8 @@ export function LoansTab({ onAdd, navMenu }: { onAdd?: () => void, navMenu?: Rea
       emi_amount: String(loan.emi_amount ?? 0),
       emi_day: String(loan.emi_day ?? 1),
       tenure_months: loan.tenure_months != null ? String(loan.tenure_months) : '',
-      notes: (loan as any).notes ?? '',
+      notes: loan.notes ?? '',
+      is_active: loan.is_active,
     })
   }
 
@@ -245,232 +288,285 @@ export function LoansTab({ onAdd, navMenu }: { onAdd?: () => void, navMenu?: Rea
       emi_day: emiDay,
       ...(tenure !== undefined && { tenure_months: tenure }),
       notes: loanForm.notes.trim() || undefined,
+      is_active: loanForm.is_active,
     })
   }
 
-  const columns = [
-    {
-      id: 'loan',
-      header: 'Loan',
-      cell: (row: any) => {
-        const record = row as FinanceLoan;
-        const meta = LOAN_TYPE_META[record.loan_type] ?? LOAN_TYPE_META.other
-        return (
-          <LoanCell>
-            <IconWrap>{meta.icon}</IconWrap>
-            <div>
-              <NameText>{record.name}</NameText>
-              <SubText>{meta.label} {record.lender ? `· ${record.lender}` : ''}</SubText>
-            </div>
-          </LoanCell>
-        )
-      }
-    },
-    {
-      id: 'principal_amount',
-      header: 'Principal',
-      cell: (row: any) => `₹${Number(row.principal_amount).toLocaleString('en-IN')}`
-    },
-    {
-      id: 'outstanding_amount',
-      header: 'Outstanding',
-      cell: (row: any) => {
-        const record = row as FinanceLoan;
-        const principal = Number(record.principal_amount)
-        const outstanding = Number(record.outstanding_amount)
-        const paidPct = principal > 0 ? Math.min(100, Math.round(((principal - outstanding) / principal) * 100)) : 0
-        return (
-          <NumberWrap>
-            <MainNum>₹{outstanding.toLocaleString('en-IN')}</MainNum>
-            <SubText>{paidPct}% paid</SubText>
-          </NumberWrap>
-        )
-      }
-    },
-    {
-      id: 'emi',
-      header: 'EMI Details',
-      cell: (row: any) => {
-        const record = row as FinanceLoan;
-        const days = getDaysUntilDue(record.emi_day)
-        return (
-          <NumberWrap>
-            <MainNum>₹{Number(record.emi_amount).toLocaleString('en-IN')}/mo</MainNum>
-            {record.is_active && (
-              <div style={{ marginTop: '4px' }}>
-                <Badge tone={urgencyColor(days)} size="sm">
-                  Due {days === 0 ? 'Today' : `${days}d`} ({ordinal(record.emi_day)})
-                </Badge>
-              </div>
-            )}
-          </NumberWrap>
-        )
-      }
-    },
-    {
-      id: 'interest_rate',
-      header: 'Rate',
-      cell: (row: any) => `${Number(row.interest_rate).toFixed(2)}%`
-    },
-    {
-      id: 'status',
-      header: 'Status',
-      cell: (row: any) => {
-        const record = row as FinanceLoan;
-        return (
-          <Switch
-            size="sm"
-            checked={record.is_active}
-            onChange={e => toggleMutation.mutate({ id: record.id, active: e.target.checked })}
-            disabled={toggleMutation.isPending}
-          />
-        )
-      }
-    },
-    {
-      id: 'action',
-      header: 'Action',
-      cell: (row: any) => {
-        const record = row as FinanceLoan;
-        return (
-          <ActionWrap>
-            <Button variant="ghost" size="icon" onClick={() => openUpdate(record)}>
-              <PencilLine size={14} />
-            </Button>
-            <Popconfirm title="Delete this loan?" onConfirm={() => deleteMutation.mutate(record.id)} okText="Delete" cancelText="Cancel" okButtonProps={{ danger: true }}>
-              <Button variant="destructive" size="icon">
-                <Trash2 size={14} />
-              </Button>
-            </Popconfirm>
-          </ActionWrap>
-        )
+  const all = useMemo(() => loans ?? [], [loans])
+
+  /*
+   * The filter picks which loans the payoff-progress module LISTS. The tiles,
+   * schedule and donut always describe live debt — a paid-off loan has no next
+   * EMI and no interest ahead, so filtering them into those modules would just
+   * blank them out.
+   */
+  const listed = useMemo(
+    () => all.filter(l => (statusFilter === 'all' ? true : statusFilter === 'active' ? l.is_active : !l.is_active)),
+    [all, statusFilter],
+  )
+  const active = useMemo(() => all.filter(l => l.is_active), [all])
+
+  const modules = useMemo<ModuleSpec[]>(() => {
+    if (!all.length) return []
+
+    const totalOutstanding = active.reduce((s, l) => s + Number(l.outstanding_amount), 0)
+    const totalPrincipal = active.reduce((s, l) => s + Number(l.principal_amount), 0)
+    const clearedPct = totalPrincipal > 0
+      ? Math.max(0, Math.min(100, Math.round(((totalPrincipal - totalOutstanding) / totalPrincipal) * 100)))
+      : 0
+    const blended = totalOutstanding > 0
+      ? active.reduce((s, l) => s + Number(l.outstanding_amount) * Number(l.interest_rate), 0) / totalOutstanding
+      : 0
+
+    const withEmi = active.filter(l => Number(l.outstanding_amount) > 0)
+    const nextLoan = withEmi.length
+      ? withEmi.reduce((a, b) => (getDaysUntilDue(a.emi_day) <= getDaysUntilDue(b.emi_day) ? a : b))
+      : null
+    const nextDays = nextLoan ? getDaysUntilDue(nextLoan.emi_day) : null
+
+    const ahead = interestAhead(withEmi)
+    const schedule = buildSchedule(withEmi, 4)
+
+    const specs: ModuleSpec[] = [
+      {
+        kind: 'tiles',
+        span: 12,
+        tiles: [
+          {
+            label: 'Total outstanding',
+            value: inr(totalOutstanding),
+            sub: totalPrincipal > 0
+              ? `${clearedPct}% of ${inr(totalPrincipal)} borrowed is cleared`
+              : 'No principal recorded',
+            subKey: 'success',
+            bar: clearedPct,
+            barKey: 'accent',
+          },
+          {
+            label: 'Next EMI',
+            value: nextLoan ? inr(Number(nextLoan.emi_amount)) : '—',
+            sub: nextLoan ? `Due ${ordinal(nextLoan.emi_day)} · ${nextLoan.name}` : 'Nothing due',
+            ...(nextDays !== null && {
+              badge: nextDays === 0 ? 'Today' : `${nextDays} day${nextDays === 1 ? '' : 's'}`,
+              badgeKey: urgencyColor(nextDays),
+            }),
+          },
+          {
+            label: 'Interest still to pay',
+            value: inr(ahead),
+            sub: `Blended rate ${blended.toFixed(1)}% · projected at current EMIs`,
+            subKey: 'warning',
+          },
+        ],
       },
+    ]
+
+    if (listed.length) {
+      specs.push({
+        kind: 'progress',
+        span: 12,
+        title: 'Payoff progress',
+        subtitle: statusFilter === 'paid'
+          ? 'Principal cleared on closed loans'
+          : 'Principal cleared against original amount',
+        icon: Landmark,
+        ...(onAdd && { action: '+ Add loan', onAction: onAdd }),
+        onRowClick: (i: number) => openUpdate(listed[i]),
+        rows: listed.map(l => {
+          const principal = Number(l.principal_amount)
+          const outstanding = Number(l.outstanding_amount)
+          const paidPct = principal > 0
+            ? Math.max(0, Math.min(100, Math.round(((principal - outstanding) / principal) * 100)))
+            : 0
+          const left = emisRemaining(outstanding, Number(l.interest_rate), Number(l.emi_amount))
+          const meta = l.is_active
+            ? `${inr(outstanding)} left of ${inr(principal)} · ${Number(l.interest_rate).toFixed(2)}%`
+              + (left === null ? ' · EMI does not cover interest' : left === 0 ? '' : ` · ${left} EMIs to go`)
+            : `Closed · ${LOAN_TYPE_META[l.loan_type]?.label ?? 'Loan'}${l.lender ? ` · ${l.lender}` : ''}`
+          return {
+            title: `${LOAN_TYPE_META[l.loan_type]?.icon ?? '📄'} ${l.name}`,
+            meta,
+            pct: paidPct,
+            value: `${paidPct}%`,
+            colorKey: !l.is_active ? 'success' : paidPct >= 50 ? 'success' : 'accent',
+          }
+        }),
+      })
     }
-  ]
 
-  const visibleLoans = (loans ?? []).filter(l =>
-    statusFilter === 'all' ? true : statusFilter === 'active' ? l.is_active : !l.is_active
-  )
+    if (schedule.length) {
+      specs.push({
+        kind: 'table',
+        span: 7,
+        title: 'EMI schedule',
+        subtitle: `Next ${schedule.length === 1 ? 'instalment' : `${schedule.length} instalments`}`,
+        icon: FileText,
+        gridCols: '1fr 1.5fr 1fr 1fr',
+        cols: [{ l: 'Date' }, { l: 'Loan' }, { l: 'Principal', a: 'right' }, { l: 'Interest', a: 'right' }],
+        rows: schedule.map(s => [
+          { t: fmtDay(s.date), bold: true },
+          s.loan,
+          inr(s.principal),
+          { t: inr(s.interest), colorKey: 'warning' },
+        ]),
+      })
+    }
 
-  if (isLoading) return (
-    <WorkspaceLayout rail={navMenu}>
-      <LoadingContainer><LoadHead /><LoadBody /></LoadingContainer>
-    </WorkspaceLayout>
-  )
+    if (totalOutstanding > 0) {
+      const total = totalOutstanding + ahead
+      specs.push({
+        kind: 'donut',
+        span: 5,
+        title: 'Cost from here',
+        subtitle: 'Principal outstanding vs interest still to pay',
+        icon: PieChart,
+        centerValue: inr(total),
+        centerLabel: 'Still to pay',
+        slices: [
+          {
+            label: 'Principal outstanding',
+            pct: Math.round((totalOutstanding / total) * 100),
+            value: inr(totalOutstanding),
+            colorKey: 'accent',
+          },
+          {
+            label: 'Interest ahead',
+            pct: Math.round((ahead / total) * 100),
+            value: inr(ahead),
+            colorKey: 'destructive',
+          },
+        ],
+      })
+    }
+
+    return specs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all, active, listed, statusFilter, onAdd])
+
+  if (isLoading) return <LoadingContainer><LoadHead /><LoadBody /></LoadingContainer>
 
   return (
-    <WorkspaceLayout rail={navMenu}>
-      <RootContainer>
-        <Card
-          title="Loans & EMIs"
-          subtitle="Outstanding balances and monthly EMI obligations"
-          icon={<Landmark size={16} />}
-          action={
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <Select
-                size="sm"
-                fullWidth={false}
-                aria-label="Filter loans by status"
-                value={statusFilter}
-                onChange={(v: any) => setStatusFilter(v as typeof statusFilter)}
-                options={[
-                  { value: 'all', label: 'All Loans' },
-                  { value: 'active', label: 'Active' },
-                  { value: 'paid', label: 'Paid off' },
-                ]}
-              />
-              {onAdd && (
-                <Button size="sm" variant="primary" onClick={onAdd}>
-                  <Plus size={12} style={{ marginRight: 4 }} /> Add Loan
-                </Button>
-              )}
-            </div>
-          }
-        >
-          <DataTable
-            rows={visibleLoans}
-            columns={columns}
-            getRowKey={(row: any) => row.id}
-            empty={{ icon: <Landmark size={20} />, title: 'No loans tracked', description: 'Add a home loan, car loan, or personal loan to monitor your EMI and payoff progress.' }}
+    <RootContainer>
+      {/* Tab-scoped: it drives every module below, so it belongs in the
+          page header, not floating in the gap above the cards. */}
+      {all.length > 0 && (
+        <HeaderActionPortal>
+          <Select
+            size="sm"
+            fullWidth={false}
+            aria-label="Filter loans by status"
+            value={statusFilter}
+            onChange={(v: any) => setStatusFilter(v as typeof statusFilter)}
+            options={[
+              { value: 'all', label: 'All Loans' },
+              { value: 'active', label: 'Active' },
+              { value: 'paid', label: 'Paid off' },
+            ]}
           />
-          {summary && (
-            <SummaryRow>
-              <div>Active Total</div>
-              <div>Outstanding: ₹{summary.total_outstanding.toLocaleString('en-IN')}</div>
-              <div>EMI: ₹{summary.total_emi.toLocaleString('en-IN')}/mo</div>
-            </SummaryRow>
-          )}
+        </HeaderActionPortal>
+      )}
 
-          <Dialog
-            open={!!updatingLoan}
-            title={<span style={{ color: 'var(--foreground)' }}>Edit Loan{updatingLoan?.name ? ` — ${updatingLoan.name}` : ''}</span>}
-            onOpenChange={(open) => { if (!open) closeEdit() }}
-            size="md"
-          >
-            <UpdateForm onSubmit={e => { e.preventDefault(); handleSave() }}>
-              <div>
-                <FieldLabel>Loan name</FieldLabel>
-                <Input value={loanForm.name} onChange={(e: any) => setLoanForm(f => ({ ...f, name: e.target.value }))} placeholder="Home Loan — SBI" autoFocus required />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <FieldLabel>Type</FieldLabel>
-                  <Select fullWidth value={loanForm.loan_type} onChange={(v: any) => setLoanForm(f => ({ ...f, loan_type: String(v) }))} options={[
-                    { value: 'home', label: 'Home loan' },
-                    { value: 'personal', label: 'Personal loan' },
-                    { value: 'car', label: 'Car loan' },
-                    { value: 'education', label: 'Education loan' },
-                    { value: 'credit_card', label: 'Credit card' },
-                    { value: 'other', label: 'Other' },
-                  ]} />
-                </div>
-                <div>
-                  <FieldLabel>Lender</FieldLabel>
-                  <Input value={loanForm.lender} onChange={(e: any) => setLoanForm(f => ({ ...f, lender: e.target.value }))} placeholder="SBI" />
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <FieldLabel>Principal amount</FieldLabel>
-                  <Input type="number" startAdornment="₹" min="0" value={loanForm.principal_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, principal_amount: e.target.value }))} required />
-                </div>
-                <div>
-                  <FieldLabel>Outstanding amount</FieldLabel>
-                  <Input type="number" startAdornment="₹" min="0" value={loanForm.outstanding_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, outstanding_amount: e.target.value }))} required />
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                <div>
-                  <FieldLabel>Interest rate (%)</FieldLabel>
-                  <Input type="number" min="0" step="0.01" value={loanForm.interest_rate} onChange={(e: any) => setLoanForm(f => ({ ...f, interest_rate: e.target.value }))} required />
-                </div>
-                <div>
-                  <FieldLabel>EMI amount</FieldLabel>
-                  <Input type="number" startAdornment="₹" min="0" value={loanForm.emi_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, emi_amount: e.target.value }))} required />
-                </div>
-                <div>
-                  <FieldLabel>EMI day</FieldLabel>
-                  <Input type="number" min="1" max="31" value={loanForm.emi_day} onChange={(e: any) => setLoanForm(f => ({ ...f, emi_day: e.target.value }))} required />
-                </div>
-              </div>
-              <div>
-                <FieldLabel>Tenure (months, optional)</FieldLabel>
-                <Input type="number" min="1" value={loanForm.tenure_months} onChange={(e: any) => setLoanForm(f => ({ ...f, tenure_months: e.target.value }))} placeholder="e.g. 240" />
-              </div>
-              <div>
-                <FieldLabel>Notes</FieldLabel>
-                <Input value={loanForm.notes} onChange={(e: any) => setLoanForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional" />
-              </div>
-              <FormActions>
-                <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save changes</Button>
-                <Button variant="ghost" type="button" onClick={closeEdit} disabled={updateMutation.isPending}>Cancel</Button>
-              </FormActions>
-            </UpdateForm>
-          </Dialog>
+      {all.length === 0 ? (
+        <Card title="Loans & EMIs" subtitle="Outstanding balances and monthly EMI obligations" icon={<Landmark size={16} />}>
+          <EmptyState
+            icon={<Landmark size={20} />}
+            title="No loans tracked"
+            description="Add a home loan, car loan, or personal loan to monitor your EMI and payoff progress."
+            action={onAdd ? <Button size="sm" onClick={onAdd}>Add your first loan</Button> : undefined}
+          />
         </Card>
+      ) : (
+        <ModuleGrid modules={modules} />
+      )}
 
-        {loans && loans.some(l => l.is_active) && <PayoffPlanner loans={loans} />}
-      </RootContainer>
-    </WorkspaceLayout>
+      {active.length > 0 && <PayoffPlanner loans={all} />}
+
+      <Dialog
+        open={!!updatingLoan}
+        title={<span style={{ color: 'var(--foreground)' }}>Edit Loan{updatingLoan?.name ? ` — ${updatingLoan.name}` : ''}</span>}
+        onOpenChange={(open) => { if (!open) closeEdit() }}
+        size="md"
+      >
+        <UpdateForm onSubmit={e => { e.preventDefault(); handleSave() }}>
+          <div>
+            <FieldLabel>Loan name</FieldLabel>
+            <Input value={loanForm.name} onChange={(e: any) => setLoanForm(f => ({ ...f, name: e.target.value }))} placeholder="Home Loan — SBI" autoFocus required />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <FieldLabel>Type</FieldLabel>
+              <Select fullWidth value={loanForm.loan_type} onChange={(v: any) => setLoanForm(f => ({ ...f, loan_type: String(v) }))} options={[
+                { value: 'home', label: 'Home loan' },
+                { value: 'personal', label: 'Personal loan' },
+                { value: 'car', label: 'Car loan' },
+                { value: 'education', label: 'Education loan' },
+                { value: 'credit_card', label: 'Credit card' },
+                { value: 'other', label: 'Other' },
+              ]} />
+            </div>
+            <div>
+              <FieldLabel>Lender</FieldLabel>
+              <Input value={loanForm.lender} onChange={(e: any) => setLoanForm(f => ({ ...f, lender: e.target.value }))} placeholder="SBI" />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <FieldLabel>Principal amount</FieldLabel>
+              <Input type="number" startAdornment="₹" min="0" value={loanForm.principal_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, principal_amount: e.target.value }))} required />
+            </div>
+            <div>
+              <FieldLabel>Outstanding amount</FieldLabel>
+              <Input type="number" startAdornment="₹" min="0" value={loanForm.outstanding_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, outstanding_amount: e.target.value }))} required />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div>
+              <FieldLabel>Interest rate (%)</FieldLabel>
+              <Input type="number" min="0" step="0.01" value={loanForm.interest_rate} onChange={(e: any) => setLoanForm(f => ({ ...f, interest_rate: e.target.value }))} required />
+            </div>
+            <div>
+              <FieldLabel>EMI amount</FieldLabel>
+              <Input type="number" startAdornment="₹" min="0" value={loanForm.emi_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, emi_amount: e.target.value }))} required />
+            </div>
+            <div>
+              <FieldLabel>EMI day</FieldLabel>
+              <Input type="number" min="1" max="31" value={loanForm.emi_day} onChange={(e: any) => setLoanForm(f => ({ ...f, emi_day: e.target.value }))} required />
+            </div>
+          </div>
+          <div>
+            <FieldLabel>Tenure (months, optional)</FieldLabel>
+            <Input type="number" min="1" value={loanForm.tenure_months} onChange={(e: any) => setLoanForm(f => ({ ...f, tenure_months: e.target.value }))} placeholder="e.g. 240" />
+          </div>
+          <div>
+            <FieldLabel>Notes</FieldLabel>
+            <Input value={loanForm.notes} onChange={(e: any) => setLoanForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional" />
+          </div>
+          <ToggleRow>
+            <FieldLabel style={{ margin: 0 }}>Still active (off = paid off)</FieldLabel>
+            <Switch
+              size="sm"
+              checked={loanForm.is_active}
+              onChange={e => setLoanForm(f => ({ ...f, is_active: e.target.checked }))}
+            />
+          </ToggleRow>
+          <FormActions>
+            <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save changes</Button>
+            <Button variant="ghost" type="button" onClick={closeEdit} disabled={updateMutation.isPending}>Cancel</Button>
+            <Spacer />
+            <Popconfirm
+              title="Delete this loan?"
+              onConfirm={() => { if (updatingLoan) deleteMutation.mutate(updatingLoan.id) }}
+              okText="Delete"
+              cancelText="Cancel"
+              okButtonProps={{ danger: true }}
+            >
+              <Button variant="destructive" type="button" size="sm" loading={deleteMutation.isPending}>
+                <Trash2 size={14} style={{ marginRight: 4 }} /> Delete
+              </Button>
+            </Popconfirm>
+          </FormActions>
+        </UpdateForm>
+      </Dialog>
+    </RootContainer>
   )
 }

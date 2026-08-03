@@ -12,16 +12,16 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { CalendarCheck, BarChart3, Flag, Plus } from 'lucide-react'
-import { Button, Dialog, ErrorState, Input, PageHeader, Select, Skeleton } from '@ledgr/ui'
+import { CalendarCheck, BarChart3, Flag } from 'lucide-react'
+import { Button, Dialog, ErrorState, Input, Select, Skeleton } from '@ledgr/ui'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
-import { PageDivider } from '@ct/shared/components/layout/PageDivider'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { workspaceApi, type PlanBlock } from '@ct/shared/api/workspace'
 import { toCalendarDate } from '@ct/shared/lib/calendarDate'
 import { DOMAIN_OPTIONS } from '@ct/shared/config/domains'
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const FULL_DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 /** Monday of the week containing `d`. The planner is always Mon–Sun. */
 function mondayOf(d: Date): Date {
@@ -146,6 +146,18 @@ export function WeekPlanPage() {
           ? `${blocks.length} focus block${blocks.length === 1 ? '' : 's'} planned across ${domainsUsed} domain${domainsUsed === 1 ? '' : 's'}`
           : 'Nothing blocked out yet — add your first focus block',
         icon: CalendarCheck,
+        // The canvas puts the week navigator and Add in this card's header,
+        // not in a page title bar — the card IS the week.
+        actionNode: (
+          <>
+            <Button variant="outline" size="sm" onClick={() => setWeekOffset((w) => w - 1)}>← Prev</Button>
+            <Button variant="outline" size="sm" onClick={() => setWeekOffset(0)}>This week</Button>
+            <Button variant="outline" size="sm" onClick={() => setWeekOffset((w) => w + 1)}>Next →</Button>
+          </>
+        ),
+        action: 'Add block',
+        actionVariant: 'primary',
+        onAction: () => { setDraft((d) => ({ ...d, block_date: iso(weekDays[0]) })); setAddOpen(true) },
         days: weekDays.map((d, i) => {
           const key = iso(d)
           return {
@@ -171,6 +183,7 @@ export function WeekPlanPage() {
         // Share of planned time answers the same question honestly.
         title: 'Planned hours by domain',
         subtitle: `Where the week is actually going · ${totalHours.toFixed(1)}h planned`,
+        iconKey: 'accent',
         icon: BarChart3,
         rows: [...hoursByDomain.entries()]
           .sort((a, b) => b[1] - a[1])
@@ -183,21 +196,34 @@ export function WeekPlanPage() {
           })),
       })
 
+      /*
+       * The canvas leads each row with the commitment and files the day
+       * underneath it — the point of the card is WHAT, not which weekday. Days
+       * with nothing set are left out rather than listed as empty; the subtitle
+       * carries the count so an unplanned day is still visible as a gap.
+       */
+      const priorities = weekDays
+        .map((d, i) => ({ day: FULL_DAY_LABELS[i], block: (byDay.get(iso(d)) ?? []).find((b) => b.is_priority) }))
+        .filter((p): p is { day: string; block: PlanBlock } => !!p.block)
+
       mods.push({
         kind: 'rows',
         span: 6,
         title: 'One priority per day',
-        subtitle: 'If nothing else happens, this does',
+        subtitle: priorities.length
+          ? `If nothing else happens, this does · ${priorities.length} of 7 days set`
+          : 'If nothing else happens, this does',
         icon: Flag,
-        rows: weekDays.map((d, i) => {
-          const priority = (byDay.get(iso(d)) ?? []).find((b) => b.is_priority)
-          return {
-            title: DAY_LABELS[i],
-            meta: priority ? priority.title : 'Nothing set',
-            tagLabel: priority ? hhmm(priority.start_time) : undefined,
-            tagColorKey: priority ? colorFor(priority.domain) : undefined,
-          }
-        }),
+        rows: priorities.length
+          ? priorities.map(({ day, block }) => ({
+              title: block.title,
+              meta: day,
+              tagLabel: block.domain
+                ? block.domain.charAt(0).toUpperCase() + block.domain.slice(1)
+                : hhmm(block.start_time),
+              tagColorKey: colorFor(block.domain),
+            }))
+          : [{ title: 'No priority set this week', meta: 'Mark a focus block as the day’s one priority' }],
       })
     }
 
@@ -207,24 +233,6 @@ export function WeekPlanPage() {
   return (
     <PageContainer>
       <PageContent>
-        <PageHeader
-          icon={<CalendarCheck size={24} />}
-          eyebrow="Today"
-          title="Plan"
-          subtitle="Block the week before it blocks you"
-          actions={
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <Button variant="outline" size="sm" onClick={() => setWeekOffset((w) => w - 1)}>← Prev</Button>
-              <Button variant="outline" size="sm" onClick={() => setWeekOffset(0)}>This week</Button>
-              <Button variant="outline" size="sm" onClick={() => setWeekOffset((w) => w + 1)}>Next →</Button>
-              <Button size="sm" onClick={() => { setDraft({ ...draft, block_date: iso(weekDays[0]) }); setAddOpen(true) }}>
-                <Plus size={14} style={{ marginRight: 6 }} /> Add block
-              </Button>
-            </div>
-          }
-        />
-        <PageDivider />
-
         {isLoading ? (
           <Skeleton style={{ height: 320 }} />
         ) : isError ? (

@@ -13,6 +13,7 @@ import { NotebookPen, History, Tags } from 'lucide-react'
 import { ErrorState, Skeleton } from '@ledgr/ui'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { careerApi, type JournalEntry } from '@ct/shared/api/areas'
+import { useDomainGoalsModule } from '@ct/shared/hooks/useDomainGoalsModule'
 import { fromCalendarDate } from '@ct/shared/lib/calendarDate'
 
 // Local-day parsing — see lib/calendarDate for why not `new Date(iso)`.
@@ -32,6 +33,9 @@ const THEME_KEYS = ['career', 'info', 'success', 'accent', 'warning', 'health'] 
 export function JournalSection() {
   const qc = useQueryClient()
   const [body, setBody] = useState('')
+  /* Journal is Career's landing page, so it carries the area's one goal
+     surface: read-only progress on goals set in Workspace. */
+  const goalsModule = useDomainGoalsModule('career')
 
   const entriesQ = useQuery({
     queryKey: ['career', 'journal'],
@@ -132,5 +136,5 @@ export function JournalSection() {
     return <ErrorState title="Could not load your journal" onRetry={() => entriesQ.refetch()} />
   }
 
-  return <ModuleGrid modules={modules} />
+  return <ModuleGrid modules={goalsModule ? [...modules, goalsModule] : modules} />
 }
