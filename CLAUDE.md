@@ -118,6 +118,33 @@ docker compose exec backend pytest
 
 ---
 
+## Recent Updates (2026-08-03, latest — PageHeader redesigned; one card corner app-wide)
+
+Utsav supplied a "minimal Apple-style" header reference and asked every page
+header to match it, with cards and KPIs sharing its corner radius.
+
+- **`PageHeader` owns its surface now.** It was a bare typographic block that
+  `PageContent` then dressed in `glass.shell` plus a domain-tinted radial wash —
+  two owners for one surface, and a compositing layer laid over the page's own
+  ambient mesh to show a title. The component is a solid card: `color.card`,
+  hairline border, `elevation[1]`, `radii.md`, `spacing[5] spacing[6]` padding,
+  40px icon chip at `radii.sm`. The domain colour survives as the chip tint via a
+  new `tone` prop; `GlassPageHeader` is deleted.
+- **The area label moved below the title.** It rendered as an uppercase eyebrow
+  above it; the reference puts a meta line under the title, so
+  `PageIdentity.eyebrow` → `PageIdentity.subtitle` (AppShell + PageLayout), and
+  `PageHeader`'s subtitle is visible at every width instead of `display: none`
+  below `sm`. The actions keep their own row there. The `eyebrow` prop stays on
+  the library component, unused by the app.
+- **One card corner: `radii.md` (16px).** `StatCard`, `ChartCard`, `InsightCard`,
+  `DataTable`, PricingPage's panels and the AreaSettingsPage rail were at `lg`
+  (20px) while `Card`, `KpiCard` and every `ModuleGrid` tile were at 16px. All on
+  16px now. `lg`+ stays for overlay chrome (popovers, menus, chat bubbles).
+- **Verified:** tsc, `pnpm build`, vitest clean. Walked live at 1280px and 375px,
+  light + dark — measured header/cards/KPIs all at 16px, no horizontal overflow,
+  zero console errors. token-lint fails identically on a pristine `git archive`
+  of HEAD (stale baseline, separate task owns it) — **zero drift added**.
+
 ## Recent Updates (2026-08-02, latest — goals leave the areas)
 
 Goals and milestones are set in **Workspace** for every domain. No area carries

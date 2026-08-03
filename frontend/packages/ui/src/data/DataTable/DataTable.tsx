@@ -49,7 +49,7 @@ export interface DataTableProps<Row> {
 const Wrap = styled.div`
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.lg};
+  border-radius: ${({ theme }) => theme.radii.md};
   overflow: hidden;
 `;
 
