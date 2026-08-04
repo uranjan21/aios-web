@@ -21,11 +21,18 @@ class HealthLog(SQLModel, table=True):
 
 
 class HealthGoal(SQLModel, table=True):
-    """Daily health targets — calories, water, steps, sleep."""
+    """Daily health targets — calories, water, steps, sleep. One row per user."""
     __tablename__ = "health_goals"
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
 
-    id: str = Field(default="singleton", primary_key=True)  # always one row
+    # The primary key IS the user id (as a string) — every call site passes
+    # `id=str(current_user.id)`. It carried `default="singleton"` until
+    # 2026-08-03, which was a live cross-tenant hazard: any call site that
+    # omitted the id would insert the literal "singleton", and since this is
+    # the PRIMARY KEY the second user to do so would collide with the first
+    # rather than get their own row. No default now, so omitting it fails
+    # loudly at the call site instead of silently sharing one user's targets.
+    id: str = Field(primary_key=True)
     calorie_target: int = Field(default=2000)
     protein_target: int = Field(default=150)   # grams
     carb_target: int = Field(default=250)      # grams

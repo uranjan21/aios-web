@@ -7,7 +7,7 @@ from decimal import Decimal
 from sqlmodel import select, SQLModel
 
 from app.core.config import get_settings
-from app.services.vault_sync.writer import VaultWriteGuard, VaultWriteError, ALLOWED_WRITE_PATHS, ALLOWED_READ_PATHS
+from app.services.vault_sync.writer import VaultWriteGuard, VaultWriteError, is_append_allowed
 from app.services.chat.tools import execute_tool
 from app.models.vault import VaultFile, VaultConflict
 from app.db.session import AsyncSessionLocal
@@ -185,3 +185,50 @@ async def test_conflict_resolution_write_file_bug(db_session_factory, user_a):
         if db_vf:
             await session.delete(db_vf)
         await session.commit()
+
+
+# ── Year rollover ─────────────────────────────────────────────────────────────
+# Regression guard for the hardcoded-year bug fixed 2026-08-03. Area logs are
+# per-year files whose paths were literals (`01-finance/log/2026.md`), so from
+# 2027-01-01 every append would have kept landing in the 2026 file — and would
+# NOT have raised, because the stale path was still on the write allowlist.
+# These tests fail on the old code and pass on the new, without waiting for
+# January.
+
+def test_area_log_path_follows_the_year():
+    from datetime import date
+    from app.services.chat.tools import area_log_path
+
+    assert area_log_path("finance", date(2026, 12, 31)) == "01-finance/log/2026.md"
+    assert area_log_path("finance", date(2027, 1, 1)) == "01-finance/log/2027.md"
+    assert area_log_path("health", date(2031, 6, 9)) == "02-health/log/2031.md"
+    # The session log is one rolling file, never year-scoped.
+    assert area_log_path("session", date(2027, 1, 1)) == "memory/session-log.md"
+    # Unknown areas fall back to the session log rather than inventing a folder.
+    assert area_log_path("nonsense", date(2027, 1, 1)) == "memory/session-log.md"
+    assert area_log_path(None, date(2027, 1, 1)) == "memory/session-log.md"
+
+
+def test_future_year_logs_are_writable_and_junk_is_not():
+    # The whole point: a year nobody hardcoded must still be allowed.
+    assert is_append_allowed("01-finance/log/2027.md")
+    assert is_append_allowed("03-career/log/2099.md")
+    assert is_append_allowed("memory/session-log.md")
+
+    # ...without widening the guard.
+    assert not is_append_allowed("01-finance/log/../../../etc/passwd")
+    assert not is_append_allowed("01-finance/log/notayear.md")
+    assert not is_append_allowed("01-finance/log/20277.md")
+    assert not is_append_allowed("06-unknown/log/2027.md")
+    assert not is_append_allowed("01-finance/context.md")  # context ≠ append target
+
+
+def test_guard_actually_writes_a_future_year_file(tmp_path):
+    guard = VaultWriteGuard(str(tmp_path))
+    guard.append_to_log("02-health/log/2027.md", "Weight: 71.2 kg")
+    written = tmp_path / "02-health/log/2027.md"
+    assert written.exists()
+    assert "Weight: 71.2 kg" in written.read_text()
+
+    with pytest.raises(VaultWriteError):
+        guard.append_to_log("06-unknown/log/2027.md", "nope")

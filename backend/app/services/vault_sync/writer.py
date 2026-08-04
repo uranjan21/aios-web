@@ -1,17 +1,31 @@
 """VaultWriteGuard — all vault writes go through here. Non-negotiable."""
 import logging
+import re
 from pathlib import Path
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
+"""
+Area logs are per-YEAR files. They used to be listed literally as
+`01-finance/log/2026.md`, which meant that from 2027-01-01 every append would
+have kept landing in the 2026 file — silently, since the path stayed on the
+allowlist and the write succeeded.
+
+Matching a pattern rather than a literal also means the guard does not need to
+know today's date. Computing the allowlist once at import would have the same
+bug in slow motion: a process started in December keeps a stale year until it
+restarts.
+
+The pattern is deliberately narrow — a fixed set of area folders, `log/`, and
+exactly four digits — so it grants no more reach than the literals did.
+"""
+_YEAR_LOG_RE = re.compile(
+    r"^(?:01-finance|02-health|03-career|04-business|05-content)/log/\d{4}\.md$"
+)
+
 ALLOWED_WRITE_PATHS = {
     "append_log": [
-        "01-finance/log/2026.md",
-        "02-health/log/2026.md",
-        "03-career/log/2026.md",
-        "04-business/log/2026.md",
-        "05-content/log/2026.md",
         "memory/session-log.md",
         "memory/learnings.md",
         "memory/patterns.md",
@@ -29,9 +43,17 @@ ALLOWED_WRITE_PATHS = {
 }
 
 
-ALLOWED_READ_PATHS = set(ALLOWED_WRITE_PATHS["append_log"]) | set(ALLOWED_WRITE_PATHS["update_context"]) | {
-    "05-content/pipeline/twitter-queue.md",
-}
+def is_append_allowed(rel_path: str) -> bool:
+    """Appends go to a fixed memory file or to any area's year log."""
+    return rel_path in ALLOWED_WRITE_PATHS["append_log"] or bool(_YEAR_LOG_RE.match(rel_path))
+
+
+def is_read_allowed(rel_path: str) -> bool:
+    return (
+        is_append_allowed(rel_path)
+        or rel_path in ALLOWED_WRITE_PATHS["update_context"]
+        or rel_path == "05-content/pipeline/twitter-queue.md"
+    )
 
 
 class VaultWriteError(Exception):
@@ -51,7 +73,7 @@ class VaultWriteGuard:
         return abs_path
 
     def append_to_log(self, rel_path: str, entry: str) -> None:
-        if rel_path not in ALLOWED_WRITE_PATHS["append_log"]:
+        if not is_append_allowed(rel_path):
             raise VaultWriteError(f"Append not allowed on: {rel_path}")
         if not entry.strip():
             raise VaultWriteError("Empty append content rejected")
@@ -87,7 +109,7 @@ class VaultWriteGuard:
 
     def read_file(self, rel_path: str) -> str:
         """Safe read — restricted to the known context/log allowlist."""
-        if rel_path not in ALLOWED_READ_PATHS:
+        if not is_read_allowed(rel_path):
             raise VaultWriteError(f"Read not allowed on: {rel_path}")
         abs_path = self._resolve(rel_path)
         if not abs_path.exists():
@@ -96,7 +118,7 @@ class VaultWriteGuard:
 
     def write_file(self, rel_path: str, content: str) -> None:
         """Write content to a file in the vault. Used for conflict resolution."""
-        if rel_path not in ALLOWED_READ_PATHS:
+        if not is_read_allowed(rel_path):
             raise VaultWriteError(f"Write not allowed on: {rel_path}")
         abs_path = self._resolve(rel_path)
         abs_path.parent.mkdir(parents=True, exist_ok=True)

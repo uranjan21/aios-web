@@ -55,7 +55,11 @@ backend/
 
 ### Auth
 
-JWT in an httpOnly SameSite=Strict cookie (`ct_token`). Google OAuth added 2026-06-21.
+JWT in an httpOnly SameSite=Strict cookie named **`aios_token`** (`api/auth.py`
+sets it, `core/deps.py` reads it). This file and the root `CLAUDE.md` both said
+`ct_token` until 2026-08-03 — a leftover from the aios-web → control-tower
+rename that never touched the cookie. The cookie name is NOT the project name;
+renaming it would sign every existing session out. Google OAuth added 2026-06-21.
 
 ---
 
@@ -80,7 +84,7 @@ JWT in an httpOnly SameSite=Strict cookie (`ct_token`). Google OAuth added 2026-
 - **Push notifications gotcha**: `docker compose restart` does NOT re-read `env_file` — use `docker compose up -d backend` after `.env` changes
 - **Alembic autogenerate** tries to DROP `captures` table — always review, strip unrelated drops
 - **pgvector**: Docker image must be `pgvector/pgvector:pg15`
-- **VaultWriteGuard**: all vault writes validated against `ALLOWED_WRITE_PATHS`; never bypass
+- **VaultWriteGuard**: all vault writes go through `is_append_allowed()` / `is_read_allowed()` in `services/vault_sync/writer.py`; never bypass. **Area logs are per-year and matched by PATTERN, not listed as literals** — they were hardcoded to `2026.md` until 2026-08-03, which would have silently appended every 2027 entry to the 2026 file (the stale path stayed on the allowlist, so nothing raised). Build the path with `area_log_path(area)` from `services/chat/tools.py`; never write a year into a path. Regression tests: `tests/test_vault_adversarial.py::test_area_log_path_follows_the_year`.
 - **health_logs entry_type CHECK**: allowed values are `gym,weight,food,meal,water,steps,body_fat,sleep,note` — adding a new type needs a migration to update the Postgres CHECK constraint
 - **Signup agent-seeding swallows exceptions** — check `api/agents.py` if new users lack the 8 default agents
 - **Finance categories are a 2-level DB tree, separated by `kind` (income vs expense)** — no hardcoded category lists. `GET /categories?kind=` filters; the tree auto-seeds defaults per kind on first fetch (`_DEFAULT_CATEGORIES`). **Transactions store `category_id`** (FK to the exact node) **plus a denormalized `category`/`source` = the TOP-LEVEL ancestor name** (so existing by-category reports roll up for free; resolve `category_id` for the subcategory). Resolve via `_resolve_category()` in `api/areas/finance.py`. Deleting a category uncategorizes its transactions. **Account is required** on manual expense/income (422 without it).
