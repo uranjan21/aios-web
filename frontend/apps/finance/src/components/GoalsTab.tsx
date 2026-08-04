@@ -35,6 +35,20 @@ import { fromCalendarDate } from '@ct/shared/lib/calendarDate'
 import type { FinancialGoal } from '@ct/shared/types'
 import { GoalContributionsPanel } from './GoalContributionsPanel'
 
+/**
+ * Is the pot fully funded?
+ *
+ * MUST coerce with Number(). `target_amount`/`current_amount` are Numeric
+ * columns, and Pydantic serializes Decimal as a JSON *string* — so the obvious
+ * `g.current_amount >= g.target_amount` is a STRING comparison. That reported
+ * a ₹55,000-of-₹2,50,000 pot as "Done", because lexically "5" > "2". Caught in
+ * the browser on 2026-08-03, not by tsc: the API types declare these `number`,
+ * which is what the rest of this file's `Number(...)` wrapping is working
+ * around everywhere else.
+ */
+const isFunded = (g: FinancialGoal) =>
+  Number(g.target_amount) > 0 && Number(g.current_amount) >= Number(g.target_amount)
+
 const Root = styled.div`
   display: flex;
   flex-direction: column;
@@ -182,7 +196,7 @@ export function GoalsTab({
 
   const visible = useMemo(() => (goals ?? []).filter((g) => {
     if (statusFilter === 'all') return true
-    const done = g.target_amount > 0 && g.current_amount >= g.target_amount
+    const done = isFunded(g)
     if (statusFilter === 'completed') return done
     const days = daysLeft(g.deadline)
     if (statusFilter === 'overdue') return !done && days !== null && days < 0
@@ -259,7 +273,7 @@ export function GoalsTab({
     const totalRequired = visible.reduce((sum, g) => sum + (requiredFor(g) ?? 0), 0)
 
     const statusOf = (g: FinancialGoal) => {
-      const done = g.target_amount > 0 && g.current_amount >= g.target_amount
+      const done = isFunded(g)
       if (done) return { label: 'Done', key: 'success' }
       const days = daysLeft(g.deadline)
       if (days !== null && days < 0) return { label: 'Overdue', key: 'destructive' }

@@ -383,8 +383,13 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
             value: loanSummary?.payments_recorded
               ? inr(loanSummary.interest_paid_to_date)
               : '—',
+            /* NOT "over N payments": the server sums interest only across
+             * payments that HAVE a recorded split, while `payments_recorded`
+             * counts them all. Pairing the two would overstate the denominator
+             * and imply the figure is complete when older payments predate the
+             * split capture. */
             sub: loanSummary?.payments_recorded
-              ? `Over ${loanSummary.payments_recorded} recorded payment${loanSummary.payments_recorded === 1 ? '' : 's'}`
+              ? 'From payments with a recorded split'
               : 'Mark an EMI paid to start tracking this',
             ...(loanSummary?.payments_recorded ? { subKey: 'destructive' as const } : {}),
           },
