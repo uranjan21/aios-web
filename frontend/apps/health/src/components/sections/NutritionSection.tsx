@@ -17,6 +17,7 @@ import { healthApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { parseMealNotes } from '../nutrition/mealNotes'
+import { FoodPicker } from '../FoodPicker'
 
 const Root = styled.div`
   display: flex;
@@ -266,17 +267,28 @@ export function NutritionSection() {
         icon={<Circle size={18} />}
         eyebrow="Health"
         title="Log a meal"
-        description="Calories are required; macros are optional but make the donut useful."
+        description="Pick from your food list to fill the macros, or type them in for a one-off."
         size="md"
       >
         <Form>
+          {/* Picking a food overwrites name + all four figures below, which
+              stay editable — the catalogue is a starting point, not a lock. */}
+          <FoodPicker
+            onPick={(m) => setMeal(prev => ({
+              ...prev,
+              food_name: m.food_name,
+              calories: String(m.calories),
+              protein: String(m.protein),
+              carbs: String(m.carbs),
+              fat: String(m.fat),
+            }))}
+          />
           <div>
             <Label>What did you eat?</Label>
             <Input
               value={meal.food_name}
               onChange={(e: any) => setMeal(m => ({ ...m, food_name: e.target.value }))}
               placeholder="Grilled chicken bowl"
-              autoFocus
             />
           </div>
           <Grid2>

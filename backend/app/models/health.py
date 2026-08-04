@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 from sqlmodel import SQLModel, Field, Column
-from sqlalchemy import Text, Numeric
+from sqlalchemy import Text, Numeric, UniqueConstraint
 
 
 class HealthLog(SQLModel, table=True):
@@ -97,12 +97,19 @@ class WorkoutSet(SQLModel, table=True):
 
 
 class FoodItem(SQLModel, table=True):
-    """Food database entry — macros per 100g, optional common serving."""
+    """Food database entry — macros per 100g, optional common serving.
+
+    Uniqueness is PER USER (migration `h013`). It was global on `name` until
+    2026-08-03 — created before the table had a `user_id`, and missed by `h008`
+    when six sibling tables were swept — which meant the first user to add
+    "Roti" would have blocked every other user from ever having one.
+    """
     __tablename__ = "health_food_items"
+    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_food_user_name"),)
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
-    name: str = Field(nullable=False, unique=True)
+    name: str = Field(nullable=False)
     calories: float = Field(nullable=False)   # per 100g
     protein: float = Field(default=0)         # g per 100g
     carbs: float = Field(default=0)

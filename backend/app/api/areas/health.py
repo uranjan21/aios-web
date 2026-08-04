@@ -502,16 +502,43 @@ async def delete_workout(workout_id: _uuid.UUID, current_user=Depends(get_curren
 
 
 # ── Food database ─────────────────────────────────────────────────────────────
+from fastapi import HTTPException
 from app.models.health import FoodItem
+from app.services.health.foods_seed import BASE_FOODS
+
+
+async def _seed_base_foods(db, user_id) -> None:
+    """Give a user their own copy of the base catalogue.
+
+    Lazy, on first fetch — the same shape as finance's category auto-seed. The
+    table was seeded once by migration `f0a5b2c4d7e8` and then TRUNCATEd by
+    `71fb288f8d09` when `user_id` was added, so every user has had an empty
+    food database since; this is what refills it.
+    """
+    for name, kcal, protein, carbs, fat, serving_desc, serving_grams in BASE_FOODS:
+        db.add(FoodItem(
+            user_id=user_id, name=name, calories=kcal, protein=protein,
+            carbs=carbs, fat=fat, serving_desc=serving_desc,
+            serving_grams=serving_grams, is_custom=False,
+        ))
 
 
 @router.get("/foods")
 async def search_foods(q: Optional[str] = None, current_user=Depends(get_current_user), db=Depends(get_db)):
-    query = select(FoodItem).where(FoodItem.user_id == current_user.id).order_by(FoodItem.name).limit(20)
+    base = select(FoodItem).where(FoodItem.user_id == current_user.id)
+
+    existing = (await db.execute(base.limit(1))).scalars().first()
+    if existing is None:
+        await _seed_base_foods(db, current_user.id)
+        await db.commit()
+
+    query = base
     if q:
-        query = select(FoodItem).where(FoodItem.user_id == current_user.id).where(FoodItem.name.ilike(f"%{q}%")).order_by(FoodItem.name).limit(20)
-    foods = (await db.execute(query)).scalars().all()
-    return foods
+        query = query.where(FoodItem.name.ilike(f"%{q.strip()}%"))
+    # Custom entries first so a user's own version of a food outranks the base
+    # one when both match.
+    query = query.order_by(desc(FoodItem.is_custom), FoodItem.name).limit(25)
+    return (await db.execute(query)).scalars().all()
 
 
 class FoodCreate(BaseModel):
@@ -522,5 +549,50 @@ class FoodCreate(BaseModel):
     fat: float = 0
     serving_desc: Optional[str] = None
     serving_grams: Optional[float] = None
+
+
+@router.post("/foods")
+async def create_food(body: FoodCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    """Add a custom food. Declared since 2026-06 but never routed until now —
+    `FoodCreate` sat in this file with no endpoint, so the catalogue was
+    read-only against an empty table."""
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Name is required")
+    if body.calories < 0:
+        raise HTTPException(status_code=422, detail="Calories cannot be negative")
+
+    dupe = (await db.execute(
+        select(FoodItem)
+        .where(FoodItem.user_id == current_user.id)
+        .where(FoodItem.name.ilike(name))
+    )).scalars().first()
+    if dupe:
+        raise HTTPException(status_code=409, detail=f"'{name}' is already in your food list")
+
+    food = FoodItem(
+        user_id=current_user.id, name=name, calories=body.calories,
+        protein=body.protein, carbs=body.carbs, fat=body.fat,
+        serving_desc=body.serving_desc, serving_grams=body.serving_grams,
+        is_custom=True,
+    )
+    db.add(food)
+    await db.commit()
+    await db.refresh(food)
+    return food
+
+
+@router.delete("/foods/{food_id}")
+async def delete_food(food_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
+    food = (await db.execute(
+        select(FoodItem)
+        .where(FoodItem.user_id == current_user.id)
+        .where(FoodItem.id == food_id)
+    )).scalars().first()
+    if not food:
+        raise HTTPException(status_code=404, detail="Food not found")
+    await db.delete(food)
+    await db.commit()
+    return {"status": "deleted"}
 
 

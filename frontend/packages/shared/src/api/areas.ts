@@ -358,7 +358,14 @@ export const healthApi = {
   logWater: (glasses:number) => api.post<HealthLog>('/areas/health/logs', {entry_type:'water', value:glasses, unit:'glasses'}).then(r=>r.data),
   // Sleep
   sleepRecent: () => api.get<SleepRecent>('/areas/health/sleep/recent').then(r => r.data),
+  /* Food catalogue — macros are PER 100g. The base list of ~50 Indian foods is
+     seeded per user on the first call: the table was truncated by the
+     multi-tenancy migration and had no write endpoint until 2026-08-03, so
+     every user's catalogue had been empty and unfillable. */
   foods: (q?: string) => api.get<FoodDbItem[]>('/areas/health/foods', { params: { q } }).then(r => r.data),
+  createFood: (d: { name: string; calories: number; protein?: number; carbs?: number; fat?: number; serving_desc?: string | null; serving_grams?: number | null }) =>
+    api.post<FoodDbItem>('/areas/health/foods', d).then(r => r.data),
+  deleteFood: (id: string) => api.delete(`/areas/health/foods/${id}`).then(r => r.data),
   workouts: (limit = 10) => api.get<WorkoutSessionItem[]>('/areas/health/workouts', { params: { limit } }).then(r => r.data),
   workoutPrs: () => api.get<WorkoutPR[]>('/areas/health/workouts/prs').then(r => r.data),
   createWorkout: (d: { name: string; notes?: string; sets: { exercise: string; reps: number; weight_kg?: number }[] }) =>
