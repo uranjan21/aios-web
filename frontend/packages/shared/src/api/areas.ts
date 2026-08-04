@@ -337,6 +337,59 @@ export const financeApi = {
 }
 
 // Health
+export interface RoutineExerciseItem {
+  id?: string
+  exercise: string
+  target_sets: number | null
+  target_reps: number | null
+  target_weight_kg: number | null
+}
+
+export interface WorkoutRoutine {
+  id: string
+  name: string
+  notes: string | null
+  is_active: boolean
+  /** 0 = Monday … 6 = Sunday, matching Python's date.weekday(). */
+  days: number[]
+  exercises: RoutineExerciseItem[]
+}
+
+export interface RoutinePayload {
+  name: string
+  notes?: string | null
+  is_active?: boolean
+  days: number[]
+  exercises: Array<{ exercise: string; target_sets?: number | null; target_reps?: number | null; target_weight_kg?: number | null }>
+}
+
+interface AdherenceRef { id: string; name: string }
+
+export interface WorkoutAdherenceDay {
+  date: string
+  weekday: number
+  planned: AdherenceRef[]
+  completed: AdherenceRef[]
+  /** Empty for today — a day still open cannot have been missed. */
+  missed: AdherenceRef[]
+  /** Training that followed no routine at all. */
+  unplanned: AdherenceRef[]
+  /** A real routine done on a day it was not scheduled for. Distinct from
+   *  `unplanned` on purpose: moving leg day is not going off-plan. */
+  off_schedule: AdherenceRef[]
+  is_future: boolean
+}
+
+export interface WorkoutAdherence {
+  days: WorkoutAdherenceDay[]
+  planned_total: number
+  completed_total: number
+  /** NULL when nothing was ever planned — "0%" would accuse a user with no
+   *  routines of failing at something. Render as unknown, never as zero. */
+  adherence_pct: number | null
+  window_days: number
+}
+
 export const healthApi = {
   logs: (entry_type?: string) =>
     api.get<{ items: HealthLog[]; next_cursor: string | null; has_more: boolean }>('/areas/health/logs', { params: { entry_type } }).then(r => r.data.items),
@@ -366,6 +419,15 @@ export const healthApi = {
   createFood: (d: { name: string; calories: number; protein?: number; carbs?: number; fat?: number; serving_desc?: string | null; serving_grams?: number | null }) =>
     api.post<FoodDbItem>('/areas/health/foods', d).then(r => r.data),
   deleteFood: (id: string) => api.delete(`/areas/health/foods/${id}`).then(r => r.data),
+  /* Routines are the PLAN; a WorkoutSession is the record. Health could only
+     express the second until 2026-08-03, which is why "did I do what I said
+     I would" was unanswerable. `days` is 0=Mon..6=Sun (date.weekday()). */
+  routines: () => api.get<WorkoutRoutine[]>('/areas/health/routines').then(r => r.data),
+  createRoutine: (d: RoutinePayload) => api.post<WorkoutRoutine>('/areas/health/routines', d).then(r => r.data),
+  patchRoutine: (id: string, d: RoutinePayload) => api.patch<WorkoutRoutine>(`/areas/health/routines/${id}`, d).then(r => r.data),
+  deleteRoutine: (id: string) => api.delete(`/areas/health/routines/${id}`).then(r => r.data),
+  workoutAdherence: (days = 28) =>
+    api.get<WorkoutAdherence>('/areas/health/workouts/adherence', { params: { days } }).then(r => r.data),
   workouts: (limit = 10) => api.get<WorkoutSessionItem[]>('/areas/health/workouts', { params: { limit } }).then(r => r.data),
   workoutPrs: () => api.get<WorkoutPR[]>('/areas/health/workouts/prs').then(r => r.data),
   createWorkout: (d: { name: string; notes?: string; sets: { exercise: string; reps: number; weight_kg?: number }[] }) =>

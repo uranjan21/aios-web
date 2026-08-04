@@ -16,12 +16,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
-import { Activity, CheckSquare, Plus, Trash2 } from 'lucide-react'
+import { Activity, CheckSquare, Dumbbell, Plus, Trash2 } from 'lucide-react'
 import { Button, Card, Dialog, EmptyState, Input } from '@ledgr/ui'
-import { healthApi } from '@ct/shared/api/areas'
+import { healthApi, type WorkoutRoutine } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import type { WorkoutSessionItem } from '@ct/shared/types'
+import { RoutineDialog } from '../RoutineDialog'
+
+/** 0 = Monday, matching the backend's date.weekday(). */
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const Root = styled.div`
   display: flex;
@@ -60,6 +64,11 @@ const Spacer = styled.div`
   flex: 1;
 `
 
+const EmptyActions = styled.div`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing[2]};
+`
+
 type SetRow = { exercise: string; reps: string; weight_kg: string }
 const EMPTY_SET: SetRow = { exercise: '', reps: '', weight_kg: '' }
 
@@ -78,6 +87,8 @@ export function WorkoutsSection() {
   const [name, setName] = useState('')
   const [sets, setSets] = useState<SetRow[]>([{ ...EMPTY_SET }])
   const [detail, setDetail] = useState<WorkoutSessionItem | null>(null)
+  const [routineOpen, setRoutineOpen] = useState(false)
+  const [editingRoutine, setEditingRoutine] = useState<WorkoutRoutine | null>(null)
 
   const { data: sessions, isLoading } = useQuery({
     queryKey: ['health', 'workouts'],
@@ -88,6 +99,17 @@ export function WorkoutsSection() {
     queryFn: healthApi.healthGoals,
     staleTime: 5 * 60_000,
   })
+  const { data: routines } = useQuery({
+    queryKey: ['health', 'routines'],
+    queryFn: healthApi.routines,
+    staleTime: 60_000,
+  })
+  const { data: adherence } = useQuery({
+    queryKey: ['health', 'adherence'],
+    queryFn: () => healthApi.workoutAdherence(28),
+    staleTime: 60_000,
+  })
+
   // Gym logs carry a duration in minutes, which the session rows do not.
   const { data: gymLogs } = useQuery({
     queryKey: ['health', 'logs', 'gym'],
@@ -134,7 +156,73 @@ export function WorkoutsSection() {
   const rows = useMemo(() => sessions ?? [], [sessions])
 
   const modules = useMemo<ModuleSpec[]>(() => {
-    if (!rows.length) return []
+    /* The plan modules must render even with zero logged sessions — that is
+       precisely the state where "you planned 3, did 0" is worth saying. Only
+       the history modules below need `rows`. */
+    const planSpecs: ModuleSpec[] = []
+    const routineList = routines ?? []
+
+    if (routineList.length) {
+      planSpecs.push({
+        kind: 'tiles',
+        span: 12,
+        tiles: [
+          {
+            label: 'Adherence',
+            /* NULL means nothing was ever scheduled — not 0%. Telling someone
+               with no routines that they are at 0% accuses them of failing at
+               something they never committed to. */
+            value: adherence?.adherence_pct == null ? '—' : `${adherence.adherence_pct}%`,
+            sub: adherence?.adherence_pct == null
+              ? 'Put a routine on a weekday to start tracking'
+              : `${adherence.completed_total} of ${adherence.planned_total} planned sessions`,
+            ...(adherence?.adherence_pct != null && {
+              subKey: adherence.adherence_pct >= 80 ? 'success' : adherence.adherence_pct >= 50 ? 'warning' : 'destructive',
+              dotKey: adherence.adherence_pct >= 80 ? 'success' : adherence.adherence_pct >= 50 ? 'warning' : 'destructive',
+            }),
+          },
+          { label: 'Routines', value: String(routineList.length), sub: `${routineList.filter(r => r.days.length).length} scheduled` },
+          {
+            label: 'Missed',
+            value: String((adherence?.days ?? []).reduce((n, d) => n + d.missed.length, 0)),
+            sub: `In the last ${adherence?.window_days ?? 28} days`,
+          },
+          {
+            label: 'Off-plan sessions',
+            value: String((adherence?.days ?? []).reduce((n, d) => n + d.unplanned.length + d.off_schedule.length, 0)),
+            sub: 'Trained without a scheduled routine',
+          },
+        ],
+      })
+
+      planSpecs.push({
+        kind: 'progress',
+        span: 12,
+        title: 'Routines',
+        subtitle: 'Your plan — click one to edit it',
+        icon: Dumbbell,
+        action: '+ New routine',
+        actionVariant: 'primary',
+        onAction: () => { setEditingRoutine(null); setRoutineOpen(true) },
+        onRowClick: (i: number) => { setEditingRoutine(routineList[i]); setRoutineOpen(true) },
+        rows: routineList.map(r => {
+          const doneFor = (adherence?.days ?? []).reduce((n, d) => n + d.completed.filter(c => c.id === r.id).length, 0)
+          const planFor = (adherence?.days ?? []).reduce((n, d) => n + d.planned.filter(c => c.id === r.id).length, 0)
+          return {
+            title: r.name,
+            meta: r.days.length
+              ? r.days.map(d => WEEKDAY_LABELS[d]).join(' · ')
+              : 'Not scheduled on any day',
+            value: planFor ? `${doneFor}/${planFor}` : '—',
+            valueKey: !planFor ? 'mutedFg' : doneFor >= planFor ? 'success' : 'warning',
+            pct: planFor ? Math.round((doneFor / planFor) * 100) : 0,
+            colorKey: !planFor ? 'muted' : doneFor >= planFor ? 'success' : 'health',
+          }
+        }),
+      })
+    }
+
+    if (!rows.length) return planSpecs
 
     const today = dayjs()
     const last7 = Array.from({ length: 7 }, (_, i) => today.subtract(6 - i, 'day'))
@@ -159,6 +247,7 @@ export function WorkoutsSection() {
     const doneThisWeek = weekDays.filter(d => !!sessionOn(d)).length
 
     return [
+      ...planSpecs,
       {
         kind: 'bars',
         span: 7,
@@ -224,24 +313,40 @@ export function WorkoutsSection() {
       },
     ]
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, gymLogs, goals])
+  }, [rows, gymLogs, goals, routines, adherence])
 
   if (isLoading) return <Skeleton style={{ height: 320 }} />
 
   return (
     <Root>
-      {rows.length === 0 ? (
-        <Card title="Workouts" subtitle="Sessions, volume and personal bests" icon={<Activity size={16} />}>
+      {/* Gated on modules, not on `rows`: with routines set up but nothing
+          logged yet the plan modules are exactly what should show, and the
+          "no sessions" card would wrongly hide them. */}
+      {modules.length === 0 ? (
+        <Card title="Workouts" subtitle="Plan a routine, then track whether you did it" icon={<Activity size={16} />}>
           <EmptyState
             icon={<Activity size={20} />}
-            title="No sessions logged"
-            description="Log a workout and the training load, week view and session history fill in."
-            action={<Button size="sm" onClick={() => setLogOpen(true)}>Log a workout</Button>}
+            title="Nothing planned or logged yet"
+            description="Build a routine to set what your week should look like, or log a one-off session."
+            action={
+              <EmptyActions>
+                <Button size="sm" variant="primary" onClick={() => { setEditingRoutine(null); setRoutineOpen(true) }}>
+                  New routine
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setLogOpen(true)}>Log a workout</Button>
+              </EmptyActions>
+            }
           />
         </Card>
       ) : (
         <ModuleGrid modules={modules} />
       )}
+
+      <RoutineDialog
+        open={routineOpen}
+        onClose={() => { setRoutineOpen(false); setEditingRoutine(null) }}
+        editing={editingRoutine}
+      />
 
       <Dialog
         open={logOpen}

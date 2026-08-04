@@ -3,7 +3,8 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 from sqlmodel import SQLModel, Field, Column
-from sqlalchemy import Text, Numeric, UniqueConstraint
+from sqlalchemy import Text, Numeric, UniqueConstraint, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 
 class HealthLog(SQLModel, table=True):
@@ -70,13 +71,79 @@ class HabitCheck(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
 
 
+class WorkoutRoutine(SQLModel, table=True):
+    """A named workout TEMPLATE — "Push Day", "Legs".
+
+    Added 2026-08-03. Until then Health could only record a session after the
+    fact, so "plan a routine, then track whether I did it" was unanswerable:
+    there was nothing anywhere expressing intent. A routine is the intent; a
+    `WorkoutSession` remains the record of what actually happened.
+    """
+    __tablename__ = "health_workout_routines"
+    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_routine_user_name"),)
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    name: str = Field(nullable=False)
+    notes: Optional[str] = Field(default=None, sa_column=Column(Text))
+    is_active: bool = Field(default=True, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
+
+
+class RoutineExercise(SQLModel, table=True):
+    """A prescribed exercise inside a routine.
+
+    Targets are all nullable: a routine that just says "Bench press" is a
+    legitimate plan, and forcing a target weight on day one would make the
+    feature unusable for anyone who does not already know their numbers.
+    """
+    __tablename__ = "health_routine_exercises"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    routine_id: uuid.UUID = Field(
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("health_workout_routines.id", ondelete="CASCADE"), nullable=False, index=True)
+    )
+    exercise: str = Field(nullable=False)
+    target_sets: Optional[int] = Field(default=None)
+    target_reps: Optional[int] = Field(default=None)
+    target_weight_kg: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(6, 2)))
+    position: int = Field(default=0, nullable=False)
+
+
+class RoutineDay(SQLModel, table=True):
+    """Which weekday a routine is meant to happen on. 0 = Monday.
+
+    The weekly pattern is stored, NOT a materialised row per future date. A
+    plan is a standing intention; materialising it would mean a job that
+    invents rows forever and a decision about how far ahead to invent them.
+    Adherence is derived by walking real dates against this pattern instead.
+    """
+    __tablename__ = "health_routine_days"
+    __table_args__ = (UniqueConstraint("routine_id", "weekday", name="uq_routine_day"),)
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    routine_id: uuid.UUID = Field(
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("health_workout_routines.id", ondelete="CASCADE"), nullable=False, index=True)
+    )
+    weekday: int = Field(nullable=False)  # 0=Mon … 6=Sun, matching date.weekday()
+
+
 class WorkoutSession(SQLModel, table=True):
-    """One gym session — holds exercise sets."""
+    """One gym session — holds exercise sets. The record of what happened."""
     __tablename__ = "health_workout_sessions"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     name: str = Field(default="Workout", nullable=False)  # "Push Day", "Legs"…
+    # Which routine this session was doing, when it was doing one. SET NULL,
+    # not CASCADE: deleting a routine must not delete the history of having
+    # trained it. NULL also legitimately means an unplanned/ad-hoc session.
+    routine_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("health_workout_routines.id", ondelete="SET NULL"), nullable=True, index=True),
+    )
     logged_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)

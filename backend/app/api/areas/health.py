@@ -448,6 +448,9 @@ class WorkoutCreate(BaseModel):
     name: str = "Workout"
     logged_at: NaiveDateTime = None
     notes: Optional[str] = None
+    # Which routine this session was doing. Optional on purpose: an ad-hoc
+    # session is real training and must still be loggable without a plan.
+    routine_id: Optional[_uuid.UUID] = None
     sets: list[WorkoutSetIn]
 
 
@@ -455,7 +458,18 @@ class WorkoutCreate(BaseModel):
 async def create_workout(body: WorkoutCreate, current_user=Depends(get_current_user), db=Depends(get_db)):
     if not body.sets:
         raise HTTPException(status_code=422, detail="At least one set required")
-    session_row = WorkoutSession(user_id=current_user.id, name=body.name.strip() or "Workout", logged_at=body.logged_at or datetime.utcnow(), notes=body.notes)
+
+    if body.routine_id is not None:
+        from app.models.health import WorkoutRoutine as _Routine
+        owned = (await db.execute(
+            select(_Routine)
+            .where(_Routine.user_id == current_user.id)
+            .where(_Routine.id == body.routine_id)
+        )).scalars().first()
+        if not owned:
+            raise HTTPException(status_code=404, detail="Routine not found")
+
+    session_row = WorkoutSession(user_id=current_user.id, name=body.name.strip() or "Workout", logged_at=body.logged_at or datetime.utcnow(), notes=body.notes, routine_id=body.routine_id)
     db.add(session_row)
     await db.flush()
 
@@ -596,3 +610,262 @@ async def delete_food(food_id: str, current_user=Depends(get_current_user), db=D
     return {"status": "deleted"}
 
 
+
+
+# ── Workout routines (the plan) ────────────────────────────────────────────────
+# Health could only ever record a session after the fact. These endpoints add
+# the intent side — a named routine, its prescribed exercises, and which
+# weekdays it is meant to happen on — so adherence becomes answerable.
+from app.models.health import WorkoutRoutine, RoutineExercise, RoutineDay
+
+WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+class RoutineExerciseIn(BaseModel):
+    exercise: str
+    target_sets: Optional[int] = None
+    target_reps: Optional[int] = None
+    target_weight_kg: Optional[float] = None
+
+
+class RoutineIn(BaseModel):
+    name: str
+    notes: Optional[str] = None
+    is_active: bool = True
+    # 0 = Monday, matching date.weekday().
+    days: list[int] = []
+    exercises: list[RoutineExerciseIn] = []
+
+
+async def _routine_payload(db, routine: WorkoutRoutine) -> dict:
+    exercises = (await db.execute(
+        select(RoutineExercise)
+        .where(RoutineExercise.routine_id == routine.id)
+        .order_by(RoutineExercise.position)
+    )).scalars().all()
+    days = (await db.execute(
+        select(RoutineDay).where(RoutineDay.routine_id == routine.id).order_by(RoutineDay.weekday)
+    )).scalars().all()
+    return {
+        "id": str(routine.id),
+        "name": routine.name,
+        "notes": routine.notes,
+        "is_active": routine.is_active,
+        "days": [d.weekday for d in days],
+        "exercises": [
+            {
+                "id": str(e.id), "exercise": e.exercise,
+                "target_sets": e.target_sets, "target_reps": e.target_reps,
+                "target_weight_kg": float(e.target_weight_kg) if e.target_weight_kg is not None else None,
+            }
+            for e in exercises
+        ],
+    }
+
+
+async def _replace_routine_children(db, user_id, routine: WorkoutRoutine, body: RoutineIn) -> None:
+    """Children are replaced wholesale — the editor always sends the full list,
+    and diffing rows the client never identifies would invent ids it cannot
+    send back."""
+    for e in (await db.execute(select(RoutineExercise).where(RoutineExercise.routine_id == routine.id))).scalars().all():
+        await db.delete(e)
+    for d in (await db.execute(select(RoutineDay).where(RoutineDay.routine_id == routine.id))).scalars().all():
+        await db.delete(d)
+    await db.flush()
+
+    for i, ex in enumerate(body.exercises):
+        name = ex.exercise.strip()
+        if not name:
+            continue
+        db.add(RoutineExercise(
+            user_id=user_id, routine_id=routine.id, exercise=name, position=i,
+            target_sets=ex.target_sets, target_reps=ex.target_reps,
+            target_weight_kg=ex.target_weight_kg,
+        ))
+    for wd in sorted(set(body.days)):
+        if 0 <= wd <= 6:
+            db.add(RoutineDay(user_id=user_id, routine_id=routine.id, weekday=wd))
+
+
+@router.get("/routines")
+async def list_routines(current_user=Depends(get_current_user), db=Depends(get_db)):
+    routines = (await db.execute(
+        select(WorkoutRoutine).where(WorkoutRoutine.user_id == current_user.id).order_by(WorkoutRoutine.name)
+    )).scalars().all()
+    return [await _routine_payload(db, r) for r in routines]
+
+
+@router.post("/routines")
+async def create_routine(body: RoutineIn, current_user=Depends(get_current_user), db=Depends(get_db)):
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Name is required")
+    dupe = (await db.execute(
+        select(WorkoutRoutine)
+        .where(WorkoutRoutine.user_id == current_user.id)
+        .where(WorkoutRoutine.name.ilike(name))
+    )).scalars().first()
+    if dupe:
+        raise HTTPException(status_code=409, detail=f"You already have a routine called '{name}'")
+
+    routine = WorkoutRoutine(user_id=current_user.id, name=name, notes=body.notes, is_active=body.is_active)
+    db.add(routine)
+    await db.flush()
+    await _replace_routine_children(db, current_user.id, routine, body)
+    await db.commit()
+    await db.refresh(routine)
+    return await _routine_payload(db, routine)
+
+
+@router.patch("/routines/{routine_id}")
+async def update_routine(routine_id: _uuid.UUID, body: RoutineIn, current_user=Depends(get_current_user), db=Depends(get_db)):
+    routine = (await db.execute(
+        select(WorkoutRoutine)
+        .where(WorkoutRoutine.user_id == current_user.id)
+        .where(WorkoutRoutine.id == routine_id)
+    )).scalars().first()
+    if not routine:
+        raise HTTPException(status_code=404, detail="Routine not found")
+
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Name is required")
+    clash = (await db.execute(
+        select(WorkoutRoutine)
+        .where(WorkoutRoutine.user_id == current_user.id)
+        .where(WorkoutRoutine.name.ilike(name))
+        .where(WorkoutRoutine.id != routine_id)
+    )).scalars().first()
+    if clash:
+        raise HTTPException(status_code=409, detail=f"You already have a routine called '{name}'")
+
+    routine.name = name
+    routine.notes = body.notes
+    routine.is_active = body.is_active
+    db.add(routine)
+    await _replace_routine_children(db, current_user.id, routine, body)
+    await db.commit()
+    await db.refresh(routine)
+    return await _routine_payload(db, routine)
+
+
+@router.delete("/routines/{routine_id}")
+async def delete_routine(routine_id: _uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    routine = (await db.execute(
+        select(WorkoutRoutine)
+        .where(WorkoutRoutine.user_id == current_user.id)
+        .where(WorkoutRoutine.id == routine_id)
+    )).scalars().first()
+    if not routine:
+        raise HTTPException(status_code=404, detail="Routine not found")
+    # Exercises and days cascade. Sessions do NOT — their routine_id goes NULL,
+    # so the history of having trained this survives the routine's deletion.
+    await db.delete(routine)
+    await db.commit()
+    return {"status": "deleted"}
+
+
+@router.get("/workouts/adherence")
+async def workout_adherence(days: int = 28, current_user=Depends(get_current_user), db=Depends(get_db)):
+    """Planned vs done, day by day, over the trailing window.
+
+    This is the question the area could not answer at all before routines
+    existed: not "how much did I train" (the streak already said that) but
+    "did I do what I said I would".
+
+    A day is derived, never stored — `health_routine_days` holds a standing
+    weekly pattern, so the expected set for any date is whatever routines name
+    that weekday. Sessions are matched to a routine by `routine_id` when they
+    carry one; a session with no routine is still real training and is reported
+    as `unplanned` rather than dropped, because a plan the user improvised
+    around is not the same as a plan they ignored.
+
+    Days BEFORE a routine existed are not counted against it — a routine
+    created today has not been missed all month.
+    """
+    from datetime import date, timedelta
+
+    days = max(7, min(120, days))
+    today = date.today()
+    start = today - timedelta(days=days - 1)
+
+    routines = (await db.execute(
+        select(WorkoutRoutine)
+        .where(WorkoutRoutine.user_id == current_user.id)
+        .where(WorkoutRoutine.is_active == True)  # noqa: E712
+    )).scalars().all()
+    by_id = {r.id: r for r in routines}
+
+    routine_days = (await db.execute(
+        select(RoutineDay).where(RoutineDay.user_id == current_user.id)
+    )).scalars().all()
+    # weekday -> [routine, …]
+    plan: dict[int, list] = {}
+    for rd in routine_days:
+        routine = by_id.get(rd.routine_id)
+        if routine:
+            plan.setdefault(rd.weekday, []).append(routine)
+
+    sessions = (await db.execute(
+        select(WorkoutSession)
+        .where(WorkoutSession.user_id == current_user.id)
+        .where(WorkoutSession.logged_at >= datetime.combine(start, datetime.min.time()))
+    )).scalars().all()
+
+    done_by_day: dict[date, list] = {}
+    for s in sessions:
+        done_by_day.setdefault(s.logged_at.date(), []).append(s)
+
+    out_days = []
+    planned_total = 0
+    completed_total = 0
+    for i in range(days):
+        d = start + timedelta(days=i)
+        expected = [
+            r for r in plan.get(d.weekday(), [])
+            # A routine cannot have been missed before it was created.
+            if r.created_at.date() <= d
+        ]
+        todays = done_by_day.get(d, [])
+        done_routine_ids = {s.routine_id for s in todays if s.routine_id}
+
+        expected_ids = {r.id for r in expected}
+        hit = [r for r in expected if r.id in done_routine_ids]
+        missed = [r for r in expected if r.id not in done_routine_ids]
+        # Two different things, deliberately not merged: training that followed
+        # no routine at all, versus a real routine done on a day it was not
+        # scheduled for. Calling the second "unplanned" would tell a user who
+        # moved leg day to Sunday that they went off-plan, which is not true.
+        unplanned = [s for s in todays if not s.routine_id]
+        off_schedule = [
+            s for s in todays
+            if s.routine_id and s.routine_id not in expected_ids
+        ]
+
+        planned_total += len(expected)
+        completed_total += len(hit)
+
+        out_days.append({
+            "date": d.isoformat(),
+            "weekday": d.weekday(),
+            "planned": [{"id": str(r.id), "name": r.name} for r in expected],
+            "completed": [{"id": str(r.id), "name": r.name} for r in hit],
+            # Only days already past can be "missed"; today is still open.
+            "missed": [{"id": str(r.id), "name": r.name} for r in missed] if d < today else [],
+            "unplanned": [{"id": str(s.id), "name": s.name} for s in unplanned],
+            "off_schedule": [
+                {"id": str(s.id), "name": by_id[s.routine_id].name if s.routine_id in by_id else s.name}
+                for s in off_schedule
+            ],
+            "is_future": d > today,
+        })
+
+    return {
+        "days": out_days,
+        "planned_total": planned_total,
+        "completed_total": completed_total,
+        # NULL, not 0, when nothing was ever planned — "0% adherence" would
+        # accuse a user with no routines of failing at something.
+        "adherence_pct": round(completed_total / planned_total * 100, 1) if planned_total else None,
+        "window_days": days,
+    }
