@@ -1,30 +1,72 @@
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Settings, Palette, Bell, CreditCard, Lock, Cpu, SlidersHorizontal } from 'lucide-react'
+import { Bell, CreditCard, Cpu, Link2, Palette, Settings, Shield, UserCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { AreaSettingsPage } from '@ct/shared/components/layout/AreaSettingsPage'
 import { useNavigate } from 'react-router-dom'
 import { useAreaSection } from '@ct/shared/hooks/useAreaSection'
 import { AppearanceSection } from './settings/sections/AppearanceSection'
-import { ProfileSection } from './settings/sections/ProfileSection'
-import { AccountSection } from './settings/sections/AccountSection'
-import { ConnectionsSection } from './settings/sections/ConnectionsSection'
+import { ProfileModules } from './settings/sections/ProfileModules'
+import { ConnectionsModules } from './settings/sections/ConnectionsModules'
 import { NotificationsModules } from './settings/sections/NotificationsModules'
-import { BillingModules } from './settings/sections/BillingModules'
+import { PlanModules } from './settings/sections/PlanModules'
 import { AiModules } from './settings/sections/AiModules'
 import { SecurityModules } from './settings/sections/SecurityModules'
 
-// ── Page ──────────────────────────────────────────────────────────────────────
-
+/*
+ * ── Settings IA, 2026-08-03 ───────────────────────────────────────────────
+ *
+ * TWO PROBLEMS, one fix.
+ *
+ * 1. The section list was rendered TWICE. `navigation.ts` gave Settings six
+ *    `subs`, so the global sidebar expanded them; this page then handed the
+ *    same six to `AreaSettingsPage`, which drew them again in its rail beside
+ *    the content. The subs are gone from the nav tree — the rail below is the
+ *    only second level now. Routes are unchanged: every tab is still its own
+ *    URL and still bookmarkable.
+ *
+ * 2. Six sections became SEVEN, because the old set had one grab-bag and a lot
+ *    of repetition. `general` held the display-name form, the Gmail account
+ *    list and account deletion; meanwhile `security` re-listed connected apps,
+ *    `ai` re-listed entitlements and credits that `billing` already showed
+ *    twice, and three sections drew `control: 'select'` rows — a chip with a
+ *    chevron and no handler, so they read as dropdowns and could not be
+ *    opened. Every one of those is gone.
+ *
+ *   profile        <- the identity half of `general`
+ *   appearance     <- appearance, minus the two modules that reported derived
+ *                     state (collapsed-section count, OS reduce-motion) rather
+ *                     than offering a setting
+ *   notifications  <- unchanged; briefing channels, alert rules, delivery time
+ *   connections    <- NEW. The Gmail list from `general` and the connected-apps
+ *                     list from `security` were two views of one thing, and
+ *                     neither could connect gcal/gfit/notion/github even though
+ *                     the endpoints exist for all five
+ *   ai             <- model + keys, plus knowledge-source CRUD, which had no UI
+ *                     at all (`knowledgeApi.save`/`.remove` had no caller)
+ *   plan           <- billing + usage, plus the module and free-area pickers.
+ *                     `billingApi.setFreeArea` had no caller anywhere
+ *   security       <- password, verification, sign-out, and account deletion,
+ *                     moved out of `general` to sit with the other credential
+ *                     actions rather than beside the display-name field
+ *
+ * Admin stayed at its own `/app/admin` destination.
+ */
 export function SettingsPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const section = useAreaSection('/app/settings', 'general', {
-    profile: 'general', account: 'general', connections: 'general',
+
+  /*
+   * The legacy map keeps every old deep link working — `AccountMenu` and
+   * `OAuthCallbackPage` still send `?section=profile|billing|connections`, and
+   * the 2026-08-01 keys (`general`, `billing`) are themselves legacy now.
+   */
+  const section = useAreaSection('/app/settings', 'profile', {
+    general: 'profile', account: 'security', shortcuts: 'profile',
+    status: 'profile', admin: 'profile',
     briefing: 'notifications', automations: 'notifications',
     'ai-config': 'ai', knowledge: 'ai',
-    'ai-usage': 'billing',
-    shortcuts: 'general', status: 'general', admin: 'general',
+    billing: 'plan', 'ai-usage': 'plan',
   })
 
   // Returning from Stripe Checkout — confirm and refresh the subscription.
@@ -37,43 +79,27 @@ export function SettingsPage() {
     }
   }, [queryClient])
 
-  /*
-   * ── Settings IA, 2026-08-01 ───────────────────────────────────────────
-   * The redesign specifies exactly six sections, and they are now routes in
-   * the global nav tree. Fourteen sections collapsed into them — mostly by
-   * ABSORPTION, not deletion:
-   *
-   *   general       <- Profile + Account + Connections (the Google OAuth flow
-   *                    has no other home in the new IA; the Transaction
-   *                    Tracker agent depends on it, so it is not droppable)
-   *   appearance    <- Appearance
-   *   notifications <- Briefing (channels, delivery time) + Automations
-   *                    (alert rules) — the design's "Channels / Alert rules /
-   *                    Quiet hours" is exactly this content
-   *   billing       <- Billing & modules + AI usage (the design puts usage on
-   *                    the billing page as "Usage this cycle")
-   *   ai            <- AI config + Knowledge base (the design's "Data access")
-   *   security      <- Security
-   *
-   * Genuinely removed: Shortcuts and System status (no slot in the design).
-   * Admin Panel moved to its own /app/admin destination.
-   */
   const groups = [
     {
-      label: 'Settings',
+      label: 'Account',
       items: [
-        {
-          key: 'general', label: 'General', icon: <SlidersHorizontal size={15} />,
-          content: <><ProfileSection /><ConnectionsSection /><AccountSection /></>,
-        },
+        { key: 'profile', label: 'Profile', icon: <UserCircle size={15} />, content: <ProfileModules /> },
+        { key: 'security', label: 'Security & privacy', icon: <Shield size={15} />, content: <SecurityModules /> },
+        { key: 'plan', label: 'Plan & usage', icon: <CreditCard size={15} />, content: <PlanModules /> },
+      ],
+    },
+    {
+      label: 'Workspace',
+      items: [
         { key: 'appearance', label: 'Appearance', icon: <Palette size={15} />, content: <AppearanceSection /> },
         { key: 'notifications', label: 'Notifications', icon: <Bell size={15} />, content: <NotificationsModules /> },
-        { key: 'billing', label: 'Billing', icon: <CreditCard size={15} />, content: <BillingModules /> },
-        { key: 'ai', label: 'AI configuration', icon: <Cpu size={15} />, content: <AiModules /> },
-        /* Security renders for every account now: the modules cover connected
-         * apps and verification state, which a Google user has too. Only the
-         * change-password action is gated inside the section itself. */
-        { key: 'security', label: 'Security', icon: <Lock size={15} />, content: <SecurityModules /> },
+      ],
+    },
+    {
+      label: 'Data & AI',
+      items: [
+        { key: 'connections', label: 'Connections', icon: <Link2 size={15} />, content: <ConnectionsModules /> },
+        { key: 'ai', label: 'AI & knowledge', icon: <Cpu size={15} />, content: <AiModules /> },
       ],
     },
   ]
@@ -84,10 +110,9 @@ export function SettingsPage() {
       eyebrow="System"
       title="Settings"
       subtitle="Preferences, integrations and account management."
-      backTo="/app"
       groups={groups}
       activeKey={section}
-      onSelect={(key) => navigate(key === 'general' ? '/app/settings' : `/app/settings/${key}`)}
+      onSelect={(key) => navigate(key === 'profile' ? '/app/settings' : `/app/settings/${key}`)}
     />
   )
 }

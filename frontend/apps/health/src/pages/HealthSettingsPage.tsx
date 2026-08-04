@@ -199,7 +199,6 @@ export function HealthSettingsPage() {
       icon={<Heart />}
       title="Health Settings"
       subtitle="Body, fitness, and nutrition targets used across your dashboards."
-      backTo="/app/health"
       groups={[
         /* "Targets", not "Goals": these are the numeric reference lines the
            Body/Nutrition/Workouts modules draw against (goal weight, calorie

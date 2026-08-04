@@ -19,7 +19,6 @@ export function FinanceSettingsPage() {
         icon={<IndianRupee />}
         title="Finance Settings"
         subtitle="Manage accounts, categories, loans, and bills in one place."
-        backTo="/app/finance"
         groups={[
           {
             label: 'Money',
@@ -41,8 +40,12 @@ export function FinanceSettingsPage() {
                 key: 'loans', label: 'Loans', icon: <Briefcase size={15} />,
                 content: <LoansTab onAdd={() => setAccountsModal({ open: true, tab: 'Loan' })} />,
               },
+              /* "Recurring bills", not "Bills" (2026-08-03). This is `BillsTab`
+                 — the CRUD list of bill definitions — while `/app/finance/bills`
+                 is `PayablesTab`, the month's due calendar. Different pages, but
+                 the shared label made the two sidebars look duplicated. */
               {
-                key: 'bills', label: 'Bills', icon: <Receipt size={15} />,
+                key: 'bills', label: 'Recurring bills', icon: <Receipt size={15} />,
                 content: <BillsTab onAdd={() => setBudgetModal({ open: true, tab: 'Bill' })} />,
               },
             ],

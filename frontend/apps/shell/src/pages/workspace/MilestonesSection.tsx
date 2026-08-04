@@ -11,7 +11,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Milestone as MilestoneIcon, Flag } from 'lucide-react'
-import { Button, Dialog, EmptyState, ErrorState, Input, Select, Skeleton } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, ErrorState, Input, Select, Skeleton } from '@ledgr/ui'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { workspaceApi, type Milestone } from '@ct/shared/api/workspace'
 import { DOMAIN_OPTIONS } from '@ct/shared/config/domains'
@@ -75,7 +75,14 @@ function bucketOf(m: Milestone): string {
 
 const BUCKET_ORDER = ['Overdue', 'Next 30 days', 'This quarter', 'Later', 'No date']
 
-export function MilestonesSection({ domainFilter }: { domainFilter?: string }) {
+export function MilestonesSection({
+  domainFilter,
+  filterNode,
+}: {
+  domainFilter?: string
+  /** PlanPage's shared domain filter, rendered in the leading card's header. */
+  filterNode?: React.ReactNode
+}) {
   const qc = useQueryClient()
   const [addOpen, setAddOpen] = useState(false)
   const [draft, setDraft] = useState({ title: '', domain: '', due_date: '' })
@@ -144,12 +151,23 @@ export function MilestonesSection({ domainFilter }: { domainFilter?: string }) {
       },
       // One timeline per period bucket, in chronological order — the canvas's
       // grouped list, rendered by the timeline kind.
-      ...BUCKET_ORDER.filter((b) => byBucket.has(b)).map<ModuleSpec>((bucket) => ({
+      ...BUCKET_ORDER.filter((b) => byBucket.has(b)).map<ModuleSpec>((bucket, i) => ({
         kind: 'timeline',
         span: 12,
         title: bucket,
         subtitle: `${byBucket.get(bucket)!.length} milestone${byBucket.get(bucket)!.length === 1 ? '' : 's'}`,
         icon: Flag,
+        /* The controls ride the FIRST bucket card. This page is a KPI strip
+         * (headerless) plus one card per period, so there is no single card
+         * that owns everything — the leading one is the closest thing, and it
+         * beats the alternative these buttons used to have, which was floating
+         * unanchored above the grid / portalling into a page header. */
+        ...(i === 0 && {
+          actionNode: filterNode,
+          action: '+ New milestone',
+          actionVariant: 'primary' as const,
+          onAction: () => setAddOpen(true),
+        }),
         entries: byBucket.get(bucket)!.map((m) => ({
           title: m.title,
           body: m.description ?? (m.domain ? `${m.domain} · ${STATUS_LABEL[m.status]}` : STATUS_LABEL[m.status]),
@@ -159,24 +177,36 @@ export function MilestonesSection({ domainFilter }: { domainFilter?: string }) {
         })),
       })),
     ]
-  }, [data])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, filterNode])
 
   if (isLoading) return <Skeleton style={{ height: 320 }} />
   if (isError) return <ErrorState title="Could not load milestones" onRetry={() => refetch()} />
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <Button size="sm" onClick={() => setAddOpen(true)}>+ New milestone</Button>
-      </div>
-
       {modules.length === 0 ? (
-        <EmptyState
-          icon={<MilestoneIcon size={22} />}
-          title="No milestones yet"
-          description="A milestone is a date you are steering toward — a launch, a review, a target you set for a goal."
-          action={<Button size="sm" onClick={() => setAddOpen(true)}>Add your first milestone</Button>}
-        />
+        /* Wrapped in a Card so the domain filter has a header to sit in — a
+           bare EmptyState has none, and with the page header gone there would
+           be nowhere to un-filter from. */
+        <Card
+          icon={<MilestoneIcon size={16} />}
+          title="Milestones"
+          subtitle="Nothing here yet"
+          action={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {filterNode}
+              <Button size="sm" variant="primary" onClick={() => setAddOpen(true)}>+ New milestone</Button>
+            </div>
+          }
+        >
+          <EmptyState
+            icon={<MilestoneIcon size={22} />}
+            title="No milestones yet"
+            description="A milestone is a date you are steering toward — a launch, a review, a target you set for a goal."
+            action={<Button size="sm" onClick={() => setAddOpen(true)}>Add your first milestone</Button>}
+          />
+        </Card>
       ) : (
         <ModuleGrid modules={modules} />
       )}

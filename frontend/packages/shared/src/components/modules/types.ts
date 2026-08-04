@@ -159,6 +159,30 @@ export interface DonutModule extends Base {
   centerLabel?: string
 }
 
+/**
+ * A continuous line/area chart — the one shape `bars` cannot draw.
+ *
+ * `bars` compares discrete categories side by side; this answers "how did this
+ * move over time", which Finance -> Investments needs for invested-vs-value and
+ * Health -> Body will want for weight. Points stay opaque records so one row of
+ * data can feed several lines without the page reshaping it per series.
+ */
+export interface SeriesModule extends Base {
+  kind: 'series'
+  /** One entry per plotted line. `key` indexes into each point. */
+  lines: Array<{ key: string; label: string; colorKey?: ColorKey; dashed?: boolean }>
+  /** Rows of data. Each carries `xKey` plus every line's `key`. */
+  points: Array<Record<string, number | string>>
+  /** Which field on a point is the x axis. */
+  xKey: string
+  /** Shown in place of the plot when there is nothing to draw. */
+  emptyLabel?: string
+  /** Formats axis ticks and tooltip values. Defaults to a plain number. */
+  valueFormat?: (n: number) => string
+  /** Plot height in px. Defaults to 220. */
+  height?: number
+}
+
 export interface HeatModule extends Base {
   kind: 'heat'
   dayLabels: string[]
@@ -378,7 +402,7 @@ export interface ChatModule extends Base {
 }
 
 export type ModuleSpec =
-  | RowsModule | ProgressModule | BarsModule | DonutModule | HeatModule
+  | RowsModule | ProgressModule | BarsModule | DonutModule | SeriesModule | HeatModule
   | CalendarModule | WeekModule | TimelineModule | TableModule | ControlsModule
   | QueueModule | ChecklistModule | NotesModule | SpansModule
   | TilesModule | KanbanModule | AgentsModule | ChatModule

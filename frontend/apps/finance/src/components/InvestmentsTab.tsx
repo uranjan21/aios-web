@@ -1,32 +1,45 @@
 /**
  * Finance → Investments.
  *
- * Phase 4 conversion to the canvas's `finance:investments` composition —
- * tiles(12) · donut(5) · bars(7) · table(12) — rebuilt from the live
- * investments API. Clicking a holdings row opens its editor, which is where
- * the old table's pencil/trash column went.
+ * Composition: tiles(12) · series(7) · donut(5) · bars(12) · holdings(12) ·
+ * cashflows(12), all from the live investments API. Clicking a holdings row
+ * opens its editor, which is where the old table's pencil/trash column went.
  *
- * TWO DEPARTURES FROM THE CANVAS, both for want of a contribution ledger:
- *  - Its third tile is XIRR, which needs dated cash flows. A holding stores an
- *    invested total and a current value, so the tile shows the absolute return
- *    those two give exactly. Its fourth is "monthly SIP" — there is no SIP
- *    model at all, so it counts holdings and names the best performer instead.
- *  - Its bars are portfolio value over eight months. Nothing records portfolio
- *    value historically, so the bars show gain and loss per holding: still the
- *    "where is the money working" question, from data that exists.
+ * 2026-08-03: the two documented departures from the canvas are RESOLVED. Both
+ * existed because the page had no dated cashflows to work from; it does now,
+ * via `/investments/transactions` and `/investments/performance`.
+ *  - XIRR is real, portfolio-level and per holding, solved by
+ *    `services/finance/xirr.py`. It is NULL when there are too few dated flows
+ *    to solve for a rate — rendered "—", never 0%, because a flat return is a
+ *    claim the data does not support.
+ *  - The value-over-time chart is real, from the nightly `InvestmentValuation`
+ *    rows. Empty until that job has run once, which the empty state says.
+ * The absolute-return tile and the per-holding gain bars are KEPT: absolute
+ * return answers a different question from annualised, and the bars survive
+ * every case where XIRR cannot be computed.
  */
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import styled from 'styled-components'
-import { Button, Card, Dialog, EmptyState, HeaderActionPortal, Input, Select } from '@ledgr/ui'
-import { Gem, PieChart, TrendingUp, Trash2 } from 'lucide-react'
-import { financeApi } from '@ct/shared/api/areas'
+import dayjs from 'dayjs'
+import { Button, Card, Dialog, EmptyState, Input, SegmentedControl, Select } from '@ledgr/ui'
+import { ArrowLeftRight, Gem, PieChart, TrendingUp, Trash2 } from 'lucide-react'
+import { financeApi, type InvestmentTransaction } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { formatCurrency } from '@ct/shared/lib/utils'
 import type { FinanceInvestment } from '@ct/shared/types'
+import { InvestmentTxnDialog } from './InvestmentTxnDialog'
+
+/** Cashflow kind → how it reads in the table. Colour is paired with the label,
+ *  never carrying the meaning alone. */
+const KIND_META: Record<string, { label: string; colorKey: string }> = {
+  buy: { label: 'Buy', colorKey: 'finance' },
+  sell: { label: 'Sell', colorKey: 'warning' },
+  dividend: { label: 'Dividend', colorKey: 'success' },
+}
 
 const Root = styled.div`
   display: flex;
@@ -89,6 +102,9 @@ export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void } = {})
   const [updatingHolding, setUpdatingHolding] = useState<FinanceInvestment | null>(null)
   const [holdingForm, setHoldingForm] = useState<HoldingForm>(EMPTY_HOLDING_FORM)
   const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [rangeDays, setRangeDays] = useState<number>(180)
+  const [txnOpen, setTxnOpen] = useState(false)
+  const [viewingFlow, setViewingFlow] = useState<InvestmentTransaction | null>(null)
 
   const { data: holdings, isLoading } = useQuery({
     queryKey: ['finance', 'investments'],
@@ -100,9 +116,25 @@ export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void } = {})
     queryFn: financeApi.investmentsSummary,
   })
 
+  const { data: perf } = useQuery({
+    queryKey: ['finance', 'investments', 'performance', rangeDays],
+    queryFn: () => financeApi.investmentsPerformance(rangeDays),
+    staleTime: 60_000,
+  })
+
+  const { data: cashflows } = useQuery({
+    queryKey: ['finance', 'investments', 'transactions'],
+    queryFn: () => financeApi.investmentTransactions({ limit: 25 }),
+    staleTime: 60_000,
+  })
+
+  /* A cashflow write moves the parent holding's book value server-side, so the
+   * holdings list and both derived summaries have to go with it. */
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['finance', 'investments'] })
     queryClient.invalidateQueries({ queryKey: ['finance', 'investments', 'summary'] })
+    queryClient.invalidateQueries({ queryKey: ['finance', 'investments', 'performance'] })
+    queryClient.invalidateQueries({ queryKey: ['finance', 'investments', 'transactions'] })
   }
 
   const updateMutation = useMutation({
@@ -195,6 +227,10 @@ export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void } = {})
     // with a destructive colour — the axis is magnitude, the colour is sign.
     const byGain = [...all].sort((a, b) => Math.abs(gainOf(b)) - Math.abs(gainOf(a))).slice(0, 8)
 
+    const perfById = new Map((perf?.holdings ?? []).map(h => [h.id, h]))
+    const nameById = new Map(all.map(h => [h.id, h.name]))
+    const flows = cashflows ?? []
+
     return [
       {
         kind: 'tiles',
@@ -214,6 +250,18 @@ export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void } = {})
             subKey: gainPct >= 0 ? 'success' : 'destructive',
             dotKey: gainPct >= 0 ? 'success' : 'destructive',
           },
+          /* XIRR is null when there are too few dated cashflows to solve for a
+           * rate. That is "unknown", NOT zero — rendering 0% would assert a
+           * flat return the data does not support. See finance.py:1651. */
+          {
+            label: 'Annualised (XIRR)',
+            value: perf?.xirr_pct == null ? '—' : `${perf.xirr_pct >= 0 ? '+' : ''}${perf.xirr_pct.toFixed(1)}%`,
+            sub: perf?.xirr_pct == null ? 'Log buys and sells to compute' : 'Money-weighted, per year',
+            ...(perf?.xirr_pct != null && {
+              subKey: perf.xirr_pct >= 0 ? 'success' : 'destructive',
+              dotKey: perf.xirr_pct >= 0 ? 'success' : 'destructive',
+            }),
+          },
           {
             label: 'Best performer',
             value: best.name,
@@ -221,6 +269,40 @@ export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void } = {})
             subKey: gainOf(best) >= 0 ? 'success' : 'destructive',
           },
         ],
+      },
+      {
+        kind: 'series',
+        span: 7,
+        title: 'Invested vs value',
+        subtitle: 'What you put in against what it is worth',
+        icon: TrendingUp,
+        xKey: 'date',
+        /* The nightly valuation job is what fills this, so a fresh install has
+         * no history yet. Say that rather than drawing an empty axis. */
+        emptyLabel: 'Daily valuations start building tonight — nothing to plot yet.',
+        valueFormat: (n: number) => formatCurrency(n),
+        lines: [
+          { key: 'value', label: 'Current value', colorKey: 'finance' },
+          { key: 'invested', label: 'Invested', colorKey: 'mutedFg', dashed: true },
+        ],
+        points: (perf?.series ?? []).map(p => ({
+          date: dayjs(p.date).format('D MMM'),
+          invested: Number(p.invested),
+          value: Number(p.value),
+        })),
+        actionNode: (
+          <SegmentedControl
+            size="sm"
+            aria-label="Performance range"
+            value={String(rangeDays)}
+            onChange={(v: any) => setRangeDays(Number(v))}
+            options={[
+              { label: '90d', value: '90' },
+              { label: '180d', value: '180' },
+              { label: '1Y', value: '365' },
+            ]}
+          />
+        ),
       },
       {
         kind: 'donut',
@@ -238,8 +320,10 @@ export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void } = {})
         })),
       },
       {
+        /* Full width since `series` now takes the 7 beside the donut — at span
+         * 7 this would start a new row and leave 5 columns empty. */
         kind: 'bars',
-        span: 7,
+        span: 12,
         title: 'Gain and loss by holding',
         subtitle: 'Current value against what you put in',
         icon: TrendingUp,
@@ -254,42 +338,14 @@ export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void } = {})
         kind: 'table',
         span: 12,
         title: 'Holdings',
-        subtitle: `${visible.length} instrument${visible.length === 1 ? '' : 's'} · click a row to edit`,
+        subtitle: visible.length === 0
+          ? 'No holdings match this filter'
+          : `${visible.length} instrument${visible.length === 1 ? '' : 's'} · click a row to edit`,
         icon: Gem,
-        ...(onAddClick && { action: 'Add holding', onAction: onAddClick }),
-        gridCols: '2.2fr 1.2fr 1fr 1fr 0.9fr',
-        cols: [
-          { l: 'Instrument' },
-          { l: 'Type' },
-          { l: 'Invested', a: 'right' },
-          { l: 'Current', a: 'right' },
-          { l: 'Return', a: 'right' },
-        ],
-        rows: visible.map((h) => {
-          const g = gainOf(h)
-          const pctH = Number(h.invested_amount) > 0 ? (g / Number(h.invested_amount)) * 100 : 0
-          return [
-            { t: `${TYPE_META[h.type]?.icon ?? '📦'} ${h.name}`, bold: true },
-            TYPE_META[h.type]?.label ?? h.type,
-            formatCurrency(h.invested_amount),
-            formatCurrency(h.current_value),
-            { t: `${pctH >= 0 ? '+' : ''}${pctH.toFixed(1)}%`, colorKey: g >= 0 ? 'success' : 'destructive' },
-          ]
-        }),
-        onRowClick: (i: number) => openUpdate(visible[i]),
-      },
-    ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [all, visible, summary, onAddClick])
-
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
-
-  return (
-    <Root>
-      {/* Tab-scoped: it drives every module below, so it belongs in the
-          page header, not floating in the gap above the cards. */}
-      {all.length > 0 && (
-        <HeaderActionPortal>
+        /* This table is the only module the type filter drives — the tiles,
+         * donut and bars all read `all`/`summary` — so the control lives in its
+         * header rather than portalling up into a page header. */
+        actionNode: (
           <Select
             size="sm"
             fullWidth={false}
@@ -303,9 +359,81 @@ export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void } = {})
                 .map(([value, meta]) => ({ value, label: meta.label })),
             ]}
           />
-        </HeaderActionPortal>
-      )}
+        ),
+        ...(onAddClick && { action: 'Add holding', onAction: onAddClick }),
+        gridCols: '2fr 1.1fr 1fr 1fr 0.8fr 0.8fr',
+        cols: [
+          { l: 'Instrument' },
+          { l: 'Type' },
+          { l: 'Invested', a: 'right' },
+          { l: 'Current', a: 'right' },
+          { l: 'Return', a: 'right' },
+          { l: 'XIRR', a: 'right' },
+        ],
+        rows: visible.map((h) => {
+          const g = gainOf(h)
+          const pctH = Number(h.invested_amount) > 0 ? (g / Number(h.invested_amount)) * 100 : 0
+          const px = perfById.get(h.id)
+          return [
+            { t: `${TYPE_META[h.type]?.icon ?? '📦'} ${h.name}`, bold: true },
+            TYPE_META[h.type]?.label ?? h.type,
+            formatCurrency(h.invested_amount),
+            formatCurrency(h.current_value),
+            { t: `${pctH >= 0 ? '+' : ''}${pctH.toFixed(1)}%`, colorKey: g >= 0 ? 'success' : 'destructive' },
+            /* Same null rule as the tile — "—" means not computable. */
+            px?.xirr_pct == null
+              ? { t: '—', colorKey: 'mutedFg' }
+              : { t: `${px.xirr_pct >= 0 ? '+' : ''}${px.xirr_pct.toFixed(1)}%`, colorKey: px.xirr_pct >= 0 ? 'success' : 'destructive' },
+          ]
+        }),
+        onRowClick: (i: number) => openUpdate(visible[i]),
+      },
+      {
+        kind: 'table',
+        span: 12,
+        title: 'Cashflows',
+        subtitle: flows.length
+          ? `${flows.length} most recent buy, sell and dividend entries`
+          : 'Dated buys and sells — this is what makes XIRR computable',
+        icon: ArrowLeftRight,
+        action: 'Log cashflow',
+        actionVariant: 'primary',
+        onAction: () => setTxnOpen(true),
+        gridCols: '1fr 2fr 1fr 1fr 1fr',
+        cols: [
+          { l: 'Date' },
+          { l: 'Instrument' },
+          { l: 'Kind' },
+          { l: 'Units', a: 'right' },
+          { l: 'Amount', a: 'right' },
+        ],
+        rows: flows.map((t) => [
+          dayjs(t.transacted_at).format('D MMM YY'),
+          { t: nameById.get(t.investment_id) ?? 'Unknown holding', bold: true },
+          /* Fall back rather than index blind — `kind` is a plain string
+             column, so an unexpected value would crash on `.label`. */
+          {
+            t: t.is_sip
+              ? `${KIND_META[t.kind]?.label ?? t.kind} · SIP`
+              : (KIND_META[t.kind]?.label ?? t.kind),
+            tag: true,
+            colorKey: KIND_META[t.kind]?.colorKey ?? 'mutedFg',
+          },
+          t.units == null ? '—' : String(Number(t.units)),
+          formatCurrency(Number(t.amount)),
+        ]),
+        /* Cashflows have no PATCH route — they are create-or-remove — so the
+         * row opens a read view whose footer carries the only edit there is. */
+        onRowClick: (i: number) => setViewingFlow(flows[i]),
+      },
+    ]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all, visible, summary, typeFilter, onAddClick, perf, cashflows, rangeDays])
 
+  if (isLoading) return <Skeleton style={{ height: 320 }} />
+
+  return (
+    <Root>
       {all.length === 0 ? (
         <Card title="Portfolio" subtitle="Track what you hold and how it is doing" icon={<Gem size={16} />}>
           <EmptyState
@@ -378,6 +506,14 @@ export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void } = {})
           </ActionsContainer>
         </FormContainer>
       </Dialog>
+
+      <InvestmentTxnDialog
+        open={txnOpen || !!viewingFlow}
+        onClose={() => { setTxnOpen(false); setViewingFlow(null) }}
+        holdings={all}
+        viewing={viewingFlow}
+        holdingName={viewingFlow ? all.find(h => h.id === viewingFlow.investment_id)?.name : undefined}
+      />
     </Root>
   )
 }

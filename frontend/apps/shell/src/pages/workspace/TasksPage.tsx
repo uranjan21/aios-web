@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import styled, { useTheme } from 'styled-components'
+import { useState, useMemo, type ReactNode } from 'react'
+import styled from 'styled-components'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, ListTodo, LayoutGrid, List
@@ -20,7 +20,14 @@ import { TaskGroup } from './tasks/TaskGroup'
 
 /* ── Main page ─────────────────────────────────────────────────────── */
 
-export function TasksSection({ domainFilter }: { domainFilter?: string }) {
+export function TasksSection({
+  domainFilter,
+  filterNode,
+}: {
+  domainFilter?: string
+  /** PlanPage's shared domain filter, rendered in this card's header. */
+  filterNode?: ReactNode
+}) {
   const queryClient = useQueryClient()
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [title, setTitle] = useState('')
@@ -196,7 +203,6 @@ export function TasksSection({ domainFilter }: { domainFilter?: string }) {
   }
 
   const renderTabContent = (domainFilter?: string) => {
-    const theme = useTheme()
     const domainTasks = domainFilter
       ? tasks.filter(t => t.domain === domainFilter)
       : tasks
@@ -273,6 +279,9 @@ const StyledCard = styled(Card)`
         subtitle={`${count} task${count !== 1 ? 's' : ''}`}
         action={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* PlanPage's domain filter — it used to portal into a page header
+                block; this card is what it filters. */}
+            {filterNode}
             <SegmentedControl
               value={statusFilter}
               onChange={setStatusFilter}
@@ -297,11 +306,11 @@ const StyledCard = styled(Card)`
                 <LayoutGrid size={14} />
               </Button>
             </ViewToggle>
-            <Button variant="primary" size="sm" onClick={() => setIsAddOpen(true)} style={{
-              background: `linear-gradient(135deg, ${theme.color.accent} 0%, color-mix(in srgb, ${theme.color.accent} 80%, black) 100%)`,
-              border: 'none',
-              boxShadow: `0 4px 12px ${theme.color.accent}40`
-            }}>
+            {/* Plain primary Button. It carried an inline accent gradient,
+                `border: none` and a coloured drop shadow — none of which any
+                other New button in the app has, and the shadow is the kind the
+                design rules ban on buttons. */}
+            <Button variant="primary" size="sm" onClick={() => setIsAddOpen(true)}>
               <Plus size={14} style={{ marginRight: 6 }} /> New Task
             </Button>
           </div>

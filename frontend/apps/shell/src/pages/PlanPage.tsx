@@ -16,12 +16,11 @@
  * and the legacy /app/plan, which keeps working until Phase 5 turns /app/plan
  * into the week time-blocking planner.
  */
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Button, HeaderActionPortal, Select } from '@ledgr/ui';
+import { useSearchParams } from 'react-router-dom';
+import { Select } from '@ledgr/ui';
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout';
 import { DOMAIN_OPTIONS } from '@ct/shared/config/domains';
 import { useAreaSection } from '@ct/shared/hooks/useAreaSection';
-import { Settings } from 'lucide-react';
 
 import { GoalsSection } from '@/pages/GoalsPage';
 import { MilestonesSection } from '@/pages/workspace/MilestonesSection';
@@ -39,7 +38,6 @@ type Entity = 'goals' | 'projects' | 'sprints' | 'milestones' | 'tasks';
 const DOMAIN_FILTER_OPTIONS = [{ label: 'All domains', value: 'all' }, ...DOMAIN_OPTIONS];
 
 export function PlanPage() {
-  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
 
   // `?view=` is the legacy spelling; useAreaSection redirects it to the route.
@@ -54,38 +52,41 @@ export function PlanPage() {
     setParams(next, { replace: true });
   };
 
+  /*
+   * The domain filter is owned here — it survives an entity switch and lives in
+   * the URL — but it RENDERS inside each section's primary card header, passed
+   * down as `filterNode` (2026-08-03). It used to portal into a page header
+   * block, and it was the last thing in the app keeping one alive.
+   *
+   * One element, five consumers: each section drops it into its own card's
+   * `actionNode` next to that entity's status filter and New button, so the
+   * controls a card responds to are all in that card's header.
+   */
+  const filterNode = (
+    <Select
+      size="sm"
+      fullWidth={false}
+      value={domainParam}
+      onChange={(v) => setParam('domain', String(v))}
+      options={DOMAIN_FILTER_OPTIONS}
+      aria-label="Filter by life area"
+    />
+  );
+
   const renderContent = () => {
     switch (entity) {
-      case 'goals': return <GoalsSection domainFilter={domainFilter} />;
-      case 'projects': return <ProjectsSection domainFilter={domainFilter} />;
-      case 'sprints': return <SprintsSection domainFilter={domainFilter} />;
-      case 'tasks': return <TasksSection domainFilter={domainFilter} />;
-      case 'milestones': return <MilestonesSection domainFilter={domainFilter} />;
-      default: return <ProjectsSection domainFilter={domainFilter} />;
+      case 'goals': return <GoalsSection domainFilter={domainFilter} filterNode={filterNode} />;
+      case 'projects': return <ProjectsSection domainFilter={domainFilter} filterNode={filterNode} />;
+      case 'sprints': return <SprintsSection domainFilter={domainFilter} filterNode={filterNode} />;
+      case 'tasks': return <TasksSection domainFilter={domainFilter} filterNode={filterNode} />;
+      case 'milestones': return <MilestonesSection domainFilter={domainFilter} filterNode={filterNode} />;
+      default: return <ProjectsSection domainFilter={domainFilter} filterNode={filterNode} />;
     }
   };
 
   return (
     <PageContainer>
       <PageContent>
-          {/* Page-scoped, so it lives in this page's header block — see
-              FinancePage. The per-entity status filter is card-scoped and lives
-              in that card's own header instead. */}
-          <HeaderActionPortal>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <Select
-                size="sm"
-                fullWidth={false}
-                value={domainParam}
-                onChange={(v) => setParam('domain', String(v))}
-                options={DOMAIN_FILTER_OPTIONS}
-                aria-label="Filter by life area"
-              />
-              <Button variant="outline" size="sm" onClick={() => navigate('/app/settings')}>
-                <Settings size={14} style={{ marginRight: 6 }} /> Settings
-              </Button>
-            </div>
-          </HeaderActionPortal>
           {renderContent()}
       </PageContent>
     </PageContainer>

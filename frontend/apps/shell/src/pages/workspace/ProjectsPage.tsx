@@ -7,7 +7,7 @@
  * the editor, and Delete moved into the dialog footer because a table row has
  * no action column to hang it off.
  */
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FolderKanban, Trash2 } from 'lucide-react'
 import { Button, Card, EmptyState, Input, Dialog, DialogFooter, Select, Label } from '@ledgr/ui'
@@ -66,7 +66,14 @@ const PRIORITY_KEY: Record<string, string> = {
   low: 'mutedFg',
 }
 
-export function ProjectsSection({ domainFilter }: { domainFilter?: string }) {
+export function ProjectsSection({
+  domainFilter,
+  filterNode,
+}: {
+  domainFilter?: string
+  /** PlanPage's shared domain filter, rendered in this card's header. */
+  filterNode?: ReactNode
+}) {
   const queryClient = useQueryClient()
   const [statusFilter, setStatusFilter] = useState('all')
   const [isAddOpen, setIsAddOpen] = useState(false)
@@ -184,17 +191,21 @@ export function ProjectsSection({ domainFilter }: { domainFilter?: string }) {
   const modules = useMemo<ModuleSpec[]>(() => [{
     kind: 'table',
     span: 12,
-    // The status filter belongs to this table, so it rides in the table's own
-    // card header — it used to float, unanchored, above the card.
+    // Both filters belong to this table, so they ride in its own card header —
+    // the status one used to float unanchored above the card, and the domain
+    // one used to portal into a page header block.
     actionNode: (
-      <Select
-        size="sm"
-        fullWidth={false}
-        aria-label="Filter projects by status"
-        value={statusFilter}
-        onChange={v => setStatusFilter(v as string)}
-        options={STATUS_FILTER_OPTIONS}
-      />
+      <>
+        {filterNode}
+        <Select
+          size="sm"
+          fullWidth={false}
+          aria-label="Filter projects by status"
+          value={statusFilter}
+          onChange={v => setStatusFilter(v as string)}
+          options={STATUS_FILTER_OPTIONS}
+        />
+      </>
     ),
     title: domainFilter ? `${domainLabel(domainFilter)} projects` : 'All projects',
     subtitle: `${rows.length} project${rows.length !== 1 ? 's' : ''} · click a row to edit`,
@@ -220,15 +231,31 @@ export function ProjectsSection({ domainFilter }: { domainFilter?: string }) {
     ]),
     onRowClick: (i: number) => openEdit(rows[i]),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }], [rows, domainFilter, statusFilter])
+  }], [rows, domainFilter, statusFilter, filterNode])
 
   return (
     <>
       {!isLoading && rows.length === 0 ? (
+        /* The filters ride the empty state too: without them, filtering to a
+           combination that matches nothing unmounts the controls that caused it
+           and the filter can never be cleared. */
         <Card
           icon={<FolderKanban size={16} />}
           title={domainFilter ? `${domainLabel(domainFilter)} projects` : 'All projects'}
           subtitle="Nothing here yet"
+          action={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {filterNode}
+              <Select
+                size="sm"
+                fullWidth={false}
+                aria-label="Filter projects by status"
+                value={statusFilter}
+                onChange={v => setStatusFilter(v as string)}
+                options={STATUS_FILTER_OPTIONS}
+              />
+            </div>
+          }
         >
           <EmptyState
             icon={<FolderKanban size={24} />}

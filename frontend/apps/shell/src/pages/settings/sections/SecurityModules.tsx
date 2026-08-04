@@ -1,35 +1,33 @@
 /**
- * Settings → Security.
+ * Settings → Security & privacy.
  *
- * Phase 4 conversion to the canvas's `settings:security` composition —
- * tiles(12) · table(7) · controls(5) · rows(12) — from live auth and
- * integration state.
+ * REBUILT 2026-08-03. The old version said everything twice: a tiles row, then
+ * a "Sign-in" table restating the same three facts, then a "Protection" module
+ * whose two `control: 'select'` rows echoed the tiles a third time — and that
+ * control has no handler (`ShellKinds.ControlsKind`), so it rendered a chevron
+ * chip that could not be opened. Its "Connected apps" module moved to the new
+ * Connections tab, which can also connect them.
  *
- * TWO DEPARTURES, both because the feature the canvas draws does not exist:
- *  - Its table is "Active sessions — 2 devices signed in". Auth is a single
- *    JWT cookie with a `token_version` revocation counter; no session registry
- *    is kept, so there is nothing to list per device. The table becomes the
- *    sign-in facts that ARE recorded, and "sign out everywhere" stays as the
- *    real action the revocation counter supports.
- *  - Its Protection module offers two-factor auth and re-auth for money
- *    actions. Neither is implemented, and drawing switches for them would
- *    promise protection that is not there. The module is the controls that
- *    exist: change password, and the verification state of the account.
+ * What arrived instead is account deletion. It used to sit in the `general`
+ * tab beside the display-name field, which is the wrong neighbourhood for the
+ * one irreversible action in the app; it belongs with the password and the
+ * session controls.
  *
- * BACKEND FOLLOW-UP: a `sessions` table (device, ip, last_seen) and a TOTP
- * enrolment would let this render the canvas exactly.
+ * TWO THINGS THE UI DELIBERATELY DOES NOT CLAIM: there is no session registry
+ * (auth is one httpOnly cookie plus a `token_version` revocation counter, so
+ * per-device sessions cannot be listed) and no TOTP enrolment. Drawing either
+ * would promise protection that is not implemented.
  */
 import { useMemo, useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
-import dayjs from 'dayjs'
 import styled from 'styled-components'
-import { LayoutGrid, Shield } from 'lucide-react'
+import { KeyRound, ShieldAlert, Trash2 } from 'lucide-react'
 import { Button, Dialog, Input } from '@ledgr/ui'
 import { api } from '@ct/shared/api/client'
-import { integrationsApi } from '@ct/shared/api/integrations'
 import { useAuthStore } from '@ct/shared/stores/authStore'
+import { logoutAndRedirect } from '@ct/shared/lib/logout'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 
 const Form = styled.div`
@@ -45,6 +43,12 @@ const Label = styled.label`
   margin-bottom: ${({ theme }) => theme.spacing[1]};
 `
 
+const Warning = styled.p`
+  margin: 0;
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
+  color: ${({ theme }) => theme.color.destructive};
+`
+
 const Actions = styled.div`
   display: flex;
   align-items: center;
@@ -55,15 +59,21 @@ const Actions = styled.div`
 export function SecurityModules() {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
+
   const [pwOpen, setPwOpen] = useState(false)
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
 
-  const { data: integrations } = useQuery({
-    queryKey: ['integrations'],
-    queryFn: integrationsApi.list,
-    staleTime: 60_000,
-  })
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+
+  /*
+   * Negated from the Google check rather than tested as `=== 'email'`, so every
+   * consumer here answers one question the same way. The two spellings used to
+   * coexist and could disagree — an unloaded user read "Email and password"
+   * beside "Managed by your Google account".
+   */
+  const isEmailAuth = user?.auth_provider !== 'google'
 
   const changePassword = useMutation({
     mutationFn: () => api.post('/auth/change-password', { current, new: next }),
@@ -78,121 +88,95 @@ export function SecurityModules() {
     onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed to change password'),
   })
 
-  const disconnect = useMutation({
-    mutationFn: (provider: string) => integrationsApi.disconnect(provider),
-    onSuccess: () => toast.success('Disconnected'),
-    onError: () => toast.error('Could not disconnect that app'),
+  const deleteAccount = useMutation({
+    mutationFn: () => api.delete('/auth/me'),
+    onSuccess: () => {
+      toast.success('Account deleted')
+      logout()
+      navigate('/')
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed to delete account'),
   })
 
-  const isEmailAuth = user?.auth_provider === 'email'
-
-  const modules = useMemo<ModuleSpec[]>(() => {
-    const apps = integrations ?? []
-    const connected = apps.filter(a => a.status === 'connected')
-
-    return [
-      {
-        kind: 'tiles',
-        span: 12,
-        tiles: [
-          {
-            label: 'Sign-in method',
-            value: user?.auth_provider === 'google' ? 'Google' : 'Email',
-            sub: isEmailAuth ? 'Password managed here' : 'Managed by your Google account',
-          },
-          {
-            label: 'Email verified',
-            value: user?.email_verified ? 'Yes' : 'No',
-            sub: user?.email_verified ? 'Full access' : 'Some features stay locked until verified',
-            dotKey: user?.email_verified ? 'success' : 'warning',
-          },
-          {
-            label: 'Connected apps',
-            value: String(connected.length),
-            sub: connected.length ? connected.map(a => a.provider).join(', ') : 'Nothing linked',
-          },
-          {
-            label: 'Account role',
-            value: user?.is_admin ? 'Administrator' : 'Personal',
-            sub: user?.is_admin ? 'Full instance access' : 'Your own data only',
-            dotKey: user?.is_admin ? 'warning' : undefined,
-          },
-        ],
+  /*
+   * TWO cards, and every row on both is a button.
+   *
+   * A `tiles` row used to sit on top with sign-in method, verification state
+   * and account role. All three were restated in the rows below it, and a tile
+   * cannot be clicked — so it was three cards of text above two cards saying
+   * the same thing. Role is Profile's fact and is stated there.
+   *
+   * A "Session" row also went: "One httpOnly, SameSite=Strict cookie" is how
+   * auth is implemented, not something the user sets or can act on. Sign out —
+   * which is the actionable half of it — is a row on the second card.
+   */
+  const modules = useMemo<ModuleSpec[]>(() => [
+    {
+      kind: 'rows',
+      span: 7,
+      title: 'Sign-in',
+      subtitle: isEmailAuth
+        ? 'Your credentials for this account'
+        : 'Your Google account holds these — change them there',
+      icon: KeyRound,
+      ...(isEmailAuth && { action: 'Change password', onAction: () => setPwOpen(true) }),
+      /*
+       * NO `onRowClick` here, deliberately. It turns EVERY row in a module into
+       * a button, and only the password is actionable — there is no
+       * resend-verification endpoint, so the email row can never do anything.
+       * Wiring it would have made the email row look pressable and then ignore
+       * the press, which is the same dead-control problem as `control:
+       * 'select'`. The header button is this card's control; these two rows are
+       * honest status beneath it.
+       */
+      rows: [
+        {
+          title: 'Password',
+          meta: isEmailAuth
+            ? 'Use the button above — changing it signs you out of every device'
+            : 'Not used — you sign in through Google',
+          value: isEmailAuth ? 'Set' : 'Google-managed',
+        },
+        {
+          title: 'Email address',
+          meta: user?.email_verified
+            ? 'Verified — used for sign-in and account recovery'
+            : 'Unverified — check your inbox for the confirmation link',
+          value: user?.email ?? '—',
+          tagLabel: user?.email_verified ? 'Verified' : 'Unverified',
+          tagColorKey: user?.email_verified ? 'success' : 'warning',
+        },
+      ],
+    },
+    {
+      kind: 'rows',
+      span: 5,
+      title: 'Your data',
+      subtitle: 'Both of these act immediately · click a row',
+      icon: ShieldAlert,
+      rows: [
+        {
+          title: 'Sign out',
+          meta: 'Invalidates this session across every device you are signed in on',
+          value: 'Sign out',
+        },
+        {
+          title: 'Delete account',
+          meta: 'Permanently erases your account and every row of data attached to it',
+          value: 'Delete',
+          tagLabel: 'Irreversible',
+          tagColorKey: 'destructive',
+          busy: deleteAccount.isPending,
+        },
+      ],
+      // Both rows act, so every row here is legitimately a button. Sign out is
+      // no longer ALSO the header button — one control, one place.
+      onRowClick: (i: number) => {
+        if (i === 0) logoutAndRedirect(navigate)
+        else setDeleteOpen(true)
       },
-      {
-        kind: 'table',
-        span: 7,
-        title: 'Sign-in',
-        subtitle: 'What this account uses to authenticate',
-        icon: Shield,
-        gridCols: '1.5fr 1.2fr 1fr',
-        cols: [{ l: 'Factor' }, { l: 'Detail' }, { l: 'State', a: 'right' }],
-        rows: [
-          [
-            { t: 'Provider', bold: true },
-            user?.auth_provider === 'google' ? 'Google OAuth' : 'Email and password',
-            { t: 'Active', tag: true, colorKey: 'success' },
-          ],
-          [
-            { t: 'Email address', bold: true },
-            user?.email ?? '—',
-            {
-              t: user?.email_verified ? 'Verified' : 'Unverified',
-              tag: true,
-              colorKey: user?.email_verified ? 'success' : 'warning',
-            },
-          ],
-          [
-            { t: 'Session', bold: true },
-            'Single httpOnly cookie, revocable',
-            { t: 'Signed in', tag: true, colorKey: 'success' },
-          ],
-        ],
-      },
-      {
-        kind: 'controls',
-        span: 5,
-        title: 'Protection',
-        subtitle: 'Sign-in and sensitive actions',
-        icon: Shield,
-        ...(isEmailAuth && { action: 'Change password', onAction: () => setPwOpen(true) }),
-        rows: [
-          {
-            title: 'Password',
-            meta: isEmailAuth ? 'Change it from the button above' : 'Not used — you sign in with Google',
-            control: 'select',
-            value: isEmailAuth ? 'Set' : 'Google',
-          },
-          {
-            title: 'Email verification',
-            meta: 'Required before some features unlock',
-            control: 'select',
-            value: user?.email_verified ? 'Verified' : 'Pending',
-          },
-        ],
-      },
-      {
-        kind: 'rows',
-        span: 12,
-        title: 'Connected apps',
-        subtitle: connected.length
-          ? 'Third-party access to your data · click to disconnect'
-          : 'Nothing has access to your data',
-        icon: LayoutGrid,
-        rows: connected.map(a => ({
-          title: a.provider,
-          meta: a.token_expires_at
-            ? `Access token valid until ${dayjs(a.token_expires_at).format('D MMM, HH:mm')}`
-            : 'No expiry recorded',
-          tagLabel: 'Connected',
-          tagColorKey: 'success',
-          busy: disconnect.isPending && disconnect.variables === a.provider,
-        })),
-        ...(connected.length && { onRowClick: (i: number) => disconnect.mutate(connected[i].provider) }),
-      },
-    ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, integrations, isEmailAuth, disconnect.isPending])
+    },
+  ], [user, isEmailAuth, deleteAccount.isPending, navigate])
 
   return (
     <>
@@ -201,7 +185,7 @@ export function SecurityModules() {
       <Dialog
         open={pwOpen}
         onOpenChange={(o) => !o && setPwOpen(false)}
-        icon={<Shield size={18} />}
+        icon={<KeyRound size={18} />}
         eyebrow="Security"
         title="Change password"
         description="You will be signed out and asked to log in again."
@@ -225,6 +209,42 @@ export function SecurityModules() {
               Change password
             </Button>
             <Button variant="ghost" onClick={() => setPwOpen(false)}>Cancel</Button>
+          </Actions>
+        </Form>
+      </Dialog>
+
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={(o) => { if (!o) { setDeleteOpen(false); setConfirmText('') } }}
+        icon={<Trash2 size={18} />}
+        eyebrow="Danger zone"
+        title="Delete your account"
+        description="Every account, transaction, log, goal and conversation is erased. This cannot be undone."
+      >
+        <Form>
+          <Warning>There is no export and no recovery. Download anything you need first.</Warning>
+          <div>
+            <Label>Type DELETE to confirm</Label>
+            <Input
+              value={confirmText}
+              onChange={(e: any) => setConfirmText(e.target.value)}
+              placeholder="DELETE"
+              aria-label="Type DELETE to confirm account deletion"
+              autoFocus
+            />
+          </div>
+          <Actions>
+            <Button
+              variant="destructive"
+              loading={deleteAccount.isPending}
+              disabled={confirmText !== 'DELETE'}
+              onClick={() => deleteAccount.mutate()}
+            >
+              Delete my account
+            </Button>
+            <Button variant="ghost" onClick={() => { setDeleteOpen(false); setConfirmText('') }}>
+              Cancel
+            </Button>
           </Actions>
         </Form>
       </Dialog>

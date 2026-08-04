@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
@@ -110,9 +110,16 @@ function daysLeft(deadline?: string): number | null {
 interface DomainGoalsCardProps {
   domain: string
   onAdd?: () => void
+  /**
+   * A page-level filter to render alongside this card's own controls. Workspace
+   * → Goals passes its domain filter here so the control is reachable while a
+   * domain is selected — the "All goals" table it normally rides is not
+   * rendered in that branch.
+   */
+  filterNode?: ReactNode
 }
 
-export function DomainGoalsCard({ domain, onAdd }: DomainGoalsCardProps) {
+export function DomainGoalsCard({ domain, onAdd, filterNode }: DomainGoalsCardProps) {
   const queryClient = useQueryClient()
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [updatingGoal, setUpdatingGoal] = useState<MacroGoal | null>(null)
@@ -278,6 +285,7 @@ export function DomainGoalsCard({ domain, onAdd }: DomainGoalsCardProps) {
         icon={<Target size={16} />}
         action={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {filterNode}
             <Select
               size="sm"
               fullWidth={false}

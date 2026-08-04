@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
-import { Button, Card, EmptyState, HeaderActionPortal, Input, Select, Sheet } from '@ledgr/ui'
+import { Button, Card, EmptyState, Input, Select, Sheet } from '@ledgr/ui'
 import { Trash2, Wallet, PencilLine, ArrowLeftRight, TrendingUp, TrendingDown, Landmark, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import styled from 'styled-components'
@@ -513,8 +513,26 @@ export const AccountManager: React.FC<{ onAdd?: () => void }> = ({ onAdd }) => {
         kind: 'table',
         span: 7,
         title: 'Accounts',
-        subtitle: `${visibleAccounts.length} account${visibleAccounts.length === 1 ? '' : 's'} · click a row for its ledger`,
+        subtitle: visibleAccounts.length === 0
+          ? 'No accounts match this filter'
+          : `${visibleAccounts.length} account${visibleAccounts.length === 1 ? '' : 's'} · click a row for its ledger`,
         icon: Landmark,
+        /* The type filter drives this table only — the tiles and the "Where the
+         * money sits" split both read `accounts` unfiltered — so it lives here
+         * rather than portalling into a page header. */
+        actionNode: (
+          <Select
+            size="sm"
+            fullWidth={false}
+            aria-label="Filter accounts by type"
+            value={typeFilter}
+            onChange={v => setTypeFilter(String(v))}
+            options={[
+              { value: 'all', label: 'All types' },
+              ...accountTypes.map(t => ({ value: t, label: t.replace('_', ' ').toUpperCase() })),
+            ]}
+          />
+        ),
         ...(onAdd && { action: 'Add account', onAction: onAdd }),
         gridCols: '1.8fr 1.1fr 1fr',
         cols: [{ l: 'Account' }, { l: 'Type' }, { l: 'Balance', a: 'right' }],
@@ -548,30 +566,12 @@ export const AccountManager: React.FC<{ onAdd?: () => void }> = ({ onAdd }) => {
       },
     ]
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accounts, visibleAccounts, onAdd])
+  }, [accounts, visibleAccounts, typeFilter, accountTypes, onAdd])
 
   if (isLoading) return <Skeleton style={{ height: 320 }} />
 
   return (
     <AccountsRoot>
-      {/* Tab-scoped: it drives every module below, so it belongs in the
-          page header, not floating in the gap above the cards. */}
-      {accounts.length > 0 && (
-        <HeaderActionPortal>
-          <Select
-            size="sm"
-            fullWidth={false}
-            aria-label="Filter accounts by type"
-            value={typeFilter}
-            onChange={v => setTypeFilter(String(v))}
-            options={[
-              { value: 'all', label: 'All types' },
-              ...accountTypes.map(t => ({ value: t, label: t.replace('_', ' ').toUpperCase() })),
-            ]}
-          />
-        </HeaderActionPortal>
-      )}
-
       {accounts.length === 0 ? (
         <Card title="Accounts" subtitle="Your cash, bank, and wallet balances" icon={<Wallet size={16} />}>
           <EmptyState

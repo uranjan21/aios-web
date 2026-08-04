@@ -16,7 +16,7 @@ import { ModuleButton } from './primitives'
 import {
   AgendaKind, BarsKind, CalendarKind, ChecklistKind, ControlsKind, DonutKind,
   HeatKind, HeroKind, MetersKind, NotesKind, ProgressKind, QueueKind, RowsKind,
-  SpansKind, TableKind, TimelineKind, WeekKind,
+  SeriesKind, SpansKind, TableKind, TimelineKind, WeekKind,
 } from './ShellKinds'
 import { AgentsKind, ChatKind, KanbanKind, TilesKind } from './BareKinds'
 import { BARE_KINDS, type ModuleSpec } from './types'
@@ -132,6 +132,7 @@ function KindBody({ m }: { m: ModuleSpec }) {
     case 'progress':  return <ProgressKind m={m} />
     case 'bars':      return <BarsKind m={m} />
     case 'donut':     return <DonutKind m={m} />
+    case 'series':    return <SeriesKind m={m} />
     case 'heat':      return <HeatKind m={m} />
     case 'calendar':  return <CalendarKind m={m} />
     case 'week':      return <WeekKind m={m} />

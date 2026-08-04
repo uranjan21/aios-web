@@ -14,21 +14,17 @@
  *
  * What survives is the part that does real work: the opportunity pipeline.
  */
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, BookOpen, Briefcase, Plus, Settings } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Activity, BookOpen, Briefcase } from 'lucide-react'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
-import { Button, HeaderActionPortal, KpiCard, KpiGrid } from '@ledgr/ui'
+import { KpiCard, KpiGrid } from '@ledgr/ui'
 import { useAreaSection } from '@ct/shared/hooks/useAreaSection'
 import { JournalSection } from '@ct/career/components/JournalSection'
 import { OpportunitiesSection } from '@ct/career/components/sections/OpportunitiesSection'
-import { CareerLogModal } from '@ct/career/components/CareerLogModal'
+import { SkillsSection } from '@ct/career/components/sections/SkillsSection'
 import { careerApi } from '@ct/shared/api/areas'
 
 export function CareerPage() {
-  const [isLogModalOpen, setIsLogModalOpen] = useState(false)
-  const navigate = useNavigate()
   // Career gained a two-page IA on 2026-08-01: Journal (Phase 5 — no model
   // yet) and Opportunities. Journal is the area's landing page in the design,
   // so /app/career resolves to it.
@@ -46,20 +42,21 @@ export function CareerPage() {
   return (
     <PageContainer>
       <PageContent>
-        {/* No in-page title block — see FinancePage. */}
-        <HeaderActionPortal>
-          <>
-            <Button variant="secondary" size="sm" onClick={() => setIsLogModalOpen(true)}>
-              <Plus size={14} style={{ marginRight: 6 }} /> Log entry
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate('/app/career/settings')}>
-              <Settings size={14} style={{ marginRight: 6 }} /> Settings
-            </Button>
-          </>
-        </HeaderActionPortal>
+        {/* No header block and nothing page-scoped (2026-08-03). Career
+            Preferences is a nav destination now.
+
+            "Log entry" was unmounted with it. It wrote through
+            `careerApi.createEvent` to `/areas/career/events` — a table with no
+            reader left in the app since the 2026-07-21 redesign deleted both
+            timelines that rendered it (see the file header above). Saving the
+            form changed nothing on screen. `CareerLogModal.tsx` is kept on disk,
+            unreferenced; mount it again behind a card that actually shows career
+            events if that surface comes back. */}
 
         {section === 'journal' ? (
           <JournalSection />
+        ) : section === 'skills' ? (
+          <SkillsSection />
         ) : (
         <>
         <KpiGrid>
@@ -76,8 +73,6 @@ export function CareerPage() {
         <OpportunitiesSection />
         </>
         )}
-
-        <CareerLogModal open={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} />
       </PageContent>
     </PageContainer>
   )

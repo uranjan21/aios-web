@@ -21,7 +21,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
-import { Button, Card, Dialog, EmptyState, HeaderActionPortal, Input, Select } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, Input, Select } from '@ledgr/ui'
 import { CheckSquare, Inbox as InboxIcon, Zap } from 'lucide-react'
 import { financeApi, type FinancePendingTransaction } from '@ct/shared/api/areas'
 import { agentsApi } from '@ct/shared/api/agents'
@@ -109,6 +109,12 @@ export function InboxTab() {
     queryFn: financeApi.settings,
     staleTime: 60_000,
   })
+  const { data: stats } = useQuery({
+    queryKey: ['finance', 'pending', 'stats'],
+    queryFn: financeApi.pendingStats,
+    staleTime: 30_000,
+  })
+
   const { data: autoFiled } = useQuery({
     queryKey: ['finance', 'auto-filed'],
     queryFn: () => financeApi.searchTransactions({ tag: TRACKER_TAG, limit: 6 }),
@@ -228,6 +234,45 @@ export function InboxTab() {
   const modules = useMemo<ModuleSpec[]>(() => {
     const specs: ModuleSpec[] = []
 
+    /* Throughput, which the queue card cannot show: it renders what is still
+     * waiting, so on the good day — nothing waiting — it disappears and takes
+     * the evidence of work done with it. These tiles survive an empty queue. */
+    if (stats) {
+      const filed = stats.filed_automatically_today + stats.filed_manually_today
+      specs.push({
+        kind: 'tiles',
+        span: 12,
+        tiles: [
+          {
+            label: 'Awaiting review',
+            value: String(stats.pending_count),
+            sub: stats.pending_count === 0 ? 'Inbox clear' : 'Approve or dismiss to file',
+            subKey: stats.pending_count === 0 ? 'success' : 'warning',
+            dotKey: stats.pending_count === 0 ? 'success' : 'warning',
+          },
+          {
+            label: 'Oldest waiting',
+            value: stats.oldest_pending_at
+              ? (dayjs().diff(dayjs(stats.oldest_pending_at), 'day') === 0
+                  ? 'Today'
+                  : `${dayjs().diff(dayjs(stats.oldest_pending_at), 'day')}d`)
+              : '—',
+            sub: stats.oldest_pending_at ? 'Since the oldest item arrived' : 'Nothing waiting',
+          },
+          {
+            label: 'Filed automatically',
+            value: String(stats.filed_automatically_today),
+            sub: 'Today, by auto-commit',
+          },
+          {
+            label: 'Filed by you',
+            value: String(stats.filed_manually_today),
+            sub: filed === 0 ? 'Nothing filed today yet' : 'Today, reviewed by hand',
+          },
+        ],
+      })
+    }
+
     if (rows.length) {
       const oldest = rows.reduce((a, b) => (a.logged_at <= b.logged_at ? a : b))
       const ageDays = dayjs().diff(dayjs(oldest.logged_at), 'day')
@@ -237,6 +282,24 @@ export function InboxTab() {
         title: 'Needs review',
         subtitle: `${rows.length} transaction${rows.length === 1 ? '' : 's'} · oldest ${ageDays === 0 ? 'today' : `${ageDays} day${ageDays === 1 ? '' : 's'} old`}`,
         icon: InboxIcon,
+        /* Fetch/Dismiss act on this queue, so they sit in its header beside
+         * Approve all rather than portalling into a page header. The empty
+         * state below carries its own Fetch now, since this card is gone then. */
+        actionNode: (
+          <>
+            <Button size="sm" variant="outline" onClick={() => fetchNow.mutate()} loading={fetchNow.isPending}>
+              Fetch now
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => dismissAll.mutate(rows.map(t => t.id))}
+              loading={dismissAll.isPending}
+            >
+              Dismiss all
+            </Button>
+          </>
+        ),
         action: 'Approve all',
         onAction: () => approveAll.mutate(rows.map(t => t.id)),
         rows: rows.map((tx) => {
@@ -319,30 +382,18 @@ export function InboxTab() {
 
     return specs
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, activeRules, autoFiled, categories, settings,
-      approve.isPending, dismiss.isPending, toggleRule.isPending, setAutoCommit.isPending])
+  }, [rows, activeRules, autoFiled, categories, settings, stats,
+      approve.isPending, dismiss.isPending, toggleRule.isPending, setAutoCommit.isPending,
+      fetchNow.isPending, dismissAll.isPending])
 
   if (isLoading) return <Skeleton style={{ height: 320 }} />
 
   return (
     <Root>
-      {/* Tab-scoped: it drives every module below, so it belongs in the page
-          header rather than floating in the gap above the cards. */}
-      <HeaderActionPortal>
-        <Button size="sm" variant="outline" onClick={() => fetchNow.mutate()} loading={fetchNow.isPending}>
-          Fetch now
-        </Button>
-        {rows.length > 0 && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => dismissAll.mutate(rows.map(t => t.id))}
-            loading={dismissAll.isPending}
-          >
-            Dismiss all
-          </Button>
-        )}
-      </HeaderActionPortal>
+      {/* Tiles lead even on an empty queue — they are the summary, and "filed
+          today" is the one number that survives inbox zero. The empty card
+          follows to explain the absence and offer the next action. */}
+      <ModuleGrid modules={modules} />
 
       {rows.length === 0 && (
         <Card title="Review queue" subtitle="Transactions captured from your email" icon={<InboxIcon size={16} />}>
@@ -354,8 +405,6 @@ export function InboxTab() {
           />
         </Card>
       )}
-
-      <ModuleGrid modules={modules} />
 
       <Dialog
         open={!!editing}

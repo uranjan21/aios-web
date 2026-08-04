@@ -7,7 +7,7 @@
  * editor, and Delete moved into the dialog footer because a table row has no
  * action column to hang it off.
  */
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Zap, Trash2 } from 'lucide-react'
 import { Button, Card, EmptyState, Input, Dialog, DialogFooter, Select, Label } from '@ledgr/ui'
@@ -48,7 +48,14 @@ function fmtDate(d?: string) {
   return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
-export function SprintsSection({ domainFilter }: { domainFilter?: string }) {
+export function SprintsSection({
+  domainFilter,
+  filterNode,
+}: {
+  domainFilter?: string
+  /** PlanPage's shared domain filter, rendered in this card's header. */
+  filterNode?: ReactNode
+}) {
   const queryClient = useQueryClient()
   const [statusFilter, setStatusFilter] = useState('all')
   const [isAddOpen, setIsAddOpen] = useState(false)
@@ -164,16 +171,19 @@ export function SprintsSection({ domainFilter }: { domainFilter?: string }) {
   const modules = useMemo<ModuleSpec[]>(() => [{
     kind: 'table',
     span: 12,
-    // Belongs to this table — see ProjectsPage.
+    // Both belong to this table — see ProjectsPage.
     actionNode: (
-      <Select
-        size="sm"
-        fullWidth={false}
-        aria-label="Filter sprints by status"
-        value={statusFilter}
-        onChange={v => setStatusFilter(v as string)}
-        options={STATUS_FILTER_OPTIONS}
-      />
+      <>
+        {filterNode}
+        <Select
+          size="sm"
+          fullWidth={false}
+          aria-label="Filter sprints by status"
+          value={statusFilter}
+          onChange={v => setStatusFilter(v as string)}
+          options={STATUS_FILTER_OPTIONS}
+        />
+      </>
     ),
     title: domainFilter ? `${domainLabel(domainFilter)} sprints` : 'All sprints',
     subtitle: `${rows.length} sprint${rows.length !== 1 ? 's' : ''} · click a row to edit`,
@@ -199,15 +209,29 @@ export function SprintsSection({ domainFilter }: { domainFilter?: string }) {
     ]),
     onRowClick: (i: number) => openEdit(rows[i]),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }], [rows, projects, domainFilter, statusFilter])
+  }], [rows, projects, domainFilter, statusFilter, filterNode])
 
   return (
     <>
       {!isLoading && rows.length === 0 ? (
+        /* Filters ride the empty state too — see ProjectsPage. */
         <Card
           icon={<Zap size={16} />}
           title={domainFilter ? `${domainLabel(domainFilter)} sprints` : 'All sprints'}
           subtitle="Nothing here yet"
+          action={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {filterNode}
+              <Select
+                size="sm"
+                fullWidth={false}
+                aria-label="Filter sprints by status"
+                value={statusFilter}
+                onChange={v => setStatusFilter(v as string)}
+                options={STATUS_FILTER_OPTIONS}
+              />
+            </div>
+          }
         >
           <EmptyState
             icon={<Zap size={24} />}

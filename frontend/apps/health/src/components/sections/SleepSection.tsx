@@ -29,7 +29,7 @@ import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { Moon, Zap } from 'lucide-react'
-import { Button, Card, Dialog, EmptyState, HeaderActionPortal, Input, Select } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, Input, Select } from '@ledgr/ui'
 import { healthApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
@@ -173,6 +173,12 @@ export function SleepSection() {
         title: 'Last 7 nights',
         subtitle: `Hours slept against a ${target}h target`,
         icon: Moon,
+        /* Logging a night adds a bar to this chart, so the button belongs on it
+         * rather than portalled into a page header. The empty state below has
+         * its own, since this card is gone then. */
+        action: 'Log sleep',
+        actionVariant: 'primary',
+        onAction: () => setLogOpen(true),
         target,
         bars: nights.map(n => ({
           label: dayjs(n.date).format('ddd'),
@@ -226,12 +232,6 @@ export function SleepSection() {
 
   return (
     <Root>
-      {/* Tab-scoped: it drives every module below, so it belongs in the page
-          header rather than floating in the gap above the cards. */}
-      <HeaderActionPortal>
-        <Button size="sm" variant="primary" onClick={() => setLogOpen(true)}>Log sleep</Button>
-      </HeaderActionPortal>
-
       {nights.length === 0 ? (
         <Card title="Sleep" subtitle="Duration, consistency and what helps" icon={<Moon size={16} />}>
           <EmptyState

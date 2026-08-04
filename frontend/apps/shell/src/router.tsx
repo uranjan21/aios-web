@@ -20,7 +20,6 @@ const FinanceSettingsPage = lazy(() => import('@ct/finance/pages/FinanceSettings
 const HealthPage = lazy(() => import('@ct/health/pages/HealthPage').then(m => ({ default: m.HealthPage })))
 const HealthSettingsPage = lazy(() => import('@ct/health/pages/HealthSettingsPage').then(m => ({ default: m.HealthSettingsPage })))
 const CareerPage = lazy(() => import('@ct/career/pages/CareerPage').then(m => ({ default: m.CareerPage })))
-const CareerSettingsPage = lazy(() => import('@ct/career/pages/CareerSettingsPage').then(m => ({ default: m.CareerSettingsPage })))
 const ReviewPage = lazy(() => import('@/pages/ReviewPage').then(m => ({ default: m.ReviewPage })))
 
 const PlanPage = lazy(() => import('@/pages/PlanPage').then(m => ({ default: m.PlanPage })))
@@ -54,9 +53,9 @@ function PageLoader() {
         padding: '24px',
       }}
     >
-      <Spinner size="lg" tone="primary" label="Loading AI OS…" />
+      <Spinner size="lg" tone="primary" label="Loading Control Tower…" />
       <span style={{ fontSize: '13px', color: 'var(--muted-foreground)', letterSpacing: '0.05em', textTransform: 'uppercase', fontWeight: 500 }}>
-        Loading AI OS...
+        Loading Control Tower…
       </span>
     </div>
   )
@@ -185,6 +184,12 @@ export const router = createBrowserRouter([
       // Finance Area
       { path: 'finance', element: <Page><RequireModule module="finance"><FinancePage /></RequireModule></Page> },
       { path: 'finance/settings', element: <Page><RequireModule module="finance"><FinanceSettingsPage /></RequireModule></Page> },
+      /* Accounts and Loans left the sidebar on 2026-08-03 — Finance Setup's rail
+         renders the very same components, so they were two paths to one page.
+         These must sit BEFORE `finance/:section` or the param route swallows
+         them and renders the old standalone page. */
+      { path: 'finance/accounts', element: <Navigate to="/app/finance/settings?section=accounts" replace /> },
+      { path: 'finance/loans', element: <Navigate to="/app/finance/settings?section=loans" replace /> },
       { path: 'finance/:section', element: <Page><RequireModule module="finance"><FinancePage /></RequireModule></Page> },
 
       // Health Area
@@ -194,7 +199,9 @@ export const router = createBrowserRouter([
 
       // Career Area
       { path: 'career', element: <Page><RequireModule module="career"><CareerPage /></RequireModule></Page> },
-      { path: 'career/settings', element: <Page><RequireModule module="career"><CareerSettingsPage /></RequireModule></Page> },
+      /* Career Settings held only the skills inventory, which is now its own
+         destination (2026-08-03). Redirect rather than 404 an old bookmark. */
+      { path: 'career/settings', element: <Navigate to="/app/career/skills" replace /> },
       { path: 'career/:section', element: <Page><RequireModule module="career"><CareerPage /></RequireModule></Page> },
 
       // Workspace — the four planning entities, promoted out of /app/plan's

@@ -20,7 +20,7 @@ import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { Briefcase, CheckSquare, Trash2 } from 'lucide-react'
-import { Button, Card, Dialog, EmptyState, HeaderActionPortal, Input, Select } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, Input, Select } from '@ledgr/ui'
 import { careerApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Skeleton } from '@ct/shared/components/ui/skeleton'
@@ -153,6 +153,7 @@ export function OpportunitiesSection() {
         subtitle: 'Oldest first — nothing should sit in a stage for long',
         icon: CheckSquare,
         action: 'Add lead',
+        actionVariant: 'primary',
         onAction: () => setAddOpen(true),
         gridCols: '1.7fr 1.7fr 1fr 1fr',
         cols: [{ l: 'Company' }, { l: 'Role' }, { l: 'Stage' }, { l: 'Last moved', a: 'right' }],
@@ -179,12 +180,9 @@ export function OpportunitiesSection() {
 
   return (
     <Root>
-      {/* Tab-scoped: it drives every module below, so it belongs in the page
-          header rather than floating in the gap above the cards. */}
-      <HeaderActionPortal>
-        <Button size="sm" variant="primary" onClick={() => setAddOpen(true)}>Add lead</Button>
-      </HeaderActionPortal>
-
+      {/* "Add lead" lives on the "Every lead" card header (and in the empty
+          state below) — it used to ALSO portal into a page header, which was a
+          duplicate of the same action. */}
       {rows.length === 0 ? (
         <Card title="Opportunities" subtitle="Roles you are talking to" icon={<Briefcase size={16} />}>
           <EmptyState

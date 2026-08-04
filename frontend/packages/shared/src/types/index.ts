@@ -313,6 +313,11 @@ export interface FinanceLoan {
 }
 export interface LoanSummary {
   total_outstanding: number; total_emi: number; active_count: number;
+  /* Returned by GET /loans/summary since the amortization split landed, but
+     absent from this type until 2026-08-03 — so the interest actually paid was
+     computed server-side and never displayed. */
+  interest_paid_to_date: number; principal_paid_to_date: number;
+  payments_recorded: number;
 }
 export interface NetWorth {
   net_worth: number; accounts_total: number; investments_total: number; loans_outstanding: number;

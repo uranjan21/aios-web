@@ -112,6 +112,91 @@ export interface SimulationParams {
   one_time_month?: number
 }
 
+export interface PendingStats {
+  pending_count: number
+  /** ISO datetime of the oldest queued item; null when the queue is empty. */
+  oldest_pending_at: string | null
+  filed_automatically_today: number
+  filed_manually_today: number
+}
+
+export interface GoalContributionSeries {
+  /** "YYYY-MM", oldest first. */
+  months: string[]
+  goals: Array<{
+    goal_id: string
+    name: string
+    color: string
+    /** Same length and order as `months`. Zeros are emitted, never gaps, and a
+     *  value may be NEGATIVE — a withdrawal from the pot. */
+    series: number[]
+  }>
+}
+
+/**
+ * A single deposit into (or, when negative, withdrawal from) a savings pot.
+ *
+ * NOTE: this comes back as a raw SQLModel row, so `amount` arrives on the wire
+ * as a JSON *string* ("1500.00"), not a number. Typed as `number` to match the
+ * convention used across this file — wrap it in `Number()` at the use site.
+ */
+export interface GoalContribution {
+  id: string
+  goal_id: string
+  amount: number
+  contributed_at: string
+  note: string | null
+  account_id: string | null
+}
+
+export interface InvestmentPerformance {
+  /** NULL means not computable from the available cashflows. Render as unknown,
+   *  NEVER as 0% — see api/areas/finance.py:1651. */
+  xirr_pct: number | null
+  committed_monthly: number
+  realised_sip_monthly: number
+  holdings: Array<{
+    id: string
+    name: string
+    type: string
+    invested: number
+    current_value: number
+    gain: number
+    gain_pct: number
+    xirr_pct: number | null
+    cashflow_count: number
+  }>
+  /** Written by the nightly valuation job — empty until it has run once. */
+  series: Array<{ date: string; invested: number; value: number }>
+}
+
+/** Raw ORM row — `amount`/`units` arrive as strings. See GoalContribution. */
+export interface InvestmentTransaction {
+  id: string
+  investment_id: string
+  kind: 'buy' | 'sell' | 'dividend'
+  amount: number
+  units: number | null
+  transacted_at: string
+  is_sip: boolean
+  notes: string | null
+  account_id: string | null
+}
+
+export interface LoanPayments {
+  loan_id: string
+  outstanding: number
+  payments: Array<{
+    period: string
+    paid_at: string | null
+    amount: number
+    /** NULL (not 0) when the split predates the amortization capture. The UI
+     *  must distinguish "no interest" from "not known" — finance.py:1970. */
+    principal: number | null
+    interest: number | null
+  }>
+}
+
 export const financeApi = {
   netWorth: () => api.get<NetWorth>('/areas/finance/net-worth').then(r => r.data),
   simulate: (params: SimulationParams) =>
@@ -123,6 +208,7 @@ export const financeApi = {
   
   // Pending Transactions (Transaction Tracker)
   pending: () => api.get<FinancePendingTransaction[]>('/areas/finance/pending/').then(r => r.data),
+  pendingStats: () => api.get<PendingStats>('/areas/finance/pending/stats').then(r => r.data),
   approvePending: (id: string, data: any) => api.post<FinancePendingTransaction>(`/areas/finance/pending/${id}/approve`, data).then(r => r.data),
   dismissPending: (id: string) => api.post<FinancePendingTransaction>(`/areas/finance/pending/${id}/dismiss`).then(r => r.data),
   bulkApprovePending: (ids: string[], account_id?: string) =>
@@ -173,6 +259,14 @@ export const financeApi = {
   createGoal: (d: {name:string; icon?:string; target_amount:number; current_amount?:number; deadline?:string|null; category?:string; color?:string}) => api.post<FinancialGoal>('/areas/finance/goals', d).then(r=>r.data),
   patchGoal: (id:string, d: Partial<{name:string; icon:string; target_amount:number; current_amount:number; deadline:string|null; color:string}>) => api.patch<FinancialGoal>(`/areas/finance/goals/${id}`, d).then(r=>r.data),
   deleteGoal: (id:string) => api.delete(`/areas/finance/goals/${id}`).then(r=>r.data),
+  goalContributionsMonthly: (months = 6) =>
+    api.get<GoalContributionSeries>('/areas/finance/goals/contributions/monthly', { params: { months } }).then(r => r.data),
+  goalContributions: (goalId: string) =>
+    api.get<GoalContribution[]>(`/areas/finance/goals/${goalId}/contributions`).then(r => r.data),
+  createGoalContribution: (goalId: string, d: { amount: number; contributed_at?: string; note?: string | null; account_id?: string | null }) =>
+    api.post<GoalContribution>(`/areas/finance/goals/${goalId}/contributions`, d).then(r => r.data),
+  deleteGoalContribution: (goalId: string, contributionId: string) =>
+    api.delete(`/areas/finance/goals/${goalId}/contributions/${contributionId}`).then(r => r.data),
   // Bills
   bills: () => api.get<FinanceBill[]>('/areas/finance/bills').then(r => r.data),
   createBill: (d: {name:string; amount:number; due_day:number; category?:string; is_auto_debit?:boolean; notes?:string; account_id?:string}) => api.post<FinanceBill>('/areas/finance/bills', d).then(r=>r.data),
@@ -222,6 +316,14 @@ export const financeApi = {
   patchInvestment: (id: string, d: Partial<{ name: string; type: string; invested_amount: number; current_value: number; units: number | null; purchase_date: string | null; notes: string | null }>) =>
     api.patch<FinanceInvestment>(`/areas/finance/investments/${id}`, d).then(r => r.data),
   deleteInvestment: (id: string) => api.delete(`/areas/finance/investments/${id}`).then(r => r.data),
+  investmentsPerformance: (days = 180) =>
+    api.get<InvestmentPerformance>('/areas/finance/investments/performance', { params: { days } }).then(r => r.data),
+  investmentTransactions: (p?: { investment_id?: string; limit?: number }) =>
+    api.get<InvestmentTransaction[]>('/areas/finance/investments/transactions', { params: p }).then(r => r.data),
+  createInvestmentTransaction: (d: { investment_id: string; kind?: 'buy' | 'sell' | 'dividend'; amount: number; units?: number | null; transacted_at?: string; is_sip?: boolean; notes?: string | null; account_id?: string | null }) =>
+    api.post<InvestmentTransaction>('/areas/finance/investments/transactions', d).then(r => r.data),
+  deleteInvestmentTransaction: (id: string) =>
+    api.delete(`/areas/finance/investments/transactions/${id}`).then(r => r.data),
   // Loans / EMI
   loans: () => api.get<FinanceLoan[]>('/areas/finance/loans').then(r => r.data),
   loansSummary: () => api.get<LoanSummary>('/areas/finance/loans/summary').then(r => r.data),
@@ -230,6 +332,8 @@ export const financeApi = {
   patchLoan: (id: string, d: Partial<{ name: string; loan_type: string; lender: string | null; principal_amount: number; outstanding_amount: number; interest_rate: number; emi_amount: number; emi_day: number; tenure_months: number | null; is_active: boolean; notes: string | null; account_id: string | null }>) =>
     api.patch<FinanceLoan>(`/areas/finance/loans/${id}`, d).then(r => r.data),
   deleteLoan: (id: string) => api.delete(`/areas/finance/loans/${id}`).then(r => r.data),
+  loanPayments: (loanId: string) =>
+    api.get<LoanPayments>(`/areas/finance/loans/${loanId}/payments`).then(r => r.data),
 }
 
 // Health
