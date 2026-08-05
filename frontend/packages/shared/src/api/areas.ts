@@ -517,6 +517,60 @@ export interface JournalStats {
   themes: Array<{ tag: string; count: number }>
 }
 
+export interface LearningResource {
+  id: string
+  title: string
+  kind: string
+  provider: string | null
+  url: string | null
+  status: 'planned' | 'in_progress' | 'completed' | 'abandoned'
+  progress_pct: number
+  skill_id: string | null
+  /** Resolved server-side so the list does not need the skills query. */
+  skill_name: string | null
+  started_at: string | null
+  completed_at: string | null
+  notes: string | null
+}
+
+export interface LearningPayload {
+  title: string
+  kind?: string
+  provider?: string | null
+  url?: string | null
+  status?: string
+  progress_pct?: number
+  skill_id?: string | null
+  started_at?: string | null
+  completed_at?: string | null
+  notes?: string | null
+}
+
+export interface EmploymentRole {
+  id: string
+  company: string
+  title: string
+  employment_type: string
+  location: string | null
+  start_date: string
+  /** NULL = current. There is no `is_current` column — it is derived from this
+   *  so the two cannot disagree. */
+  end_date: string | null
+  is_current: boolean
+  months: number
+  description: string | null
+}
+
+export interface RolePayload {
+  company: string
+  title: string
+  employment_type?: string
+  location?: string | null
+  start_date: string
+  end_date?: string | null
+  description?: string | null
+}
+
 export const careerApi = {
   summary: () => api.get<{ total_skills: number; last_skill_update: string | null; last_event_title: string | null; last_event_at: string | null }>('/areas/career/summary').then(r => r.data),
   skills: () => api.get<SkillInventory[]>('/areas/career/skills').then(r => r.data),
@@ -524,6 +578,17 @@ export const careerApi = {
     api.put<SkillInventory>(`/areas/career/skills/${id}`, data).then(r => r.data),
   upsertSkill: (data: { skill_name: string; category: string; level: string; notes?: string }) =>
     api.post<SkillInventory>('/areas/career/skills', data).then(r => r.data),
+  /* Learning resources. `skill_id` is the load-bearing field: it links a
+     course to a `day_0` skill, turning a named gap into a plan for it. */
+  learning: () => api.get<LearningResource[]>('/areas/career/learning').then(r => r.data),
+  createLearning: (d: LearningPayload) => api.post<LearningResource>('/areas/career/learning', d).then(r => r.data),
+  patchLearning: (id: string, d: LearningPayload) => api.patch<LearningResource>(`/areas/career/learning/${id}`, d).then(r => r.data),
+  deleteLearning: (id: string) => api.delete(`/areas/career/learning/${id}`).then(r => r.data),
+  // Employment history — current roles sort first, server-side.
+  roles: () => api.get<EmploymentRole[]>('/areas/career/roles').then(r => r.data),
+  createRole: (d: RolePayload) => api.post<EmploymentRole>('/areas/career/roles', d).then(r => r.data),
+  patchRole: (id: string, d: RolePayload) => api.patch<EmploymentRole>(`/areas/career/roles/${id}`, d).then(r => r.data),
+  deleteRole: (id: string) => api.delete(`/areas/career/roles/${id}`).then(r => r.data),
   events: () => api.get<CareerEvent[]>('/areas/career/events').then(r => r.data),
   createEvent: (data: { event_type: string; title: string; description?: string; skill?: string; skill_level?: string; occurred_at?: string }) =>
     api.post<CareerEvent>('/areas/career/events', data).then(r => r.data),

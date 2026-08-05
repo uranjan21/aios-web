@@ -22,6 +22,8 @@ import { useAreaSection } from '@ct/shared/hooks/useAreaSection'
 import { JournalSection } from '@ct/career/components/JournalSection'
 import { OpportunitiesSection } from '@ct/career/components/sections/OpportunitiesSection'
 import { SkillsSection } from '@ct/career/components/sections/SkillsSection'
+import { LearningSection } from '@ct/career/components/sections/LearningSection'
+import { ExperienceSection } from '@ct/career/components/sections/ExperienceSection'
 import { careerApi } from '@ct/shared/api/areas'
 
 export function CareerPage() {
@@ -57,6 +59,10 @@ export function CareerPage() {
           <JournalSection />
         ) : section === 'skills' ? (
           <SkillsSection />
+        ) : section === 'learning' ? (
+          <LearningSection />
+        ) : section === 'experience' ? (
+          <ExperienceSection />
         ) : (
         <>
         <KpiGrid>

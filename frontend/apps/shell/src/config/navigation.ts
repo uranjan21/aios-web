@@ -22,8 +22,10 @@
 import {
   Activity,
   Apple,
+  BookOpen,
   Bot,
   Briefcase,
+  Building2,
   CalendarCheck,
   FolderKanban,
   Gem,
@@ -203,6 +205,10 @@ export const NAV_SECTIONS: NavSection[] = [
              substance of the area, not a preference — and `day_0` in the level
              enum makes the learning queue a first-class view. */
           { key: 'skills',        label: 'Skills',        icon: GraduationCap, to: '/app/career/skills' },
+          /* Learning sits next to Skills because it is what closes the gap
+             Skills names: a resource links to a `day_0` skill (2026-08-04). */
+          { key: 'learning',      label: 'Learning',      icon: BookOpen,      to: '/app/career/learning' },
+          { key: 'experience',    label: 'Experience',    icon: Building2,     to: '/app/career/experience' },
           { key: 'opportunities', label: 'Opportunities', icon: TrendingUp,    to: '/app/career/opportunities' },
           /* No Preferences entry (2026-08-03). Career Settings hosted exactly
              one thing — the skills inventory — so once Skills became its own

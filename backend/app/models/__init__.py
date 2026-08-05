@@ -12,7 +12,10 @@ from app.models.content import ContentItem, ContentCampaign
 from app.models.business import Business, BusinessEvent
 from app.models.vault import VaultFile, VaultConflict, VaultChunk
 from app.models.agent import Agent
-from app.models.career import CareerEvent, SkillInventory, JobOpportunity, CareerJournalEntry
+from app.models.career import (
+    CareerEvent, SkillInventory, JobOpportunity, CareerJournalEntry,
+    LearningResource, EmploymentRole,
+)
 from app.models.push import PushSubscription
 from app.models.billing import Subscription
 from app.models.oauth_state import OAuthState

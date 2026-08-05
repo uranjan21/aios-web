@@ -168,7 +168,7 @@ def _isolation_tables():
     from app.models.health import WorkoutRoutine, RoutineExercise, RoutineDay, HealthLog, HealthGoal, Habit, HabitCheck, WorkoutSession, WorkoutSet, FoodItem
     from app.models.finance import FinanceExpense, FinanceIncome, FinanceTransfer, Account, Category, FinancePendingTransaction, FinanceSettings
     from app.models.google_sync import GmailMessage
-    from app.models.career import CareerEvent, JobOpportunity, CareerJournalEntry
+    from app.models.career import LearningResource, EmploymentRole, SkillInventory, CareerEvent, JobOpportunity, CareerJournalEntry
     from app.models.business import BusinessEvent
     from app.models.insights import BriefingPreference, Briefing, Insight
     from app.models.quote import SavedQuote
@@ -181,7 +181,7 @@ def _isolation_tables():
         Project, Sprint, Task, Milestone, PlanBlock, MacroGoal, GoalProgress, ContentItem, ContentCampaign,
         HealthLog, HealthGoal, Habit, HabitCheck, WorkoutSession, WorkoutSet, FoodItem,
         WorkoutRoutine, RoutineExercise, RoutineDay,
-        FinanceExpense, FinanceIncome, FinanceTransfer, Account, Category, FinancePendingTransaction, FinanceSettings, GmailMessage, CareerEvent, JobOpportunity, CareerJournalEntry, BusinessEvent,
+        FinanceExpense, FinanceIncome, FinanceTransfer, Account, Category, FinancePendingTransaction, FinanceSettings, GmailMessage, CareerEvent, JobOpportunity, CareerJournalEntry, LearningResource, EmploymentRole, SkillInventory, BusinessEvent,
         BriefingPreference, Briefing, Insight, SavedQuote, VaultFile, VaultConflict
     )]
 
