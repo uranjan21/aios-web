@@ -390,6 +390,50 @@ export interface WorkoutAdherence {
   window_days: number
 }
 
+export interface MealMacros { calories: number; protein: number; carbs: number; fat: number }
+
+export interface MealPlanEntryItem {
+  id: string
+  weekday: number
+  meal_type: string
+  food_id: string | null
+  name: string
+  quantity_grams: number
+  /** NULL for a free-text line — the plan cannot know the macros of
+   *  "Mum's sabzi", and zeros would understate the day. */
+  macros: MealMacros | null
+}
+
+export interface MealPlan {
+  id: string
+  name: string
+  notes: string | null
+  is_active: boolean
+  entries: MealPlanEntryItem[]
+}
+
+export interface MealPlanPayload {
+  name: string
+  notes?: string | null
+  is_active?: boolean
+  entries: Array<{ weekday: number; meal_type: string; food_id?: string | null; custom_name?: string | null; quantity_grams: number }>
+}
+
+export interface MealPlanToday {
+  /** NULL when no plan is active — distinct from a plan with nothing today. */
+  plan: { id: string; name: string } | null
+  weekday: number
+  entries: Array<Omit<MealPlanEntryItem, 'weekday' | 'food_id'> & {
+    /** Matched by NAME against today's logged meals. A heuristic: meals logged
+     *  through the plan always match, one typed by hand may not. */
+    matched: boolean
+  }>
+  planned_totals: (MealMacros & {
+    /** Free-text lines carry no macros, so the totals are a FLOOR, not a sum. */
+    incomplete_lines: number
+  }) | null
+}
+
 export const healthApi = {
   logs: (entry_type?: string) =>
     api.get<{ items: HealthLog[]; next_cursor: string | null; has_more: boolean }>('/areas/health/logs', { params: { entry_type } }).then(r => r.data.items),
@@ -401,6 +445,14 @@ export const healthApi = {
   updateHealthGoals: (d: Partial<HealthGoal>) => api.put<HealthGoal>('/areas/health/goals', d).then(r=>r.data),
   nutritionToday: () => api.get<NutritionToday>('/areas/health/nutrition/today').then(r => r.data),
   waterToday: () => api.get<{glasses_logged:number; target:number}>('/areas/health/water/today').then(r => r.data),
+  /* Meal plans are the intent side of Nutrition. Until 2026-08-04 the daily
+     macro targets in Health Settings were hand-typed numbers related to no
+     actual food; a plan makes them derivable from real portions. */
+  mealPlans: () => api.get<MealPlan[]>('/areas/health/meal-plans').then(r => r.data),
+  mealPlanToday: () => api.get<MealPlanToday>('/areas/health/meal-plans/today').then(r => r.data),
+  createMealPlan: (d: MealPlanPayload) => api.post<MealPlan>('/areas/health/meal-plans', d).then(r => r.data),
+  patchMealPlan: (id: string, d: MealPlanPayload) => api.patch<MealPlan>(`/areas/health/meal-plans/${id}`, d).then(r => r.data),
+  deleteMealPlan: (id: string) => api.delete(`/areas/health/meal-plans/${id}`).then(r => r.data),
   logMeal: (d: {calories:number; protein?:number; carbs?:number; fat?:number; meal_type?:string; food_name:string}) =>
     api.post<HealthLog>('/areas/health/logs', {
       entry_type: 'meal',
@@ -415,7 +467,11 @@ export const healthApi = {
      seeded per user on the first call: the table was truncated by the
      multi-tenancy migration and had no write endpoint until 2026-08-03, so
      every user's catalogue had been empty and unfillable. */
-  foods: (q?: string) => api.get<FoodDbItem[]>('/areas/health/foods', { params: { q } }).then(r => r.data),
+  /* `limit` matters for pickers that must resolve an ALREADY-CHOSEN food: the
+     default 25 is right for search-as-you-type, but a select whose options are
+     capped renders a stored value as "Select…". Pass a high limit there. */
+  foods: (q?: string, limit?: number) =>
+    api.get<FoodDbItem[]>('/areas/health/foods', { params: { q, limit } }).then(r => r.data),
   createFood: (d: { name: string; calories: number; protein?: number; carbs?: number; fat?: number; serving_desc?: string | null; serving_grams?: number | null }) =>
     api.post<FoodDbItem>('/areas/health/foods', d).then(r => r.data),
   deleteFood: (id: string) => api.delete(`/areas/health/foods/${id}`).then(r => r.data),

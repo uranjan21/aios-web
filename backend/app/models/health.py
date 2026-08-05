@@ -185,3 +185,52 @@ class FoodItem(SQLModel, table=True):
     serving_grams: Optional[float] = Field(default=None)
     is_custom: bool = Field(default=False)
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
+
+
+class MealPlan(SQLModel, table=True):
+    """A named eating plan — "Cut — 2000 kcal", "Maintenance".
+
+    Added 2026-08-04 alongside workout routines. Nutrition could log what was
+    eaten but had no way to express what SHOULD be, so the daily macro targets
+    in Health Settings were hand-typed numbers with no relationship to any
+    actual food. A plan makes those targets derivable from real portions.
+    """
+    __tablename__ = "health_meal_plans"
+    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_meal_plan_user_name"),)
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    name: str = Field(nullable=False)
+    notes: Optional[str] = Field(default=None, sa_column=Column(Text))
+    # At most one active plan drives "today's plan". Enforced in the API rather
+    # than by a partial unique index, so switching plans stays a plain update.
+    is_active: bool = Field(default=False, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
+
+
+class MealPlanEntry(SQLModel, table=True):
+    """One planned item: this food, this much, this meal, this weekday.
+
+    `food_id` is nullable and paired with `custom_name` — planning "Mum's
+    sabzi" must not require adding it to the catalogue first. When a food IS
+    linked, macros are read from the catalogue at request time, so correcting
+    that food's numbers later fixes every plan that uses it.
+    """
+    __tablename__ = "health_meal_plan_entries"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    plan_id: uuid.UUID = Field(
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("health_meal_plans.id", ondelete="CASCADE"), nullable=False, index=True)
+    )
+    weekday: int = Field(nullable=False)  # 0=Mon … 6=Sun, matching date.weekday()
+    meal_type: str = Field(default="snack", nullable=False)  # breakfast/lunch/dinner/snack
+    # SET NULL, not CASCADE: deleting a food must not silently empty the plan.
+    # The entry keeps its `custom_name` and degrades to a free-text line.
+    food_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("health_food_items.id", ondelete="SET NULL"), nullable=True, index=True),
+    )
+    custom_name: Optional[str] = Field(default=None)
+    quantity_grams: float = Field(default=100, nullable=False)
+    position: int = Field(default=0, nullable=False)

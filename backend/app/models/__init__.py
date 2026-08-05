@@ -3,7 +3,7 @@ from app.models.user import User
 from app.models.finance import FinanceSnapshot, Account, Category, FinanceExpense, BudgetLimit, FinancialGoal, FinanceBill, FinanceIncome, FinanceTransfer, FinanceInvestment, FinanceLoan, FinancePendingTransaction, FinanceSettings
 from app.models.health import (
     HealthLog, HealthGoal, Habit, HabitCheck, WorkoutSession, WorkoutSet, FoodItem,
-    WorkoutRoutine, RoutineExercise, RoutineDay,
+    WorkoutRoutine, RoutineExercise, RoutineDay, MealPlan, MealPlanEntry,
 )
 from app.models.integration import IntegrationCredential
 from app.models.captures import Capture
