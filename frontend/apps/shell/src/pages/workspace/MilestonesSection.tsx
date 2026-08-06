@@ -11,7 +11,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Milestone as MilestoneIcon, Flag } from 'lucide-react'
-import { Button, Card, Dialog, EmptyState, ErrorState, Input, Select, Skeleton } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, ErrorState, Input, Select, SkeletonPage } from '@ledgr/ui'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { workspaceApi, type Milestone } from '@ct/shared/api/workspace'
 import { DOMAIN_OPTIONS } from '@ct/shared/config/domains'
@@ -180,7 +180,7 @@ export function MilestonesSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, filterNode])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isLoading) return <SkeletonPage kpis={4} modules={[12]} />
   if (isError) return <ErrorState title="Could not load milestones" onRetry={() => refetch()} />
 
   return (

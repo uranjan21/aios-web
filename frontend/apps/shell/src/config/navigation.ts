@@ -12,9 +12,29 @@
  * that drove content off a `?tab=` query param. A destination three levels deep
  * was therefore unaddressable, unbookmarkable and invisible to ⌘K.
  *
- * The redesign merges those two levels into one tree: 5 groups -> 9 areas ->
- * 34 destinations, every one a real route. `?tab=` is gone; the old URLs
- * redirect (see router.tsx).
+ * The redesign merged those two levels into one tree, every destination a real
+ * route. `?tab=` is gone; the old URLs redirect (see router.tsx).
+ *
+ * ── 2026-08-05: THE TREE IS ACTUALLY A TREE NOW ───────────────────────────
+ * The 08-01 shape declared five groups but never rendered them. The sidebar
+ * flattened it: any area carrying `subs` was promoted to its own top-level
+ * accordion, so "Areas" as a heading did not exist on screen, and all 31 rows
+ * were open at once — a scrolling wall in which the current page was one row
+ * among thirty.
+ *
+ * Two structural rules now hold, and the sidebar honours both:
+ *
+ *   1. A GROUP IS A HEADING, NOT A ROW. It labels its members and is never
+ *      itself clickable.
+ *   2. AN AREA CARRIES `subs` ONLY IF IT REALLY BRANCHES. A group holding one
+ *      area whose subs are the actual destinations was two nested wrappers
+ *      around one list, and it read as a duplicated heading ("Workspace"
+ *      inside "Workspace"). Those are flattened: their destinations are now
+ *      direct members of the group. Only Finance, Health and Career branch,
+ *      because only they have a page-level identity distinct from their
+ *      sub-pages.
+ *
+ * Result: 15 rows at rest instead of 31, and the group layer is visible.
  *
  * Adding a destination: add one entry. Set `primary: true` to surface it in
  * the mobile bottom nav (keep that to five or fewer — it is a fixed row).
@@ -27,6 +47,7 @@ import {
   Briefcase,
   Building2,
   CalendarCheck,
+  CalendarRange,
   FolderKanban,
   Gem,
   GraduationCap,
@@ -45,6 +66,7 @@ import {
   Settings,
   Shield,
   SlidersHorizontal,
+  Sunrise,
   Target,
   TrendingUp,
   Wallet,
@@ -52,8 +74,16 @@ import {
 } from 'lucide-react';
 import type { DomainKey } from '@ct/shared/theme/ctTheme';
 
-/** Sidebar section headers, in render order. */
-export type NavGroup = 'Home' | 'Areas' | 'Workspace' | 'Intelligence' | 'System';
+/**
+ * Sidebar section headers, in render order.
+ *
+ * Renamed 2026-08-05. The old set described the codebase, not the user's day:
+ * "Home" named a route rather than a purpose, "Areas" is an information-
+ * architecture word, and "Intelligence" is not a thing anyone goes looking for
+ * — you go looking for the assistant. Each heading now answers "what am I
+ * doing when I come here".
+ */
+export type NavGroup = 'Daily' | 'Life areas' | 'Workspace' | 'Assistant' | 'System';
 
 export interface SubNavItem {
   /** Unique within its parent area. Also the last URL segment, where there is one. */
@@ -98,40 +128,59 @@ export interface NavSection {
 }
 
 /*
- * The tree, exactly as specified by the redesign canvas. Sub-page ORDER is
- * meaningful — it is the order the design lists them in, which runs
- * overview-first then roughly by how often the page is opened.
+ * The tree. Sub-page ORDER is meaningful — overview-first, then roughly by how
+ * often the page is opened.
  */
 export const NAV_SECTIONS: NavSection[] = [
   {
-    label: 'Home',
-    key: 'group-home',
+    label: 'Daily',
+    key: 'group-daily',
     items: [
+      /*
+       * Flattened 2026-08-05. These were `subs` of a "Today" area inside a
+       * "Home" group — two wrappers around three links, and the sidebar drew
+       * the heading twice. They are peers: each is a different time horizon on
+       * the same question, not a sub-page of the first one.
+       */
       {
         key: 'today',
         label: 'Today',
         shortLabel: 'Home',
         to: '/app',
         icon: LayoutDashboard,
-        group: 'Home',
+        group: 'Daily',
         shortcut: 'd',
         primary: true,
-        subs: [
-          { key: 'overview', label: 'Overview',      icon: LayoutDashboard, to: '/app' },
-          // The weekly review is a guided flow that WRITES — it records goal
-          // progress via goalsApi.addProgress and creates focus captures. It is
-          // not a second rendering of the briefing.
-          { key: 'review',   label: 'Weekly review', icon: CalendarCheck,   to: '/app/review' },
-          // NOTE: /app/plan CHANGED MEANING on 2026-08-01. It used to be the
-          // goals/projects/sprints/tasks page (now under Workspace); it is now
-          // the week time-blocking planner.
-          { key: 'plan',     label: 'Plan',          icon: CalendarCheck,   to: '/app/plan' },
-        ],
+      },
+      {
+        /* RENAMED 2026-08-05: "Plan" -> "This week", /app/plan -> /app/week.
+           `/app/plan` had already changed meaning once (on 2026-08-01 it went
+           from the goals/projects/sprints/tasks page to the week planner) and
+           kept a name pointing at the old one — while a "planning" sense of
+           the word lived on in Workspace. The route now says what the page is.
+           `/app/plan` redirects, including its `?view=` form. */
+        key: 'week',
+        label: 'This week',
+        shortLabel: 'Week',
+        to: '/app/week',
+        icon: CalendarRange,
+        group: 'Daily',
+        shortcut: 'w',
+      },
+      {
+        // A guided flow that WRITES — it records goal progress via
+        // goalsApi.addProgress and creates focus captures. Not a second
+        // rendering of the briefing.
+        key: 'review',
+        label: 'Weekly review',
+        to: '/app/review',
+        icon: Sunrise,
+        group: 'Daily',
       },
     ],
   },
   {
-    label: 'Areas',
+    label: 'Life areas',
     key: 'group-areas',
     items: [
       {
@@ -139,7 +188,7 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Finance',
         to: '/app/finance',
         icon: IndianRupee,
-        group: 'Areas',
+        group: 'Life areas',
         domain: 'finance',
         shortcut: 'f',
         primary: true,
@@ -161,11 +210,13 @@ export const NAV_SECTIONS: NavSection[] = [
              at two paths in two sidebars. They are Setup's now; the old routes
              redirect into the matching rail section.
 
-             Setup is named for what it holds (accounts, categories, loan and
-             bill defaults, inbox automation) rather than "Settings", which is
-             the System group's word. Reaching it used to require a button in
-             the page header; that header is gone and this is its entry point. */
-          { key: 'setup',        label: 'Setup',        icon: SlidersHorizontal, to: '/app/finance/settings' },
+             ROUTE RENAMED 2026-08-05: /app/finance/settings -> /app/finance/setup.
+             The label has said "Setup" since 08-03 — the page holds accounts,
+             categories, loan and bill defaults and inbox automation, none of
+             which are app settings — but the URL still said `settings`, which
+             is the System group's word. The old path redirects with its query
+             string intact, so `?section=accounts` deep links survive. */
+          { key: 'setup',        label: 'Setup',        icon: SlidersHorizontal, to: '/app/finance/setup' },
         ],
       },
       {
@@ -173,7 +224,7 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Health',
         to: '/app/health',
         icon: Heart,
-        group: 'Areas',
+        group: 'Life areas',
         domain: 'health',
         shortcut: 'h',
         module: 'health',
@@ -185,9 +236,12 @@ export const NAV_SECTIONS: NavSection[] = [
           { key: 'sleep',     label: 'Sleep',        icon: Moon,            to: '/app/health/sleep' },
           { key: 'habits',    label: 'Habits',       icon: Repeat,          to: '/app/health/habits' },
           /* The page is one group literally labelled "Targets" (body, fitness,
-             nutrition). Calling it that here is the honest name, and keeps
-             "Settings" meaning the System group's page. */
-          { key: 'targets',   label: 'Targets',      icon: Target,          to: '/app/health/settings' },
+             nutrition) — the numeric reference lines the other modules draw
+             against, not goal entities and not preferences.
+
+             ROUTE RENAMED 2026-08-05: /app/health/settings -> /app/health/targets,
+             for the same reason as Finance's Setup. The old path redirects. */
+          { key: 'targets',   label: 'Targets',      icon: Target,          to: '/app/health/targets' },
         ],
       },
       {
@@ -195,7 +249,7 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Career',
         to: '/app/career',
         icon: Briefcase,
-        group: 'Areas',
+        group: 'Life areas',
         domain: 'career',
         shortcut: 'r',
         module: 'career',
@@ -213,43 +267,43 @@ export const NAV_SECTIONS: NavSection[] = [
           /* No Preferences entry (2026-08-03). Career Settings hosted exactly
              one thing — the skills inventory — so once Skills became its own
              destination the page had no content left. `/app/career/settings`
-             redirects to Skills for old bookmarks; CareerSettingsPage.tsx and
-             SkillsManager.tsx are kept on disk, unreferenced, the same way the
-             redesign kept BriefingCard and CareerLogModal. Restore an entry
-             here if Career ever gains a real preference. */
+             redirects to Skills for old bookmarks. */
         ],
       },
     ],
   },
   {
+    /*
+     * Flattened 2026-08-05, same reason as Daily: this was a "Workspace" group
+     * containing a "Workspace" area whose subs were the five real
+     * destinations. The heading rendered twice and it cost a click to reach
+     * any of them.
+     *
+     * The ROUTES stay `/app/workspace/*`. They are accurate — every one of
+     * these renders `PlanPage`, mounted at `workspace/:section`, and
+     * `useAreaSection('/app/workspace', …)` resolves against that prefix.
+     * Renaming a correct URL to match a heading would cost a redirect and buy
+     * a reader nothing.
+     */
     label: 'Workspace',
     key: 'group-ws',
     items: [
       {
-        key: 'workspace',
-        label: 'Workspace',
-        to: '/app/workspace/projects',
-        icon: FolderKanban,
-        group: 'Workspace',
-        shortcut: 'k',
-        primary: true,
-        shortLabel: 'Work',
-        subs: [
-          { key: 'projects',   label: 'Projects',   icon: FolderKanban, to: '/app/workspace/projects' },
-          { key: 'goals',      label: 'Goals',      icon: Target,       to: '/app/workspace/goals' },
-          { key: 'milestones', label: 'Milestones', icon: Milestone,    to: '/app/workspace/milestones' },
-          { key: 'sprints',    label: 'Sprints',    icon: Activity,     to: '/app/workspace/sprints' },
-          { key: 'tasks',      label: 'Tasks',      icon: ListChecks,   to: '/app/workspace/tasks' },
-        ],
+        key: 'projects', label: 'Projects', to: '/app/workspace/projects', icon: FolderKanban,
+        group: 'Workspace', shortcut: 'k', primary: true, shortLabel: 'Work',
       },
+      { key: 'goals',      label: 'Goals',      to: '/app/workspace/goals',      icon: Target,     group: 'Workspace' },
+      { key: 'milestones', label: 'Milestones', to: '/app/workspace/milestones', icon: Milestone,  group: 'Workspace' },
+      { key: 'sprints',    label: 'Sprints',    to: '/app/workspace/sprints',    icon: Activity,   group: 'Workspace' },
+      { key: 'tasks',      label: 'Tasks',      to: '/app/workspace/tasks',      icon: ListChecks, group: 'Workspace' },
     ],
   },
   {
-    label: 'Intelligence',
-    key: 'group-intel',
+    label: 'Assistant',
+    key: 'group-assistant',
     items: [
-      { key: 'chat',   label: 'Chat',   to: '/app/chat',   icon: MessageSquare, group: 'Intelligence', shortcut: 'c', primary: true, module: 'chat' },
-      { key: 'agents', label: 'Agents', to: '/app/agents', icon: Bot,           group: 'Intelligence', shortcut: 'a', primary: true, module: 'agents' },
+      { key: 'chat',   label: 'Chat',   to: '/app/chat',   icon: MessageSquare, group: 'Assistant', shortcut: 'c', primary: true, module: 'chat' },
+      { key: 'agents', label: 'Agents', to: '/app/agents', icon: Bot,           group: 'Assistant', shortcut: 'a', primary: true, module: 'agents' },
     ],
   },
   {
@@ -259,16 +313,12 @@ export const NAV_SECTIONS: NavSection[] = [
       /*
        * NO `subs` (2026-08-03). Settings carried the same six entries here AND
        * in the rail that `AreaSettingsPage` renders inside the page, so the
-       * user saw one list twice — the global sidebar expanded it, and the page
-       * repeated it verbatim beside the content. The rail is the better home:
-       * it sits next to what it switches, and it is the pattern every area
-       * settings page already uses.
+       * user saw one list twice. The rail is the better home: it sits next to
+       * what it switches.
        *
        * The `/app/settings/:section` routes are untouched — each tab is still
-       * its own URL, still bookmarkable, and `resolvePath`'s `startsWith`
-       * branch keeps the breadcrumb resolving to Settings. What changed is
-       * only that the sidebar stops enumerating them, and ⌘K offers one
-       * "Settings" entry instead of six near-identical ones.
+       * its own URL, and `resolvePath`'s `startsWith` branch keeps the
+       * breadcrumb resolving to Settings.
        */
       {
         key: 'settings',
@@ -283,7 +333,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-export const NAV_GROUP_ORDER: NavGroup[] = ['Home', 'Areas', 'Workspace', 'Intelligence', 'System'];
+export const NAV_GROUP_ORDER: NavGroup[] = ['Daily', 'Life areas', 'Workspace', 'Assistant', 'System'];
 
 /** Every area, flattened out of the tree. */
 export const NAV_ITEMS: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
@@ -353,7 +403,7 @@ export function resolvePath(pathname: string): { item: NavItem; sub?: SubNavItem
       const own = item.subs?.find((s) => s.to === pathname);
       consider(item.to.length, item, own);
     }
-    // Deeper unlisted paths (e.g. /app/finance/settings) still belong to the area.
+    // Deeper unlisted paths (e.g. /app/settings/security) still belong to the area.
     if (pathname.startsWith(`${item.to}/`)) consider(item.to.length, item);
   }
 

@@ -4,8 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Activity, AlertCircle } from 'lucide-react'
 import { capturesApi } from '@ct/shared/api/areas'
 import { fmtDateKey } from '@ct/shared/stores/dayEventsStore'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { Empty, StyledCard } from './shared'
+import { SkeletonChart } from '@ledgr/ui'
 
 /* ───────────────── 2. WeekActivityCard ───────────────── */
 
@@ -103,7 +103,7 @@ export function WeekActivityCard() {
           <AlertCircle size={13} /> Failed to load captures.
         </Empty>
       ) : isLoading ? (
-        <Skeleton style={{ height: 110, width: '100%' }} />
+        <SkeletonChart height={110} />
       ) : (
         <>
           <BarsWrap>

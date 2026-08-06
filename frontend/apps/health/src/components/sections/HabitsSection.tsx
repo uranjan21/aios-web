@@ -11,10 +11,9 @@ import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { BarChart3, CheckSquare, Circle, Trash2 } from 'lucide-react'
-import { Button, Card, Dialog, EmptyState, Input } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, Input, SkeletonPage } from '@ledgr/ui'
 import { healthApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import type { HabitItem } from '@ct/shared/types'
 
 const Root = styled.div`
@@ -158,7 +157,7 @@ export function HabitsSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, toggle.isPending])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isLoading) return <SkeletonPage kpis={0} modules={[7, 5, 12]} />
 
   return (
     <Root>

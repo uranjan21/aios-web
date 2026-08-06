@@ -242,7 +242,9 @@ export const financeApi = {
     api.post<MerchantRuleItem>('/areas/finance/rules', d).then(r => r.data),
   patchRule: (id: string, d: Partial<MerchantRuleItem>) => api.patch<MerchantRuleItem>(`/areas/finance/rules/${id}`, d).then(r => r.data),
   deleteRule: (id: string) => api.delete(`/areas/finance/rules/${id}`).then(r => r.data),
-  searchTransactions: (p: { q?: string; kind?: string; account_id?: string; category?: string; tag?: string; min_amount?: number; max_amount?: number; date_from?: string; date_to?: string; limit?: number; offset?: number }) =>
+  /** `source` = origin marker (e.g. 'upi-tracker'), distinct from `tag`, which
+   *  is the user's own freeform labels. See search_transactions in the API. */
+  searchTransactions: (p: { q?: string; kind?: string; account_id?: string; category?: string; tag?: string; source?: string; min_amount?: number; max_amount?: number; date_from?: string; date_to?: string; limit?: number; offset?: number }) =>
     api.get<TxnSearchResult>('/areas/finance/transactions/search', { params: p }).then(r => r.data),
   snapshots: () => api.get<FinanceSnapshot[]>('/areas/finance/snapshots').then(r => r.data),
   expenses: (month?: string, category?: string, limit = 50, offset = 0, time_range?: string, q?: string, account_id?: string) =>

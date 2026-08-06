@@ -12,10 +12,9 @@ import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { BarChart3, Circle, ClipboardList, Flag } from 'lucide-react'
-import { Button, Dialog, Input, Select } from '@ledgr/ui'
+import { Button, Dialog, Input, Select, SkeletonPage } from '@ledgr/ui'
 import { healthApi, type MealPlan, type MealPlanToday } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { parseMealNotes } from '../nutrition/mealNotes'
 import { FoodPicker } from '../FoodPicker'
 import { MealPlanDialog } from '../MealPlanDialog'
@@ -359,7 +358,7 @@ export function NutritionSection() {
     ]
   }, [today, goals, water, mealLogs, logWater, planToday, activePlanFull, logPlanned])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isLoading) return <SkeletonPage kpis={0} modules={[7, 5, 6, 6]} />
 
   return (
     <Root>

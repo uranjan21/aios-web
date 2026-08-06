@@ -627,3 +627,76 @@ async def delete_plan_block(
     await db.delete(block)
     await db.commit()
     return {"ok": True}
+
+
+@router.get("/plan-blocks/calendar")
+async def plan_week_calendar(
+    start: Optional[date] = None,
+    end: Optional[date] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Google Calendar events for the planner's week, as READ-ONLY context.
+
+    The time-blocking planner and the calendar have never talked, so it was
+    possible to block deep work straight over a standing meeting. This closes
+    the read direction: real commitments show in the grid, and you plan around
+    them.
+
+    It is the read direction ONLY, and that is a constraint rather than a
+    choice — the Google grant is `calendar.readonly`
+    (services/integrations/google_oauth.py). Writing a block back as an event
+    needs `calendar.events`, and widening a scope invalidates every existing
+    consent, so it is a product decision with a re-connect cost attached, not
+    something to slip in.
+
+    Returns `connected: false` rather than an empty list when Calendar was
+    never linked — "no meetings this week" and "we cannot see your calendar"
+    must not look the same in the UI.
+    """
+    from app.models.integration import IntegrationCredential
+    from app.services.integrations.google_calendar import get_stored_events
+
+    if start is None:
+        today = date.today()
+        start = today - timedelta(days=today.weekday())
+    if end is None:
+        end = start + timedelta(days=6)
+    if end < start:
+        raise HTTPException(status_code=422, detail="end must not be before start")
+
+    linked = (await db.execute(
+        select(IntegrationCredential)
+        .where(IntegrationCredential.user_id == current_user.id)
+        .where(IntegrationCredential.provider == "gcal")
+    )).scalars().first()
+    if not linked:
+        return {"connected": False, "events": []}
+
+    # `date_to` is already widened to 23:59:59 inside get_stored_events, so
+    # `end` goes in as-is — adding a day here would pull in the next Monday.
+    events = await get_stored_events(
+        current_user.id, db,
+        date_from=start.isoformat(),
+        date_to=end.isoformat(),
+    )
+
+    out = []
+    for e in events:
+        starts = e.get("start_time")
+        # No start time means nothing to place on the grid; a cancelled event
+        # must not reserve time the user actually has free.
+        if not starts or e.get("status") == "cancelled":
+            continue
+        out.append({
+            "id": str(e.get("id")),
+            "title": e.get("title") or "(no title)",
+            "start_time": starts,
+            "end_time": e.get("end_time"),
+            "location": e.get("location"),
+            # Straight through to the event in Google. There is deliberately no
+            # `all_day` here: the column does not exist, and a field that is
+            # always False is worse than an absent one.
+            "html_link": e.get("html_link"),
+        })
+    return {"connected": True, "events": out}

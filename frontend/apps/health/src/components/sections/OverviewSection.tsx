@@ -19,9 +19,9 @@ import { Activity, CheckSquare, Flame } from 'lucide-react'
 import { healthApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { AiInsightCard } from '@ct/shared/components/AiInsightCard'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { useDomainGoalsModule } from '@ct/shared/hooks/useDomainGoalsModule'
 import { formatRelativeTime } from '@ct/shared/lib/utils'
+import { SkeletonPage } from '@ledgr/ui'
 
 const Root = styled.div`
   display: flex;
@@ -148,7 +148,7 @@ export function OverviewSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streak, summary, gymLogs, habits, goals, toggle.isPending])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isLoading) return <SkeletonPage kpis={4} modules={[7, 5, 12]} />
 
   return (
     <Root>

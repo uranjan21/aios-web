@@ -28,7 +28,7 @@ const HeaderRoot = styled.header`
   align-items: center;
   justify-content: space-between;
   padding: 0 ${({ theme }) => theme.spacing[5]};
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+  box-shadow: ${({ theme }) => theme.elevation[1]};
 `
 
 const LeftSide = styled.div`
@@ -39,7 +39,7 @@ const LeftSide = styled.div`
 
 const Hamburger = styled.button`
   padding: ${({ theme }) => `${theme.spacing[2]}`};
-  margin-left: -8px;
+  margin-left: -${({ theme }) => theme.spacing[2]};
   background: transparent;
   border: none;
   color: ${({ theme }) => theme.color.foreground};
@@ -128,8 +128,8 @@ const GlobalSearchContainer = styled.button`
   height: 34px;
   display: flex;
   align-items: center;
-  padding: 0 12px;
-  gap: 8px;
+  padding: 0 ${({ theme }) => theme.spacing[3]};
+  gap: ${({ theme }) => theme.spacing[2]};
   border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) =>
     theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)'};
@@ -187,7 +187,7 @@ const RightCluster = styled.div`
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: ${({ theme }) => theme.spacing[2]};
 `
 
 const IconButton = styled.button`
@@ -232,8 +232,8 @@ const AvatarButton = styled(IconButton)`
 const AssistantButton = styled.button`
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 14px;
+  gap: ${({ theme }) => theme.spacing[1.5]};
+  padding: 0 ${({ theme }) => theme.spacing[3.5]};
   height: 34px;
   border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.accent}18;

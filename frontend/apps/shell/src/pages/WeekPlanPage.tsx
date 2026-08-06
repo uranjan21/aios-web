@@ -13,7 +13,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CalendarCheck, BarChart3, Flag } from 'lucide-react'
-import { Button, Dialog, ErrorState, Input, Select, Skeleton } from '@ledgr/ui'
+import { Button, Dialog, ErrorState, Input, Select, SkeletonPage } from '@ledgr/ui'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { workspaceApi, type PlanBlock } from '@ct/shared/api/workspace'
@@ -95,6 +95,15 @@ export function WeekPlanPage() {
     staleTime: 30_000,
   })
 
+  /* Real commitments for the same week. The planner and the calendar have
+     never talked, so it was possible to block deep work straight over a
+     standing meeting. Read-only — the Google grant is `calendar.readonly`. */
+  const { data: cal } = useQuery({
+    queryKey: ['workspace', 'plan-week-calendar', iso(weekStart)],
+    queryFn: () => workspaceApi.getPlanWeekCalendar({ start: iso(weekStart), end: iso(weekEnd) }),
+    staleTime: 5 * 60_000,
+  })
+
   const create = useMutation({
     mutationFn: () =>
       workspaceApi.createPlanBlock({
@@ -142,9 +151,17 @@ export function WeekPlanPage() {
         kind: 'week',
         span: 12,
         title: `Week of ${weekLabel}`,
-        subtitle: blocks.length
-          ? `${blocks.length} focus block${blocks.length === 1 ? '' : 's'} planned across ${domainsUsed} domain${domainsUsed === 1 ? '' : 's'}`
-          : 'Nothing blocked out yet — add your first focus block',
+        /* Meetings are counted separately from blocks on purpose: they are not
+           yours to plan. But the subtitle has to acknowledge them, or a grid
+           showing two meetings sits under the words "nothing blocked out". */
+        subtitle: [
+          blocks.length
+            ? `${blocks.length} focus block${blocks.length === 1 ? '' : 's'} planned across ${domainsUsed} domain${domainsUsed === 1 ? '' : 's'}`
+            : 'Nothing blocked out yet — add your first focus block',
+          (cal?.events.length ?? 0) > 0
+            ? `${cal!.events.length} meeting${cal!.events.length === 1 ? '' : 's'} already on your calendar`
+            : null,
+        ].filter(Boolean).join(' · '),
         icon: CalendarCheck,
         // The canvas puts the week navigator and Add in this card's header,
         // not in a page title bar — the card IS the week.
@@ -160,15 +177,27 @@ export function WeekPlanPage() {
         onAction: () => { setDraft((d) => ({ ...d, block_date: iso(weekDays[0]) })); setAddOpen(true) },
         days: weekDays.map((d, i) => {
           const key = iso(d)
+          /* Meetings render in the same column as blocks, muted, so the day
+             reads as "what is already spoken for" before you add to it. They
+             sort together by start time — a meeting at 09:00 above a block at
+             10:00 is the only ordering that tells the truth about the day. */
+          const meetings = (cal?.events ?? [])
+            .filter((e) => e.start_time.slice(0, 10) === key)
+            .map((e) => ({
+              time: hhmm(e.start_time.slice(11)),
+              title: e.title,
+              colorKey: 'mutedFg' as const,
+            }))
+          const own = (byDay.get(key) ?? []).map((b) => ({
+            time: hhmm(b.start_time),
+            title: b.title,
+            colorKey: colorFor(b.domain),
+          }))
           return {
             label: DAY_LABELS[i],
             date: String(d.getDate()),
             today: key === todayIso,
-            blocks: (byDay.get(key) ?? []).map((b) => ({
-              time: hhmm(b.start_time),
-              title: b.title,
-              colorKey: colorFor(b.domain),
-            })),
+            blocks: [...own, ...meetings].sort((a, b) => a.time.localeCompare(b.time)),
           }
         }),
       },
@@ -228,13 +257,13 @@ export function WeekPlanPage() {
     }
 
     return mods
-  }, [data, weekDays, weekStart, todayIso])
+  }, [data, weekDays, weekStart, todayIso, cal])
 
   return (
     <PageContainer>
       <PageContent>
         {isLoading ? (
-          <Skeleton style={{ height: 320 }} />
+          <SkeletonPage kpis={0} modules={[12, 7, 5]} />
         ) : isError ? (
           <ErrorState title="Could not load your week" onRetry={() => refetch()} />
         ) : (

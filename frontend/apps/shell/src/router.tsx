@@ -1,9 +1,11 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { createBrowserRouter, Navigate, useSearchParams } from 'react-router-dom'
+import { createBrowserRouter, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 import { PageTransition } from '@/components/PageTransition'
-import { Spinner } from '@ledgr/ui'
+import styled from 'styled-components'
+import { SkeletonPage } from '@ledgr/ui'
+import { PAGE_MAX_WIDTH } from '@ct/shared/theme/layout'
 import { useAuthStore } from '@ct/shared/stores/authStore'
 import { api } from '@ct/shared/api/client'
 import { identify } from '@ct/shared/lib/analytics'
@@ -40,24 +42,32 @@ const PrivacyPolicyPage = lazy(() => import('@/pages/legal/PrivacyPolicyPage').t
 const TermsOfServicePage = lazy(() => import('@/pages/legal/TermsOfServicePage').then(m => ({ default: m.TermsOfServicePage })))
 const SupportPage = lazy(() => import('@/pages/legal/SupportPage').then(m => ({ default: m.SupportPage })))
 
+/*
+ * Route-level fallback, shown while a lazy page chunk is in flight.
+ *
+ * This was a centred spinner + "Loading Control Tower…". A spinner is the
+ * right shape when you cannot know what is coming; here we do know — every
+ * destination behind it is a KPI strip over a module grid. So it draws that,
+ * and the real page replaces it without the layout moving. The label stays as
+ * a screen-reader announcement only: the skeleton already says "content", and
+ * repeating it in visible text is noise.
+ */
+const PageLoaderRoot = styled.div`
+  padding: ${({ theme }) => `${theme.spacing[6]} ${theme.spacing[6]} ${theme.spacing[8]}`};
+  width: 100%;
+  max-width: ${PAGE_MAX_WIDTH};
+  margin: 0 auto;
+
+  @media ${({ theme }) => theme.media.belowMd} {
+    padding: ${({ theme }) => `${theme.spacing[4]} ${theme.spacing[3]} ${theme.spacing[6]}`};
+  }
+`
+
 function PageLoader() {
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '60vh',
-        gap: '16px',
-        padding: '24px',
-      }}
-    >
-      <Spinner size="lg" tone="primary" label="Loading Control Tower…" />
-      <span style={{ fontSize: '13px', color: 'var(--muted-foreground)', letterSpacing: '0.05em', textTransform: 'uppercase', fontWeight: 500 }}>
-        Loading Control Tower…
-      </span>
-    </div>
+    <PageLoaderRoot role="status" aria-busy="true" aria-label="Loading Control Tower">
+      <SkeletonPage kpis={4} modules={[7, 5, 12]} />
+    </PageLoaderRoot>
   )
 }
 
@@ -112,15 +122,31 @@ function RequireModule({ children, module }: { children: React.ReactNode, module
 }
 
 /**
- * /app/plan changed meaning on 2026-08-01: it is now the week planner, and the
- * goals/projects/sprints/tasks page it used to be lives under /app/workspace.
- * Old links carry `?view=goals` etc., which a static <Navigate> cannot read.
+ * A redirect that carries the query string across.
+ *
+ * `<Navigate to="/x" />` drops `?section=accounts`, which would silently break
+ * every deep link into a settings rail. Renaming a route is only safe if the
+ * old URL keeps working *completely*, so the renames below go through this.
+ */
+function LegacyRedirect({ to }: { to: string }) {
+  const { search, hash } = useLocation()
+  return <Navigate to={`${to}${search}${hash}`} replace />
+}
+
+/**
+ * /app/plan has now meant three things. Until 2026-08-01 it was the
+ * goals/projects/sprints/tasks page (now /app/workspace/*); from then it was
+ * the week planner; since 2026-08-05 the week planner lives at /app/week and
+ * this path is redirect-only.
+ *
+ * Both generations of link have to land: `?view=goals` is the oldest form and
+ * a static <Navigate> cannot read it, so it is resolved here first.
  */
 function PlanRoute() {
   const [params] = useSearchParams()
   const view = params.get('view')
   if (view) return <Navigate to={`/app/workspace/${view}`} replace />
-  return <WeekPlanPage />
+  return <LegacyRedirect to="/app/week" />
 }
 
 function Page({ children }: { children: React.ReactNode }) {
@@ -167,9 +193,10 @@ export const router = createBrowserRouter([
       { index: true, element: <Page><DashboardPage /></Page> },
       { path: 'chat', element: <Page><RequireModule module="chat"><ChatPage /></RequireModule></Page> },
       { path: 'agents', element: <Page><RequireModule module="agents"><AgentsPage /></RequireModule></Page> },
-      // /app/plan is the week time-blocking planner as of 2026-08-01. The
-      // goals/projects/sprints/tasks page it used to be now lives under
-      // /app/workspace/* (PlanPage still backs those routes).
+      // The week time-blocking planner. Renamed from /app/plan on 2026-08-05
+      // because that path had already meant two different pages; `plan` below
+      // is now redirect-only and resolves both generations of old link.
+      { path: 'week', element: <Page><WeekPlanPage /></Page> },
       { path: 'plan', element: <Page><PlanRoute /></Page> },
       { path: 'review', element: <Page><ReviewPage /></Page> },
 
@@ -183,18 +210,26 @@ export const router = createBrowserRouter([
 
       // Finance Area
       { path: 'finance', element: <Page><RequireModule module="finance"><FinancePage /></RequireModule></Page> },
-      { path: 'finance/settings', element: <Page><RequireModule module="finance"><FinanceSettingsPage /></RequireModule></Page> },
+      /* Renamed from `finance/settings` on 2026-08-05 — the page holds
+         accounts, categories and loan/bill defaults, which are setup, not app
+         settings. The old path redirects WITH its query string, so
+         `?section=accounts` deep links still land on the right rail tab. */
+      { path: 'finance/setup', element: <Page><RequireModule module="finance"><FinanceSettingsPage /></RequireModule></Page> },
+      { path: 'finance/settings', element: <LegacyRedirect to="/app/finance/setup" /> },
       /* Accounts and Loans left the sidebar on 2026-08-03 — Finance Setup's rail
          renders the very same components, so they were two paths to one page.
          These must sit BEFORE `finance/:section` or the param route swallows
          them and renders the old standalone page. */
-      { path: 'finance/accounts', element: <Navigate to="/app/finance/settings?section=accounts" replace /> },
-      { path: 'finance/loans', element: <Navigate to="/app/finance/settings?section=loans" replace /> },
+      { path: 'finance/accounts', element: <Navigate to="/app/finance/setup?section=accounts" replace /> },
+      { path: 'finance/loans', element: <Navigate to="/app/finance/setup?section=loans" replace /> },
       { path: 'finance/:section', element: <Page><RequireModule module="finance"><FinancePage /></RequireModule></Page> },
 
       // Health Area
       { path: 'health', element: <Page><RequireModule module="health"><HealthPage /></RequireModule></Page> },
-      { path: 'health/settings', element: <Page><RequireModule module="health"><HealthSettingsPage /></RequireModule></Page> },
+      /* Renamed from `health/settings` on 2026-08-05: the page is one group of
+         numeric targets (body, fitness, nutrition), not preferences. */
+      { path: 'health/targets', element: <Page><RequireModule module="health"><HealthSettingsPage /></RequireModule></Page> },
+      { path: 'health/settings', element: <LegacyRedirect to="/app/health/targets" /> },
       { path: 'health/:section', element: <Page><RequireModule module="health"><HealthPage /></RequireModule></Page> },
 
       // Career Area

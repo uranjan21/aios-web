@@ -15,12 +15,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
-import { Button, Card, Dialog, EmptyState, Input, Select } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, Input, Select, SkeletonPage } from '@ledgr/ui'
 import { Briefcase, Building2, Trash2 } from 'lucide-react'
 import { careerApi, type EmploymentRole } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 
 const Root = styled.div`
   display: flex;
@@ -198,7 +197,7 @@ export function ExperienceSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [all])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isLoading) return <SkeletonPage kpis={4} modules={[12]} />
 
   return (
     <Root>

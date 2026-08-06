@@ -14,12 +14,11 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import styled from 'styled-components'
-import { Button, Card, Dialog, EmptyState, Input, SegmentedControl, Select } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, Input, SegmentedControl, Select, SkeletonPage } from '@ledgr/ui'
 import { BookOpen, GraduationCap, Layers, Trash2 } from 'lucide-react'
 import { careerApi, type LearningResource } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 
 const Root = styled.div`
   display: flex;
@@ -231,7 +230,7 @@ export function LearningSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [all, visible, skills, filter])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isLoading) return <SkeletonPage kpis={4} modules={[7, 5]} />
 
   return (
     <Root>

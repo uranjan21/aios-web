@@ -18,6 +18,23 @@ export interface Project {
  * A block on the weekly time-blocking planner. Added 2026-08-01.
  * Times are local wall-clock strings ("09:00:00"), not instants.
  */
+/** A Google Calendar event shown as immovable context in the planner. */
+export interface PlanWeekCalendarEvent {
+  id: string
+  title: string
+  /** Naive local ISO — the column is TIMESTAMP WITHOUT TIME ZONE. */
+  start_time: string
+  end_time: string | null
+  location: string | null
+  html_link: string | null
+}
+
+export interface PlanWeekCalendar {
+  /** False = Calendar was never linked. Not the same as having no events. */
+  connected: boolean
+  events: PlanWeekCalendarEvent[]
+}
+
 export interface PlanBlock {
   id: string
   user_id: string
@@ -221,6 +238,20 @@ export const workspaceApi = {
   },
   deletePlanBlock: async (id: string): Promise<void> => {
     await api.delete(`/workspace/plan-blocks/${id}`)
+  },
+  /**
+   * Google Calendar events for the planner's week, as read-only context.
+   *
+   * READ ONLY, and that is a constraint not a choice: the Google grant is
+   * `calendar.readonly`, so a block cannot be pushed back as an event without
+   * widening the scope — which invalidates every existing consent.
+   *
+   * `connected: false` is distinct from an empty `events` array. "No meetings"
+   * and "we cannot see your calendar" must not render the same.
+   */
+  getPlanWeekCalendar: async (params?: { start?: string, end?: string }): Promise<PlanWeekCalendar> => {
+    const res = await api.get('/workspace/plan-blocks/calendar', { params })
+    return res.data
   },
 
   // Stats

@@ -325,9 +325,19 @@ export function GoalsTab({
           target: Math.round(totalRequired / 1000),
           targetLabel: 'Needed',
         }),
+        /* Stacked per pot, each in its own colour (2026-08-05 — the `bars` kind
+         * gained `segments`). Only goals that actually contributed appear in
+         * the key, so a dormant pot does not clutter it. */
+        legend: (contribMonthly?.goals ?? [])
+          .filter(g => g.series.some(v => v > 0))
+          .map(g => ({ label: g.name, colorKey: g.color })),
         /* Bars share one magnitude axis, so a withdrawal plots as a positive
          * height in destructive red with a signed label — the height is "how
-         * much moved", the colour and the sign say which way. */
+         * much moved", the colour and the sign say which way.
+         *
+         * A NET-NEGATIVE month stays a flat red bar rather than a stack: the
+         * parts would point in opposite directions, and there is no honest way
+         * to stack that. */
         bars: savingsSeries.map((s, i) => ({
           label: fromCalendarDate(s.month.length === 7 ? `${s.month}-01` : s.month)
             .toLocaleDateString(undefined, { month: 'short' }),
@@ -337,6 +347,11 @@ export function GoalsTab({
             ? 'destructive'
             : totalRequired > 0 && s.saved >= totalRequired ? 'success' : s.saved > 0 ? 'accent' : 'mutedFg',
           dim: s.saved === 0,
+          ...(s.saved > 0 && {
+            segments: (contribMonthly?.goals ?? [])
+              .map(g => ({ v: Math.max(0, (g.series[i] ?? 0) / 1000), colorKey: g.color, label: g.name }))
+              .filter(seg => seg.v > 0),
+          }),
         })),
       })
     }
@@ -389,7 +404,7 @@ export function GoalsTab({
 
     return specs
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, savingsSeries, avgSaved, ratePerGoal, statusFilterNode, onAdd])
+  }, [visible, savingsSeries, avgSaved, ratePerGoal, statusFilterNode, onAdd, contribMonthly])
 
   if (isLoading) return <Skeleton style={{ height: 320 }} />
 

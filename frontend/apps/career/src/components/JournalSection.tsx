@@ -10,7 +10,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { NotebookPen, History, Tags } from 'lucide-react'
-import { ErrorState, Skeleton } from '@ledgr/ui'
+import { ErrorState, SkeletonPage } from '@ledgr/ui'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { careerApi, type JournalEntry } from '@ct/shared/api/areas'
 import { useDomainGoalsModule } from '@ct/shared/hooks/useDomainGoalsModule'
@@ -131,7 +131,7 @@ export function JournalSection() {
     return mods
   }, [entriesQ.data, statsQ.data, body, save])
 
-  if (entriesQ.isLoading) return <Skeleton style={{ height: 320 }} />
+  if (entriesQ.isLoading) return <SkeletonPage kpis={0} modules={[7, 5, 12]} />
   if (entriesQ.isError) {
     return <ErrorState title="Could not load your journal" onRetry={() => entriesQ.refetch()} />
   }

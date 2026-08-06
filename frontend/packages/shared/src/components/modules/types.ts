@@ -144,7 +144,26 @@ export interface ProgressModule extends Base {
 
 export interface BarsModule extends Base {
   kind: 'bars'
-  bars: Array<{ label: string; v: number; t?: string; colorKey?: ColorKey; dim?: boolean }>
+  bars: Array<{
+    label: string
+    /** Bar height on the shared axis. With `segments`, this is their total. */
+    v: number
+    t?: string
+    colorKey?: ColorKey
+    dim?: boolean
+    /**
+     * Split the bar into stacked parts, bottom-first.
+     *
+     * Added 2026-08-05 for Finance -> Goals, which needs contributions broken
+     * out per pot. The axis is still MAGNITUDE, so segment values must be
+     * positive; a negative total (a net withdrawal month) keeps using the flat
+     * bar with a destructive colour, because there is no honest way to stack
+     * parts that point in opposite directions.
+     */
+    segments?: Array<{ v: number; colorKey?: ColorKey; label?: string }>
+  }>
+  /** Key for the stacked colours, rendered above the plot when present. */
+  legend?: Array<{ label: string; colorKey?: ColorKey }>
   /** Y-axis ceiling. Defaults to the tallest bar. */
   max?: number
   /** Draws a dashed reference line at this value. */

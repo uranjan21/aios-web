@@ -1,15 +1,36 @@
-import { useMemo, useState } from 'react'
+/**
+ * The global sidebar.
+ *
+ * ── 2026-08-05 rebuild ────────────────────────────────────────────────────
+ * `navigation.ts` has described a two-level tree since 2026-08-01, but this
+ * file did not render one. `buildSidebarSections` flattened it: every area
+ * carrying `subs` was promoted to a top-level accordion of its own, so the
+ * group layer ("Areas", "Intelligence"…) never appeared on screen and all 31
+ * destinations sat open at once. Finding the current page meant scanning a
+ * scrolling wall of same-weight rows.
+ *
+ * What renders now:
+ *
+ *   GROUP HEADING          static label, never clickable (it is a heading)
+ *     area row      ▸      Finance / Health / Career — expands its sub-pages
+ *       sub row            a destination, drawn on a hairline rail
+ *     destination row      groups whose members are leaves (Daily, Workspace…)
+ *
+ * The open/closed rule is the part worth reading: an area is open when
+ * `collapsedSections['nav:<key>']` says so, and falls back to "open iff this
+ * is the area you are in". Entering an area force-opens it (the effect below),
+ * because arriving somewhere and not seeing its navigation is the one failure
+ * mode a collapsed tree must not have. After that the chevron is yours.
+ */
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useTheme } from 'styled-components'
 import { useUIStore } from '@ct/shared/stores/uiStore'
 import { navSections, resolvePath, type NavItem, type SubNavItem } from '@/config/navigation'
 import { useAuthStore } from '@ct/shared/stores/authStore'
 import { accountLabel } from '@ct/shared/lib/account'
-import {
-  DropdownMenu, DropdownMenuTrigger, Tooltip, focusRing } from '@ledgr/ui'
-import {
-  ChevronLeft, ChevronDown, ChevronsUpDown, Sun, Moon, Command, Sparkles
-} from 'lucide-react'
+import { DropdownMenu, DropdownMenuTrigger, Tooltip, focusRing } from '@ledgr/ui'
+import { ChevronLeft, ChevronRight, ChevronsUpDown, Sun, Moon, Command } from 'lucide-react'
 import { AccountMenuBody } from './AccountMenu'
 import styled, { css, keyframes } from 'styled-components'
 import { SIDEBAR_NAV_WIDTH, SIDEBAR_NAV_COLLAPSED_WIDTH } from '@ct/shared/theme/layout'
@@ -63,17 +84,14 @@ const ToggleButton = styled.button<{ $collapsed: boolean }>`
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(26, 30, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
-  backdrop-filter: blur(12px);
-  border: 1px solid ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.15)' : theme.color.border};
+  background: ${({ theme }) => theme.color.card};
+  border: 1px solid ${({ theme }) => theme.chrome.border};
   color: ${({ theme }) => theme.color.foreground};
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  box-shadow: ${({ theme }) => theme.elevation[2]};
   transition: background-color 150ms, border-color 150ms, transform 150ms;
 
   &:hover {
@@ -82,7 +100,7 @@ const ToggleButton = styled.button<{ $collapsed: boolean }>`
     border-color: ${({ theme }) => theme.color.accent};
     transform: scale(1.08);
   }
-  
+
   & > svg {
     width: 13px;
     height: 13px;
@@ -100,53 +118,41 @@ const ToggleButton = styled.button<{ $collapsed: boolean }>`
 const BrandPanel = styled.div<{ $collapsed: boolean }>`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[3]}`};
+  gap: ${({ theme }) => theme.spacing[3]};
   padding: ${({ theme, $collapsed }) => $collapsed ? `${theme.spacing[4]} ${theme.spacing[2]}` : `${theme.spacing[4]} ${theme.spacing[4]}`};
-  border-bottom: 1px solid ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.06)' : theme.color.border};
+  border-bottom: 1px solid ${({ theme }) => theme.chrome.border};
   min-height: 68px;
   position: relative;
   z-index: 2;
   justify-content: ${({ $collapsed }) => $collapsed ? 'center' : 'flex-start'};
 `
 
+/*
+ * The mark lost its gradient fill, its glow, its tinted border and its
+ * floating sparkle on 2026-08-05. Five decorative treatments on a 38px square
+ * made the loudest thing in the sidebar a logo nobody clicks, which set the
+ * contrast ceiling for every row beneath it. It is a flat accent chip now.
+ */
 const LogoBadge = styled.div`
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   flex-shrink: 0;
-  border-radius: ${({ theme }) => theme.radii.lg};
-  background: linear-gradient(135deg, ${({ theme }) => theme.color.accent}33 0%, ${({ theme }) => theme.color.accent}10 100%);
-  color: ${({ theme }) => theme.color.accent};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  background: ${({ theme }) => theme.color.accent};
+  color: ${({ theme }) => theme.color.accentForeground};
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: ${({ theme }) => theme.typography.fontFamily.display};
-  font-size: 1.1rem;
-  font-weight: 800;
-  box-shadow: 0 4px 16px ${({ theme }) => theme.color.accent}2A;
-  border: 1px solid ${({ theme }) => theme.color.accent}44;
-  position: relative;
-  transition: transform 200ms ease;
-
-  &:hover {
-    transform: scale(1.05);
-  }
-
-  .sparkle {
-    position: absolute;
-    top: -3px;
-    right: -3px;
-    width: 10px;
-    height: 10px;
-    color: ${({ theme }) => theme.color.accent};
-  }
+  font-size: 1rem;
+  font-weight: 700;
 `
 
 const BrandText = styled.div<{ $collapsed: boolean }>`
   display: flex;
   flex-direction: column;
   opacity: ${({ $collapsed }) => $collapsed ? 0 : 1};
-  transition: opacity 180ms ease, width 180ms ease;
+  transition: opacity 180ms ease;
   white-space: nowrap;
   overflow: hidden;
   width: ${({ $collapsed }) => $collapsed ? 0 : 'auto'};
@@ -158,17 +164,9 @@ const BrandText = styled.div<{ $collapsed: boolean }>`
     letter-spacing: -0.02em;
     color: ${({ theme }) => theme.color.foreground};
 
-    .accent { 
+    .accent {
       color: ${({ theme }) => theme.color.accent};
-      font-weight: 800;
     }
-  }
-  .tagline {
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: ${({ theme }) => theme.color.mutedForeground};
   }
 `
 
@@ -179,7 +177,12 @@ const NavList = styled.nav`
   padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[2]}`};
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => `${theme.spacing[2]}`};
+  /*
+   * 12px, not 16. Five groups × 15 rows overflow a 720px viewport either way,
+   * so the gap is spent on separating groups only as much as the uppercase
+   * headings already do — every extra pixel here is a row pushed off-screen.
+   */
+  gap: ${({ theme }) => theme.spacing[3]};
   position: relative;
   z-index: 2;
 `
@@ -187,146 +190,106 @@ const NavList = styled.nav`
 const NavGroup = styled.div`
   display: flex;
   flex-direction: column;
+  gap: 2px;
 `
 
-const CategoryHeader = styled.button<{ $collapsed: boolean; $isCollapsedSection: boolean }>`
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: transparent;
-  border: none;
-  font: inherit;
+/**
+ * A GROUP HEADING IS NOT A BUTTON.
+ *
+ * It used to be one — a `<button>` that collapsed the section — and that is
+ * exactly what let the tree render as seven sibling accordions with no visible
+ * grouping. A heading labels; the rows below it are the targets. Collapsing
+ * now belongs to the three areas that actually branch, where it earns its keep.
+ *
+ * On the collapsed rail the label cannot be read, so it degrades to a hairline
+ * separator rather than clipped text.
+ */
+const GroupHeading = styled.div<{ $collapsed: boolean }>`
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.09em;
   color: ${({ theme }) => theme.color.mutedForeground};
-  padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[3]}`};
-  margin-bottom: ${({ theme }) => `${theme.spacing[1]}`};
-  cursor: pointer;
+  padding: ${({ theme }) => `${theme.spacing[1]} ${theme.spacing[3]}`};
+  margin-bottom: 2px;
+  user-select: none;
+
+  ${({ $collapsed, theme }) => $collapsed && css`
+    padding: 0;
+    margin: ${theme.spacing[2]} auto;
+    width: 24px;
+    height: 1px;
+    background: ${theme.chrome.border};
+    color: transparent;
+    overflow: hidden;
+  `}
+`
+
+const RowWrapper = styled.div`
+  position: relative;
+  display: flex;
+  align-items: center;
+`
+
+/**
+ * One navigable row — an area, a leaf destination, or a sub-page.
+ *
+ * The active treatment is domain-coloured rather than accent-coloured: a
+ * Finance row stays gold and a Health row stays green wherever it appears,
+ * which is what makes a tree of this size scannable. `$color` comes from
+ * `theme.domain[item.domain]`, or the muted foreground for areas with none.
+ *
+ * The 08-01 version painted the active row with a gradient wash, a tinted
+ * border AND a coloured drop shadow — three signals for one bit of state, and
+ * the shadow bled onto the neighbouring row. It is a flat tinted fill now,
+ * plus the rail indicator on sub-rows: legible at a glance, and it stays
+ * inside its own box.
+ */
+const NavRow = styled(NavLink)<{
+  $collapsed: boolean
+  $color: string
+  $active: boolean
+  $sub?: boolean
+  $hasChevron?: boolean
+}>`
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing[2.5]};
+  /*
+   * Both levels sit at the same 31px row height. A taller parent row was the
+   * obvious way to signal hierarchy, but it cost 4px × 15 rows of vertical
+   * budget in a column that already overflows; the indent, the rail and the
+   * weight difference carry the hierarchy on their own.
+   */
+  padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[2.5]}`};
+  padding-right: ${({ theme, $hasChevron }) => ($hasChevron ? theme.spacing[7] : theme.spacing[2.5])};
   border-radius: ${({ theme }) => theme.radii.sm};
-  transition: color 150ms, background-color 150ms;
-
-  &:hover {
-    color: ${({ theme }) => theme.color.foreground};
-    background: ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)'};
-  }
-
-  .chevron {
-    width: 12px;
-    height: 12px;
-    opacity: 0.7;
-    transform: ${({ $isCollapsedSection }) => $isCollapsedSection ? 'rotate(-90deg)' : 'rotate(0deg)'};
-    transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
+  font-size: ${({ theme }) => theme.typography.role['body-m'].size};
+  font-weight: ${({ $sub }) => ($sub ? 400 : 500)};
+  color: ${({ theme }) => theme.chrome.fgMuted};
+  text-decoration: none;
+  transition: background 140ms, color 140ms;
+  position: relative;
 
   ${({ $collapsed, theme }) => $collapsed && css`
     justify-content: center;
-    padding: 0;
-    margin: ${theme.spacing[2]} 0;
-    pointer-events: none;
-
-    span, .chevron { display: none; }
-
-    &::after {
-      content: '';
-      width: 24px;
-      height: 1px;
-      background: ${theme.color.border};
-    }
-  `}
-`
-
-/**
- * Rows sit inside a hairline rail, indented from the section header. The rail
- * is what makes the two levels legible without a second indent step — each
- * row's active indicator is a 3px bar drawn ON the rail (see `RowIndicator`).
- */
-const ItemsContainer = styled.div<{ $isCollapsedSection: boolean; $collapsed: boolean }>`
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  overflow: hidden;
-  max-height: ${({ $isCollapsedSection }) => ($isCollapsedSection ? '0px' : '600px')};
-  opacity: ${({ $isCollapsedSection }) => ($isCollapsedSection ? 0 : 1)};
-  transition: max-height 240ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease;
-
-  ${({ $collapsed, theme }) => !$collapsed && css`
-    margin: 0 0 ${theme.spacing[0.5]} ${theme.spacing[2.5]};
-    padding-left: 11px;
-    border-left: 1px solid ${theme.chrome.border};
-  `}
-`
-
-/** The 3px active bar drawn on the rail, in the area's domain colour. */
-const RowIndicator = styled.span<{ $color: string; $active: boolean }>`
-  position: absolute;
-  left: -14px;
-  top: 7px;
-  bottom: 7px;
-  width: 3px;
-  border-radius: 2px;
-  background: ${({ $active, $color }) => ($active ? $color : 'transparent')};
-  box-shadow: ${({ $active, $color }) => ($active ? `0 0 10px ${$color}` : 'none')};
-  transition: background 150ms, box-shadow 150ms;
-`
-
-const TooltipShortcut = styled.span`
-  font-size: 9px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: ${({ theme }) => theme.color.accent}22;
-  color: ${({ theme }) => theme.color.accent};
-  border: 1px solid ${({ theme }) => theme.color.accent}44;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-`
-
-const NavItemWrapper = styled.div`
-  position: relative;
-`
-
-/**
- * A single destination row. The active treatment is domain-coloured rather
- * than accent-coloured: a Finance row stays gold and a Health row stays green
- * wherever it appears, which is what makes a 34-item tree scannable.
- * `$color` comes from `theme.domain[item.domain]`, or the muted foreground for
- * areas with no domain identity.
- */
-const NavItemLink = styled(NavLink)<{ $collapsed: boolean; $color: string; $active: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
-  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[2.5]}`};
-  border: 1px solid transparent;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  font-size: ${({ theme }) => theme.typography.role['body-m'].size};
-  font-weight: 500;
-  color: ${({ theme }) => theme.chrome.fgMuted};
-  text-decoration: none;
-  transition: background 150ms, color 150ms, border-color 150ms, box-shadow 150ms;
-  position: relative;
-
-  ${({ $collapsed }) => $collapsed && css`
-    justify-content: center;
-    padding: ${({ theme }) => `${theme.spacing[2.5]} 0`};
+    padding: ${theme.spacing[2.5]} 0;
   `}
 
   & > svg {
-    width: 16px;
-    height: 16px;
+    width: ${({ $sub }) => ($sub ? '15px' : '16px')};
+    height: ${({ $sub }) => ($sub ? '15px' : '16px')};
     flex-shrink: 0;
     color: ${({ theme }) => theme.chrome.fgMuted};
-    transition: color 150ms;
+    transition: color 140ms;
   }
 
   .label {
     white-space: nowrap;
     opacity: ${({ $collapsed }) => $collapsed ? 0 : 1};
-    transition: opacity 180ms ease, width 180ms ease;
+    transition: opacity 180ms ease;
     overflow: hidden;
     text-overflow: ellipsis;
     width: ${({ $collapsed }) => $collapsed ? 0 : 'auto'};
@@ -348,13 +311,9 @@ const NavItemLink = styled(NavLink)<{ $collapsed: boolean; $color: string; $acti
    * hatch of passing a className callback silently does nothing.
    */
   ${({ $active, $color, theme }) => $active && css`
-    background: linear-gradient(100deg, ${$color}30, ${$color}0C);
-    border-color: ${$color}48;
-    box-shadow: ${theme.chrome.hi === 'none'
-      ? `0 6px 18px -12px ${$color}`
-      : `${theme.chrome.hi}, 0 6px 18px -12px ${$color}`};
+    background: color-mix(in srgb, ${$color} 14%, transparent);
     color: ${theme.chrome.fg};
-    font-weight: 700;
+    font-weight: 600;
 
     & > svg {
       color: ${$color};
@@ -362,11 +321,113 @@ const NavItemLink = styled(NavLink)<{ $collapsed: boolean; $color: string; $acti
   `}
 `
 
-const QuickActionsBar = styled.div<{ $collapsed: boolean }>`
+/**
+ * The parent of an open branch is emphasised but NOT filled. It is context for
+ * the highlighted child; painting both at full strength reads as two current
+ * pages.
+ */
+const AreaRow = styled(NavRow)<{ $open: boolean }>`
+  ${({ $open, $active, theme }) => $open && !$active && css`
+    color: ${theme.chrome.fg};
+    font-weight: 600;
+  `}
+
+  & > svg {
+    color: ${({ theme, $open, $color }) => ($open ? $color : theme.chrome.fgMuted)};
+  }
+`
+
+/** The active bar drawn on the sub-page rail, in the area's domain colour. */
+const RowIndicator = styled.span<{ $color: string; $active: boolean }>`
+  position: absolute;
+  left: -13px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 1px;
+  background: ${({ $active, $color }) => ($active ? $color : 'transparent')};
+  transition: background 140ms;
+`
+
+/**
+ * The expander is a separate hit target from the row, so clicking "Finance"
+ * goes to Finance and clicking the chevron only opens the branch. One control
+ * doing both would make the label a coin toss.
+ */
+const Chevron = styled.button<{ $open: boolean }>`
+  position: absolute;
+  right: 4px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
-  justify-content: ${({ $collapsed }) => $collapsed ? 'center' : 'space-between'};
-  gap: 6px;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: ${({ theme }) => theme.radii.sm};
+  color: ${({ theme }) => theme.color.mutedForeground};
+  cursor: pointer;
+  transition: background-color 140ms, color 140ms;
+
+  &:hover {
+    background: ${({ theme }) => theme.chrome.ctl};
+    color: ${({ theme }) => theme.chrome.fg};
+  }
+
+  ${focusRing}
+
+  & > svg {
+    width: 13px;
+    height: 13px;
+    transform: ${({ $open }) => ($open ? 'rotate(90deg)' : 'none')};
+    transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+`
+
+/**
+ * Sub-pages sit inside a hairline rail, indented from the area row. The rail
+ * is what makes the second level legible without a second indent step — each
+ * row's active indicator is a bar drawn ON the rail (see `RowIndicator`).
+ *
+ * `max-height` is computed from the row count rather than a fixed ceiling: the
+ * old 600px constant meant every branch animated at a different apparent speed
+ * depending on how many rows it held.
+ */
+const SubList = styled.div<{ $open: boolean; $count: number }>`
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+  max-height: ${({ $open, $count }) => ($open ? `${$count * 34 + 8}px` : '0px')};
+  opacity: ${({ $open }) => ($open ? 1 : 0)};
+  transition: max-height 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 160ms ease;
+
+  margin: 2px 0 ${({ theme }) => theme.spacing[1]} ${({ theme }) => theme.spacing[4]};
+  padding-left: ${({ theme }) => theme.spacing[3]};
+  border-left: 1px solid ${({ theme }) => theme.chrome.border};
+`
+
+const TooltipShortcut = styled.span`
+  font-size: 9px;
+  font-weight: 700;
+  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[1.5]}`};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  background: color-mix(in srgb, ${({ theme }) => theme.color.accent} 18%, transparent);
+  color: ${({ theme }) => theme.color.accent};
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+`
+
+const TooltipBody = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing[2]};
+`
+
+const QuickActionsBar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing[1.5]};
   padding: ${({ theme }) => `0 ${theme.spacing[3]}`};
   margin-bottom: ${({ theme }) => theme.spacing[2]};
 `
@@ -375,72 +436,63 @@ const QuickActionButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: ${({ theme }) => theme.radii.md};
-  background: ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)'};
-  border: 1px solid ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : theme.color.border};
+  gap: ${({ theme }) => theme.spacing[1.5]};
+  padding: ${({ theme }) => `${theme.spacing[1.5]} ${theme.spacing[2]}`};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  background: transparent;
+  border: 1px solid ${({ theme }) => theme.chrome.border};
   color: ${({ theme }) => theme.color.mutedForeground};
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 140ms ease;
+  transition: background-color 140ms, color 140ms, border-color 140ms;
   flex: 1;
 
   &:hover {
-    background: ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'};
-    color: ${({ theme }) => theme.color.foreground};
-    border-color: ${({ theme }) => theme.color.accent}44;
+    background: ${({ theme }) => theme.chrome.ctl};
+    color: ${({ theme }) => theme.chrome.fg};
   }
 
   svg {
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
   }
 
   ${focusRing}
 `
 
 const FooterSection = styled.div`
-  padding: ${({ theme }) => `${theme.spacing[2]}`};
-  border-top: 1px solid ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.06)' : theme.color.border};
+  padding: ${({ theme }) => theme.spacing[2]};
+  border-top: 1px solid ${({ theme }) => theme.chrome.border};
   position: relative;
   z-index: 2;
 `
 
 const UserBlock = styled.button<{ $collapsed: boolean }>`
   width: 100%;
-  border: 1px solid ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.lg};
-  background: ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'};
+  border: 1px solid transparent;
+  border-radius: ${({ theme }) => theme.radii.md};
+  background: transparent;
   font: inherit;
   color: inherit;
   cursor: pointer;
-  padding: ${({ theme }) => `${theme.spacing[2]}`};
+  padding: ${({ theme }) => theme.spacing[2]};
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[2.5]}`};
+  gap: ${({ theme }) => theme.spacing[2.5]};
   position: relative;
-  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  transition: background-color 150ms ease, border-color 150ms ease;
 
-  &:hover { 
-    background: ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.09)' : 'rgba(0, 0, 0, 0.05)'};
-    border-color: ${({ theme }) => theme.color.accent}44;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  &:hover {
+    background: ${({ theme }) => theme.chrome.ctl};
+    border-color: ${({ theme }) => theme.chrome.border};
   }
 
   ${focusRing}
 
-  ${({ $collapsed }) => $collapsed && css`
+  ${({ $collapsed, theme }) => $collapsed && css`
     justify-content: center;
-    padding: ${({ theme }) => `${theme.spacing[2]} 0`};
+    padding: ${theme.spacing[2]} 0;
   `}
 `
 
@@ -455,33 +507,37 @@ const AvatarWrapper = styled.div`
     width: 9px;
     height: 9px;
     border-radius: 50%;
-    background: #10B981;
+    background: ${({ theme }) => theme.color.success};
     border: 2px solid ${({ theme }) => theme.color.card};
     animation: ${pulseGlow} 2.5s infinite ease-in-out;
   }
 `
 
 const Avatar = styled.div`
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, ${({ theme }) => theme.color.accent} 0%, ${({ theme }) => theme.color.accent}CC 100%);
+  background: ${({ theme }) => theme.color.accent};
   color: ${({ theme }) => theme.color.accentForeground};
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: ${({ theme }) => theme.typography.fontSize.sm};
   font-weight: 700;
-  box-shadow: 0 2px 8px ${({ theme }) => theme.color.accent}33;
+`
+
+const AvatarImage = styled.img`
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
 `
 
 const UserInfo = styled.div<{ $collapsed: boolean }>`
-  display: flex;
   flex-direction: column;
   flex: 1;
   min-width: 0;
   align-items: flex-start;
-  opacity: ${({ $collapsed }) => $collapsed ? 0 : 1};
   display: ${({ $collapsed }) => $collapsed ? 'none' : 'flex'};
 
   .name {
@@ -519,156 +575,195 @@ const DropdownIconWrapper = styled.div`
   }
 `
 
-/**
- * Flattens the nav tree into the list of collapsible sections the sidebar
- * renders. An area WITH sub-pages becomes its own section (header = the area
- * name, rows = its subs); areas WITHOUT subs are pooled into one section per
- * group. So "Finance" is a section of 9 rows, while Chat and Agents share an
- * "Intelligence" section — which is what keeps a 34-destination tree to one
- * indent level instead of a nested accordion.
- */
-interface SidebarSection {
-  key: string
-  label: string
-  /** The owning area — present only for a section built from one area's subs. */
-  item?: NavItem
-  rows: Array<{ item: NavItem; sub?: SubNavItem; to: string; label: string; icon: NavItem['icon'] }>
-}
-
-function buildSidebarSections(isAdmin: boolean): SidebarSection[] {
-  const sections: SidebarSection[] = []
-
-  for (const group of navSections(isAdmin)) {
-    const leftover: NavItem[] = []
-
-    for (const item of group.items) {
-      if (item.subs?.length) {
-        sections.push({
-          key: `item-${item.key}`,
-          label: item.label,
-          item,
-          rows: item.subs.map((sub) => ({ item, sub, to: sub.to, label: sub.label, icon: sub.icon })),
-        })
-      } else {
-        leftover.push(item)
-      }
-    }
-
-    if (leftover.length) {
-      sections.push({
-        key: `group-${group.key}`,
-        label: group.label,
-        rows: leftover.map((item) => ({ item, to: item.to, label: item.label, icon: item.icon })),
-      })
-    }
-  }
-
-  return sections
-}
+/** Persisted key for an area's open/closed override. */
+const openKey = (item: NavItem) => `nav:${item.key}`
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
-  const { sidebarOpen, collapsedSections, toggleSectionCollapsed, toggleTheme, theme, setCmdPaletteOpen } = useUIStore()
+  const {
+    sidebarOpen, collapsedSections, toggleSectionCollapsed, setSectionCollapsed,
+    toggleTheme, theme, setCmdPaletteOpen,
+  } = useUIStore()
   const user = useAuthStore(s => s.user)
   const styledTheme = useTheme()
   const { pathname } = useLocation()
 
   const isAdmin = !!user?.is_admin
-  const sections = useMemo(() => buildSidebarSections(isAdmin), [isAdmin])
+  const sections = useMemo(() => navSections(isAdmin), [isAdmin])
 
   // Longest-prefix match, so /app/finance/transactions highlights that row and
   // not Finance's Overview (whose path is the bare /app/finance).
   const current = resolvePath(pathname)
+  const activeItemKey = current?.item.key
+
+  /*
+   * Force the area you just entered open. Keyed on the active area CHANGING,
+   * not on every render — otherwise collapsing the branch you are standing in
+   * would be undone on the next paint and the chevron would look broken.
+   */
+  const prevArea = useRef<string | undefined>(activeItemKey)
+  useEffect(() => {
+    if (activeItemKey && activeItemKey !== prevArea.current) {
+      const item = sections.flatMap(s => s.items).find(i => i.key === activeItemKey)
+      if (item?.subs?.length) setSectionCollapsed(openKey(item), false)
+    }
+    prevArea.current = activeItemKey
+  }, [activeItemKey, sections, setSectionCollapsed])
+
+  /*
+   * Five groups and fifteen rows do not fit a 720px viewport, so this column
+   * scrolls — which is fine right up until the row you are on is the one below
+   * the fold. Pull it into view on every navigation. `nearest` so a row that is
+   * already visible does not jerk the list to centre it.
+   */
+  const navRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const active = navRef.current?.querySelector('[data-active="true"]')
+    active?.scrollIntoView({ block: 'nearest' })
+  }, [pathname])
 
   const colorFor = (item: NavItem) =>
     item.domain ? styledTheme.domain[item.domain] : styledTheme.chrome.fgMuted
 
+  /** Open iff explicitly set; otherwise open exactly when you are inside it. */
+  const isOpen = (item: NavItem) => {
+    const override = collapsedSections[openKey(item)]
+    return override === undefined ? item.key === activeItemKey : !override
+  }
+
+  const tooltipFor = (label: string, shortcut?: string) => (
+    <TooltipBody>
+      <span>{label}</span>
+      {shortcut && <TooltipShortcut>g {shortcut}</TooltipShortcut>}
+    </TooltipBody>
+  )
+
+  const renderSub = (item: NavItem, sub: SubNavItem) => {
+    const Icon = sub.icon
+    const color = colorFor(item)
+    const active = current?.item.key === item.key && current?.sub?.key === sub.key
+
+    return (
+      <RowWrapper key={`${item.key}:${sub.key}`}>
+        <RowIndicator $color={color} $active={active} />
+        <NavRow to={sub.to} $collapsed={false} $color={color} $active={active} $sub data-active={active}>
+          <Icon />
+          <span className="label">{sub.label}</span>
+        </NavRow>
+      </RowWrapper>
+    )
+  }
+
+  const renderItem = (item: NavItem) => {
+    const Icon = item.icon
+    const color = colorFor(item)
+    const branches = !!item.subs?.length
+    const open = branches && !collapsed && isOpen(item)
+
+    /*
+     * An expanded area with subs is "active" only when you are on the area
+     * itself with no sub resolved — otherwise the highlight belongs to the
+     * visible child, and lighting both reads as two current pages.
+     *
+     * On the COLLAPSED rail there is no visible child to carry it, so the area
+     * takes the highlight for anything beneath it. Without this branch, sitting
+     * on /app/finance/transactions with the rail collapsed highlighted nothing
+     * at all, and the rail stopped answering "where am I".
+     */
+    const inThisArea = current?.item.key === item.key
+    const active = branches && !collapsed
+      ? inThisArea && !current?.sub
+      : inThisArea
+
+    return (
+      <div key={item.key}>
+        <RowWrapper>
+          <Tooltip
+            side="right"
+            disabled={!collapsed}
+            content={tooltipFor(item.label, item.shortcut)}
+          >
+            {branches ? (
+              <AreaRow
+                to={item.to}
+                $collapsed={collapsed}
+                $color={color}
+                $active={active}
+                $open={open}
+                $hasChevron={!collapsed}
+                data-active={active}
+              >
+                <Icon />
+                <span className="label">{item.label}</span>
+              </AreaRow>
+            ) : (
+              <NavRow to={item.to} $collapsed={collapsed} $color={color} $active={active} data-active={active}>
+                <Icon />
+                <span className="label">{item.label}</span>
+              </NavRow>
+            )}
+          </Tooltip>
+
+          {branches && !collapsed && (
+            <Chevron
+              type="button"
+              $open={open}
+              onClick={() => toggleSectionCollapsed(openKey(item))}
+              aria-expanded={open}
+              aria-label={`${open ? 'Collapse' : 'Expand'} ${item.label}`}
+            >
+              <ChevronRight />
+            </Chevron>
+          )}
+        </RowWrapper>
+
+        {branches && !collapsed && (
+          <SubList $open={open} $count={item.subs!.length} aria-hidden={!open}>
+            {item.subs!.map((sub) => renderSub(item, sub))}
+          </SubList>
+        )}
+      </div>
+    )
+  }
+
   return (
     <SidebarRoot $collapsed={collapsed} $mobileOpen={sidebarOpen}>
-      <ToggleButton $collapsed={collapsed} onClick={() => setCollapsed(!collapsed)} aria-label="Toggle Sidebar">
+      <ToggleButton
+        $collapsed={collapsed}
+        onClick={() => setCollapsed(!collapsed)}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
         <ChevronLeft />
       </ToggleButton>
 
       <BrandPanel $collapsed={collapsed}>
-        <LogoBadge>
-          <Sparkles className="sparkle" />
-          C
-        </LogoBadge>
+        <LogoBadge>C</LogoBadge>
         <BrandText $collapsed={collapsed}>
           <span className="name">Control <span className="accent">Tower</span></span>
         </BrandText>
       </BrandPanel>
 
-      <NavList aria-label="Main navigation">
-        {sections.map((section) => {
-          const isCollapsedSection = !!collapsedSections[section.key]
-
-          return (
-            <NavGroup key={section.key}>
-              <CategoryHeader
-                $collapsed={collapsed}
-                $isCollapsedSection={isCollapsedSection}
-                onClick={() => toggleSectionCollapsed(section.key)}
-                aria-expanded={!isCollapsedSection}
-                title={collapsed ? section.label : undefined}
-              >
-                <span>{section.label}</span>
-                <ChevronDown className="chevron" />
-              </CategoryHeader>
-
-              <ItemsContainer
-                $collapsed={collapsed}
-                $isCollapsedSection={!collapsed && isCollapsedSection}
-              >
-                {section.rows.map((row) => {
-                  const Icon = row.icon
-                  const color = colorFor(row.item)
-                  const active = row.sub
-                    ? current?.sub?.key === row.sub.key && current?.item.key === row.item.key
-                    : current?.item.key === row.item.key
-
-                  return (
-                    <NavItemWrapper key={`${row.item.key}:${row.sub?.key ?? ''}`}>
-                      {!collapsed && <RowIndicator $color={color} $active={active} />}
-                      <Tooltip
-                        side="right"
-                        disabled={!collapsed}
-                        content={
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span>{section.item ? `${section.label} · ${row.label}` : row.label}</span>
-                            {row.item.shortcut && <TooltipShortcut>g {row.item.shortcut}</TooltipShortcut>}
-                          </div>
-                        }
-                      >
-                        <NavItemLink
-                          to={row.to}
-                          $collapsed={collapsed}
-                          $color={color}
-                          $active={active}
-                        >
-                          <Icon />
-                          <span className="label">{row.label}</span>
-                        </NavItemLink>
-                      </Tooltip>
-                    </NavItemWrapper>
-                  )
-                })}
-              </ItemsContainer>
-            </NavGroup>
-          )
-        })}
+      <NavList ref={navRef} aria-label="Main navigation">
+        {sections.map((section) => (
+          <NavGroup key={section.key}>
+            <GroupHeading $collapsed={collapsed} aria-hidden={collapsed}>
+              {section.label}
+            </GroupHeading>
+            {section.items.map(renderItem)}
+          </NavGroup>
+        ))}
       </NavList>
 
       {!collapsed && (
-        <QuickActionsBar $collapsed={collapsed}>
+        <QuickActionsBar>
           <QuickActionButton onClick={toggleTheme} title="Toggle theme">
             {theme === 'dark' ? <Moon /> : <Sun />}
             <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
           </QuickActionButton>
 
-          <QuickActionButton onClick={() => setCmdPaletteOpen(true)} title="Open Command Palette (Cmd+K)">
+          <QuickActionButton onClick={() => setCmdPaletteOpen(true)} title="Open command palette (⌘K)">
             <Command />
-            <span>Cmd+K</span>
+            <span>⌘K</span>
           </QuickActionButton>
         </QuickActionsBar>
       )}
@@ -679,7 +774,7 @@ export function Sidebar() {
             <UserBlock $collapsed={collapsed} aria-label={`User menu: ${user?.name || 'User'}`}>
               <AvatarWrapper>
                 {user?.picture_url ? (
-                  <img src={user.picture_url} alt="" referrerPolicy="no-referrer" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }} />
+                  <AvatarImage src={user.picture_url} alt="" referrerPolicy="no-referrer" />
                 ) : (
                   <Avatar>{(user?.name || 'U')[0].toUpperCase()}</Avatar>
                 )}
@@ -704,5 +799,3 @@ export function Sidebar() {
     </SidebarRoot>
   )
 }
-
-

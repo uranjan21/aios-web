@@ -1,4 +1,5 @@
 import { useDeferredValue, useMemo, useState, useEffect, useRef, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs, { Dayjs } from 'dayjs'
 import isoWeek from 'dayjs/plugin/isoWeek'
@@ -41,9 +42,28 @@ dayjs.extend(isoWeek)
  */
 export function TransactionsTab() {
   const queryClient = useQueryClient()
+  /* `?date=YYYY-MM-DD` opens the page on that period instead of the current
+   * month. The Inbox links here after approving, because an email transaction
+   * files under the date it HAPPENED — landing on today's month would show an
+   * empty list and read as if the approval had been lost. */
+  const [searchParams] = useSearchParams()
+  const dateParam = searchParams.get('date')
+  const paramDay = useMemo(() => {
+    if (!dateParam) return null
+    const d = dayjs(dateParam)
+    return d.isValid() ? d : null
+  }, [dateParam])
+
   const [view, setView] = useState<'Daily' | 'Calendar' | 'Weekly' | 'Monthly'>('Monthly')
-  const [month, setMonth] = useState(() => dayjs().startOf('month'))
-  const [selectedDate, setSelectedDate] = useState(() => dayjs().format('YYYY-MM-DD'))
+  const [month, setMonth] = useState(() => (paramDay ?? dayjs()).startOf('month'))
+  const [selectedDate, setSelectedDate] = useState(() => (paramDay ?? dayjs()).format('YYYY-MM-DD'))
+
+  // Re-navigating here with a new ?date= does not remount the component.
+  useEffect(() => {
+    if (!paramDay) return
+    setMonth(paramDay.startOf('month'))
+    setSelectedDate(paramDay.format('YYYY-MM-DD'))
+  }, [paramDay])
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Txn | null>(null)
   const [quickKind, setQuickKind] = useState<Kind>('Expense')

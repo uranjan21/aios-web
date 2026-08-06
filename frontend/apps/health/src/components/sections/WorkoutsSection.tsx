@@ -17,10 +17,9 @@ import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { Activity, CheckSquare, Dumbbell, Plus, Trash2 } from 'lucide-react'
-import { Button, Card, Dialog, EmptyState, Input } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, Input, SkeletonPage } from '@ledgr/ui'
 import { healthApi, type WorkoutRoutine } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import type { WorkoutSessionItem } from '@ct/shared/types'
 import { RoutineDialog } from '../RoutineDialog'
 
@@ -315,7 +314,7 @@ export function WorkoutsSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, gymLogs, goals, routines, adherence])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isLoading) return <SkeletonPage kpis={4} modules={[7, 5, 12]} />
 
   return (
     <Root>

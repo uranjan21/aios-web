@@ -34,8 +34,9 @@ const StyledContent = styled(DropdownMenuContent)`
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid ${({ theme }) =>
     theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.04);
-  padding: 4px;
+  /* Popover — elevation[4]. Was a light-mode-only literal. */
+  box-shadow: ${({ theme }) => theme.elevation[4]};
+  padding: ${({ theme }) => theme.spacing[1]};
 `
 
 const IdentityHeader = styled.div`
@@ -43,7 +44,7 @@ const IdentityHeader = styled.div`
   align-items: center;
   gap: ${({ theme }) => theme.spacing[2.5]};
   padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[3]}`};
-  margin: 2px 2px 4px 2px;
+  margin: ${({ theme }) => theme.spacing[0.5]} ${({ theme }) => theme.spacing[0.5]} ${({ theme }) => theme.spacing[1]} ${({ theme }) => theme.spacing[0.5]};
   border-radius: ${({ theme }) => theme.radii.lg};
   background: ${({ theme }) =>
     theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)'};
@@ -171,8 +172,8 @@ const SegmentedControl = styled.div`
   border: 1px solid ${({ theme }) =>
     theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'};
   border-radius: ${({ theme }) => theme.radii.sm};
-  padding: 2px;
-  gap: 2px;
+  padding: ${({ theme }) => theme.spacing[0.5]};
+  gap: ${({ theme }) => theme.spacing[0.5]};
 `
 
 const Segment = styled.button<{ $active: boolean }>`
