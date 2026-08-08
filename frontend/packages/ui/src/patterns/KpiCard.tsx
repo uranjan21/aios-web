@@ -42,8 +42,11 @@ const Surface = styled.div`
   padding: ${({ theme }) => theme.spacing[4]};
   border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.card};
-  border: ${({ theme }) => theme.border.hairline} solid ${({ theme }) => theme.color.border};
-  box-shadow: ${({ theme }) => theme.elevation[1]};
+  /* Same border + depth as a ModuleGrid tile and a flat Card — see the note in
+     primitives/Card/Card.tsx. A KPI must not read flatter than the tiles it
+     sits beside on a module-built page. */
+  border: ${({ theme }) => theme.border.hairline} solid ${({ theme }) => theme.surface.border};
+  box-shadow: ${({ theme }) => theme.surface.shadow};
   transition:
     box-shadow ${({ theme }) => `${theme.motion.duration.normal} ${theme.motion.easing.standard}`},
     transform ${({ theme }) => `${theme.motion.duration.normal} ${theme.motion.easing.standard}`},

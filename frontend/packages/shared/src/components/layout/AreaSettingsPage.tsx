@@ -1,4 +1,4 @@
-import { focusRing } from '@ledgr/ui'
+import { focusRing, textRole } from '@ledgr/ui'
 import { ReactNode, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import styled from "styled-components";
@@ -59,15 +59,15 @@ export const NavRail = styled.nav`
 
   padding: ${({ theme }) => `${theme.spacing[3.5]} ${theme.spacing[3]}`};
 
+  /* The card recipe, same as PageHeader / Card / every module tile: card
+     background, hairline border, one elevation step, radii.md. It used to
+     hand-roll a mode-branched rgba border, a bespoke gradient + backdrop blur
+     and a raw box-shadow — none of which traced to a token, so the rail read
+     as a different material from the pane beside it. */
   border-radius: ${({ theme }) => theme.radii.md};
-  border: 1px solid ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'};
-  background: ${({ theme }) =>
-    theme.mode === 'dark'
-      ? 'linear-gradient(180deg, rgba(30, 32, 40, 0.8) 0%, rgba(20, 21, 26, 0.6) 100%)'
-      : 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 250, 252, 0.8) 100%)'};
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+  border: ${({ theme }) => theme.border.hairline} solid ${({ theme }) => theme.color.border};
+  background: ${({ theme }) => theme.color.card};
+  box-shadow: ${({ theme }) => theme.elevation[1]};
 
   @media ${({ theme }) => theme.media.lg} {
     position: sticky;
@@ -91,9 +91,8 @@ export const GroupLabel = styled.h3`
   margin: 0;
   padding: ${({ theme }) => `0 ${theme.spacing[2.5]} ${theme.spacing[1.5]}`};
 
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  /* 'micro' IS the group-header role — 10px/0.08em, always uppercase. */
+  ${textRole('micro')};
   text-transform: uppercase;
 
   color: ${({ theme }) => theme.color.mutedForeground};
@@ -121,14 +120,17 @@ export const NavItem = styled.button<{ $active: boolean }>`
   border: none;
   border-radius: ${({ theme }) => theme.radii.md};
 
+  /* color-mix, not an '${accent}14' hex-alpha suffix — the CSS vars are HEX
+     and appending alpha digits breaks the moment a token is not 6-digit. */
   background: ${({ $active, theme }) =>
-    $active ? `${theme.color.accent}14` : "transparent"};
+    $active ? `color-mix(in srgb, ${theme.color.accent} 8%, transparent)` : "transparent"};
 
   color: ${({ $active, theme }) =>
     $active ? theme.color.accent : theme.color.foreground};
 
   text-align: left;
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
+  /* 'body-m' is THE body default — nav rows are named as one of its uses. */
+  ${textRole('body-m')}
   font-weight: ${({ $active }) => ($active ? 600 : 500)};
 
   cursor: pointer;

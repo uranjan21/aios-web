@@ -128,26 +128,13 @@ const BrandPanel = styled.div<{ $collapsed: boolean }>`
 `
 
 /*
- * The mark lost its gradient fill, its glow, its tinted border and its
- * floating sparkle on 2026-08-05. Five decorative treatments on a 38px square
- * made the loudest thing in the sidebar a logo nobody clicks, which set the
- * contrast ceiling for every row beneath it. It is a flat accent chip now.
+ * The logo mark is GONE (2026-08-06, Utsav's call). It had already been stripped
+ * to a flat accent chip on 2026-08-05 for being the loudest thing in the
+ * sidebar; the chip was still a solid accent square sitting above every nav row
+ * and setting the contrast ceiling for all of them. The wordmark stays — that
+ * is the product's name, which the collapsed rail drops along with every other
+ * label. Do not reintroduce a mark here.
  */
-const LogoBadge = styled.div`
-  width: 34px;
-  height: 34px;
-  flex-shrink: 0;
-  border-radius: ${({ theme }) => theme.radii.sm};
-  background: ${({ theme }) => theme.color.accent};
-  color: ${({ theme }) => theme.color.accentForeground};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: ${({ theme }) => theme.typography.fontFamily.display};
-  font-size: 1rem;
-  font-weight: 700;
-`
-
 const BrandText = styled.div<{ $collapsed: boolean }>`
   display: flex;
   flex-direction: column;
@@ -173,7 +160,14 @@ const BrandText = styled.div<{ $collapsed: boolean }>`
 const NavList = styled.nav`
   flex: 1;
   overflow-y: auto;
+  /*
+   * scrollbar-width alone leaves the COLOUR to the browser, which paints a
+   * near-white track down the sidebar edge in dark mode — the brightest thing
+   * on the screen, against a soft palette. Pin both.
+   * (No backticks in this comment: it lives inside a template literal.)
+   */
   scrollbar-width: thin;
+  scrollbar-color: ${({ theme }) => theme.chrome.borderStrong} transparent;
   padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[2]}`};
   display: flex;
   flex-direction: column;
@@ -737,7 +731,6 @@ export function Sidebar() {
       </ToggleButton>
 
       <BrandPanel $collapsed={collapsed}>
-        <LogoBadge>C</LogoBadge>
         <BrandText $collapsed={collapsed}>
           <span className="name">Control <span className="accent">Tower</span></span>
         </BrandText>

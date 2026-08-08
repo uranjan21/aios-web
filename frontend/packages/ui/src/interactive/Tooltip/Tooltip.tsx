@@ -48,7 +48,9 @@ const TooltipBox = styled.div<{ $side: TooltipSide; $top: number; $left: number 
   line-height: ${({ theme }) => theme.typography.lineHeight.snug};
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: ${({ theme }) => theme.shadow.md};
+  /* Was shadow.md — the only floating surface still on the legacy shadow
+     scale while Popover/Select sit on elevation. */
+  box-shadow: ${({ theme }) => theme.elevation[2]};
   animation: ${fadeIn} ${({ theme }) => theme.motion.duration.fast} ${({ theme }) => theme.motion.easing.enter};
   ${({ $side }) => {
     const tx = $side === 'left' ? '-100%' : $side === 'right' ? '0' : '-50%';

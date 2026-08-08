@@ -64,6 +64,17 @@ async def update_skill(skill_id: str, body: SkillUpdate, current_user=Depends(ge
     return skill
 
 
+@router.delete("/skills/{skill_id}")
+async def delete_skill(skill_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(SkillInventory).where(SkillInventory.user_id == current_user.id).where(SkillInventory.id == skill_id))
+    skill = result.scalar_one_or_none()
+    if not skill:
+        raise HTTPException(status_code=404, detail="Skill not found")
+    await db.delete(skill)
+    await db.commit()
+    return {"ok": True}
+
+
 @router.get("/events")
 async def list_events(current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(select(CareerEvent).where(CareerEvent.user_id == current_user.id).order_by(desc(CareerEvent.occurred_at)).limit(100))
@@ -95,6 +106,56 @@ async def create_event(body: CareerEventCreate, current_user=Depends(get_current
     await db.commit()
     await db.refresh(event)
     return event
+
+
+class CareerEventUpdate(BaseModel):
+    event_type: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    skill: Optional[str] = None
+    skill_level: Optional[str] = None
+    occurred_at: Optional[datetime] = None
+
+
+async def _owned_event(db, event_id: uuid.UUID, user_id) -> CareerEvent:
+    result = await db.execute(
+        select(CareerEvent).where(CareerEvent.user_id == user_id).where(CareerEvent.id == event_id)
+    )
+    event = result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return event
+
+
+@router.patch("/events/{event_id}")
+async def update_event(
+    event_id: uuid.UUID,
+    body: CareerEventUpdate,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    event = await _owned_event(db, event_id, current_user.id)
+    payload = body.model_dump(exclude_unset=True)
+    if "title" in payload and not (payload["title"] or "").strip():
+        raise HTTPException(status_code=422, detail="Title cannot be empty")
+    for field, value in payload.items():
+        setattr(event, field, value)
+    db.add(event)
+    await db.commit()
+    await db.refresh(event)
+    return event
+
+
+@router.delete("/events/{event_id}")
+async def delete_event(
+    event_id: uuid.UUID,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    event = await _owned_event(db, event_id, current_user.id)
+    await db.delete(event)
+    await db.commit()
+    return {"ok": True}
 
 
 @router.get("/summary")

@@ -78,6 +78,45 @@ async def create_log(body: HealthLogCreate, current_user=Depends(get_current_use
     return log
 
 
+class HealthLogUpdate(BaseModel):
+    """`entry_type` is deliberately not editable — it decides which surface a
+    row belongs to (weight vs water vs sleep), and the column carries a CHECK
+    constraint. Retyping an entry is a delete plus a re-log."""
+    value: Optional[float] = None
+    unit: Optional[str] = None
+    notes: Optional[str] = None
+    logged_at: NaiveDateTime = None
+
+
+async def _owned_log(db, log_id, user_id) -> HealthLog:
+    from fastapi import HTTPException as _HTTPException
+    log = (await db.execute(
+        select(HealthLog).where(HealthLog.user_id == user_id, HealthLog.id == log_id)
+    )).scalar_one_or_none()
+    if not log:
+        raise _HTTPException(status_code=404, detail="Log not found")
+    return log
+
+
+@router.patch("/logs/{log_id}")
+async def update_log(log_id: str, body: HealthLogUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    log = await _owned_log(db, log_id, current_user.id)
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(log, field, value)
+    db.add(log)
+    await db.commit()
+    await db.refresh(log)
+    return log
+
+
+@router.delete("/logs/{log_id}")
+async def delete_log(log_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
+    log = await _owned_log(db, log_id, current_user.id)
+    await db.delete(log)
+    await db.commit()
+    return {"status": "deleted"}
+
+
 @router.get("/streak")
 async def gym_streak(current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(
@@ -363,6 +402,30 @@ async def create_habit(body: HabitCreate, current_user=Depends(get_current_user)
     return habit
 
 
+class HabitUpdate(BaseModel):
+    name: Optional[str] = None
+    icon: Optional[str] = None
+
+
+@router.patch("/habits/{habit_id}")
+async def update_habit(habit_id: _uuid.UUID, body: HabitUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    habit = (await db.execute(select(Habit).where(Habit.user_id == current_user.id, Habit.id == habit_id))).scalar_one_or_none()
+    if not habit:
+        raise HTTPException(status_code=404, detail="Habit not found")
+    payload = body.model_dump(exclude_unset=True)
+    if "name" in payload:
+        name = (payload["name"] or "").strip()
+        if not name:
+            raise HTTPException(status_code=422, detail="Name is required")
+        habit.name = name
+    if "icon" in payload:
+        habit.icon = payload["icon"]
+    db.add(habit)
+    await db.commit()
+    await db.refresh(habit)
+    return habit
+
+
 @router.delete("/habits/{habit_id}")
 async def delete_habit(habit_id: _uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
     habit = (await db.execute(select(Habit).where(Habit.user_id == current_user.id, Habit.id == habit_id))).scalar_one_or_none()
@@ -503,6 +566,80 @@ async def create_workout(body: WorkoutCreate, current_user=Depends(get_current_u
     return {"id": str(session_row.id), "new_prs": new_prs}
 
 
+class WorkoutUpdate(BaseModel):
+    name: Optional[str] = None
+    logged_at: NaiveDateTime = None
+    notes: Optional[str] = None
+    routine_id: Optional[_uuid.UUID] = None
+    # Sets are replaced wholesale when present. A session's sets are one
+    # editable unit (you re-read the whole session to correct it), and
+    # per-set PATCH would need stable set ids the UI never had.
+    sets: Optional[list[WorkoutSetIn]] = None
+
+
+@router.patch("/workouts/{workout_id}")
+async def update_workout(workout_id: _uuid.UUID, body: WorkoutUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    session_row = (await db.execute(select(WorkoutSession).where(WorkoutSession.user_id == current_user.id, WorkoutSession.id == workout_id))).scalar_one_or_none()
+    if not session_row:
+        raise HTTPException(status_code=404, detail="Workout not found")
+
+    payload = body.model_dump(exclude_unset=True)
+    old_logged_at = session_row.logged_at
+
+    if "routine_id" in payload and payload["routine_id"] is not None:
+        from app.models.health import WorkoutRoutine as _Routine
+        owned = (await db.execute(
+            select(_Routine).where(_Routine.user_id == current_user.id).where(_Routine.id == payload["routine_id"])
+        )).scalars().first()
+        if not owned:
+            raise HTTPException(status_code=404, detail="Routine not found")
+
+    if "name" in payload:
+        session_row.name = (payload["name"] or "").strip() or "Workout"
+    if "notes" in payload:
+        session_row.notes = payload["notes"]
+    if "logged_at" in payload and payload["logged_at"]:
+        session_row.logged_at = payload["logged_at"]
+    if "routine_id" in payload:
+        session_row.routine_id = payload["routine_id"]
+
+    if body.sets is not None:
+        if not body.sets:
+            raise HTTPException(status_code=422, detail="At least one set required")
+        for s in (await db.execute(select(WorkoutSet).where(WorkoutSet.session_id == workout_id))).scalars().all():
+            await db.delete(s)
+        await db.flush()
+        counters: dict = {}
+        for s in body.sets:
+            ex = s.exercise.strip()
+            if not ex or s.reps <= 0:
+                continue
+            counters[ex] = counters.get(ex, 0) + 1
+            db.add(WorkoutSet(user_id=current_user.id, session_id=workout_id, exercise=ex, set_number=counters[ex], reps=s.reps, weight_kg=s.weight_kg))
+
+    # The paired `gym` health log is what feeds the streak. Creation writes it
+    # with the session's exact `logged_at`, so that is how it is found again —
+    # without this, moving a session to another day leaves the streak on the
+    # old one.
+    paired = (await db.execute(
+        select(HealthLog).where(
+            HealthLog.user_id == current_user.id,
+            HealthLog.entry_type == "gym",
+            HealthLog.logged_at == old_logged_at,
+        )
+    )).scalars().first()
+    if paired:
+        paired.logged_at = session_row.logged_at
+        set_count = len(body.sets) if body.sets is not None else None
+        if set_count is not None:
+            paired.notes = f"{session_row.name} — {set_count} sets"
+        db.add(paired)
+
+    await db.commit()
+    await db.refresh(session_row)
+    return session_row
+
+
 @router.delete("/workouts/{workout_id}")
 async def delete_workout(workout_id: _uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
     session_row = (await db.execute(select(WorkoutSession).where(WorkoutSession.user_id == current_user.id, WorkoutSession.id == workout_id))).scalar_one_or_none()
@@ -510,6 +647,17 @@ async def delete_workout(workout_id: _uuid.UUID, current_user=Depends(get_curren
         raise HTTPException(status_code=404, detail="Workout not found")
     for s in (await db.execute(select(WorkoutSet).where(WorkoutSet.session_id == workout_id))).scalars().all():
         await db.delete(s)
+    # Same pairing as the PATCH above: without this the session disappears but
+    # the `gym` log it wrote keeps the day counted in the streak.
+    paired = (await db.execute(
+        select(HealthLog).where(
+            HealthLog.user_id == current_user.id,
+            HealthLog.entry_type == "gym",
+            HealthLog.logged_at == session_row.logged_at,
+        )
+    )).scalars().first()
+    if paired:
+        await db.delete(paired)
     await db.delete(session_row)
     await db.commit()
     return {"status": "deleted"}
@@ -596,6 +744,52 @@ async def create_food(body: FoodCreate, current_user=Depends(get_current_user), 
         serving_desc=body.serving_desc, serving_grams=body.serving_grams,
         is_custom=True,
     )
+    db.add(food)
+    await db.commit()
+    await db.refresh(food)
+    return food
+
+
+class FoodUpdate(BaseModel):
+    name: Optional[str] = None
+    calories: Optional[float] = None
+    protein: Optional[float] = None
+    carbs: Optional[float] = None
+    fat: Optional[float] = None
+    serving_desc: Optional[str] = None
+    serving_grams: Optional[float] = None
+
+
+@router.patch("/foods/{food_id}")
+async def update_food(food_id: str, body: FoodUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
+    food = (await db.execute(
+        select(FoodItem).where(FoodItem.user_id == current_user.id).where(FoodItem.id == food_id)
+    )).scalars().first()
+    if not food:
+        raise HTTPException(status_code=404, detail="Food not found")
+
+    payload = body.model_dump(exclude_unset=True)
+    if "name" in payload:
+        name = (payload["name"] or "").strip()
+        if not name:
+            raise HTTPException(status_code=422, detail="Name is required")
+        # `(user_id, name)` is unique — catch it here rather than as a 500.
+        dupe = (await db.execute(
+            select(FoodItem)
+            .where(FoodItem.user_id == current_user.id)
+            .where(FoodItem.name.ilike(name))
+            .where(FoodItem.id != food.id)
+        )).scalars().first()
+        if dupe:
+            raise HTTPException(status_code=409, detail=f"'{name}' is already in your food list")
+        payload["name"] = name
+    if "calories" in payload and payload["calories"] is not None and payload["calories"] < 0:
+        raise HTTPException(status_code=422, detail="Calories cannot be negative")
+
+    for field, value in payload.items():
+        setattr(food, field, value)
+    # An edited base food is the user's own now, not the shipped catalogue row.
+    food.is_custom = True
     db.add(food)
     await db.commit()
     await db.refresh(food)

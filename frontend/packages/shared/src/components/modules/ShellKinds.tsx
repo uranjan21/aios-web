@@ -698,18 +698,29 @@ const DayHead = styled.div<{ $rule: string }>`
   border-bottom: 2px solid ${({ $rule }) => $rule};
 `
 
-const Block = styled.div<{ $bg: string; $color: string }>`
+const Block = styled.div<{ $bg: string; $color: string; $interactive?: boolean }>`
   border-radius: ${({ theme }) => theme.radii.xs};
   padding: 7px ${({ theme }) => theme.spacing[2]};
   background: ${({ $bg }) => $bg};
   border-left: 2px solid ${({ $color }) => $color};
   transition: transform 150ms;
+  /* Resets for the button form a page opts into via onBlockClick. */
+  display: block;
+  width: 100%;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: ${({ $interactive }) => ($interactive ? 'pointer' : 'default')};
 
   &:hover { transform: translateX(2px); }
 `
 
 export function WeekKind({ m }: { m: WeekModule }) {
   const c = useModulePalette()
+  const { onBlockClick } = m
   return (
     <WeekGrid>
       {m.days.map((d, i) => (
@@ -722,12 +733,23 @@ export function WeekKind({ m }: { m: WeekModule }) {
               {d.date}
             </span>
           </DayHead>
-          {(d.blocks ?? []).map((b, j) => (
-            <Block key={j} $bg={c.alpha(b.colorKey, 0.1)} $color={c(b.colorKey)}>
-              <div style={{ fontSize: 9.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: c(b.colorKey) }}>{b.time}</div>
-              <div style={{ fontSize: 11.5, fontWeight: 600, marginTop: 2, lineHeight: 1.32 }}>{b.title}</div>
-            </Block>
-          ))}
+          {(d.blocks ?? []).map((b, j) => {
+            const clickable = !!(onBlockClick && b.id)
+            return (
+              <Block
+                key={j}
+                as={clickable ? 'button' : 'div'}
+                type={clickable ? 'button' : undefined}
+                $interactive={clickable}
+                onClick={clickable ? () => onBlockClick!(b.id!) : undefined}
+                $bg={c.alpha(b.colorKey, 0.1)}
+                $color={c(b.colorKey)}
+              >
+                <div style={{ fontSize: 9.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: c(b.colorKey) }}>{b.time}</div>
+                <div style={{ fontSize: 11.5, fontWeight: 600, marginTop: 2, lineHeight: 1.32 }}>{b.title}</div>
+              </Block>
+            )
+          })}
         </div>
       ))}
     </WeekGrid>

@@ -1,6 +1,7 @@
 import { useId, useRef } from 'react';
 import type { ReactNode } from 'react';
 import styled, { keyframes, css } from 'styled-components';
+import { textRole } from '../../theme/mixins';
 import { Portal } from '../../utils/Portal';
 import { useFocusTrap, useScrollLock, useEscapeKey } from '../../utils/hooks';
 
@@ -40,14 +41,23 @@ const popIn = keyframes`
   to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 `;
 
+/*
+ * The scrim was hardcoded per mode, and in LIGHT mode it was
+ * rgba(255,255,255,0.3) — a WHITE wash over a near-white page, so a white
+ * dialog had nothing to sit against and the modal read as part of the page.
+ * `color.overlay` is the per-palette token every other overlay already used
+ * (Sheet, CommandPalette). saturate(180%) went with it: it re-saturated
+ * whatever showed through and fought the muted palettes, the same reason it
+ * was removed from Popover and Select. (2026-08-06)
+ */
 const Overlay = styled.div`
   position: fixed;
   inset: 0;
   z-index: ${({ theme }) => theme.zIndex.overlay};
-  background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.3)'};
+  background: ${({ theme }) => theme.color.overlay};
   animation: ${fadeIn} ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.enter};
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  backdrop-filter: ${({ theme }) => theme.glass.thin};
+  -webkit-backdrop-filter: ${({ theme }) => theme.glass.thin};
 `;
 
 const Surface = styled.div<{ $size: DialogSize }>`
@@ -61,12 +71,18 @@ const Surface = styled.div<{ $size: DialogSize }>`
   max-height: 88vh;
   display: flex;
   flex-direction: column;
-  background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(20, 24, 34, 0.85)' : 'rgba(255, 255, 255, 0.85)'};
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  /*
+   * Was a hardcoded rgba(20, 24, 34, .85) in dark — a BLUE-grey on a palette
+   * system whose dark surfaces are warm, ignoring the active palette
+   * entirely. Identical bug to the one fixed in Popover and Select; every
+   * floating overlay surface now reads the same glass tokens. (2026-08-06)
+   */
+  background: ${({ theme }) => theme.glass.background};
+  backdrop-filter: ${({ theme }) => theme.glass.thick};
+  -webkit-backdrop-filter: ${({ theme }) => theme.glass.thick};
   color: ${({ theme }) => theme.color.cardForeground};
   border-radius: ${({ theme }) => theme.radii.xl};
-  border: 1px solid ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : theme.color.border};
+  border: 1px solid ${({ theme }) => theme.mode === 'dark' ? theme.glass.borderStrong : theme.color.border};
   box-shadow: ${({ theme }) => theme.elevation[4]};
   outline: none;
   overflow: hidden;
@@ -104,31 +120,34 @@ const HeaderText = styled.div`
 
 
 
+/* Was a hand-rolled size/weight/line-height triple; `title-s` is the same
+   role Sheet's title already uses, so the two modal surfaces now match. */
 const Title = styled.h2`
-  font-family: ${({ theme }) => theme.typography.fontFamily.sans};
-  font-size: ${({ theme }) => theme.typography.fontSize.lg};
-  font-weight: 600;
-  line-height: 1.3;
+  ${textRole('title-s')}
   color: ${({ theme }) => theme.color.foreground};
   margin: 0;
 `;
 
+/* Was fontSize.sm (11px) — the `label` size, two steps under Sheet's
+   description. Both are body copy under a modal title; both are base now. */
 const Description = styled.p`
   margin: ${({ theme }) => `${theme.spacing[1]} 0 0`};
   color: ${({ theme }) => theme.color.mutedForeground};
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
+  font-size: ${({ theme }) => theme.typography.fontSize.base};
   line-height: 1.5;
 `;
 
+/* 28px and offset by raw 12px; Sheet's identical control was 32px at
+   spacing[3]. Same control, same size — 32px, the toolbar height contract. */
 const CloseButton = styled.button`
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: ${({ theme }) => theme.spacing[3]};
+  right: ${({ theme }) => theme.spacing[3]};
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: ${({ theme }) => theme.radii.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   background: transparent;
@@ -145,7 +164,7 @@ const CloseButton = styled.button`
     outline: 2px solid ${({ theme }) => theme.color.ring};
     outline-offset: 2px;
   }
-  & svg { width: 14px; height: 14px; }
+  & svg { width: 16px; height: 16px; }
 `;
 
 /* ── Stepper ──────────────────────────────────────────────────────── */
@@ -299,11 +318,7 @@ export function Dialog({
           </Header>
         )}
         {!hasHeader && !hideCloseButton && (
-          <CloseButton
-            onClick={() => onOpenChange(false)}
-            aria-label="Close dialog"
-            style={{ position: 'absolute', top: 12, right: 12 }}
-          >
+          <CloseButton onClick={() => onOpenChange(false)} aria-label="Close dialog">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
@@ -315,13 +330,26 @@ export function Dialog({
   );
 }
 
+/*
+ * The footer bleeds out of `Body`'s padding to sit flush against the dialog
+ * edges. Those negative margins were hardcoded 20px, which silently depended
+ * on `Body`'s padding being spacing[5] — change one and the footer inset or
+ * overhung. Both now read the same token.
+ *
+ * The fill is `color.card`, deliberately opaque: the footer holds the commit
+ * action and must not have page content blurring through it the way the
+ * glass Surface does.
+ */
 export const DialogFooter = styled.div`
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: ${({ theme }) => `${theme.spacing[3]}`};
   padding: ${({ theme }) => `${theme.spacing[4]} ${theme.spacing[5]}`};
-  margin: 20px -20px -20px -20px;
+  margin: ${({ theme }) => {
+    const p = theme.spacing[5];
+    return `${p} -${p} -${p} -${p}`;
+  }};
   border-top: 1px solid ${({ theme }) => theme.color.border};
   background: ${({ theme }) => theme.color.card};
 `;

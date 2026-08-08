@@ -16,7 +16,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
-import { Activity, CheckSquare, Dumbbell, Plus, Trash2 } from 'lucide-react'
+import { Activity, CheckSquare, Dumbbell, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button, Card, Dialog, EmptyState, Input, SkeletonPage } from '@ledgr/ui'
 import { healthApi, type WorkoutRoutine } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
@@ -85,6 +85,10 @@ export function WorkoutsSection() {
   const [logOpen, setLogOpen] = useState(false)
   const [name, setName] = useState('')
   const [sets, setSets] = useState<SetRow[]>([{ ...EMPTY_SET }])
+  /* Non-null puts the log dialog into edit mode. A session was correctable
+     only by deleting and re-logging it until 2026-08-06. */
+  const [editingSession, setEditingSession] = useState<WorkoutSessionItem | null>(null)
+  const [loggedOn, setLoggedOn] = useState('')
   const [detail, setDetail] = useState<WorkoutSessionItem | null>(null)
   const [routineOpen, setRoutineOpen] = useState(false)
   const [editingRoutine, setEditingRoutine] = useState<WorkoutRoutine | null>(null)
@@ -119,13 +123,7 @@ export function WorkoutsSection() {
   const create = useMutation({
     mutationFn: () => healthApi.createWorkout({
       name: name.trim() || 'Workout',
-      sets: sets
-        .filter(r => r.exercise.trim() && Number(r.reps) > 0)
-        .map(r => ({
-          exercise: r.exercise.trim(),
-          reps: Number(r.reps),
-          ...(r.weight_kg ? { weight_kg: Number(r.weight_kg) } : {}),
-        })),
+      sets: cleanSets(),
     }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['health'] })
@@ -135,11 +133,67 @@ export function WorkoutsSection() {
       } else {
         toast.success('Workout logged')
       }
-      setLogOpen(false)
-      setName('')
-      setSets([{ ...EMPTY_SET }])
+      closeLog()
     },
     onError: () => toast.error('Failed to log workout'),
+  })
+
+  const cleanSets = () =>
+    sets
+      .filter(r => r.exercise.trim() && Number(r.reps) > 0)
+      .map(r => ({
+        exercise: r.exercise.trim(),
+        reps: Number(r.reps),
+        ...(r.weight_kg ? { weight_kg: Number(r.weight_kg) } : {}),
+      }))
+
+  const closeLog = () => {
+    setLogOpen(false)
+    setEditingSession(null)
+    setName('')
+    setLoggedOn('')
+    setSets([{ ...EMPTY_SET }])
+  }
+
+  const openLog = () => {
+    setEditingSession(null)
+    setName('')
+    setLoggedOn('')
+    setSets([{ ...EMPTY_SET }])
+    setLogOpen(true)
+  }
+
+  const openEditSession = (s: WorkoutSessionItem) => {
+    setEditingSession(s)
+    setName(s.name)
+    setLoggedOn(dayjs(s.logged_at).format('YYYY-MM-DD'))
+    setSets(
+      s.sets.length
+        ? s.sets.map(x => ({
+            exercise: x.exercise,
+            reps: String(x.reps),
+            weight_kg: x.weight_kg != null ? String(x.weight_kg) : '',
+          }))
+        : [{ ...EMPTY_SET }],
+    )
+    setDetail(null)
+    setLogOpen(true)
+  }
+
+  const update = useMutation({
+    mutationFn: () =>
+      healthApi.patchWorkout(editingSession!.id, {
+        name: name.trim() || 'Workout',
+        // Naive local, never toISOString() — see the finance datetime rule.
+        logged_at: `${loggedOn}T${dayjs(editingSession!.logged_at).format('HH:mm:ss')}`,
+        sets: cleanSets(),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['health'] })
+      closeLog()
+      toast.success('Session updated')
+    },
+    onError: () => toast.error('Failed to update session'),
   })
 
   const remove = useMutation({
@@ -289,7 +343,7 @@ export function WorkoutsSection() {
         subtitle: 'Latest sessions with volume and best sets · click a row for detail',
         icon: Activity,
         action: 'Log workout',
-        onAction: () => setLogOpen(true),
+        onAction: openLog,
         gridCols: '1fr 1.6fr 1fr 0.9fr 1.1fr',
         cols: [
           { l: 'Date' },
@@ -332,7 +386,7 @@ export function WorkoutsSection() {
                 <Button size="sm" variant="primary" onClick={() => { setEditingRoutine(null); setRoutineOpen(true) }}>
                   New routine
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => setLogOpen(true)}>Log a workout</Button>
+                <Button size="sm" variant="outline" onClick={openLog}>Log a workout</Button>
               </EmptyActions>
             }
           />
@@ -349,11 +403,13 @@ export function WorkoutsSection() {
 
       <Dialog
         open={logOpen}
-        onOpenChange={(o) => !o && setLogOpen(false)}
+        onOpenChange={(o) => !o && closeLog()}
         icon={<Activity size={18} />}
         eyebrow="Health"
-        title="Log a workout"
-        description="Name the session, then add the sets you did."
+        title={editingSession ? 'Edit session' : 'Log a workout'}
+        description={editingSession
+          ? 'Saving replaces the session’s sets with what is listed here.'
+          : 'Name the session, then add the sets you did.'}
         size="md"
       >
         <Form>
@@ -361,6 +417,16 @@ export function WorkoutsSection() {
             <Label>Session name</Label>
             <Input value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Push day" autoFocus />
           </div>
+
+          {/* Editing only: a new session is logged as of now, but a mis-dated
+              one has to be movable — the server re-points the paired gym log
+              so the streak follows. */}
+          {editingSession && (
+            <div>
+              <Label>Date</Label>
+              <Input type="date" value={loggedOn} onChange={(e: any) => setLoggedOn(e.target.value)} />
+            </div>
+          )}
 
           {sets.map((r, i) => (
             <SetRowGrid key={i}>
@@ -412,13 +478,13 @@ export function WorkoutsSection() {
           <Actions>
             <Button
               variant="primary"
-              loading={create.isPending}
+              loading={create.isPending || update.isPending}
               disabled={!sets.some(r => r.exercise.trim() && Number(r.reps) > 0)}
-              onClick={() => create.mutate()}
+              onClick={() => (editingSession ? update.mutate() : create.mutate())}
             >
-              Save workout
+              {editingSession ? 'Save changes' : 'Save workout'}
             </Button>
-            <Button variant="ghost" onClick={() => setLogOpen(false)}>Cancel</Button>
+            <Button variant="ghost" onClick={closeLog}>Cancel</Button>
           </Actions>
         </Form>
       </Dialog>
@@ -443,6 +509,13 @@ export function WorkoutsSection() {
           <Actions>
             <Button variant="ghost" onClick={() => setDetail(null)}>Close</Button>
             <Spacer />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => detail && openEditSession(detail)}
+            >
+              <Pencil size={14} style={{ marginRight: 4 }} /> Edit
+            </Button>
             <Button
               variant="destructive"
               size="sm"

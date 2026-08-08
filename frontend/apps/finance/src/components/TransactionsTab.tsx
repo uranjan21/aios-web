@@ -7,6 +7,7 @@ import {
   SegmentedControl, Button, Dialog, Input, ConfirmDialog, Checkbox,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
   Card as GlassCard, AreaToolbar, ToolbarIconBtn, DateNav, DateNavBtn, DateNavLabel,
+  SkeletonKpiRow, SkeletonTable,
 } from '@ledgr/ui'
 import { toast } from 'sonner'
 import {
@@ -26,7 +27,7 @@ import { FilterModal } from './transactions/FilterModal'
 import { TransactionModal } from './transactions/TransactionModal'
 import {
   StyledSkeleton, DesktopSearch, MobileSearchBtn, CardActions,
-  ListHeaderRoot, ListHeaderLabel, ListHeaderSpacer, BulkBtnRow, SortBtn,
+  ListHeaderRoot, ListHeaderLabel, ListHeaderSpacer, BulkBtnRow, SortBtn, PageStack,
 } from './transactions/TransactionsTab.styles'
 
 // Re-export public API consumed by AccountManager and other importers
@@ -369,11 +370,15 @@ export function TransactionsTab() {
     </AreaToolbar>
   )
 
+  /* Two bare grey bars matched nothing on this page, so the real content
+   * visibly jumped in over them. This traces what actually arrives: the
+   * three-KPI row, then the 5-column DATE/MERCHANT/CATEGORY/ACCOUNT/AMOUNT
+   * table — same column count and the same PageStack gap. */
   if (isLoading) return (
-    <div style={{ padding: '16px' }}>
-      <StyledSkeleton $height="2.5rem" $margin="0 0 12px 0" />
-      <StyledSkeleton $height="16rem" />
-    </div>
+    <PageStack>
+      <SkeletonKpiRow count={3} />
+      <SkeletonTable rows={8} columns={5} />
+    </PageStack>
   )
 
   // ── Build body per view ─────────────────────────────────────────────────────
@@ -493,14 +498,17 @@ export function TransactionsTab() {
 
   return (
     <>
-      <GlassCard
+      <PageStack>
+        {/* Tiles lead the page, outside the card — the summary of what the
+            card below is showing, not a band wedged into its toolbar. */}
+        {summaryElement}
+        <GlassCard
           title="All Transactions"
           subtitle="Every income, expense and transfer"
           icon={<ArrowLeftRight size={16} />}
           action={cardActions}
         >
           {toolbar}
-          {summaryElement}
           {view === 'Calendar' && (
             <div style={{ marginBottom: 12 }}>
               <TransactionCalendar
@@ -551,6 +559,7 @@ export function TransactionsTab() {
             )}
           </div>
         </GlassCard>
+      </PageStack>
 
       <TransactionModal open={modalOpen} onClose={closeModal} editing={editing} initialKind={quickKind} />
       <ImportCsvModal open={importOpen} onClose={() => setImportOpen(false)} />

@@ -11,24 +11,34 @@ import styled from 'styled-components'
 import { TOPBAR_HEIGHT } from '@ct/shared/theme/layout'
 
 
+/*
+ * Redesigned 2026-08-06 (soft-colour pass). What changed and why:
+ *
+ *  - Every colour was a hardcoded `rgba(0,0,0,0.04)` / `rgba(255,255,255,0.08)`
+ *    literal, so the header was the one piece of chrome that did NOT repaint
+ *    when the user switched palette. It is on `theme.chrome.*` now — the token
+ *    group that exists for exactly this surface — so it follows the palette.
+ *  - `saturate(180%)` is the opposite of a soft palette: it re-saturated the
+ *    muted colours behind it on the way through the blur. Gone. The blur stays
+ *    (it is what makes content feel like it passes *under* the bar) at a
+ *    gentler radius, with no saturation boost.
+ *  - The two-stop gradient + `elevation[1]` drop shadow stacked two separators
+ *    over one edge. A single hairline does the job; the bar reads as a quiet
+ *    edge rather than a floating panel.
+ */
 const HeaderRoot = styled.header`
   position: relative;
   height: ${TOPBAR_HEIGHT};
   flex-shrink: 0;
   z-index: 30;
-  border-bottom: 1px solid ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)'};
-  background: ${({ theme }) =>
-    theme.mode === 'dark'
-      ? 'linear-gradient(180deg, rgba(15, 17, 23, 0.85) 0%, rgba(15, 17, 23, 0.75) 100%)'
-      : 'linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%)'};
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid ${({ theme }) => theme.chrome.border};
+  background: ${({ theme }) => theme.chrome.bg};
+  backdrop-filter: ${({ theme }) => theme.glass.regular};
+  -webkit-backdrop-filter: ${({ theme }) => theme.glass.regular};
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing[4]};
   padding: 0 ${({ theme }) => theme.spacing[5]};
-  box-shadow: ${({ theme }) => theme.elevation[1]};
 `
 
 const LeftSide = styled.div`
@@ -42,12 +52,11 @@ const Hamburger = styled.button`
   margin-left: -${({ theme }) => theme.spacing[2]};
   background: transparent;
   border: none;
-  color: ${({ theme }) => theme.color.foreground};
+  color: ${({ theme }) => theme.chrome.fg};
   cursor: pointer;
   border-radius: ${({ theme }) => theme.radii.sm};
 
-  &:hover { background: ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'}; }
+  &:hover { background: ${({ theme }) => theme.chrome.hoverBg}; }
 
   @media ${({ theme }) => theme.media.md} {
     display: none;
@@ -87,64 +96,66 @@ const Crumbs = styled.nav`
     font-weight: 500;
     cursor: pointer;
 
-    &:hover { color: ${({ theme }) => theme.color.foreground}; }
+    &:hover { color: ${({ theme }) => theme.chrome.fg}; }
 
-    /* The current page is not a link — it is where you already are. */
+    /* The current page is not a link — it is where you already are. It carries
+       the weight instead of a colour shout: 600, not 700, on the soft pass. */
     &.last {
-      color: ${({ theme }) => theme.color.foreground};
+      color: ${({ theme }) => theme.chrome.fg};
       font-size: ${({ theme }) => theme.typography.role['body-l'].size};
-      font-weight: 700;
+      font-weight: 600;
       cursor: default;
     }
   }
 `
 
+/** Every header control shares one height so the bar reads as a single row. */
+const CTL_HEIGHT = '32px'
+
 const HomeButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: ${CTL_HEIGHT};
+  height: ${CTL_HEIGHT};
   flex-shrink: 0;
   border-radius: ${({ theme }) => theme.radii.sm};
-  border: 1px solid ${({ theme }) => theme.glass.border};
-  background: ${({ theme }) => theme.glass.ctl};
+  border: 1px solid transparent;
+  background: transparent;
   color: ${({ theme }) => theme.color.mutedForeground};
   cursor: pointer;
   transition: background 150ms, color 150ms, border-color 150ms;
 
+  /* Was a filled glass chip that hovered to a full accent outline — the
+     loudest control in the bar, for "go home". Quiet by default now. */
   &:hover {
-    background: ${({ theme }) => theme.accent.soft};
-    border-color: ${({ theme }) => theme.color.accent};
-    color: ${({ theme }) => theme.color.accent};
+    background: ${({ theme }) => theme.chrome.hoverBg};
+    border-color: ${({ theme }) => theme.chrome.border};
+    color: ${({ theme }) => theme.chrome.fg};
   }
 
   svg { width: 16px; height: 16px; }
 `
 
 const GlobalSearchContainer = styled.button`
-  max-width: 220px;
-  width: 220px;
-  height: 34px;
+  max-width: 240px;
+  width: 240px;
+  height: ${CTL_HEIGHT};
   display: flex;
   align-items: center;
   padding: 0 ${({ theme }) => theme.spacing[3]};
   gap: ${({ theme }) => theme.spacing[2]};
   border-radius: ${({ theme }) => theme.radii.md};
-  background: ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)'};
-  border: 1px solid ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.07)'};
+  background: ${({ theme }) => theme.chrome.ctl};
+  border: 1px solid ${({ theme }) => theme.chrome.border};
   color: ${({ theme }) => theme.color.mutedForeground};
   cursor: pointer;
-  transition: border-color 150ms ease, background 150ms ease;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
 
   &:hover {
-    background: ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'};
-    border-color: ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.12)'};
-    color: ${({ theme }) => theme.color.foreground};
+    background: ${({ theme }) => theme.chrome.ctlHover};
+    border-color: ${({ theme }) => theme.chrome.borderStrong};
+    color: ${({ theme }) => theme.chrome.fg};
   }
 
   @media ${({ theme }) => theme.media.belowSm} {
@@ -152,14 +163,14 @@ const GlobalSearchContainer = styled.button`
   }
 
   .icon-search {
-    width: 13px;
-    height: 13px;
+    width: 14px;
+    height: 14px;
     flex-shrink: 0;
-    opacity: 0.6;
+    opacity: 0.7;
   }
 
   .placeholder {
-    font-size: 13px;
+    font-size: ${({ theme }) => theme.typography.role['body-s'].size};
     font-weight: 400;
     flex: 1;
     text-align: left;
@@ -173,11 +184,9 @@ const GlobalSearchContainer = styled.button`
     font-weight: 500;
     padding: 1px 5px;
     border-radius: ${({ theme }) => theme.radii.sm};
-    background: ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'};
+    background: ${({ theme }) => theme.chrome.hoverBg};
     color: ${({ theme }) => theme.color.mutedForeground};
-    border: 1px solid ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'};
+    border: 1px solid ${({ theme }) => theme.chrome.border};
     letter-spacing: 0;
     flex-shrink: 0;
   }
@@ -190,12 +199,25 @@ const RightCluster = styled.div`
   gap: ${({ theme }) => theme.spacing[2]};
 `
 
+/** Hairline between the two right-hand groups: what you invoke | who you are. */
+const Divider = styled.span`
+  width: 1px;
+  height: 18px;
+  flex-shrink: 0;
+  background: ${({ theme }) => theme.chrome.border};
+  margin: 0 ${({ theme }) => theme.spacing[1]};
+
+  @media ${({ theme }) => theme.media.belowSm} {
+    display: none;
+  }
+`
+
 const IconButton = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: ${CTL_HEIGHT};
+  height: ${CTL_HEIGHT};
   border-radius: ${({ theme }) => theme.radii.sm};
   background: transparent;
   border: 1px solid transparent;
@@ -204,11 +226,9 @@ const IconButton = styled.button`
   transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
 
   &:hover {
-    background: ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)'};
-    color: ${({ theme }) => theme.color.foreground};
-    border-color: ${({ theme }) =>
-      theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.07)'};
+    background: ${({ theme }) => theme.chrome.hoverBg};
+    color: ${({ theme }) => theme.chrome.fg};
+    border-color: ${({ theme }) => theme.chrome.border};
   }
 
   svg {
@@ -221,37 +241,54 @@ const AvatarButton = styled(IconButton)`
   border-radius: 50%;
   overflow: hidden;
   padding: 0;
-  border-color: ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)'};
+  border-color: ${({ theme }) => theme.chrome.border};
 
   &:hover {
-    border-color: ${({ theme }) => theme.color.accent}66;
+    border-color: ${({ theme }) => theme.chrome.borderStrong};
   }
 `
 
+/*
+ * "Ask AI" is the one control in the bar that should read as an invitation, so
+ * it keeps a fill while everything else went transparent — but a soft accent
+ * WASH (`theme.accent.soft`), not the `accent + hex-alpha` string concat this
+ * used before. That concat assumed `color.accent` was always a 6-digit hex;
+ * it also produced a saturated chip that fought the muted palette.
+ */
 const AssistantButton = styled.button`
   display: inline-flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing[1.5]};
-  padding: 0 ${({ theme }) => theme.spacing[3.5]};
-  height: 34px;
+  padding: 0 ${({ theme }) => theme.spacing[3]};
+  height: ${CTL_HEIGHT};
   border-radius: ${({ theme }) => theme.radii.md};
-  background: ${({ theme }) => theme.color.accent}18;
-  border: 1px solid ${({ theme }) => theme.color.accent}30;
+  background: ${({ theme }) => theme.accent.soft};
+  border: 1px solid ${({ theme }) => theme.accent.ring};
   color: ${({ theme }) => theme.color.accent};
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.role['body-s'].size};
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
   transition: background 150ms ease, border-color 150ms ease;
 
   &:hover {
-    background: ${({ theme }) => theme.color.accent}28;
-    border-color: ${({ theme }) => theme.color.accent}50;
+    background: ${({ theme }) => theme.accent.ring};
+    border-color: ${({ theme }) => theme.color.accent};
   }
 
   svg {
-    width: 13px;
-    height: 13px;
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Below sm the label drops and it becomes an icon square — the assistant is
+     the last thing that should fall off a narrow header. */
+  @media ${({ theme }) => theme.media.belowSm} {
+    width: ${CTL_HEIGHT};
+    padding: 0;
+    justify-content: center;
+
+    .label { display: none; }
   }
 `
 
@@ -320,10 +357,12 @@ export function TopBar() {
           <kbd className="shortcut-badge">⌘K</kbd>
         </GlobalSearchContainer>
 
-        <AssistantButton onClick={toggleAssistant} title="Open AI Assistant (⌘J)">
+        <AssistantButton onClick={toggleAssistant} aria-label="Ask AI" title="Ask AI (⌘J)">
           <Sparkles />
-          Ask AI
+          <span className="label">Ask AI</span>
         </AssistantButton>
+
+        <Divider aria-hidden="true" />
 
         <IconButton onClick={toggleTheme} aria-label="Toggle theme" title="Toggle theme">
           {theme === 'dark' ? <Sun /> : <Moon />}

@@ -145,3 +145,108 @@ async def test_statement_reconciler_drops_ledger_matched_lines(app, user_a, db_s
         assert len(txs) == 1
         assert txs[0].payee_name == "New Merchant"
         assert txs[0].amount == Decimal("123.45")
+
+
+# ── Approve-path guards (2026-08-06) ────────────────────────────────────────
+#
+# These cover the three ways approving used to lose or block real money. None
+# of them had coverage, which is how they survived.
+
+
+async def _seed_account(db_session_factory, user_id, balance="10000.00"):
+    async with db_session_factory() as db:
+        acct = Account(user_id=user_id, name="Bank", type=AccountType.SAVINGS,
+                       balance=Decimal(balance), currency="INR")
+        db.add(acct)
+        await db.commit()
+        await db.refresh(acct)
+        return acct
+
+
+async def _seed_pending(db_session_factory, user_id, amount, *, account_id=None,
+                        logged_at=datetime(2026, 7, 15, 9, 0, 0), payee="Coffee"):
+    async with db_session_factory() as db:
+        row = FinancePendingTransaction(
+            user_id=user_id, amount=Decimal(str(amount)), transaction_type="expense",
+            payee_name=payee, logged_at=logged_at, raw_email_snippet=f"Rs.{amount} debited",
+            status="pending", description=payee, account_id=account_id,
+        )
+        db.add(row)
+        await db.commit()
+        await db.refresh(row)
+        return row
+
+
+@pytest.mark.asyncio
+async def test_approve_requires_an_account(client_a, user_a, db_session_factory):
+    """Without an account the balance cannot move, so the row must not be filed
+    at all — otherwise money is spent from nowhere."""
+    pending = await _seed_pending(db_session_factory, user_a.id, 999, account_id=None)
+
+    resp = await client_a.post(f"/api/areas/finance/pending/{pending.id}/approve", json={})
+    assert resp.status_code == 422, resp.text
+
+    async with db_session_factory() as db:
+        assert (await db.execute(select(FinanceExpense).where(
+            FinanceExpense.user_id == user_a.id))).scalars().first() is None
+        row = await db.get(FinancePendingTransaction, pending.id)
+        assert row.status == "pending"
+
+
+@pytest.mark.asyncio
+async def test_same_day_same_amount_is_overridable_not_fatal(client_a, user_a, db_session_factory):
+    """Two genuine purchases of the same amount on one day collide in the
+    duplicate guard. The second must be filable, not forced into a dismissal."""
+    acct = await _seed_account(db_session_factory, user_a.id)
+    first = await _seed_pending(db_session_factory, user_a.id, 250, account_id=acct.id,
+                                payee="Coffee One")
+    second = await _seed_pending(db_session_factory, user_a.id, 250, account_id=acct.id,
+                                 logged_at=datetime(2026, 7, 15, 17, 0, 0), payee="Coffee Two")
+
+    assert (await client_a.post(
+        f"/api/areas/finance/pending/{first.id}/approve", json={})).status_code == 200
+
+    blocked = await client_a.post(f"/api/areas/finance/pending/{second.id}/approve", json={})
+    assert blocked.status_code == 409
+
+    forced = await client_a.post(
+        f"/api/areas/finance/pending/{second.id}/approve", json={"force": True})
+    assert forced.status_code == 200, forced.text
+
+    async with db_session_factory() as db:
+        rows = (await db.execute(select(FinanceExpense).where(
+            FinanceExpense.user_id == user_a.id))).scalars().all()
+        assert len(rows) == 2
+        # Both debits landed on the balance, not just the first.
+        assert (await db.get(Account, acct.id)).balance == Decimal("9500.00")
+
+
+@pytest.mark.asyncio
+async def test_auto_commit_defers_a_suspected_duplicate_instead_of_dismissing(
+    user_a, db_session_factory
+):
+    """The cron used to set status='dismissed' on a same-day/same-amount match,
+    destroying a real transaction with no way for the user to see it."""
+    from app.services.finance.pending import run_auto_commit_pending_transactions
+
+    acct = await _seed_account(db_session_factory, user_a.id)
+    async with db_session_factory() as db:
+        db.add(FinanceExpense(
+            user_id=user_a.id, amount=Decimal("250.00"),
+            logged_at=datetime(2026, 7, 15, 9, 0, 0), account_id=acct.id,
+            category="Food", description="Already there", source="manual"))
+        await db.commit()
+
+    pending = await _seed_pending(db_session_factory, user_a.id, 250, account_id=acct.id)
+    async with db_session_factory() as db:
+        row = await db.get(FinancePendingTransaction, pending.id)
+        row.auto_commit_at = datetime(2026, 7, 16, 9, 0, 0)  # deadline already passed
+        db.add(row)
+        await db.commit()
+
+    await run_auto_commit_pending_transactions(user_a.id)
+
+    async with db_session_factory() as db:
+        row = await db.get(FinancePendingTransaction, pending.id)
+        assert row.status == "pending", "a suspected duplicate must go back to the human"
+        assert row.auto_commit_at is None, "and must stop being a cron candidate"

@@ -229,13 +229,22 @@ export interface WeekModule extends Base {
     label: string
     date: string
     today?: boolean
-    blocks?: Array<{ time: string; title: string; colorKey?: ColorKey }>
+    /**
+     * A block is clickable only when it carries an `id` AND the page hands in
+     * `onBlockClick`. Keyed by id rather than index because a day can mix
+     * entities — the planner interleaves editable focus blocks with read-only
+     * calendar meetings, and a positional index would not tell them apart.
+     */
+    blocks?: Array<{ time: string; title: string; colorKey?: ColorKey; id?: string }>
   }>
+  onBlockClick?: (id: string) => void
 }
 
 export interface TimelineModule extends Base {
   kind: 'timeline'
   entries: Array<{ title: string; body?: string; date?: string; tagLabel?: string; colorKey?: ColorKey }>
+  /** Optional entry affordance — see `ProgressModule.onRowClick`. */
+  onEntryClick?: (index: number) => void
 }
 
 export type TableCell = string | {

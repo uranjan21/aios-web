@@ -85,11 +85,18 @@ const Surface = styled.div<{ $top: number; $left: number; $minWidth: number; $or
   min-width: ${({ $minWidth }) => `${$minWidth}px`};
   max-height: calc(100vh - 16px);
   overflow-y: auto;
-  background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(20, 24, 34, 0.85)' : 'rgba(255, 255, 255, 0.95)'};
-  backdrop-filter: blur(24px) saturate(190%);
-  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  /*
+   * Was a hardcoded rgba(20, 24, 34, .85) in dark — a BLUE-grey, on a palette
+   * system where the dark surfaces are warm. It ignored the active palette
+   * entirely. saturate(190%) went with it, which re-saturated whatever showed
+   * through the blur and fought the muted palettes. Both replaced with the
+   * glass tokens, which derive from the palette. (2026-08-06)
+   */
+  background: ${({ theme }) => theme.glass.background};
+  backdrop-filter: ${({ theme }) => theme.glass.thick};
+  -webkit-backdrop-filter: ${({ theme }) => theme.glass.thick};
   color: ${({ theme }) => theme.color.popoverForeground};
-  border: 1px solid ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : theme.color.border};
+  border: 1px solid ${({ theme }) => theme.mode === 'dark' ? theme.glass.borderStrong : theme.color.border};
   border-radius: ${({ theme }) => theme.radii.md};
   box-shadow: ${({ theme }) => theme.elevation[3]};
   padding: ${({ theme }) => theme.spacing[3]};

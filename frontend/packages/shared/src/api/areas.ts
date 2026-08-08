@@ -439,6 +439,11 @@ export interface MealPlanToday {
 export const healthApi = {
   logs: (entry_type?: string) =>
     api.get<{ items: HealthLog[]; next_cursor: string | null; has_more: boolean }>('/areas/health/logs', { params: { entry_type } }).then(r => r.data.items),
+  /* `entry_type` is not patchable — it decides which surface a row belongs to
+     and the column is CHECK-constrained. Retyping is delete + re-log. */
+  patchLog: (id: string, d: Partial<{ value: number; unit: string; notes: string; logged_at: string }>) =>
+    api.patch<HealthLog>(`/areas/health/logs/${id}`, d).then(r => r.data),
+  deleteLog: (id: string) => api.delete(`/areas/health/logs/${id}`).then(r => r.data),
   createLog: (data: { entry_type: string; value?: number; unit?: string; notes?: string; logged_at?: string }) =>
     api.post<HealthLog>('/areas/health/logs', data).then(r => r.data),
   streak: () => api.get<HealthStreak>('/areas/health/streak').then(r => r.data),
@@ -476,6 +481,8 @@ export const healthApi = {
     api.get<FoodDbItem[]>('/areas/health/foods', { params: { q, limit } }).then(r => r.data),
   createFood: (d: { name: string; calories: number; protein?: number; carbs?: number; fat?: number; serving_desc?: string | null; serving_grams?: number | null }) =>
     api.post<FoodDbItem>('/areas/health/foods', d).then(r => r.data),
+  patchFood: (id: string, d: Partial<{ name: string; calories: number; protein: number; carbs: number; fat: number; serving_desc: string | null; serving_grams: number | null }>) =>
+    api.patch<FoodDbItem>(`/areas/health/foods/${id}`, d).then(r => r.data),
   deleteFood: (id: string) => api.delete(`/areas/health/foods/${id}`).then(r => r.data),
   /* Routines are the PLAN; a WorkoutSession is the record. Health could only
      express the second until 2026-08-03, which is why "did I do what I said
@@ -490,9 +497,14 @@ export const healthApi = {
   workoutPrs: () => api.get<WorkoutPR[]>('/areas/health/workouts/prs').then(r => r.data),
   createWorkout: (d: { name: string; notes?: string; sets: { exercise: string; reps: number; weight_kg?: number }[] }) =>
     api.post<{ id: string; new_prs: { exercise: string; weight_kg: number; previous: number | null }[] }>('/areas/health/workouts', d).then(r => r.data),
+  /** `sets` replaces the session's sets wholesale — omit it to edit only the header. */
+  patchWorkout: (id: string, d: Partial<{ name: string; notes: string | null; logged_at: string; sets: { exercise: string; reps: number; weight_kg?: number }[] }>) =>
+    api.patch<WorkoutSessionItem>(`/areas/health/workouts/${id}`, d).then(r => r.data),
   deleteWorkout: (id: string) => api.delete(`/areas/health/workouts/${id}`).then(r => r.data),
   habits: () => api.get<HabitItem[]>('/areas/health/habits').then(r => r.data),
   createHabit: (d: { name: string; icon?: string }) => api.post('/areas/health/habits', d).then(r => r.data),
+  patchHabit: (id: string, d: Partial<{ name: string; icon: string | null }>) =>
+    api.patch<HabitItem>(`/areas/health/habits/${id}`, d).then(r => r.data),
   deleteHabit: (id: string) => api.delete(`/areas/health/habits/${id}`).then(r => r.data),
   toggleHabit: (id: string, date?: string) => api.post<{ checked: boolean; date: string }>(`/areas/health/habits/${id}/toggle`, { date }).then(r => r.data),
 }
@@ -580,6 +592,7 @@ export const careerApi = {
     api.put<SkillInventory>(`/areas/career/skills/${id}`, data).then(r => r.data),
   upsertSkill: (data: { skill_name: string; category: string; level: string; notes?: string }) =>
     api.post<SkillInventory>('/areas/career/skills', data).then(r => r.data),
+  deleteSkill: (id: string) => api.delete(`/areas/career/skills/${id}`).then(r => r.data),
   /* Learning resources. `skill_id` is the load-bearing field: it links a
      course to a `day_0` skill, turning a named gap into a plan for it. */
   learning: () => api.get<LearningResource[]>('/areas/career/learning').then(r => r.data),
@@ -594,6 +607,9 @@ export const careerApi = {
   events: () => api.get<CareerEvent[]>('/areas/career/events').then(r => r.data),
   createEvent: (data: { event_type: string; title: string; description?: string; skill?: string; skill_level?: string; occurred_at?: string }) =>
     api.post<CareerEvent>('/areas/career/events', data).then(r => r.data),
+  patchEvent: (id: string, data: Partial<{ event_type: string; title: string; description: string | null; skill: string | null; skill_level: string | null; occurred_at: string }>) =>
+    api.patch<CareerEvent>(`/areas/career/events/${id}`, data).then(r => r.data),
+  deleteEvent: (id: string) => api.delete(`/areas/career/events/${id}`).then(r => r.data),
   // Job opportunities
   opportunities: () => api.get<JobOpportunity[]>('/areas/career/opportunities').then(r => r.data),
 

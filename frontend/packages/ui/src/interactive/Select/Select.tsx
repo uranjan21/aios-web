@@ -133,10 +133,12 @@ const Surface = styled.div<{ $top: number; $left: number; $width: number }>`
   max-height: 280px;
   overflow-y: auto;
   z-index: ${({ theme }) => theme.zIndex.popover};
-  background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(20, 24, 34, 0.85)' : 'rgba(255, 255, 255, 0.95)'};
-  backdrop-filter: blur(24px) saturate(190%);
-  -webkit-backdrop-filter: blur(24px) saturate(190%);
-  border: 1px solid ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : theme.color.border};
+  /* Same hardcoded blue-grey + saturate(190%) the Popover carried; tokenised
+     alongside it so every overlay surface follows the palette. (2026-08-06) */
+  background: ${({ theme }) => theme.glass.background};
+  backdrop-filter: ${({ theme }) => theme.glass.thick};
+  -webkit-backdrop-filter: ${({ theme }) => theme.glass.thick};
+  border: 1px solid ${({ theme }) => theme.mode === 'dark' ? theme.glass.borderStrong : theme.color.border};
   border-radius: ${({ theme }) => theme.radii.md};
   box-shadow: ${({ theme }) => theme.elevation[3]};
   padding: ${({ theme }) => theme.spacing[1]};

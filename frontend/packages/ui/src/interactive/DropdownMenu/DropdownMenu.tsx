@@ -98,7 +98,9 @@ const ItemButton = styled.button<{ $destructive: boolean; $disabled: boolean }>`
   font-family: ${({ theme }) => theme.typography.fontFamily.sans};
   font-size: ${({ theme }) => theme.typography.fontSize.base};
   text-align: left;
-  border-radius: ${({ theme }) => theme.radii.md};
+  /* Was md - the surface's own corner - while the identical row inside
+     Select used sm. An item nested in a surface takes the smaller step. */
+  border-radius: ${({ theme }) => theme.radii.sm};
   color: ${({ theme, $destructive }) => ($destructive ? theme.color.destructive : theme.color.foreground)};
   background: transparent;
   cursor: ${({ $disabled }) => ($disabled ? 'not-allowed' : 'pointer')};

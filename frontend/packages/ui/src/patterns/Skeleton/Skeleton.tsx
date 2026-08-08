@@ -21,9 +21,8 @@ import type { CSSProperties } from 'react';
 import BaseSkeleton from 'react-loading-skeleton';
 
 /**
- * `chip` exists because `rect`'s `radii.md` (16px) turns any box at or under
- * ~32px into a circle, which is what the icon placeholders in `SkeletonKit`
- * were rendering as. Small squares need the small corner.
+ * `chip` exists because `rect`'s `radii.md` over-rounds the small icon
+ * placeholders in `SkeletonKit`. Small squares need the small corner.
  */
 export type SkeletonShape = 'rect' | 'chip' | 'pill' | 'circle' | 'text';
 

@@ -119,6 +119,10 @@ const Overlay = styled.div`
   justify-content: center;
   padding-top: 20vh;
   background: ${({ theme }) => theme.color.overlay};
+  /* The palette is a modal but its scrim had no blur, so it read flatter than
+     every Dialog. Same glass step as Dialog and Sheet now. */
+  backdrop-filter: ${({ theme }) => theme.glass.thin};
+  -webkit-backdrop-filter: ${({ theme }) => theme.glass.thin};
 `
 
 const Panel = styled.div`
@@ -128,8 +132,10 @@ const Panel = styled.div`
   margin: ${({ theme }) => `0 ${theme.spacing[4]}`};
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii['2xl']};
-  box-shadow: ${({ theme }) => theme.shadow.xl};
+  /* Was radii 2xl, the largest corner in the scale, on a modal that sits
+     beside Dialog. Modal surfaces take xl. */
+  border-radius: ${({ theme }) => theme.radii.xl};
+  box-shadow: ${({ theme }) => theme.elevation[4]};
   overflow: hidden;
 `
 

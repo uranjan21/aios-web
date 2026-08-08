@@ -218,17 +218,45 @@ export function HabitsSection() {
         title={manage?.name ?? 'Habit'}
         description={manage ? `${manage.checks.length} check-in(s) all time · ${manage.streak}-day streak` : undefined}
       >
-        <Actions>
-          <Button variant="ghost" onClick={() => setManage(null)}>Close</Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            loading={remove.isPending}
-            onClick={() => manage && remove.mutate(manage.id)}
-          >
-            <Trash2 size={14} style={{ marginRight: 4 }} /> Delete habit
-          </Button>
-        </Actions>
+        <Form>
+          {/* A habit was create-or-delete only — a typo in the name meant
+              losing the whole check-in history to fix it. */}
+          <div>
+            <Label>Name</Label>
+            <Input
+              value={edit.name}
+              onChange={(e: any) => setEdit(d => ({ ...d, name: e.target.value }))}
+            />
+          </div>
+          <div>
+            <Label>Icon (emoji, optional)</Label>
+            <Input
+              value={edit.icon}
+              maxLength={2}
+              onChange={(e: any) => setEdit(d => ({ ...d, icon: e.target.value }))}
+              placeholder="💧"
+            />
+          </div>
+          <Actions>
+            <Button
+              variant="primary"
+              disabled={!edit.name.trim() || update.isPending}
+              onClick={() => manage && update.mutate(manage.id)}
+            >
+              {update.isPending ? 'Saving…' : 'Save changes'}
+            </Button>
+            <Button variant="ghost" onClick={() => setManage(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              style={{ marginLeft: 'auto' }}
+              loading={remove.isPending}
+              onClick={() => manage && remove.mutate(manage.id)}
+            >
+              <Trash2 size={14} style={{ marginRight: 4 }} /> Delete habit
+            </Button>
+          </Actions>
+        </Form>
       </Dialog>
     </Root>
   )

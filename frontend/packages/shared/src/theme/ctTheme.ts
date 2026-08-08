@@ -30,6 +30,18 @@ import { getPalette, type PaletteColors } from './palettes';
  * Note the deliberate collision: `finance` IS the brand gold, which is also
  * the accent. Anywhere a Finance node sits on accent chrome it needs weight or
  * brightness to separate it, not a different hue.
+ *
+ * FULL-COLOUR pass (2026-08-06): pushed past the previous values — LIGHT takes
+ * the deeper, more saturated step of each ramp (a domain colour is frequently
+ * rendered as TEXT on a card, and #0EA5E9 sat at 2.6:1 there, which read as
+ * washed rather than bold); DARK takes the brighter end, since on a near-black
+ * card brightness is what boldness means. See the soft-vs-bold note in
+ * `palettes.ts` — do not mute these.
+ *
+ * `finance` is the ONE value held constant in both modes: it is the brand gold
+ * and the accent collision documented above, so it does not move with the rest.
+ * It is consequently the palest of the light set — give Finance text weight
+ * rather than re-tinting it.
  */
 export type DomainKey =
   | 'finance' | 'health' | 'career' | 'vault' | 'general'
@@ -37,21 +49,21 @@ export type DomainKey =
 
 const domainLight: Record<DomainKey, string> = {
   finance: '#CA8A04',
-  health: '#16A34A',
-  career: '#0EA5E9',
-  vault: '#0891B2',
-  general: '#57534E',
-  business: '#DC2626',
-  content: '#A855F7',
+  health: '#15803D',
+  career: '#0284C7',
+  vault: '#0E7490',
+  general: '#44403C',
+  business: '#C81E1E',
+  content: '#7E22CE',
 };
 
 const domainDark: Record<DomainKey, string> = {
   finance: '#CA8A04',
   health: '#4ADE80',
   career: '#38BDF8',
-  vault: '#06B6D4',
-  general: '#A8A29E',
-  business: '#EF4444',
+  vault: '#22D3EE',
+  general: '#B8B2AC',
+  business: '#F05252',
   content: '#C084FC',
 };
 

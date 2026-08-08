@@ -36,7 +36,10 @@ const Overlay = styled.div`
   z-index: ${({ theme }) => theme.zIndex.overlay};
   background: ${({ theme }) => theme.color.overlay};
   animation: ${fadeIn} ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.enter};
-  backdrop-filter: blur(2px);
+  /* Was a raw blur(2px) — barely a blur, and a different amount from the
+     Dialog scrim. Both modal scrims now use the same glass step. */
+  backdrop-filter: ${({ theme }) => theme.glass.thin};
+  -webkit-backdrop-filter: ${({ theme }) => theme.glass.thin};
 `;
 
 const Surface = styled.div<{ $side: SheetSide; $size: string }>`
@@ -44,7 +47,11 @@ const Surface = styled.div<{ $side: SheetSide; $size: string }>`
   z-index: ${({ theme }) => theme.zIndex.modal};
   background: ${({ theme }) => theme.color.card};
   color: ${({ theme }) => theme.color.cardForeground};
-  box-shadow: ${({ theme }) => theme.shadow.xl};
+  /* Was shadow.xl while Dialog used elevation[4] — one scale for modal
+     surfaces. The fill stays opaque color.card, unlike the glass Dialog:
+     a Sheet is an anchored edge panel that hosts long forms, and page
+     content blurring behind a form field is noise, not depth. */
+  box-shadow: ${({ theme }) => theme.elevation[4]};
   display: flex;
   flex-direction: column;
   outline: none;
@@ -93,7 +100,7 @@ const CloseButton = styled.button`
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: ${({ theme }) => theme.radii.md};
+  border-radius: ${({ theme }) => theme.radii.sm};
   color: ${({ theme }) => theme.color.mutedForeground};
   background: transparent;
   cursor: pointer;

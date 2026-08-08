@@ -17,7 +17,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import styled from 'styled-components'
 import { Button, Card, Dialog, EmptyState, Input, SegmentedControl, Select, SkeletonPage } from '@ledgr/ui'
-import { BookOpen, GraduationCap, Layers, Sparkles } from 'lucide-react'
+import { BookOpen, GraduationCap, Layers, Sparkles, Trash2 } from 'lucide-react'
 import { careerApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import type { SkillInventory } from '@ct/shared/types'
@@ -108,6 +108,18 @@ export function SkillsSection() {
       setEditing(null)
     },
     onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to save skill'),
+  })
+
+  /* A skill could be added and re-levelled but never removed — the row stayed
+     in the inventory (and in the radar) forever. */
+  const remove = useMutation({
+    mutationFn: (id: string) => careerApi.deleteSkill(id),
+    onSuccess: () => {
+      invalidate()
+      toast.success('Skill removed')
+      setEditing(null)
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to remove skill'),
   })
 
   const all = useMemo(() => skills ?? [], [skills])
@@ -316,6 +328,17 @@ export function SkillsSection() {
             />
           </FormGroup>
           <ActionsContainer>
+            {editing && (
+              <Button
+                variant="destructive"
+                type="button"
+                style={{ marginRight: 'auto' }}
+                loading={remove.isPending}
+                onClick={() => remove.mutate(editing.id)}
+              >
+                <Trash2 size={14} style={{ marginRight: 4 }} /> Delete
+              </Button>
+            )}
             <Button variant="primary" type="submit" loading={upsert.isPending}>Save</Button>
             <Button variant="ghost" type="button" onClick={() => setEditing(null)}>Cancel</Button>
           </ActionsContainer>
