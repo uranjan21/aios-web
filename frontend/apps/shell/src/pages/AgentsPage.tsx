@@ -26,11 +26,10 @@ import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import styled from 'styled-components'
 import { Bot, Cpu, FileText, Shield, Zap } from 'lucide-react'
-import { Button, Dialog, EmptyState, ErrorState, Input } from '@ledgr/ui'
+import { Button, Dialog, EmptyState, ErrorState, Input, SkeletonTable } from '@ledgr/ui'
 import { agentsApi } from '@ct/shared/api/agents'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import type { Agent } from '@ct/shared/types'
 
 dayjs.extend(relativeTime)
@@ -260,7 +259,7 @@ export function AgentsPage() {
         {isError ? (
           <ErrorState title="Could not load agents" onRetry={() => refetch()} />
         ) : isLoading ? (
-          <Skeleton style={{ height: 320 }} />
+          <SkeletonTable rows={6} columns={5} />
         ) : rows.length === 0 ? (
           <EmptyState
             icon={<Zap size={24} />}

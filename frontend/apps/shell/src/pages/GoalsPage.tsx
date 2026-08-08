@@ -13,7 +13,7 @@ import {
 } from "@ledgr/ui";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Flag, Plus, Target } from "lucide-react";
+import { Flag, Plus, Target, Trash2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import styled from "styled-components";
@@ -68,6 +68,16 @@ const GOAL_STATUS_FILTER_OPTIONS = [
   { label: "Archived", value: "archived" },
 ];
 
+/** Editable statuses — the filter's "All" is not one a goal can be set to. */
+const GOAL_STATUS_OPTIONS = GOAL_STATUS_FILTER_OPTIONS.slice(1);
+
+const PRIORITY_OPTIONS = [
+  { label: "Low", value: "low" },
+  { label: "Medium", value: "medium" },
+  { label: "High", value: "high" },
+  { label: "Urgent", value: "urgent" },
+];
+
 export function GoalsSection({
   domainFilter,
   filterNode,
@@ -89,6 +99,9 @@ export function GoalsSection({
   const [description, setDescription] = useState("");
   const [targetDate, setTargetDate] = useState("");
   const [priority, setPriority] = useState("medium");
+  const [status, setStatus] = useState("active");
+  /** Non-null puts the shared dialog into edit mode. */
+  const [editing, setEditing] = useState<MacroGoal | null>(null);
 
   const { data: goals = [], isLoading } = useQuery({
     queryKey: ["goals"],
@@ -98,12 +111,32 @@ export function GoalsSection({
 
   // Opens the cross-domain Add Goal dialog, pre-selecting the correct category.
   const handleOpenAddGoal = (cat = "general") => {
+    setEditing(null);
     setTitle("");
     setCategory(cat);
     setDescription("");
     setTargetDate("");
     setPriority("medium");
+    setStatus("active");
     setAddOpen(true);
+  };
+
+  /** Same dialog, prefilled — a table row has no action column, so the row
+      click opens the editor and Delete lives in its footer. */
+  const handleOpenEditGoal = (g: MacroGoal) => {
+    setEditing(g);
+    setTitle(g.title);
+    setCategory(g.category);
+    setDescription(g.description ?? "");
+    setTargetDate(g.target_date ? g.target_date.slice(0, 10) : "");
+    setPriority(g.priority || "medium");
+    setStatus(g.status || "active");
+    setAddOpen(true);
+  };
+
+  const closeDialog = () => {
+    setAddOpen(false);
+    setEditing(null);
   };
 
   const [deleteTarget, setDeleteTarget] = useState<MacroGoal | null>(null);
@@ -120,6 +153,17 @@ export function GoalsSection({
     onError: () => toast.error("Could not add goal"),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: (data: Parameters<typeof goalsApi.update>[1]) =>
+      goalsApi.update(editing!.id, data),
+    onSuccess: () => {
+      toast.success("Goal updated");
+      closeDialog();
+      queryClient.invalidateQueries({ queryKey: ["goals"] });
+    },
+    onError: () => toast.error("Could not update goal"),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (goalId: string) => goalsApi.remove(goalId),
     onSuccess: () => {
@@ -130,8 +174,20 @@ export function GoalsSection({
     onError: () => toast.error("Could not delete goal"),
   });
 
-  const handleCreate = () => {
+  const handleSave = () => {
     if (!title.trim()) return;
+    if (editing) {
+      // Explicit `null` clears a field — `undefined` would leave it as it was.
+      updateMutation.mutate({
+        title: title.trim(),
+        category,
+        description: description.trim() || null,
+        target_date: targetDate || null,
+        priority,
+        status,
+      });
+      return;
+    }
     createMutation.mutate({
       title: title.trim(),
       category,
@@ -208,7 +264,7 @@ export function GoalsSection({
             </>
           ),
           title: "All goals",
-          subtitle: `${visibleGoals.length} goal${visibleGoals.length !== 1 ? "s" : ""} · click a row to remove`,
+          subtitle: `${visibleGoals.length} goal${visibleGoals.length !== 1 ? "s" : ""} · click a row to edit`,
           icon: Target,
           action: "+ Add goal",
           onAction: () => handleOpenAddGoal(),
@@ -233,7 +289,7 @@ export function GoalsSection({
               colorKey: g.status === "completed" ? "success" : g.status === "archived" ? "mutedFg" : "accent",
             },
           ]),
-          onRowClick: (i: number) => setDeleteTarget(visibleGoals[i]),
+          onRowClick: (i: number) => handleOpenEditGoal(visibleGoals[i]),
         }];
 
         return <ModuleGrid modules={modules} />;
@@ -277,10 +333,10 @@ export function GoalsSection({
 
         <Dialog
           open={addOpen}
-          onOpenChange={setAddOpen}
+          onOpenChange={(o) => { if (!o) closeDialog() }}
           icon={<Target size={16} />}
           eyebrow="Goals"
-          title="Add Macro Goal"
+          title={editing ? "Edit macro goal" : "Add Macro Goal"}
           description="Set a high-level goal and track progress across life areas."
           size="md"
         >
@@ -323,12 +379,7 @@ export function GoalsSection({
               <div>
                 <Label>Priority</Label>
                 <Select
-                  options={[
-                    { label: "Low", value: "low" },
-                    { label: "Medium", value: "medium" },
-                    { label: "High", value: "high" },
-                    { label: "Urgent", value: "urgent" },
-                  ]}
+                  options={PRIORITY_OPTIONS}
                   value={priority}
                   onChange={(v) => setPriority(v as string)}
                 />
@@ -343,17 +394,41 @@ export function GoalsSection({
                 />
               </div>
             </div>
+            {/* A goal is born active — status is only meaningful once it exists. */}
+            {editing && (
+              <div>
+                <Label>Status</Label>
+                <Select
+                  options={GOAL_STATUS_OPTIONS}
+                  value={status}
+                  onChange={(v) => setStatus(v as string)}
+                />
+              </div>
+            )}
             <DialogFooter>
-              <Button variant="outline" onClick={() => setAddOpen(false)}>
+              {editing && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  style={{ marginRight: "auto" }}
+                  onClick={() => {
+                    setDeleteTarget(editing);
+                    closeDialog();
+                  }}
+                >
+                  <Trash2 size={14} style={{ marginRight: 4 }} /> Delete
+                </Button>
+              )}
+              <Button variant="outline" onClick={closeDialog}>
                 Cancel
               </Button>
               <Button
                 variant="primary"
-                onClick={handleCreate}
+                onClick={handleSave}
                 disabled={!title.trim()}
-                loading={createMutation.isPending}
+                loading={createMutation.isPending || updateMutation.isPending}
               >
-                Add Goal
+                {editing ? "Save changes" : "Add Goal"}
               </Button>
             </DialogFooter>
           </FormGrid>

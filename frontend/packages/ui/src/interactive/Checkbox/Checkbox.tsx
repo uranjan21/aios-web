@@ -41,8 +41,8 @@ const Box = styled.span<{ $checked: boolean; $indeterminate: boolean; $disabled:
   height: 100%;
   border: 1.5px solid ${({ theme, $checked, $indeterminate }) =>
     $checked || $indeterminate ? theme.color.primary : theme.color.border};
-  /* The box is 16–18px; radii.sm (10px) rendered it as a circle, which reads as
-     a radio button. radii.xs keeps it an unmistakable square. */
+  /* The box is 16-18px. xs keeps it an unmistakable square rather than
+     something that reads as a radio button. */
   border-radius: ${({ theme }) => theme.radii.xs};
   background: ${({ theme, $checked, $indeterminate }) =>
     $checked || $indeterminate ? theme.color.primary : theme.color.card};

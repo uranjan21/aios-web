@@ -18,15 +18,15 @@
  */
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
-import { Button, Card, Dialog, EmptyState, Input, Select } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, Input, Select, SkeletonPage } from '@ledgr/ui'
 import { CheckSquare, Inbox as InboxIcon, Zap } from 'lucide-react'
 import { financeApi, type FinancePendingTransaction } from '@ct/shared/api/areas'
 import { agentsApi } from '@ct/shared/api/agents'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { formatCurrency } from '@ct/shared/lib/utils'
 import { track } from '@ct/shared/lib/analytics'
 
@@ -82,6 +82,7 @@ type Edit = { amount: string; account_id: string; category_id: string; descripti
 
 export function InboxTab() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const [editing, setEditing] = useState<FinancePendingTransaction | null>(null)
   const [edit, setEdit] = useState<Edit>({ amount: '', account_id: '', category_id: '', description: '' })
 
@@ -117,26 +118,61 @@ export function InboxTab() {
 
   const { data: autoFiled } = useQuery({
     queryKey: ['finance', 'auto-filed'],
-    queryFn: () => financeApi.searchTransactions({ tag: TRACKER_TAG, limit: 6 }),
+    /* `source`, not `tag`: the origin marker is written to FinanceExpense.source,
+     * while `tag` matches only the user's own labels — so the tag query this
+     * used to run could never match an expense and the card was always empty.
+     * A substring match covers both 'upi-tracker' (approved by hand) and
+     * 'upi-tracker-auto' (filed by the auto-commit window). */
+    queryFn: () => financeApi.searchTransactions({ source: TRACKER_TAG, limit: 6 }),
     staleTime: 60_000,
   })
 
+  /* Approving writes a LEDGER row and moves an account balance, so the whole
+   * finance cache is stale — not just the queue. Invalidating only the pending
+   * keys left Transactions, cashflow, budgets and account balances serving
+   * pre-approval data for the global 30s staleTime, which is one of the two
+   * reasons an approved transaction looked like it had vanished. */
   const refreshQueue = () => {
-    qc.invalidateQueries({ queryKey: ['finance', 'pending'] })
-    qc.invalidateQueries({ queryKey: ['finance', 'auto-filed'] })
+    qc.invalidateQueries({ queryKey: ['finance'] })
   }
+
+  /** Open Transactions on the period a row was actually filed into. */
+  const viewInLedger = (loggedAt: string) =>
+    navigate(`/app/finance/transactions?date=${dayjs(loggedAt).format('YYYY-MM-DD')}`)
 
   const approve = useMutation({
     mutationFn: ({ tx, payload }: { tx: FinancePendingTransaction; payload: any }) =>
       financeApi.approvePending(tx.id, payload),
-    onSuccess: () => {
+    onSuccess: (_data, { tx }) => {
       track('pending_txn_approved')
-      toast.success('Transaction approved')
+      /* An email transaction is dated when it HAPPENED, so it files into that
+       * month — usually not the one Transactions opens on. Reporting only
+       * "approved" is what made a correctly-filed row look lost. */
+      const when = dayjs(tx.logged_at)
+      toast.success(`Filed to ${when.format('D MMM YYYY')}`, {
+        description: when.isSame(dayjs(), 'month')
+          ? undefined
+          : `That is ${when.format('MMMM')} — Transactions opens on the current month.`,
+        action: { label: 'View', onClick: () => viewInLedger(tx.logged_at) },
+      })
       setEditing(null)
       refreshQueue()
     },
-    // 409 = already in the ledger (dedupe guard) — surface the server reason.
-    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to approve transaction'),
+    onError: (e: any, { tx, payload }) => {
+      /* 409 = a same-day, same-amount row already exists. That is a hint, not
+       * proof — two genuine ₹100 purchases on one day collide — so offer the
+       * override rather than telling the user to discard a real transaction. */
+      if (e?.response?.status === 409) {
+        toast.warning(e.response.data?.detail ?? 'This looks like a duplicate', {
+          action: {
+            label: 'File anyway',
+            onClick: () => approve.mutate({ tx, payload: { ...payload, force: true } }),
+          },
+        })
+        return
+      }
+      toast.error(e?.response?.data?.detail || 'Failed to approve transaction')
+    },
   })
 
   const dismiss = useMutation({
@@ -147,11 +183,25 @@ export function InboxTab() {
 
   const approveAll = useMutation({
     mutationFn: (ids: string[]) => financeApi.bulkApprovePending(ids),
-    onSuccess: (r) => {
+    onSuccess: (r, ids) => {
       if (r.approved > 0) track('pending_txn_approved', { bulk: true, count: r.approved })
-      toast.success(r.skipped.length
-        ? `Approved ${r.approved} — skipped ${r.skipped.length} (duplicates or missing data)`
-        : `Approved ${r.approved} transaction(s)`)
+      /* Report the oldest period anything landed in, and offer to go there —
+       * a bulk approve of email transactions usually files into last month. */
+      const skippedIds = new Set(r.skipped.map(s => s.id))
+      const filed = rows.filter(t => ids.includes(t.id) && !skippedIds.has(t.id))
+      const oldest = filed.length
+        ? filed.reduce((a, b) => (a.logged_at <= b.logged_at ? a : b))
+        : null
+      toast.success(`Approved ${r.approved} transaction${r.approved === 1 ? '' : 's'}`, {
+        // The server says WHY each row was skipped (duplicate / no account);
+        // the old copy guessed at "duplicates or missing data" for all of them.
+        description: r.skipped.length
+          ? `Skipped ${r.skipped.length}: ${[...new Set(r.skipped.map(s => s.reason))].join(' · ')}`
+          : oldest
+            ? `Filed from ${dayjs(oldest.logged_at).format('D MMM YYYY')}`
+            : undefined,
+        ...(oldest && { action: { label: 'View', onClick: () => viewInLedger(oldest.logged_at) } }),
+      })
       refreshQueue()
     },
     onError: () => toast.error('Bulk approve failed'),
@@ -330,7 +380,7 @@ export function InboxTab() {
 
     specs.push({
       kind: 'controls',
-      span: rows.length ? 6 : 12,
+      span: 6,
       title: 'Auto-categorization rules',
       subtitle: activeRules.length
         ? 'Applied before anything reaches this inbox'
@@ -361,24 +411,28 @@ export function InboxTab() {
       },
     })
 
-    if (rows.length) {
-      const filed = autoFiled?.items ?? []
-      specs.push({
-        kind: 'rows',
-        span: 6,
-        title: 'Filed automatically',
-        subtitle: filed.length
-          ? `${filed.length} recent transaction${filed.length === 1 ? '' : 's'} needed no input`
-          : 'Nothing has been filed without review yet',
-        icon: CheckSquare,
-        rows: filed.map((t) => ({
-          title: t.description ?? t.category ?? 'Transaction',
-          meta: dayjs(t.logged_at).format('D MMM'),
-          ...(t.category && { tagLabel: t.category, tagColorKey: 'info' }),
-          value: formatCurrency(t.amount),
-        })),
-      })
-    }
+    /* Renders whether or not anything is queued. This is the receipt for an
+     * approval — the surface that answers "where did it go?" — so hiding it at
+     * inbox zero removed it exactly when it was the only thing left to show.
+     * Rows carry the full date and open the ledger on that period, because the
+     * filing date is the email's transaction date, not today. */
+    const filed = autoFiled?.items ?? []
+    specs.push({
+      kind: 'rows',
+      span: 6,
+      title: 'Recently filed',
+      subtitle: filed.length
+        ? 'Captured from email and written to your ledger'
+        : 'Nothing has been filed from email yet',
+      icon: CheckSquare,
+      rows: filed.map((t) => ({
+        title: t.description ?? t.category ?? 'Transaction',
+        meta: dayjs(t.logged_at).format('D MMM YYYY'),
+        ...(t.category && { tagLabel: t.category, tagColorKey: 'info' }),
+        value: formatCurrency(t.amount),
+      })),
+      onRowClick: (i: number) => filed[i] && viewInLedger(filed[i].logged_at),
+    })
 
     return specs
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -386,7 +440,7 @@ export function InboxTab() {
       approve.isPending, dismiss.isPending, toggleRule.isPending, setAutoCommit.isPending,
       fetchNow.isPending, dismissAll.isPending])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isLoading) return <SkeletonPage kpis={4} modules={[12, 12]} />
 
   return (
     <Root>

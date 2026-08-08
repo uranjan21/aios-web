@@ -106,10 +106,27 @@ async def _approve_one(db, user: User, pending: FinancePendingTransaction, data:
     if final_account_id and isinstance(final_account_id, str):
         final_account_id = uuid.UUID(final_account_id)
 
-    if await ledger_duplicate(db, user.id, final_type, pending.logged_at, final_amount):
+    # An account is required, exactly as it is on manual expense/income create.
+    # Without one apply_balance() no-ops, so the row lands in the ledger while
+    # no account balance moves — money that was spent from nowhere.
+    if final_account_id is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Pick an account before approving — without one the balance cannot be updated.",
+        )
+
+    # Same-day + same-amount + same-kind is a HINT, not proof: two genuine ₹100
+    # purchases on one day collide here. So this is overridable rather than
+    # fatal — the client re-sends with force=true after confirming.
+    if not data.get("force") and await ledger_duplicate(
+        db, user.id, final_type, pending.logged_at, final_amount
+    ):
         raise HTTPException(
             status_code=409,
-            detail="A ledger transaction with this amount already exists on that day — dismiss this instead.",
+            detail=(
+                "There is already a transaction of this amount on that day. "
+                "Approve again to file it anyway, or dismiss it."
+            ),
         )
 
     await commit_pending_to_ledger(

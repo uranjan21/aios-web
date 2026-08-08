@@ -2,10 +2,9 @@ import { toast } from 'sonner'
 import styled, { useTheme } from 'styled-components'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Flame, Check } from 'lucide-react'
-import { Stack, focusRing } from '@ledgr/ui'
+import { SkeletonList, Stack, focusRing } from '@ledgr/ui'
 import { healthApi } from '@ct/shared/api/areas'
 import { fmtDateKey } from '@ct/shared/stores/dayEventsStore'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { Empty, StyledCard } from './shared'
 
 const StatRow = styled.div`
@@ -123,11 +122,7 @@ export function HabitsCard() {
   return (
     <StyledCard title="Habits & Streaks" subtitle="Daily check-ins" icon={<Flame size={14} style={{ color: theme.domain.finance }} />}>
       {isLoading ? (
-        <Stack direction="column" gap={2}>
-          <Skeleton style={{ height: 34, width: '100%' }} />
-          <Skeleton style={{ height: 34, width: '100%' }} />
-          <Skeleton style={{ height: 34, width: '100%' }} />
-        </Stack>
+        <SkeletonList rows={3} leading={false} trailing />
       ) : !habits || habits.length === 0 ? (
         <>
           <Empty>No habits tracked yet. Add some on the Health page.</Empty>

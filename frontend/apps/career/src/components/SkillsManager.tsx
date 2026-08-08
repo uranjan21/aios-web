@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Card, Select, Button } from '@ledgr/ui'
+import { Button, Card, Select, SkeletonList } from '@ledgr/ui'
 import { BookOpen, Plus } from 'lucide-react'
 import { careerApi } from '@ct/shared/api/areas'
 import type { SkillInventory } from '@ct/shared/types'
 import { SkillForm, LEVEL_LABELS } from './SkillForm'
 import { EmptyState } from '@ledgr/ui'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import styled from 'styled-components'
 
 const Row = styled.div`
@@ -74,7 +73,7 @@ export function SkillsManager() {
       )}
       {isLoading ? (
         <LoadingWrap>
-          {[1, 2, 3].map(i => <Skeleton key={i} style={{ height: 40 }} />)}
+          <SkeletonList rows={3} leading={false} />
         </LoadingWrap>
       ) : !skills?.length ? (
         <EmptyState icon={<BookOpen size={24} />} title="No skills yet" description="Add a skill to start tracking your growth." action={<Button variant="secondary" size="sm" onClick={() => setShowForm(true)}>Add Skill</Button>} />

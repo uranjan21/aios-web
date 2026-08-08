@@ -11,10 +11,9 @@ import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { BarChart3, CheckSquare, Circle, Trash2 } from 'lucide-react'
-import { Button, Card, Dialog, EmptyState, Input } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, Input, SkeletonPage } from '@ledgr/ui'
 import { healthApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import type { HabitItem } from '@ct/shared/types'
 
 const Root = styled.div`
@@ -158,7 +157,7 @@ export function HabitsSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, toggle.isPending])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isLoading) return <SkeletonPage kpis={0} modules={[7, 5, 12]} />
 
   return (
     <Root>
@@ -219,17 +218,45 @@ export function HabitsSection() {
         title={manage?.name ?? 'Habit'}
         description={manage ? `${manage.checks.length} check-in(s) all time · ${manage.streak}-day streak` : undefined}
       >
-        <Actions>
-          <Button variant="ghost" onClick={() => setManage(null)}>Close</Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            loading={remove.isPending}
-            onClick={() => manage && remove.mutate(manage.id)}
-          >
-            <Trash2 size={14} style={{ marginRight: 4 }} /> Delete habit
-          </Button>
-        </Actions>
+        <Form>
+          {/* A habit was create-or-delete only — a typo in the name meant
+              losing the whole check-in history to fix it. */}
+          <div>
+            <Label>Name</Label>
+            <Input
+              value={edit.name}
+              onChange={(e: any) => setEdit(d => ({ ...d, name: e.target.value }))}
+            />
+          </div>
+          <div>
+            <Label>Icon (emoji, optional)</Label>
+            <Input
+              value={edit.icon}
+              maxLength={2}
+              onChange={(e: any) => setEdit(d => ({ ...d, icon: e.target.value }))}
+              placeholder="💧"
+            />
+          </div>
+          <Actions>
+            <Button
+              variant="primary"
+              disabled={!edit.name.trim() || update.isPending}
+              onClick={() => manage && update.mutate(manage.id)}
+            >
+              {update.isPending ? 'Saving…' : 'Save changes'}
+            </Button>
+            <Button variant="ghost" onClick={() => setManage(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              style={{ marginLeft: 'auto' }}
+              loading={remove.isPending}
+              onClick={() => manage && remove.mutate(manage.id)}
+            >
+              <Trash2 size={14} style={{ marginRight: 4 }} /> Delete habit
+            </Button>
+          </Actions>
+        </Form>
       </Dialog>
     </Root>
   )

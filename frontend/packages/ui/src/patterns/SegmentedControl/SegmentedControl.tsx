@@ -25,8 +25,8 @@ const Root = styled.div<{ $size: 'sm' | 'md' }>`
   gap: ${({ theme }) => `${theme.spacing[0.5]}`};
   padding: ${({ theme }) => `${theme.spacing[1]}`};
   background: ${({ theme }) => theme.color.muted};
-  /* 10px outer / 6px inner with 4px padding — concentric, and flat at the 32px
-     track height where radii.lg (20px) was a pill. */
+  /* sm outer / xs inner (see the thumb below) - concentric, and never a
+     pill at the 32px track height. */
   border-radius: ${({ theme }) => theme.radii.sm};
   ${({ $size, theme }) => $size === 'sm'
     ? `height: 32px; font-size: ${theme.typography.fontSize.xs};`

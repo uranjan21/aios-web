@@ -124,9 +124,25 @@ async def run_auto_commit_pending_transactions(user_id: uuid.UUID) -> None:
             for pending in pending_txs:
                 kind = pending.transaction_type if pending.transaction_type in ("expense", "income") else "expense"
                 if await ledger_duplicate(session, user_id, kind, pending.logged_at, pending.amount):
-                    pending.status = "dismissed"
+                    # A same-day/same-amount ledger row is only a HINT of a
+                    # duplicate — two real ₹100 coffees on one day look
+                    # identical here. Dismissing on that guess destroyed real
+                    # transactions silently, so hand it back to the human:
+                    # clear the deadline (this row is no longer a cron
+                    # candidate) and leave it waiting in the inbox.
+                    pending.auto_commit_at = None
                     session.add(pending)
-                    logger.info("Auto-commit skipped duplicate pending %s", pending.id)
+                    logger.info(
+                        "Auto-commit deferred pending %s to review — possible ledger duplicate",
+                        pending.id,
+                    )
+                    continue
+                if pending.account_id is None:
+                    # No account = no balance movement. Filing it anyway would
+                    # book an expense that never leaves any account.
+                    pending.auto_commit_at = None
+                    session.add(pending)
+                    logger.info("Auto-commit deferred pending %s to review — no account", pending.id)
                     continue
                 description = pending.description or (
                     f"Payee: {pending.payee_name}" if pending.payee_name else "Transaction"

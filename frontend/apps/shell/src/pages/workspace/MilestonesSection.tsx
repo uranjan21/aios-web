@@ -10,8 +10,8 @@
  */
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Milestone as MilestoneIcon, Flag } from 'lucide-react'
-import { Button, Card, Dialog, EmptyState, ErrorState, Input, Select, Skeleton } from '@ledgr/ui'
+import { Milestone as MilestoneIcon, Flag, Trash2 } from 'lucide-react'
+import { Button, Card, Dialog, EmptyState, ErrorState, Input, Select, SkeletonPage } from '@ledgr/ui'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { workspaceApi, type Milestone } from '@ct/shared/api/workspace'
 import { DOMAIN_OPTIONS } from '@ct/shared/config/domains'
@@ -85,7 +85,33 @@ export function MilestonesSection({
 }) {
   const qc = useQueryClient()
   const [addOpen, setAddOpen] = useState(false)
-  const [draft, setDraft] = useState({ title: '', domain: '', due_date: '' })
+  /** Non-null puts the shared dialog into edit mode. */
+  const [editing, setEditing] = useState<Milestone | null>(null)
+  const [draft, setDraft] = useState({ title: '', domain: '', due_date: '', status: 'upcoming' })
+
+  const openAdd = () => {
+    setEditing(null)
+    setDraft({ title: '', domain: '', due_date: '', status: 'upcoming' })
+    setAddOpen(true)
+  }
+
+  /* A timeline entry has no action column, so clicking it opens the editor and
+     Delete lives in the dialog footer — same contract as the workspace tables. */
+  const openEdit = (m: Milestone) => {
+    setEditing(m)
+    setDraft({
+      title: m.title,
+      domain: m.domain ?? '',
+      due_date: m.due_date ?? '',
+      status: m.status,
+    })
+    setAddOpen(true)
+  }
+
+  const closeDialog = () => {
+    setAddOpen(false)
+    setEditing(null)
+  }
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['workspace', 'milestones', domainFilter ?? 'all'],
@@ -102,11 +128,37 @@ export function MilestonesSection({
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['workspace', 'milestones'] })
-      setAddOpen(false)
-      setDraft({ title: '', domain: '', due_date: '' })
+      closeDialog()
       toast.success('Milestone added')
     },
     onError: () => toast.error('Could not add that milestone'),
+  })
+
+  const update = useMutation({
+    mutationFn: () =>
+      // Explicit `null` clears a field — see the Payload types in api/workspace.
+      workspaceApi.updateMilestone(editing!.id, {
+        title: draft.title.trim(),
+        domain: draft.domain || null,
+        due_date: draft.due_date || null,
+        status: draft.status as Milestone['status'],
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workspace', 'milestones'] })
+      closeDialog()
+      toast.success('Milestone updated')
+    },
+    onError: () => toast.error('Could not update that milestone'),
+  })
+
+  const remove = useMutation({
+    mutationFn: (id: string) => workspaceApi.deleteMilestone(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workspace', 'milestones'] })
+      closeDialog()
+      toast.success('Milestone deleted')
+    },
+    onError: () => toast.error('Could not delete that milestone'),
   })
 
   const modules = useMemo<ModuleSpec[]>(() => {
@@ -155,8 +207,9 @@ export function MilestonesSection({
         kind: 'timeline',
         span: 12,
         title: bucket,
-        subtitle: `${byBucket.get(bucket)!.length} milestone${byBucket.get(bucket)!.length === 1 ? '' : 's'}`,
+        subtitle: `${byBucket.get(bucket)!.length} milestone${byBucket.get(bucket)!.length === 1 ? '' : 's'} · click one to edit`,
         icon: Flag,
+        onEntryClick: (j: number) => openEdit(byBucket.get(bucket)![j]),
         /* The controls ride the FIRST bucket card. This page is a KPI strip
          * (headerless) plus one card per period, so there is no single card
          * that owns everything — the leading one is the closest thing, and it
@@ -166,7 +219,7 @@ export function MilestonesSection({
           actionNode: filterNode,
           action: '+ New milestone',
           actionVariant: 'primary' as const,
-          onAction: () => setAddOpen(true),
+          onAction: openAdd,
         }),
         entries: byBucket.get(bucket)!.map((m) => ({
           title: m.title,
@@ -180,7 +233,7 @@ export function MilestonesSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, filterNode])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isLoading) return <SkeletonPage kpis={4} modules={[12]} />
   if (isError) return <ErrorState title="Could not load milestones" onRetry={() => refetch()} />
 
   return (
@@ -196,7 +249,7 @@ export function MilestonesSection({
           action={
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {filterNode}
-              <Button size="sm" variant="primary" onClick={() => setAddOpen(true)}>+ New milestone</Button>
+              <Button size="sm" variant="primary" onClick={openAdd}>+ New milestone</Button>
             </div>
           }
         >
@@ -204,7 +257,7 @@ export function MilestonesSection({
             icon={<MilestoneIcon size={22} />}
             title="No milestones yet"
             description="A milestone is a date you are steering toward — a launch, a review, a target you set for a goal."
-            action={<Button size="sm" onClick={() => setAddOpen(true)}>Add your first milestone</Button>}
+            action={<Button size="sm" onClick={openAdd}>Add your first milestone</Button>}
           />
         </Card>
       ) : (
@@ -213,10 +266,10 @@ export function MilestonesSection({
 
       <Dialog
         open={addOpen}
-        onOpenChange={(o) => !o && setAddOpen(false)}
+        onOpenChange={(o) => !o && closeDialog()}
         icon={<MilestoneIcon size={18} />}
         eyebrow="Workspace"
-        title="New milestone"
+        title={editing ? 'Edit milestone' : 'New milestone'}
         description="A dated checkpoint on the way to a goal."
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -242,14 +295,37 @@ export function MilestonesSection({
               onChange={(e) => setDraft({ ...draft, due_date: e.target.value })}
             />
           </Field>
+          {/* A milestone starts upcoming — status is only meaningful once it exists. */}
+          {editing && (
+            <Field label="Status">
+              <Select
+                value={draft.status}
+                onChange={(v) => setDraft({ ...draft, status: String(v) })}
+                options={STATUS_OPTIONS}
+              />
+            </Field>
+          )}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <Button variant="outline" size="sm" onClick={() => setAddOpen(false)}>Cancel</Button>
+            {editing && (
+              <Button
+                variant="destructive"
+                size="sm"
+                style={{ marginRight: 'auto' }}
+                loading={remove.isPending}
+                onClick={() => remove.mutate(editing.id)}
+              >
+                <Trash2 size={14} style={{ marginRight: 4 }} /> Delete
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={closeDialog}>Cancel</Button>
             <Button
               size="sm"
-              disabled={!draft.title.trim() || create.isPending}
-              onClick={() => create.mutate()}
+              disabled={!draft.title.trim() || create.isPending || update.isPending}
+              onClick={() => (editing ? update.mutate() : create.mutate())}
             >
-              {create.isPending ? 'Adding…' : 'Add milestone'}
+              {editing
+                ? (update.isPending ? 'Saving…' : 'Save changes')
+                : (create.isPending ? 'Adding…' : 'Add milestone')}
             </Button>
           </div>
         </div>

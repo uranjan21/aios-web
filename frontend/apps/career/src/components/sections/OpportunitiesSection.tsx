@@ -20,10 +20,9 @@ import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { Briefcase, CheckSquare, Trash2 } from 'lucide-react'
-import { Button, Card, Dialog, EmptyState, Input, Select } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, Input, Select, SkeletonPage } from '@ledgr/ui'
 import { careerApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import type { JobOpportunity, OpportunityStatus } from '@ct/shared/types'
 import { OpportunityForm } from '../OpportunityForm'
 
@@ -176,7 +175,7 @@ export function OpportunitiesSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, active])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isLoading) return <SkeletonPage kpis={0} modules={[12, 12]} />
 
   return (
     <Root>

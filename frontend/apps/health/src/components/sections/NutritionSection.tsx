@@ -11,12 +11,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
-import { BarChart3, Circle, Flag } from 'lucide-react'
-import { Button, Dialog, Input, Select } from '@ledgr/ui'
-import { healthApi } from '@ct/shared/api/areas'
+import { BarChart3, Circle, ClipboardList, Flag } from 'lucide-react'
+import { Button, Dialog, Input, Select, SkeletonPage } from '@ledgr/ui'
+import { healthApi, type MealPlan, type MealPlanToday } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { parseMealNotes } from '../nutrition/mealNotes'
+import { FoodPicker } from '../FoodPicker'
+import { MealPlanDialog } from '../MealPlanDialog'
+
+const MEAL_LABEL: Record<string, string> = {
+  breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack',
+}
 
 const Root = styled.div`
   display: flex;
@@ -66,6 +71,8 @@ export function NutritionSection() {
   const qc = useQueryClient()
   const [logOpen, setLogOpen] = useState(false)
   const [meal, setMeal] = useState({ ...EMPTY_MEAL })
+  const [planOpen, setPlanOpen] = useState(false)
+  const [editingPlan, setEditingPlan] = useState<MealPlan | null>(null)
 
   const { data: today, isLoading } = useQuery({
     queryKey: ['health', 'nutrition', 'today'],
@@ -84,6 +91,36 @@ export function NutritionSection() {
     queryKey: ['health', 'logs', 'meal'],
     queryFn: () => healthApi.logs('meal'),
     staleTime: 60_000,
+  })
+
+  const { data: planToday } = useQuery({
+    queryKey: ['health', 'meal-plan', 'today'],
+    queryFn: healthApi.mealPlanToday,
+    staleTime: 60_000,
+  })
+  const { data: plans } = useQuery({
+    queryKey: ['health', 'meal-plans'],
+    queryFn: healthApi.mealPlans,
+    staleTime: 5 * 60_000,
+  })
+  const activePlanFull = (plans ?? []).find(p => p.is_active) ?? null
+
+  /* Logging a planned line writes the PLANNED macros, so the day's totals
+     match the plan exactly rather than drifting on re-entry. */
+  const logPlanned = useMutation({
+    mutationFn: (e: MealPlanToday['entries'][number]) => healthApi.logMeal({
+      food_name: e.name,
+      calories: e.macros?.calories ?? 0,
+      protein: e.macros?.protein ?? 0,
+      carbs: e.macros?.carbs ?? 0,
+      fat: e.macros?.fat ?? 0,
+      meal_type: e.meal_type,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['health'] })
+      toast.success('Logged from your plan')
+    },
+    onError: () => toast.error('Could not log that'),
   })
 
   const logMeal = useMutation({
@@ -114,6 +151,72 @@ export function NutritionSection() {
   })
 
   const modules = useMemo<ModuleSpec[]>(() => {
+    /* The plan sits above the day's totals: it is what you meant to do, and
+       it is most useful before you have eaten, which is exactly when the
+       totals below are all zeros. */
+    const planSpecs: ModuleSpec[] = []
+    const planned = planToday?.entries ?? []
+
+    if (planToday?.plan && planned.length) {
+      const eaten = planned.filter(e => e.matched).length
+      planSpecs.push({
+        kind: 'checklist',
+        span: 12,
+        title: `Today's plan — ${planToday.plan.name}`,
+        subtitle: planToday.planned_totals
+          ? `${eaten} of ${planned.length} eaten · ${Math.round(planToday.planned_totals.calories)} kcal planned${
+              planToday.planned_totals.incomplete_lines
+                ? ` (+${planToday.planned_totals.incomplete_lines} line${planToday.planned_totals.incomplete_lines === 1 ? '' : 's'} with no macros)`
+                : ''
+            }`
+          : `${eaten} of ${planned.length} eaten`,
+        icon: ClipboardList,
+        action: 'Edit plan',
+        onAction: () => { setEditingPlan(activePlanFull ?? null); setPlanOpen(true) },
+        /* Ticking logs the planned meal with its planned macros. Already-eaten
+           lines are inert — ticking again would double-count the day. */
+        onToggle: (i: number) => {
+          const e = planned[i]
+          if (!e || e.matched) return
+          logPlanned.mutate(e)
+        },
+        items: planned.map(e => ({
+          label: e.name,
+          meta: e.macros
+            ? `${MEAL_LABEL[e.meal_type] ?? e.meal_type} · ${Math.round(e.macros.calories)} kcal · ${e.macros.protein}g P`
+            // No macros is a real state, not zero — say so rather than show 0.
+            : `${MEAL_LABEL[e.meal_type] ?? e.meal_type} · macros unknown`,
+          done: e.matched,
+          ...(e.matched && { tagLabel: 'Eaten', tagKey: 'success' as const }),
+          busy: logPlanned.isPending && logPlanned.variables?.id === e.id,
+        })),
+      })
+    } else {
+      /* Without this the plan feature is unreachable: the card above only
+         renders once a plan HAS meals today, so a user with no plan would
+         never see a way to make one. The two empty states are different and
+         say different things — no plan at all, versus a plan that is quiet
+         today (a rest day is a legitimate plan, not a gap to fill). */
+      planSpecs.push({
+        kind: 'rows',
+        span: 12,
+        title: planToday?.plan ? `Today's plan — ${planToday.plan.name}` : 'Meal plan',
+        subtitle: planToday?.plan
+          ? 'Nothing scheduled for today'
+          : 'Plan a normal week once, then tick meals off as you eat them',
+        icon: ClipboardList,
+        action: planToday?.plan ? 'Edit plan' : 'Create a plan',
+        actionVariant: planToday?.plan ? 'ghost' : 'primary',
+        onAction: () => { setEditingPlan(activePlanFull ?? null); setPlanOpen(true) },
+        rows: [{
+          title: planToday?.plan ? 'No meals on today' : 'No active plan',
+          meta: planToday?.plan
+            ? 'Add meals to this weekday, or leave it as a rest day.'
+            : 'Pick foods from your catalogue and the macros come with them.',
+        }],
+      })
+    }
+
     const cals = today?.calories ?? 0
     const protein = today?.protein ?? 0
     const carbs = today?.carbs ?? 0
@@ -147,6 +250,7 @@ export function NutritionSection() {
     const pctOf = (v: number, t: number) => (t > 0 ? Math.min(100, Math.round((v / t) * 100)) : 0)
 
     return [
+      ...planSpecs,
       {
         kind: 'donut',
         span: 4,
@@ -252,13 +356,19 @@ export function NutritionSection() {
         }),
       },
     ]
-  }, [today, goals, water, mealLogs, logWater])
+  }, [today, goals, water, mealLogs, logWater, planToday, activePlanFull, logPlanned])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isLoading) return <SkeletonPage kpis={0} modules={[7, 5, 6, 6]} />
 
   return (
     <Root>
       <ModuleGrid modules={modules} />
+
+      <MealPlanDialog
+        open={planOpen}
+        onClose={() => { setPlanOpen(false); setEditingPlan(null) }}
+        editing={editingPlan}
+      />
 
       <Dialog
         open={logOpen}
@@ -266,17 +376,28 @@ export function NutritionSection() {
         icon={<Circle size={18} />}
         eyebrow="Health"
         title="Log a meal"
-        description="Calories are required; macros are optional but make the donut useful."
+        description="Pick from your food list to fill the macros, or type them in for a one-off."
         size="md"
       >
         <Form>
+          {/* Picking a food overwrites name + all four figures below, which
+              stay editable — the catalogue is a starting point, not a lock. */}
+          <FoodPicker
+            onPick={(m) => setMeal(prev => ({
+              ...prev,
+              food_name: m.food_name,
+              calories: String(m.calories),
+              protein: String(m.protein),
+              carbs: String(m.carbs),
+              fat: String(m.fat),
+            }))}
+          />
           <div>
             <Label>What did you eat?</Label>
             <Input
               value={meal.food_name}
               onChange={(e: any) => setMeal(m => ({ ...m, food_name: e.target.value }))}
               placeholder="Grilled chicken bowl"
-              autoFocus
             />
           </div>
           <Grid2>

@@ -33,10 +33,17 @@ const Trigger = styled.button<{ $placeholder: boolean; $invalid?: boolean }>`
 const Panel = styled.div`
   position: fixed;
   z-index: ${({ theme }) => theme.zIndex.popover + 1};
-  background: ${({ theme }) => theme.color.popover};
-  border: 1px solid ${({ theme }) => theme.color.border};
-  border-radius: ${({ theme }) => theme.radii.lg};
-  box-shadow: ${({ theme }) => theme.shadow.lg};
+  /* This is a hand-rolled flyout standing in for a Popover, so it has to
+     match one: glass tokens + elevation[3] + radii.md, same as
+     PopoverContent and the Select surface. It was a solid color.popover
+     panel on the legacy shadow scale with the surface corner one step too
+     large. */
+  background: ${({ theme }) => theme.glass.background};
+  backdrop-filter: ${({ theme }) => theme.glass.thick};
+  -webkit-backdrop-filter: ${({ theme }) => theme.glass.thick};
+  border: 1px solid ${({ theme }) => theme.mode === 'dark' ? theme.glass.borderStrong : theme.color.border};
+  border-radius: ${({ theme }) => theme.radii.md};
+  box-shadow: ${({ theme }) => theme.elevation[3]};
   padding: ${({ theme }) => `${theme.spacing[1.5]}`};
   width: 248px;
   max-height: 320px;
@@ -49,7 +56,8 @@ const Row = styled.button<{ $muted?: boolean; $accent?: boolean; $active?: boole
   align-items: center;
   gap: ${({ theme }) => `${theme.spacing[2.5]}`};
   padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[3]}`};
-  border-radius: ${({ theme }) => theme.radii.md};
+  /* Row inside a surface - sm, matching Select's Item and DropdownMenu's. */
+  border-radius: ${({ theme }) => theme.radii.sm};
   font-size: ${({ theme }) => theme.typography.fontSize.base};
   text-align: left;
   background: ${({ theme, $active }) => ($active ? theme.color.muted : 'transparent')};

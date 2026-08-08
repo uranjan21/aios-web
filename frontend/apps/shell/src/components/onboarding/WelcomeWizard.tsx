@@ -8,9 +8,12 @@ import { useAuthStore } from '@ct/shared/stores/authStore'
 const Overlay = styled(motion.div)`
   position: fixed;
   inset: 0;
-  background: rgba(12, 10, 9, 0.8);
-  backdrop-filter: blur(12px);
-  z-index: 999;
+  /* Was a hardcoded rgba(12,10,9,0.8) — the stone palette's overlay value
+     frozen in place, so every other palette's wizard scrim was wrong. */
+  background: ${({ theme }) => theme.color.overlay};
+  backdrop-filter: ${({ theme }) => theme.glass.thin};
+  -webkit-backdrop-filter: ${({ theme }) => theme.glass.thin};
+  z-index: ${({ theme }) => theme.zIndex.overlay};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -23,7 +26,7 @@ const WizardCard = styled(motion.div)`
   border-radius: ${({ theme }) => theme.radii.xl};
   width: 100%;
   max-width: 600px;
-  box-shadow: ${({ theme }) => theme.shadow.xl};
+  box-shadow: ${({ theme }) => theme.elevation[4]};
   overflow: hidden;
   position: relative;
 `

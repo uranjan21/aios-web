@@ -14,14 +14,13 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
-import { Button } from '@ledgr/ui'
+import { Button, SkeletonPage } from '@ledgr/ui'
 import { Bell, ChevronLeft, ChevronRight, FileText, Settings } from 'lucide-react'
 import styled from 'styled-components'
 import { financeApi, type PayableItem } from '@ct/shared/api/areas'
 import { api } from '@ct/shared/api/client'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { formatCurrency } from '@ct/shared/lib/utils'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 
 const Root = styled.div`
   display: flex;
@@ -258,7 +257,7 @@ export function PayablesTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, billRows, month, data, reminderOn, autopayMutation.isPending, reminderMutation.isPending])
 
-  if (isLoading) return <Skeleton style={{ height: 360 }} />
+  if (isLoading) return <SkeletonPage kpis={0} modules={[7, 5, 12]} />
 
   return (
     <Root>

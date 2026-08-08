@@ -69,6 +69,39 @@ const isCircleAllowed = (rel) => CIRCLE_ALLOWLIST.includes(rel.split(sep).join('
 
 /* ── rules ────────────────────────────────────────────────────────────── */
 
+/*
+ * CSS variables that ARE defined, just not anywhere this script can see.
+ *
+ * `undefined-css-var` decides "defined" by scanning our source for `--x:`.
+ * That is right for variables we declare, and wrong for ones a third-party
+ * component writes onto the DOM node at runtime from its props — the
+ * declaration exists in the library's JS, never as CSS text in this repo.
+ *
+ * Keep this list SHORT and justified. Every entry is a hole in a rule whose
+ * whole value is catching typos in variable names, so an entry needs a reason
+ * a reader can check, not just a name.
+ */
+const EXTERNAL_VARS = new Set([
+  // Written inline by `react-loading-skeleton` from the baseColor /
+  // highlightColor / duration props. See packages/ui/src/patterns/Skeleton.
+  '--base-color',
+  '--highlight-color',
+  '--animation-duration',
+]);
+
+/*
+ * Third-party BRAND colours. These are the one class of hex that must stay
+ * literal: recolouring somebody else's trademark to fit our palette makes the
+ * mark wrong, and in most brand guidelines it is not permitted.
+ *
+ * The rule exists to stop OUR colours drifting off the token scale, and it was
+ * flagging the Google `G` — which no amount of theming should ever touch.
+ */
+const BRAND_HEXES = new Set([
+  // Google "G" mark — apps/shell/src/pages/LoginPage.tsx (Continue with Google).
+  '#4285F4', '#34A853', '#FBBC05', '#EA4335',
+]);
+
 const RULES = [
   {
     id: 'hardcoded-font-size',
@@ -91,7 +124,7 @@ const RULES = [
     id: 'hardcoded-hex',
     label: 'hex color literal outside theme files',
     pattern: /#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b/g,
-    skip: (rel) => isThemeFile(rel),
+    skip: (rel, m) => isThemeFile(rel) || BRAND_HEXES.has(m[0].toUpperCase()),
   },
   {
     id: 'hardcoded-spacing',
@@ -186,7 +219,7 @@ for (const file of files) {
 
 const undefinedVarHits = [];
 for (const [name, locations] of referencedVars) {
-  if (!definedVars.has(name)) {
+  if (!definedVars.has(name) && !EXTERNAL_VARS.has(name)) {
     for (const loc of locations) undefinedVarHits.push(`${loc}  var(${name})`);
   }
 }

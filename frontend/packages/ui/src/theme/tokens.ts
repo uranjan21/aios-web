@@ -151,17 +151,23 @@ export const spacing = {
  * still take `sm`/`md`. See the feedback-ui-radius-and-toggle-style memory and
  * the `pill-radius` rule in scripts/token-lint.mjs, which enforces the scope.
  *
- * `md` moved 14px -> 16px on 2026-08-01 to match the redesign's card corner.
+ * MINIMAL CORNERS, 2026-08-06 (user-directed): the whole scale drops from
+ * 6/10/16/20/28/36 to 2/4/6/8/10/12. The direction is crisp, near-square edges
+ * — the softness that carried the Expressive look now comes from elevation and
+ * glass, not from corner radius. The step NAMES and their relative order are
+ * unchanged, so every call site follows automatically. Do NOT reintroduce a
+ * raw px radius to get the old rounding back on one component; if a shape
+ * genuinely needs more curve, argue for the scale, not an exception.
  * ------------------------------------------------------------------- */
 
 export const radii = {
   none: '0',
-  xs: '6px',
-  sm: '10px',
-  md: '16px',
-  lg: '20px',
-  xl: '28px',
-  '2xl': '36px',
+  xs: '2px',
+  sm: '4px',
+  md: '6px',
+  lg: '8px',
+  xl: '10px',
+  '2xl': '12px',
   /** Badges and count bubbles ONLY. See the note above before using. */
   pill: '99px',
   full: '9999px',

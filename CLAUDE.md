@@ -84,7 +84,7 @@ directories, `run.sh`, `backend/tests/test_api_mappings.py` — now goes through
 - **AI/LLMs**: Anthropic Claude SDK, OpenAI SDK (default provider, `settings.openai_chat_model`)
 - **Real-time**: FastAPI native WebSockets (`/ws/sync`, `/ws/chat`, `/ws/agents`)
 - **State**: Zustand (global) + React Query / TanStack (server state)
-- **Auth**: JWT in httpOnly SameSite=Strict cookie (`ct_token`). Google OAuth added 2026-06-21.
+- **Auth**: JWT in httpOnly SameSite=Strict cookie named **`aios_token`** — not `ct_token`, which this line claimed until 2026-08-03; the rename never touched the cookie, and changing it now would sign out every existing session. Google OAuth added 2026-06-21.
 - **Package managers**: pnpm workspaces (frontend — install from `frontend/`), uv (backend)
 - **Container**: Docker + docker-compose
 

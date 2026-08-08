@@ -35,6 +35,20 @@ import { fromCalendarDate } from '@ct/shared/lib/calendarDate'
 import type { FinancialGoal } from '@ct/shared/types'
 import { GoalContributionsPanel } from './GoalContributionsPanel'
 
+/**
+ * Is the pot fully funded?
+ *
+ * MUST coerce with Number(). `target_amount`/`current_amount` are Numeric
+ * columns, and Pydantic serializes Decimal as a JSON *string* — so the obvious
+ * `g.current_amount >= g.target_amount` is a STRING comparison. That reported
+ * a ₹55,000-of-₹2,50,000 pot as "Done", because lexically "5" > "2". Caught in
+ * the browser on 2026-08-03, not by tsc: the API types declare these `number`,
+ * which is what the rest of this file's `Number(...)` wrapping is working
+ * around everywhere else.
+ */
+const isFunded = (g: FinancialGoal) =>
+  Number(g.target_amount) > 0 && Number(g.current_amount) >= Number(g.target_amount)
+
 const Root = styled.div`
   display: flex;
   flex-direction: column;
@@ -182,7 +196,7 @@ export function GoalsTab({
 
   const visible = useMemo(() => (goals ?? []).filter((g) => {
     if (statusFilter === 'all') return true
-    const done = g.target_amount > 0 && g.current_amount >= g.target_amount
+    const done = isFunded(g)
     if (statusFilter === 'completed') return done
     const days = daysLeft(g.deadline)
     if (statusFilter === 'overdue') return !done && days !== null && days < 0
@@ -259,7 +273,7 @@ export function GoalsTab({
     const totalRequired = visible.reduce((sum, g) => sum + (requiredFor(g) ?? 0), 0)
 
     const statusOf = (g: FinancialGoal) => {
-      const done = g.target_amount > 0 && g.current_amount >= g.target_amount
+      const done = isFunded(g)
       if (done) return { label: 'Done', key: 'success' }
       const days = daysLeft(g.deadline)
       if (days !== null && days < 0) return { label: 'Overdue', key: 'destructive' }
@@ -311,9 +325,19 @@ export function GoalsTab({
           target: Math.round(totalRequired / 1000),
           targetLabel: 'Needed',
         }),
+        /* Stacked per pot, each in its own colour (2026-08-05 — the `bars` kind
+         * gained `segments`). Only goals that actually contributed appear in
+         * the key, so a dormant pot does not clutter it. */
+        legend: (contribMonthly?.goals ?? [])
+          .filter(g => g.series.some(v => v > 0))
+          .map(g => ({ label: g.name, colorKey: g.color })),
         /* Bars share one magnitude axis, so a withdrawal plots as a positive
          * height in destructive red with a signed label — the height is "how
-         * much moved", the colour and the sign say which way. */
+         * much moved", the colour and the sign say which way.
+         *
+         * A NET-NEGATIVE month stays a flat red bar rather than a stack: the
+         * parts would point in opposite directions, and there is no honest way
+         * to stack that. */
         bars: savingsSeries.map((s, i) => ({
           label: fromCalendarDate(s.month.length === 7 ? `${s.month}-01` : s.month)
             .toLocaleDateString(undefined, { month: 'short' }),
@@ -323,6 +347,11 @@ export function GoalsTab({
             ? 'destructive'
             : totalRequired > 0 && s.saved >= totalRequired ? 'success' : s.saved > 0 ? 'accent' : 'mutedFg',
           dim: s.saved === 0,
+          ...(s.saved > 0 && {
+            segments: (contribMonthly?.goals ?? [])
+              .map(g => ({ v: Math.max(0, (g.series[i] ?? 0) / 1000), colorKey: g.color, label: g.name }))
+              .filter(seg => seg.v > 0),
+          }),
         })),
       })
     }
@@ -375,7 +404,7 @@ export function GoalsTab({
 
     return specs
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, savingsSeries, avgSaved, ratePerGoal, statusFilterNode, onAdd])
+  }, [visible, savingsSeries, avgSaved, ratePerGoal, statusFilterNode, onAdd, contribMonthly])
 
   if (isLoading) return <Skeleton style={{ height: 320 }} />
 

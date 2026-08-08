@@ -29,10 +29,9 @@ import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { Moon, Zap } from 'lucide-react'
-import { Button, Card, Dialog, EmptyState, Input, Select } from '@ledgr/ui'
+import { Button, Card, Dialog, EmptyState, Input, Select, SkeletonPage } from '@ledgr/ui'
 import { healthApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 
 const Root = styled.div`
   display: flex;
@@ -228,7 +227,7 @@ export function SleepSection() {
     ]
   }, [nights, recent])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isLoading) return <SkeletonPage kpis={4} modules={[7, 5, 12]} />
 
   return (
     <Root>

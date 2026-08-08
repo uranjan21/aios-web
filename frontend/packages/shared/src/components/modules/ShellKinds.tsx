@@ -185,15 +185,60 @@ const BarCol = styled.div`
   gap: ${({ theme }) => theme.spacing[1.5]};
 `
 
-const Bar = styled.div<{ $h: string; $color: string }>`
+/* The bar silhouette, shared by the flat and stacked forms so the shape is
+   declared once. The corner values are the canvas's own and deliberately not
+   on the radii scale: a bar cap is a chart mark, not a surface. */
+const barShape = css`
   width: 100%;
   max-width: 40px;
-  height: ${({ $h }) => $h};
   border-radius: 7px 7px 3px 3px;
-  background: ${({ $color }) => $color};
   transition: height 450ms ease, filter 150ms;
 
   &:hover { filter: brightness(1.14); }
+`
+
+const Bar = styled.div<{ $h: string; $color: string }>`
+  ${barShape};
+  height: ${({ $h }) => $h};
+  background: ${({ $color }) => $color};
+`
+
+/* One column of segments sharing the flat bar's silhouette, so only the outer
+   shape is rounded and the parts inside butt together. */
+const StackedBar = styled.div<{ $h: string }>`
+  ${barShape};
+  height: ${({ $h }) => $h};
+  overflow: hidden;
+  display: flex;
+  flex-direction: column-reverse;
+`
+
+const BarSegment = styled.div<{ $pct: number; $color: string }>`
+  height: ${({ $pct }) => $pct}%;
+  background: ${({ $color }) => $color};
+`
+
+const BarLegend = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing[3]};
+  margin-bottom: ${({ theme }) => theme.spacing[3]};
+`
+
+const BarLegendItem = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing[2]};
+  ${textRole('body-s')};
+  color: ${({ theme }) => theme.color.mutedForeground};
+`
+
+const BarSwatch = styled.span<{ $color: string }>`
+  width: 10px;
+  height: 10px;
+  border-radius: ${({ theme }) => theme.radii.xs};
+  background: ${({ $color }) => $color};
+  flex-shrink: 0;
 `
 
 const BarAxis = styled.div`
@@ -220,6 +265,16 @@ export function BarsKind({ m }: { m: BarsModule }) {
 
   return (
     <div>
+      {!!m.legend?.length && (
+        <BarLegend>
+          {m.legend.map((l, i) => (
+            <BarLegendItem key={i}>
+              <BarSwatch $color={c(l.colorKey ?? 'accent')} />
+              {l.label}
+            </BarLegendItem>
+          ))}
+        </BarLegend>
+      )}
       <BarPlot>
         {m.target != null && (
           // Bars occupy 86% of the plot height, so the reference line sits at
@@ -239,10 +294,28 @@ export function BarsKind({ m }: { m: BarsModule }) {
             >
               {b.t ?? b.v}
             </span>
-            <Bar
-              $h={pct(Math.round((b.v / max) * 86))}
-              $color={b.dim ? c('border') : c(b.colorKey ?? 'accent')}
-            />
+            {b.segments?.length ? (
+              /* Segments are shares of THIS bar, so each is a percentage of
+                 the bar's own height rather than of the axis. */
+              <StackedBar $h={pct(Math.round((b.v / max) * 86))}>
+                {b.segments.map((s, si) => {
+                  const total = b.segments!.reduce((sum, x) => sum + Math.max(0, x.v), 0) || 1
+                  return (
+                    <BarSegment
+                      key={si}
+                      $pct={(Math.max(0, s.v) / total) * 100}
+                      $color={c(s.colorKey ?? 'accent')}
+                      title={s.label ? `${s.label}: ${s.v}` : undefined}
+                    />
+                  )
+                })}
+              </StackedBar>
+            ) : (
+              <Bar
+                $h={pct(Math.round((b.v / max) * 86))}
+                $color={b.dim ? c('border') : c(b.colorKey ?? 'accent')}
+              />
+            )}
           </BarCol>
         ))}
       </BarPlot>
@@ -625,18 +698,29 @@ const DayHead = styled.div<{ $rule: string }>`
   border-bottom: 2px solid ${({ $rule }) => $rule};
 `
 
-const Block = styled.div<{ $bg: string; $color: string }>`
+const Block = styled.div<{ $bg: string; $color: string; $interactive?: boolean }>`
   border-radius: ${({ theme }) => theme.radii.xs};
   padding: 7px ${({ theme }) => theme.spacing[2]};
   background: ${({ $bg }) => $bg};
   border-left: 2px solid ${({ $color }) => $color};
   transition: transform 150ms;
+  /* Resets for the button form a page opts into via onBlockClick. */
+  display: block;
+  width: 100%;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: ${({ $interactive }) => ($interactive ? 'pointer' : 'default')};
 
   &:hover { transform: translateX(2px); }
 `
 
 export function WeekKind({ m }: { m: WeekModule }) {
   const c = useModulePalette()
+  const { onBlockClick } = m
   return (
     <WeekGrid>
       {m.days.map((d, i) => (
@@ -649,12 +733,23 @@ export function WeekKind({ m }: { m: WeekModule }) {
               {d.date}
             </span>
           </DayHead>
-          {(d.blocks ?? []).map((b, j) => (
-            <Block key={j} $bg={c.alpha(b.colorKey, 0.1)} $color={c(b.colorKey)}>
-              <div style={{ fontSize: 9.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: c(b.colorKey) }}>{b.time}</div>
-              <div style={{ fontSize: 11.5, fontWeight: 600, marginTop: 2, lineHeight: 1.32 }}>{b.title}</div>
-            </Block>
-          ))}
+          {(d.blocks ?? []).map((b, j) => {
+            const clickable = !!(onBlockClick && b.id)
+            return (
+              <Block
+                key={j}
+                as={clickable ? 'button' : 'div'}
+                type={clickable ? 'button' : undefined}
+                $interactive={clickable}
+                onClick={clickable ? () => onBlockClick!(b.id!) : undefined}
+                $bg={c.alpha(b.colorKey, 0.1)}
+                $color={c(b.colorKey)}
+              >
+                <div style={{ fontSize: 9.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: c(b.colorKey) }}>{b.time}</div>
+                <div style={{ fontSize: 11.5, fontWeight: 600, marginTop: 2, lineHeight: 1.32 }}>{b.title}</div>
+              </Block>
+            )
+          })}
         </div>
       ))}
     </WeekGrid>

@@ -10,8 +10,9 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { NotebookPen, History, Tags } from 'lucide-react'
-import { ErrorState, Skeleton } from '@ledgr/ui'
+import { ErrorState, SkeletonPage } from '@ledgr/ui'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
+import { JournalEntryDialog } from '@ct/shared/components/workspace/JournalEntryDialog'
 import { careerApi, type JournalEntry } from '@ct/shared/api/areas'
 import { useDomainGoalsModule } from '@ct/shared/hooks/useDomainGoalsModule'
 import { fromCalendarDate } from '@ct/shared/lib/calendarDate'
@@ -59,6 +60,10 @@ export function JournalSection() {
     onError: () => toast.error('Could not save that entry'),
   })
 
+  /* A written entry was previously immutable — the composer could only append.
+     Clicking a timeline entry opens it for editing; Delete is in the footer. */
+  const [editing, setEditing] = useState<JournalEntry | null>(null)
+
   const modules = useMemo<ModuleSpec[]>(() => {
     const entries = entriesQ.data ?? []
     const stats = statsQ.data
@@ -97,10 +102,11 @@ export function JournalSection() {
         span: 7,
         title: 'Recent entries',
         subtitle: stats
-          ? `${stats.entries_this_month} this month · ${stats.words_this_month.toLocaleString()} words`
-          : `${entries.length} entries`,
+          ? `${stats.entries_this_month} this month · ${stats.words_this_month.toLocaleString()} words · click one to edit`
+          : `${entries.length} entries · click one to edit`,
         icon: History,
         iconKey: 'career',
+        onEntryClick: (i: number) => setEditing(entries[i]),
         entries: entries.slice(0, 8).map((e) => ({
           title: headline(e),
           body: e.body.length > 180 ? `${e.body.slice(0, 180)}…` : e.body,
@@ -131,10 +137,17 @@ export function JournalSection() {
     return mods
   }, [entriesQ.data, statsQ.data, body, save])
 
-  if (entriesQ.isLoading) return <Skeleton style={{ height: 320 }} />
+  if (entriesQ.isLoading) return <SkeletonPage kpis={0} modules={[7, 5, 12]} />
   if (entriesQ.isError) {
     return <ErrorState title="Could not load your journal" onRetry={() => entriesQ.refetch()} />
   }
 
-  return <ModuleGrid modules={goalsModule ? [...modules, goalsModule] : modules} />
+  return (
+    <>
+      <ModuleGrid modules={goalsModule ? [...modules, goalsModule] : modules} />
+
+      <JournalEntryDialog entry={editing} onClose={() => setEditing(null)} />
+
+    </>
+  )
 }

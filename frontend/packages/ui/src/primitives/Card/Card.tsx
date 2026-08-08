@@ -85,10 +85,22 @@ const variantStyles: Record<ResolvedCardVariant, ReturnType<typeof css>> = {
    * one, plus a backdrop-filter that did nothing (cards sit on an opaque page)
    * and cost a compositing layer per card.
    */
+  /*
+   * `flat` is the default, so it is what a page reads as. It borrows the
+   * module kit's BORDER and SHADOW (`theme.surface.*`) so a Card sits at the
+   * same depth as a `ModuleGrid` tile — before this, elevation[1]'s two 1px
+   * layers had no ambient lift and a Card-built page (Transactions) looked
+   * flat beside a module-built one.
+   *
+   * It deliberately does NOT take `surface.card`'s translucent gradient or
+   * `surface.filter`'s blur: this file's docblock records why those were
+   * removed — muddy edges and a compositing layer per card, on a page that is
+   * opaque anyway. Matching depth was the actual goal; the blur never was.
+   */
   flat: css`
     background: ${({ theme }) => theme.color.card};
-    border: ${({ theme }) => theme.border.hairline} solid ${({ theme }) => theme.color.border};
-    box-shadow: ${({ theme }) => theme.elevation[1]};
+    border: ${({ theme }) => theme.border.hairline} solid ${({ theme }) => theme.surface.border};
+    box-shadow: ${({ theme }) => theme.surface.shadow};
   `,
   raised: css`
     background: ${({ theme }) => theme.color.card};

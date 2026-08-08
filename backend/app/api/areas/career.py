@@ -64,6 +64,17 @@ async def update_skill(skill_id: str, body: SkillUpdate, current_user=Depends(ge
     return skill
 
 
+@router.delete("/skills/{skill_id}")
+async def delete_skill(skill_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
+    result = await db.execute(select(SkillInventory).where(SkillInventory.user_id == current_user.id).where(SkillInventory.id == skill_id))
+    skill = result.scalar_one_or_none()
+    if not skill:
+        raise HTTPException(status_code=404, detail="Skill not found")
+    await db.delete(skill)
+    await db.commit()
+    return {"ok": True}
+
+
 @router.get("/events")
 async def list_events(current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(select(CareerEvent).where(CareerEvent.user_id == current_user.id).order_by(desc(CareerEvent.occurred_at)).limit(100))
@@ -95,6 +106,56 @@ async def create_event(body: CareerEventCreate, current_user=Depends(get_current
     await db.commit()
     await db.refresh(event)
     return event
+
+
+class CareerEventUpdate(BaseModel):
+    event_type: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    skill: Optional[str] = None
+    skill_level: Optional[str] = None
+    occurred_at: Optional[datetime] = None
+
+
+async def _owned_event(db, event_id: uuid.UUID, user_id) -> CareerEvent:
+    result = await db.execute(
+        select(CareerEvent).where(CareerEvent.user_id == user_id).where(CareerEvent.id == event_id)
+    )
+    event = result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return event
+
+
+@router.patch("/events/{event_id}")
+async def update_event(
+    event_id: uuid.UUID,
+    body: CareerEventUpdate,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    event = await _owned_event(db, event_id, current_user.id)
+    payload = body.model_dump(exclude_unset=True)
+    if "title" in payload and not (payload["title"] or "").strip():
+        raise HTTPException(status_code=422, detail="Title cannot be empty")
+    for field, value in payload.items():
+        setattr(event, field, value)
+    db.add(event)
+    await db.commit()
+    await db.refresh(event)
+    return event
+
+
+@router.delete("/events/{event_id}")
+async def delete_event(
+    event_id: uuid.UUID,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    event = await _owned_event(db, event_id, current_user.id)
+    await db.delete(event)
+    await db.commit()
+    return {"ok": True}
 
 
 @router.get("/summary")
@@ -361,3 +422,235 @@ async def delete_journal_entry(
     await db.delete(entry)
     await db.commit()
     return {"ok": True}
+
+
+# ── Learning resources ────────────────────────────────────────────────────────
+# Career could record that learning happened (a CareerEvent line of text) but
+# not what was being learned or how far through it you were. `skill_id` is what
+# turns a `day_0` skill from a label into a plan.
+from app.models.career import LearningResource, EmploymentRole
+
+_LEARNING_STATUSES = {"planned", "in_progress", "completed", "abandoned"}
+_LEARNING_KINDS = {"course", "book", "article", "video", "other"}
+
+
+class LearningIn(BaseModel):
+    title: str
+    kind: str = "course"
+    provider: Optional[str] = None
+    url: Optional[str] = None
+    status: str = "planned"
+    progress_pct: int = 0
+    skill_id: Optional[uuid.UUID] = None
+    started_at: Optional[date] = None
+    completed_at: Optional[date] = None
+    notes: Optional[str] = None
+
+
+def _learning_payload(r: LearningResource, skill_names: dict) -> dict:
+    return {
+        "id": str(r.id), "title": r.title, "kind": r.kind, "provider": r.provider,
+        "url": r.url, "status": r.status, "progress_pct": r.progress_pct,
+        "skill_id": str(r.skill_id) if r.skill_id else None,
+        "skill_name": skill_names.get(r.skill_id),
+        "started_at": r.started_at.isoformat() if r.started_at else None,
+        "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+        "notes": r.notes,
+    }
+
+
+async def _skill_names(db, user_id) -> dict:
+    rows = (await db.execute(select(SkillInventory).where(SkillInventory.user_id == user_id))).scalars().all()
+    return {s.id: s.skill_name for s in rows}
+
+
+async def _apply_learning(db, user_id, r: LearningResource, body: LearningIn) -> None:
+    title = body.title.strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Title is required")
+    if body.status not in _LEARNING_STATUSES:
+        raise HTTPException(status_code=422, detail=f"status must be one of {sorted(_LEARNING_STATUSES)}")
+    if body.kind not in _LEARNING_KINDS:
+        raise HTTPException(status_code=422, detail=f"kind must be one of {sorted(_LEARNING_KINDS)}")
+    if body.skill_id is not None:
+        owned = (await db.execute(
+            select(SkillInventory)
+            .where(SkillInventory.user_id == user_id)
+            .where(SkillInventory.id == body.skill_id)
+        )).scalars().first()
+        if not owned:
+            raise HTTPException(status_code=404, detail="Skill not found")
+
+    r.title = title
+    r.kind = body.kind
+    r.provider = (body.provider or "").strip() or None
+    r.url = (body.url or "").strip() or None
+    r.status = body.status
+    r.progress_pct = max(0, min(100, body.progress_pct))
+    r.skill_id = body.skill_id
+    r.started_at = body.started_at
+    r.completed_at = body.completed_at
+    r.notes = body.notes
+    # Completing a resource means 100% — leaving a "completed" row at 40% would
+    # make every progress roll-up wrong.
+    if r.status == "completed":
+        r.progress_pct = 100
+        r.completed_at = r.completed_at or date.today()
+    r.updated_at = datetime.utcnow()
+
+
+@router.get("/learning")
+async def list_learning(current_user=Depends(get_current_user), db=Depends(get_db)):
+    rows = (await db.execute(
+        select(LearningResource)
+        .where(LearningResource.user_id == current_user.id)
+        .order_by(desc(LearningResource.updated_at))
+    )).scalars().all()
+    names = await _skill_names(db, current_user.id)
+    return [_learning_payload(r, names) for r in rows]
+
+
+@router.post("/learning")
+async def create_learning(body: LearningIn, current_user=Depends(get_current_user), db=Depends(get_db)):
+    r = LearningResource(user_id=current_user.id, title=body.title.strip() or "Untitled")
+    await _apply_learning(db, current_user.id, r, body)
+    db.add(r)
+    await db.commit()
+    await db.refresh(r)
+    return _learning_payload(r, await _skill_names(db, current_user.id))
+
+
+@router.patch("/learning/{resource_id}")
+async def update_learning(resource_id: uuid.UUID, body: LearningIn, current_user=Depends(get_current_user), db=Depends(get_db)):
+    r = (await db.execute(
+        select(LearningResource)
+        .where(LearningResource.user_id == current_user.id)
+        .where(LearningResource.id == resource_id)
+    )).scalars().first()
+    if not r:
+        raise HTTPException(status_code=404, detail="Learning resource not found")
+    await _apply_learning(db, current_user.id, r, body)
+    db.add(r)
+    await db.commit()
+    await db.refresh(r)
+    return _learning_payload(r, await _skill_names(db, current_user.id))
+
+
+@router.delete("/learning/{resource_id}")
+async def delete_learning(resource_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    r = (await db.execute(
+        select(LearningResource)
+        .where(LearningResource.user_id == current_user.id)
+        .where(LearningResource.id == resource_id)
+    )).scalars().first()
+    if not r:
+        raise HTTPException(status_code=404, detail="Learning resource not found")
+    await db.delete(r)
+    await db.commit()
+    return {"status": "deleted"}
+
+
+# ── Employment history ────────────────────────────────────────────────────────
+_EMPLOYMENT_TYPES = {"full_time", "part_time", "contract", "freelance", "internship"}
+
+
+class RoleIn(BaseModel):
+    company: str
+    title: str
+    employment_type: str = "full_time"
+    location: Optional[str] = None
+    start_date: date
+    end_date: Optional[date] = None
+    description: Optional[str] = None
+
+
+def _role_payload(r: EmploymentRole) -> dict:
+    return {
+        "id": str(r.id), "company": r.company, "title": r.title,
+        "employment_type": r.employment_type, "location": r.location,
+        "start_date": r.start_date.isoformat(),
+        "end_date": r.end_date.isoformat() if r.end_date else None,
+        # Derived, never stored — one source of truth for "am I still there".
+        "is_current": r.end_date is None,
+        "months": _months_between(r.start_date, r.end_date or date.today()),
+        "description": r.description,
+    }
+
+
+def _months_between(start: date, end: date) -> int:
+    return max(0, (end.year - start.year) * 12 + (end.month - start.month))
+
+
+def _validate_role(body: RoleIn) -> None:
+    if not body.company.strip():
+        raise HTTPException(status_code=422, detail="Company is required")
+    if not body.title.strip():
+        raise HTTPException(status_code=422, detail="Title is required")
+    if body.employment_type not in _EMPLOYMENT_TYPES:
+        raise HTTPException(status_code=422, detail=f"employment_type must be one of {sorted(_EMPLOYMENT_TYPES)}")
+    if body.end_date and body.end_date < body.start_date:
+        raise HTTPException(status_code=422, detail="End date cannot be before the start date")
+
+
+@router.get("/roles")
+async def list_roles(current_user=Depends(get_current_user), db=Depends(get_db)):
+    """Newest first. Current roles (no end date) sort above finished ones."""
+    rows = (await db.execute(
+        select(EmploymentRole)
+        .where(EmploymentRole.user_id == current_user.id)
+        .order_by(desc(EmploymentRole.start_date))
+    )).scalars().all()
+    ordered = sorted(rows, key=lambda r: (r.end_date is not None, -r.start_date.toordinal()))
+    return [_role_payload(r) for r in ordered]
+
+
+@router.post("/roles")
+async def create_role(body: RoleIn, current_user=Depends(get_current_user), db=Depends(get_db)):
+    _validate_role(body)
+    r = EmploymentRole(
+        user_id=current_user.id, company=body.company.strip(), title=body.title.strip(),
+        employment_type=body.employment_type, location=(body.location or "").strip() or None,
+        start_date=body.start_date, end_date=body.end_date, description=body.description,
+    )
+    db.add(r)
+    await db.commit()
+    await db.refresh(r)
+    return _role_payload(r)
+
+
+@router.patch("/roles/{role_id}")
+async def update_role(role_id: uuid.UUID, body: RoleIn, current_user=Depends(get_current_user), db=Depends(get_db)):
+    r = (await db.execute(
+        select(EmploymentRole)
+        .where(EmploymentRole.user_id == current_user.id)
+        .where(EmploymentRole.id == role_id)
+    )).scalars().first()
+    if not r:
+        raise HTTPException(status_code=404, detail="Role not found")
+    _validate_role(body)
+    r.company = body.company.strip()
+    r.title = body.title.strip()
+    r.employment_type = body.employment_type
+    r.location = (body.location or "").strip() or None
+    r.start_date = body.start_date
+    r.end_date = body.end_date
+    r.description = body.description
+    r.updated_at = datetime.utcnow()
+    db.add(r)
+    await db.commit()
+    await db.refresh(r)
+    return _role_payload(r)
+
+
+@router.delete("/roles/{role_id}")
+async def delete_role(role_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    r = (await db.execute(
+        select(EmploymentRole)
+        .where(EmploymentRole.user_id == current_user.id)
+        .where(EmploymentRole.id == role_id)
+    )).scalars().first()
+    if not r:
+        raise HTTPException(status_code=404, detail="Role not found")
+    await db.delete(r)
+    await db.commit()
+    return {"status": "deleted"}

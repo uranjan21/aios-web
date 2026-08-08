@@ -8,6 +8,19 @@ export const StyledSkeleton = styled(Skeleton)<{ $height?: string; $width?: stri
   ${({ $margin }) => $margin && `margin: ${$margin};`}
 `
 
+/**
+ * Page stack: KPI tiles, then the transactions card. The tiles used to render
+ * INSIDE the card, below the toolbar — a card nested in a card, which read as
+ * a cramped band rather than as the page's summary. Every other Finance page
+ * puts its tiles at page level, so this matches them. Gap owns the spacing;
+ * children must not add their own margins (see WorkspaceLayout's Main rule).
+ */
+export const PageStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => `${theme.spacing[5]}`};
+`
+
 export const DesktopSearch = styled.div`
   display: none;
   @media ${({ theme }) => theme.media.sm} {

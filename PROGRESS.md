@@ -1,5 +1,175 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
+## 2026-08-06 — claude-code (Transactions audit: approve → ledger, and the search that never ran)
+
+**Ask.** Audit the transaction page and feature in depth — UI/UX, design and
+functionality. Reported symptom: *"if I approve any transaction from inbox, it
+is not showing on transaction."*
+
+**The reported bug was real, and nothing was being lost.** The user's own rows
+proved it: 7 approved pendings, 7 matching `finance_expenses` with
+`source='upi-tracker'` — all dated **2026-07-27/28**, approved on 08-03, viewed
+in **August**. An email transaction files under the date it *happened*, and
+Transactions opens on the current month, so a correctly-filed row was simply
+off-screen. Two independent causes, both fixed:
+
+- **The ledger cache was never invalidated.** `InboxTab.refreshQueue()`
+  invalidated `['finance','pending']` + `['finance','auto-filed']` only. With
+  the global `staleTime: 30_000` (`apps/shell/src/App.tsx`), Transactions,
+  cashflow, budgets and **account balances** all served pre-approval data. Now
+  invalidates the `['finance']` root — the ledger row and the balance both move.
+- **Nothing said where it went.** Approve now reports `Filed to 20 Jul 2026`,
+  names the month when it is not the current one, and offers **View**;
+  `TransactionsTab` accepts `?date=YYYY-MM-DD` and opens on that period
+  (`useSearchParams` + an effect, since re-navigating does not remount).
+  Bulk approve reports the oldest period it filed into.
+
+**Transaction search has never worked — HTTP 500 on every call.** Confirmed
+pre-existing at HEAD, untouched by this session's diff. Three stacked defects in
+`search_transactions`, each masking the next:
+1. `bindparams(**params)` fed `lim`/`off` to `total_sql`, which contains no
+   LIMIT/OFFSET → `ArgumentError`. Now a filtered `count_params`.
+2. `:uid` bound as a Python str → `operator does not exist: uuid = character
+   varying`.
+3. The fix for (2) cannot be `:uid::uuid` — `text()`'s bind-param regex requires
+   the next character not to be `:`, so the postfix cast makes SQLAlchemy stop
+   seeing the parameter. **Use `CAST(:uid AS uuid)`.** The three pre-existing
+   `:aid{p}::uuid` account filters had the same latent flaw and were converted.
+   All 12 filter paths (q / source / tag / account / kind / amount / date /
+   category / combined) now verified 200.
+
+**`source` is now a first-class search filter.** The Inbox's "Filed
+automatically" card queried `tag='upi-tracker'`, but the origin marker is
+written to `FinanceExpense.source` while `tag` matches only the user's own
+labels — so it could never match an expense (verified: 7 rows, all `tags` NULL).
+Added `source=` to `/transactions/search`, hiding the asymmetry that
+`FinanceIncome.source` holds the CATEGORY name so income's origin lives in tags.
+Card renamed **"Recently filed"**, renders whether or not the queue is empty (it
+is the receipt for an approval — hiding it at inbox zero removed it exactly when
+it mattered), shows full dates and opens the ledger on that period.
+
+**Approve is now safe to press.**
+- **An account is required** (422), matching manual expense/income create.
+  Without one `apply_balance()` no-ops, so the row landed while no balance
+  moved. Bulk approve skips such rows with the real server reason, which the
+  toast now prints instead of guessing "duplicates or missing data".
+- **The duplicate guard is overridable, not fatal.** Same-day + same-amount +
+  same-kind is a hint, not proof — two genuine ₹100 purchases collide. 409 now
+  offers **File anyway** (`force: true`) instead of telling the user to discard a
+  real transaction. In the auto-commit cron the same false positive used to set
+  `status='dismissed'`, silently destroying a real transaction; it now clears
+  `auto_commit_at` and hands the row back to review. Rows with no account are
+  deferred the same way rather than filed with no balance effect.
+
+**UI, on Utsav's call mid-session.** The Income/Expenses/Net tiles rendered
+*inside* the All Transactions card, below the toolbar — a card in a card. Moved
+to page level in a `PageStack` (`spacing[5]` gap; `KpiGrid` lost its margins so
+the gap is not doubled), matching Finance Overview. Measured: tiles out of the
+card, 20px page gap, 12px tile gap, no horizontal overflow at 375px, where they
+stay a scroll-snapped row.
+
+**Cards and KPIs were on the app's OTHER surface system** (Utsav: "other pages
+cards, kpis has shadows, borders, while transaction page doesn't"). Measured,
+not eyeballed: they DID have both, but `@ledgr/ui`'s `Card` (`flat`, the
+default — 35 call sites) and `KpiCard` (2 call sites) drew
+`color.border` + `elevation[1]` — two tight 1px layers with **no ambient
+lift** — while every `ModuleGrid` tile and card drew
+`surface.border` + `surface.shadow`, whose second layer is
+`0 14px 34px -26px`. Transactions is the one Finance page built from `Card`
+rather than `ModuleGrid`, so it read flat next to its neighbours.
+
+Both primitives now take `theme.surface.border` + `theme.surface.shadow`. They
+deliberately do **not** take `surface.card`'s gradient or `surface.filter`'s
+blur: `Card.tsx`'s own docblock records those being removed for muddy edges and
+a compositing layer per card on an opaque page. Matching depth was the goal; the
+blur never was. `raised`/`floating` keep `elevation[2]/[3]` — those are
+deliberate steps, not the default. **Verified by measurement in BOTH modes:**
+the Transactions KPI, the Transactions card and two Inbox module cards return
+byte-identical border, shadow and radius (light: `1px rgba(12,10,9,0.1)` +
+the two-layer lift; dark: `1px rgba(255,255,255,0.1)` + the dark shadow triple
+including the inner hairline).
+
+**And the KPI shadow was being CLIPPED, which measurement could not see.**
+Utsav, after the change above: "kpi on transaction page, should also have
+similar shadow." The token was right and `getComputedStyle` reported it
+correctly — but `SummaryBar`'s `KpiGrid` declared `display:flex` +
+`overflow-x:auto` in its BASE rule and only switched to `display:grid` inside
+the `sm` query, so **`overflow-x:auto` stayed applied at every width** (which
+also makes computed `overflow-y` `auto`). An overflow container clips its
+children's box-shadow, and the card's bottom edge sat flush with the
+container's — measured `roomBelowCardForShadow: 0` — so the ambient
+`0 14px 34px -26px` half was cut off flat.
+
+Restructured to mirror the module kit's `TileScroller`: **grid by default, the
+scroller only inside `belowMd`**, plus `padding-bottom` there so the scroller
+does not clip it either. Now `overflow: visible` at desktop and 8px of room on
+mobile, three cards still one scroll-snapped row, no page overflow at 375px.
+**Lesson: `getComputedStyle` returns a shadow an ancestor is clipping, so a
+"shadow is set" assertion proves nothing — this class of bug has to be looked
+at.**
+
+**The loading state was two grey bars** matching nothing on the page, so content
+jumped in over it. Now `SkeletonKpiRow count={3}` + `SkeletonTable rows={8}
+columns={5}` — the real three-tile row and the real
+DATE/MERCHANT/CATEGORY/ACCOUNT/AMOUNT grid. (`SkeletonPage` itself, from commit
+`0e15807`, is parameterised by `kpis` + module spans but draws every module as
+the same header-plus-block card; `SkeletonList`/`Table`/`Chart` exist and it
+never uses them. Worth revisiting — not touched here.)
+
+**Verified.** Backend **262 passing**. tsc, `pnpm build`, vitest clean.
+token-lint: no regressions, **1 violation removed** (baseline deliberately not
+re-locked — a separate task owns that stale baseline). Walked live at 1280px and
+375px: approve → toast → View → July 2026 with the row present, search returning
+results, zero console errors, every request 200, `scrollWidth == clientWidth ==
+375`. Test fixtures seeded into the dev DB for the walkthrough were removed
+(counts back to 12 expenses / 10 pending).
+
+**Breadth pass (done by hand — both audit agents died on a session limit).**
+The rest of the transaction surface is **clean**, verified by reading every
+money path rather than sampling:
+
+- **Balance correctness holds everywhere else.** Expense and income PATCH both
+  revert the old effect before applying the new one, and read the OLD
+  `account_id` before reassigning it, so moving a transaction between accounts
+  is correct. Delete reverses. Transfers validate `amount > 0` and
+  `from != to`, and delete reverses both legs. Investment buy/sell/dividend
+  reverses correctly too. There is **no PATCH for transfers** at all, which is
+  why the row UI blocks editing them — consistent, not a gap.
+- **Ownership is enforced structurally.** `_adjust_balance` scopes its lookup to
+  `Account.user_id == current_user.id` and raises 404, so passing another
+  tenant's `account_id` to any create/update path fails and rolls back before
+  anything persists. `import_commit` checks account ownership explicitly.
+- **Every other frontend write path already invalidates the `['finance']` root**
+  (TransactionRow inline edit + delete, TransactionModal, BulkDialogs,
+  ImportCsvModal) and every one sends naive-local `logged_at`, never
+  `toISOString()`. The Inbox was the single outlier — which is exactly why the
+  bug appeared only there.
+
+**Regression tests added** (`tests/test_txn_tracker.py`, +3 → **265 passing**):
+approve-without-account → 422 and nothing filed; same-day/same-amount → 409 then
+200 with `force`, with BOTH debits on the balance; auto-commit defers a
+suspected duplicate to review instead of dismissing it. **Each was proven to
+fail against the pre-fix code** before being kept — reverting the three guards
+turns exactly these three red.
+
+**Open — needs a product call, deliberately not changed.** `import_commit` is
+documented as "historical backfill" and does **not** adjust account balances,
+while every other write path does. Importing a statement therefore fills the
+ledger but leaves the balance untouched. Defensible for a backfill of
+already-reflected history; wrong if users import recent statements. Decide, then
+make the UI say which it is.
+
+**Still unaudited:** split transactions (`split_group_id` has no dedicated
+create path in the current UI) and the CSV parser's date/locale handling.
+
+**Test-harness gap worth knowing.** `tests/conftest.py` runs on in-memory
+SQLite, but `search_transactions` is raw Postgres SQL (`::text`, `::float8`,
+`ILIKE`, `CAST(… AS uuid)`). It is **not testable in the current harness** —
+which is precisely how it stayed a 500 forever. A unit test here would fail on
+dialect, not on the bug, so none was added; closing this needs a
+Postgres-backed integration path.
+
+
 ## 2026-08-03 — claude-code (Settings: one nav level, 6 sections → 7 real ones)
 
 **Ask.** The global sidebar expanded Settings into the same six entries the

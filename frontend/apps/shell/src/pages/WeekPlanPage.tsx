@@ -12,8 +12,8 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { CalendarCheck, BarChart3, Flag } from 'lucide-react'
-import { Button, Dialog, ErrorState, Input, Select, Skeleton } from '@ledgr/ui'
+import { CalendarCheck, BarChart3, Flag, Trash2 } from 'lucide-react'
+import { Button, Dialog, ErrorState, Input, Select, SkeletonPage } from '@ledgr/ui'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { workspaceApi, type PlanBlock } from '@ct/shared/api/workspace'
@@ -67,6 +67,8 @@ export function WeekPlanPage() {
   const qc = useQueryClient()
   const [weekOffset, setWeekOffset] = useState(0)
   const [addOpen, setAddOpen] = useState(false)
+  /** Non-null puts the shared dialog into edit mode. */
+  const [editing, setEditing] = useState<PlanBlock | null>(null)
   const [draft, setDraft] = useState({
     block_date: '', start_time: '09:00', end_time: '10:00', title: '', domain: '', is_priority: false,
   })
@@ -95,6 +97,45 @@ export function WeekPlanPage() {
     staleTime: 30_000,
   })
 
+  /* Real commitments for the same week. The planner and the calendar have
+     never talked, so it was possible to block deep work straight over a
+     standing meeting. Read-only — the Google grant is `calendar.readonly`. */
+  const { data: cal } = useQuery({
+    queryKey: ['workspace', 'plan-week-calendar', iso(weekStart)],
+    queryFn: () => workspaceApi.getPlanWeekCalendar({ start: iso(weekStart), end: iso(weekEnd) }),
+    staleTime: 5 * 60_000,
+  })
+
+  const openAdd = () => {
+    setEditing(null)
+    setDraft({
+      block_date: iso(weekDays[0]), start_time: '09:00', end_time: '10:00',
+      title: '', domain: '', is_priority: false,
+    })
+    setAddOpen(true)
+  }
+
+  /* A block in the week grid has no action affordance of its own, so clicking
+     it opens the editor and Delete lives in the dialog footer. Calendar
+     meetings carry no id and stay inert — they are not ours to edit. */
+  const openEdit = (b: PlanBlock) => {
+    setEditing(b)
+    setDraft({
+      block_date: b.block_date,
+      start_time: hhmm(b.start_time),
+      end_time: hhmm(b.end_time),
+      title: b.title,
+      domain: b.domain ?? '',
+      is_priority: b.is_priority,
+    })
+    setAddOpen(true)
+  }
+
+  const closeDialog = () => {
+    setAddOpen(false)
+    setEditing(null)
+  }
+
   const create = useMutation({
     mutationFn: () =>
       workspaceApi.createPlanBlock({
@@ -108,11 +149,38 @@ export function WeekPlanPage() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['workspace', 'plan-blocks'] })
-      setAddOpen(false)
-      setDraft({ ...draft, title: '', is_priority: false })
+      closeDialog()
       toast.success('Block added')
     },
     onError: () => toast.error('Could not add that block'),
+  })
+
+  const update = useMutation({
+    mutationFn: () =>
+      workspaceApi.updatePlanBlock(editing!.id, {
+        block_date: draft.block_date,
+        start_time: `${draft.start_time}:00`,
+        end_time: `${draft.end_time}:00`,
+        title: draft.title.trim(),
+        domain: draft.domain || null,
+        is_priority: draft.is_priority,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workspace', 'plan-blocks'] })
+      closeDialog()
+      toast.success('Block updated')
+    },
+    onError: () => toast.error('Could not update that block'),
+  })
+
+  const remove = useMutation({
+    mutationFn: (id: string) => workspaceApi.deletePlanBlock(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workspace', 'plan-blocks'] })
+      closeDialog()
+      toast.success('Block removed')
+    },
+    onError: () => toast.error('Could not remove that block'),
   })
 
   const modules = useMemo<ModuleSpec[]>(() => {
@@ -142,9 +210,17 @@ export function WeekPlanPage() {
         kind: 'week',
         span: 12,
         title: `Week of ${weekLabel}`,
-        subtitle: blocks.length
-          ? `${blocks.length} focus block${blocks.length === 1 ? '' : 's'} planned across ${domainsUsed} domain${domainsUsed === 1 ? '' : 's'}`
-          : 'Nothing blocked out yet — add your first focus block',
+        /* Meetings are counted separately from blocks on purpose: they are not
+           yours to plan. But the subtitle has to acknowledge them, or a grid
+           showing two meetings sits under the words "nothing blocked out". */
+        subtitle: [
+          blocks.length
+            ? `${blocks.length} focus block${blocks.length === 1 ? '' : 's'} planned across ${domainsUsed} domain${domainsUsed === 1 ? '' : 's'}`
+            : 'Nothing blocked out yet — add your first focus block',
+          (cal?.events.length ?? 0) > 0
+            ? `${cal!.events.length} meeting${cal!.events.length === 1 ? '' : 's'} already on your calendar`
+            : null,
+        ].filter(Boolean).join(' · '),
         icon: CalendarCheck,
         // The canvas puts the week navigator and Add in this card's header,
         // not in a page title bar — the card IS the week.
@@ -157,18 +233,35 @@ export function WeekPlanPage() {
         ),
         action: 'Add block',
         actionVariant: 'primary',
-        onAction: () => { setDraft((d) => ({ ...d, block_date: iso(weekDays[0]) })); setAddOpen(true) },
+        onAction: openAdd,
+        onBlockClick: (id: string) => {
+          const b = blocks.find((x) => x.id === id)
+          if (b) openEdit(b)
+        },
         days: weekDays.map((d, i) => {
           const key = iso(d)
+          /* Meetings render in the same column as blocks, muted, so the day
+             reads as "what is already spoken for" before you add to it. They
+             sort together by start time — a meeting at 09:00 above a block at
+             10:00 is the only ordering that tells the truth about the day. */
+          const meetings = (cal?.events ?? [])
+            .filter((e) => e.start_time.slice(0, 10) === key)
+            .map((e) => ({
+              time: hhmm(e.start_time.slice(11)),
+              title: e.title,
+              colorKey: 'mutedFg' as const,
+            }))
+          const own = (byDay.get(key) ?? []).map((b) => ({
+            id: b.id,
+            time: hhmm(b.start_time),
+            title: b.title,
+            colorKey: colorFor(b.domain),
+          }))
           return {
             label: DAY_LABELS[i],
             date: String(d.getDate()),
             today: key === todayIso,
-            blocks: (byDay.get(key) ?? []).map((b) => ({
-              time: hhmm(b.start_time),
-              title: b.title,
-              colorKey: colorFor(b.domain),
-            })),
+            blocks: [...own, ...meetings].sort((a, b) => a.time.localeCompare(b.time)),
           }
         }),
       },
@@ -228,13 +321,13 @@ export function WeekPlanPage() {
     }
 
     return mods
-  }, [data, weekDays, weekStart, todayIso])
+  }, [data, weekDays, weekStart, todayIso, cal])
 
   return (
     <PageContainer>
       <PageContent>
         {isLoading ? (
-          <Skeleton style={{ height: 320 }} />
+          <SkeletonPage kpis={0} modules={[12, 7, 5]} />
         ) : isError ? (
           <ErrorState title="Could not load your week" onRetry={() => refetch()} />
         ) : (
@@ -243,10 +336,10 @@ export function WeekPlanPage() {
 
         <Dialog
           open={addOpen}
-          onOpenChange={(o) => !o && setAddOpen(false)}
+          onOpenChange={(o) => !o && closeDialog()}
           icon={<CalendarCheck size={18} />}
           eyebrow="Plan"
-          title="Add a focus block"
+          title={editing ? 'Edit focus block' : 'Add a focus block'}
           description="A time you are committing to one thing."
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -292,9 +385,26 @@ export function WeekPlanPage() {
               <span style={{ fontSize: 13 }}>Make this the day&rsquo;s one priority</span>
             </label>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <Button variant="outline" size="sm" onClick={() => setAddOpen(false)}>Cancel</Button>
-              <Button size="sm" disabled={!draft.title.trim() || create.isPending} onClick={() => create.mutate()}>
-                {create.isPending ? 'Adding…' : 'Add block'}
+              {editing && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  style={{ marginRight: 'auto' }}
+                  loading={remove.isPending}
+                  onClick={() => remove.mutate(editing.id)}
+                >
+                  <Trash2 size={14} style={{ marginRight: 4 }} /> Delete
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={closeDialog}>Cancel</Button>
+              <Button
+                size="sm"
+                disabled={!draft.title.trim() || create.isPending || update.isPending}
+                onClick={() => (editing ? update.mutate() : create.mutate())}
+              >
+                {editing
+                  ? (update.isPending ? 'Saving…' : 'Save changes')
+                  : (create.isPending ? 'Adding…' : 'Add block')}
               </Button>
             </div>
           </div>

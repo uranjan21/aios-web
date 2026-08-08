@@ -13,14 +13,34 @@ logger = logging.getLogger(__name__)
 
 VAULT_UNAVAILABLE = "(Vault access is not available on this account.)"
 
-AREA_LOG_MAP = {
-    "finance": "01-finance/log/2026.md",
-    "health": "02-health/log/2026.md",
-    "career": "03-career/log/2026.md",
-    "business": "04-business/log/2026.md",
-    "content": "05-content/log/2026.md",
-    "session": "memory/session-log.md",
+"""
+Area log folders. The FILE is per year and is resolved at call time by
+`area_log_path()` — never stored here as a literal.
+
+These were hardcoded to `2026.md` until 2026-08-03, which meant every append
+from 2027-01-01 onward would have kept appending to the 2026 file. It would
+not have raised: the path stayed on the write allowlist, so the write simply
+landed in the wrong year, forever, silently.
+"""
+AREA_LOG_DIRS = {
+    "finance": "01-finance",
+    "health": "02-health",
+    "career": "03-career",
+    "business": "04-business",
+    "content": "05-content",
 }
+
+# Not year-scoped — one rolling file.
+SESSION_LOG_PATH = "memory/session-log.md"
+
+
+def area_log_path(area: str | None, when: date | None = None) -> str:
+    """Vault path for an area's log, for the year of `when` (default: today)."""
+    folder = AREA_LOG_DIRS.get(area or "")
+    if not folder:
+        return SESSION_LOG_PATH
+    year = (when or datetime.now(timezone.utc).date()).year
+    return f"{folder}/log/{year}.md"
 
 AREA_CONTEXT_MAP = {
     "finance": "01-finance/context.md",
@@ -32,10 +52,9 @@ AREA_CONTEXT_MAP = {
 }
 
 
-def _area_for_vault_log(area: str | None) -> str:
-    if area in AREA_LOG_MAP:
-        return str(area)
-    return "session"
+def is_known_log_area(area: str | None) -> bool:
+    """`session` is a valid target too — it is the one non-area log."""
+    return area in AREA_LOG_DIRS or area == "session"
 
 
 async def _sync_vault_path_if_enabled(settings, user_id: UUID, rel_path: str) -> None:
@@ -60,9 +79,8 @@ async def _append_vault_entry(
     # The vault is one shared filesystem — only its owner's writes may land there.
     if not await is_vault_owner(user_id):
         return
-    path = AREA_LOG_MAP.get(_area_for_vault_log(area))
-    if not path:
-        return
+    # Unknown/absent area falls back to the session log, as it always has.
+    path = area_log_path(area)
     try:
         await asyncio.to_thread(guard.append_to_log, path, entry)
         if path not in affected:
@@ -305,9 +323,9 @@ async def execute_tool(tool_name: str, tool_input: dict, user_id: UUID, confirme
             return VAULT_UNAVAILABLE, []
         area = tool_input["area"]
         entry = tool_input["entry"]
-        path = AREA_LOG_MAP.get(area)
-        if not path:
+        if not is_known_log_area(area):
             return f"Unknown area: {area}", []
+        path = area_log_path(area)
         await asyncio.to_thread(guard.append_to_log, path, entry)
         affected.append(path)
         await _sync_vault_path_if_enabled(settings, user_id, path)

@@ -16,12 +16,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
-import { Activity, CheckSquare, Plus, Trash2 } from 'lucide-react'
-import { Button, Card, Dialog, EmptyState, Input } from '@ledgr/ui'
-import { healthApi } from '@ct/shared/api/areas'
+import { Activity, CheckSquare, Dumbbell, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Button, Card, Dialog, EmptyState, Input, SkeletonPage } from '@ledgr/ui'
+import { healthApi, type WorkoutRoutine } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import type { WorkoutSessionItem } from '@ct/shared/types'
+import { RoutineDialog } from '../RoutineDialog'
+
+/** 0 = Monday, matching the backend's date.weekday(). */
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 const Root = styled.div`
   display: flex;
@@ -60,6 +63,11 @@ const Spacer = styled.div`
   flex: 1;
 `
 
+const EmptyActions = styled.div`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing[2]};
+`
+
 type SetRow = { exercise: string; reps: string; weight_kg: string }
 const EMPTY_SET: SetRow = { exercise: '', reps: '', weight_kg: '' }
 
@@ -77,7 +85,13 @@ export function WorkoutsSection() {
   const [logOpen, setLogOpen] = useState(false)
   const [name, setName] = useState('')
   const [sets, setSets] = useState<SetRow[]>([{ ...EMPTY_SET }])
+  /* Non-null puts the log dialog into edit mode. A session was correctable
+     only by deleting and re-logging it until 2026-08-06. */
+  const [editingSession, setEditingSession] = useState<WorkoutSessionItem | null>(null)
+  const [loggedOn, setLoggedOn] = useState('')
   const [detail, setDetail] = useState<WorkoutSessionItem | null>(null)
+  const [routineOpen, setRoutineOpen] = useState(false)
+  const [editingRoutine, setEditingRoutine] = useState<WorkoutRoutine | null>(null)
 
   const { data: sessions, isLoading } = useQuery({
     queryKey: ['health', 'workouts'],
@@ -88,6 +102,17 @@ export function WorkoutsSection() {
     queryFn: healthApi.healthGoals,
     staleTime: 5 * 60_000,
   })
+  const { data: routines } = useQuery({
+    queryKey: ['health', 'routines'],
+    queryFn: healthApi.routines,
+    staleTime: 60_000,
+  })
+  const { data: adherence } = useQuery({
+    queryKey: ['health', 'adherence'],
+    queryFn: () => healthApi.workoutAdherence(28),
+    staleTime: 60_000,
+  })
+
   // Gym logs carry a duration in minutes, which the session rows do not.
   const { data: gymLogs } = useQuery({
     queryKey: ['health', 'logs', 'gym'],
@@ -98,13 +123,7 @@ export function WorkoutsSection() {
   const create = useMutation({
     mutationFn: () => healthApi.createWorkout({
       name: name.trim() || 'Workout',
-      sets: sets
-        .filter(r => r.exercise.trim() && Number(r.reps) > 0)
-        .map(r => ({
-          exercise: r.exercise.trim(),
-          reps: Number(r.reps),
-          ...(r.weight_kg ? { weight_kg: Number(r.weight_kg) } : {}),
-        })),
+      sets: cleanSets(),
     }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['health'] })
@@ -114,11 +133,67 @@ export function WorkoutsSection() {
       } else {
         toast.success('Workout logged')
       }
-      setLogOpen(false)
-      setName('')
-      setSets([{ ...EMPTY_SET }])
+      closeLog()
     },
     onError: () => toast.error('Failed to log workout'),
+  })
+
+  const cleanSets = () =>
+    sets
+      .filter(r => r.exercise.trim() && Number(r.reps) > 0)
+      .map(r => ({
+        exercise: r.exercise.trim(),
+        reps: Number(r.reps),
+        ...(r.weight_kg ? { weight_kg: Number(r.weight_kg) } : {}),
+      }))
+
+  const closeLog = () => {
+    setLogOpen(false)
+    setEditingSession(null)
+    setName('')
+    setLoggedOn('')
+    setSets([{ ...EMPTY_SET }])
+  }
+
+  const openLog = () => {
+    setEditingSession(null)
+    setName('')
+    setLoggedOn('')
+    setSets([{ ...EMPTY_SET }])
+    setLogOpen(true)
+  }
+
+  const openEditSession = (s: WorkoutSessionItem) => {
+    setEditingSession(s)
+    setName(s.name)
+    setLoggedOn(dayjs(s.logged_at).format('YYYY-MM-DD'))
+    setSets(
+      s.sets.length
+        ? s.sets.map(x => ({
+            exercise: x.exercise,
+            reps: String(x.reps),
+            weight_kg: x.weight_kg != null ? String(x.weight_kg) : '',
+          }))
+        : [{ ...EMPTY_SET }],
+    )
+    setDetail(null)
+    setLogOpen(true)
+  }
+
+  const update = useMutation({
+    mutationFn: () =>
+      healthApi.patchWorkout(editingSession!.id, {
+        name: name.trim() || 'Workout',
+        // Naive local, never toISOString() — see the finance datetime rule.
+        logged_at: `${loggedOn}T${dayjs(editingSession!.logged_at).format('HH:mm:ss')}`,
+        sets: cleanSets(),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['health'] })
+      closeLog()
+      toast.success('Session updated')
+    },
+    onError: () => toast.error('Failed to update session'),
   })
 
   const remove = useMutation({
@@ -134,7 +209,73 @@ export function WorkoutsSection() {
   const rows = useMemo(() => sessions ?? [], [sessions])
 
   const modules = useMemo<ModuleSpec[]>(() => {
-    if (!rows.length) return []
+    /* The plan modules must render even with zero logged sessions — that is
+       precisely the state where "you planned 3, did 0" is worth saying. Only
+       the history modules below need `rows`. */
+    const planSpecs: ModuleSpec[] = []
+    const routineList = routines ?? []
+
+    if (routineList.length) {
+      planSpecs.push({
+        kind: 'tiles',
+        span: 12,
+        tiles: [
+          {
+            label: 'Adherence',
+            /* NULL means nothing was ever scheduled — not 0%. Telling someone
+               with no routines that they are at 0% accuses them of failing at
+               something they never committed to. */
+            value: adherence?.adherence_pct == null ? '—' : `${adherence.adherence_pct}%`,
+            sub: adherence?.adherence_pct == null
+              ? 'Put a routine on a weekday to start tracking'
+              : `${adherence.completed_total} of ${adherence.planned_total} planned sessions`,
+            ...(adherence?.adherence_pct != null && {
+              subKey: adherence.adherence_pct >= 80 ? 'success' : adherence.adherence_pct >= 50 ? 'warning' : 'destructive',
+              dotKey: adherence.adherence_pct >= 80 ? 'success' : adherence.adherence_pct >= 50 ? 'warning' : 'destructive',
+            }),
+          },
+          { label: 'Routines', value: String(routineList.length), sub: `${routineList.filter(r => r.days.length).length} scheduled` },
+          {
+            label: 'Missed',
+            value: String((adherence?.days ?? []).reduce((n, d) => n + d.missed.length, 0)),
+            sub: `In the last ${adherence?.window_days ?? 28} days`,
+          },
+          {
+            label: 'Off-plan sessions',
+            value: String((adherence?.days ?? []).reduce((n, d) => n + d.unplanned.length + d.off_schedule.length, 0)),
+            sub: 'Trained without a scheduled routine',
+          },
+        ],
+      })
+
+      planSpecs.push({
+        kind: 'progress',
+        span: 12,
+        title: 'Routines',
+        subtitle: 'Your plan — click one to edit it',
+        icon: Dumbbell,
+        action: '+ New routine',
+        actionVariant: 'primary',
+        onAction: () => { setEditingRoutine(null); setRoutineOpen(true) },
+        onRowClick: (i: number) => { setEditingRoutine(routineList[i]); setRoutineOpen(true) },
+        rows: routineList.map(r => {
+          const doneFor = (adherence?.days ?? []).reduce((n, d) => n + d.completed.filter(c => c.id === r.id).length, 0)
+          const planFor = (adherence?.days ?? []).reduce((n, d) => n + d.planned.filter(c => c.id === r.id).length, 0)
+          return {
+            title: r.name,
+            meta: r.days.length
+              ? r.days.map(d => WEEKDAY_LABELS[d]).join(' · ')
+              : 'Not scheduled on any day',
+            value: planFor ? `${doneFor}/${planFor}` : '—',
+            valueKey: !planFor ? 'mutedFg' : doneFor >= planFor ? 'success' : 'warning',
+            pct: planFor ? Math.round((doneFor / planFor) * 100) : 0,
+            colorKey: !planFor ? 'muted' : doneFor >= planFor ? 'success' : 'health',
+          }
+        }),
+      })
+    }
+
+    if (!rows.length) return planSpecs
 
     const today = dayjs()
     const last7 = Array.from({ length: 7 }, (_, i) => today.subtract(6 - i, 'day'))
@@ -159,6 +300,7 @@ export function WorkoutsSection() {
     const doneThisWeek = weekDays.filter(d => !!sessionOn(d)).length
 
     return [
+      ...planSpecs,
       {
         kind: 'bars',
         span: 7,
@@ -201,7 +343,7 @@ export function WorkoutsSection() {
         subtitle: 'Latest sessions with volume and best sets · click a row for detail',
         icon: Activity,
         action: 'Log workout',
-        onAction: () => setLogOpen(true),
+        onAction: openLog,
         gridCols: '1fr 1.6fr 1fr 0.9fr 1.1fr',
         cols: [
           { l: 'Date' },
@@ -224,32 +366,50 @@ export function WorkoutsSection() {
       },
     ]
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, gymLogs, goals])
+  }, [rows, gymLogs, goals, routines, adherence])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isLoading) return <SkeletonPage kpis={4} modules={[7, 5, 12]} />
 
   return (
     <Root>
-      {rows.length === 0 ? (
-        <Card title="Workouts" subtitle="Sessions, volume and personal bests" icon={<Activity size={16} />}>
+      {/* Gated on modules, not on `rows`: with routines set up but nothing
+          logged yet the plan modules are exactly what should show, and the
+          "no sessions" card would wrongly hide them. */}
+      {modules.length === 0 ? (
+        <Card title="Workouts" subtitle="Plan a routine, then track whether you did it" icon={<Activity size={16} />}>
           <EmptyState
             icon={<Activity size={20} />}
-            title="No sessions logged"
-            description="Log a workout and the training load, week view and session history fill in."
-            action={<Button size="sm" onClick={() => setLogOpen(true)}>Log a workout</Button>}
+            title="Nothing planned or logged yet"
+            description="Build a routine to set what your week should look like, or log a one-off session."
+            action={
+              <EmptyActions>
+                <Button size="sm" variant="primary" onClick={() => { setEditingRoutine(null); setRoutineOpen(true) }}>
+                  New routine
+                </Button>
+                <Button size="sm" variant="outline" onClick={openLog}>Log a workout</Button>
+              </EmptyActions>
+            }
           />
         </Card>
       ) : (
         <ModuleGrid modules={modules} />
       )}
 
+      <RoutineDialog
+        open={routineOpen}
+        onClose={() => { setRoutineOpen(false); setEditingRoutine(null) }}
+        editing={editingRoutine}
+      />
+
       <Dialog
         open={logOpen}
-        onOpenChange={(o) => !o && setLogOpen(false)}
+        onOpenChange={(o) => !o && closeLog()}
         icon={<Activity size={18} />}
         eyebrow="Health"
-        title="Log a workout"
-        description="Name the session, then add the sets you did."
+        title={editingSession ? 'Edit session' : 'Log a workout'}
+        description={editingSession
+          ? 'Saving replaces the session’s sets with what is listed here.'
+          : 'Name the session, then add the sets you did.'}
         size="md"
       >
         <Form>
@@ -257,6 +417,16 @@ export function WorkoutsSection() {
             <Label>Session name</Label>
             <Input value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Push day" autoFocus />
           </div>
+
+          {/* Editing only: a new session is logged as of now, but a mis-dated
+              one has to be movable — the server re-points the paired gym log
+              so the streak follows. */}
+          {editingSession && (
+            <div>
+              <Label>Date</Label>
+              <Input type="date" value={loggedOn} onChange={(e: any) => setLoggedOn(e.target.value)} />
+            </div>
+          )}
 
           {sets.map((r, i) => (
             <SetRowGrid key={i}>
@@ -308,13 +478,13 @@ export function WorkoutsSection() {
           <Actions>
             <Button
               variant="primary"
-              loading={create.isPending}
+              loading={create.isPending || update.isPending}
               disabled={!sets.some(r => r.exercise.trim() && Number(r.reps) > 0)}
-              onClick={() => create.mutate()}
+              onClick={() => (editingSession ? update.mutate() : create.mutate())}
             >
-              Save workout
+              {editingSession ? 'Save changes' : 'Save workout'}
             </Button>
-            <Button variant="ghost" onClick={() => setLogOpen(false)}>Cancel</Button>
+            <Button variant="ghost" onClick={closeLog}>Cancel</Button>
           </Actions>
         </Form>
       </Dialog>
@@ -339,6 +509,13 @@ export function WorkoutsSection() {
           <Actions>
             <Button variant="ghost" onClick={() => setDetail(null)}>Close</Button>
             <Spacer />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => detail && openEditSession(detail)}
+            >
+              <Pencil size={14} style={{ marginRight: 4 }} /> Edit
+            </Button>
             <Button
               variant="destructive"
               size="sm"

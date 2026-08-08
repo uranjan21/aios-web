@@ -28,9 +28,10 @@ import dayjs from 'dayjs'
 import { BarChart3, CheckSquare, FileText, Flag } from 'lucide-react'
 import { api } from '@ct/shared/api/client'
 import { goalsApi } from '@ct/shared/api/goals'
-import { careerApi } from '@ct/shared/api/areas'
+import { careerApi, type JournalEntry } from '@ct/shared/api/areas'
 import { insightsApi } from '@ct/shared/api/insights'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
+import { JournalEntryDialog } from '@ct/shared/components/workspace/JournalEntryDialog'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
 import { isActiveDomain } from '@ct/shared/config/domains'
 import { toCalendarDate } from '@ct/shared/lib/calendarDate'
@@ -54,6 +55,9 @@ const PROMPTS = [
 export function ReviewPage() {
   const qc = useQueryClient()
   const [answers, setAnswers] = useState<string[]>(['', '', ''])
+  /* The reflection this page submits lands in the journal, so the week's
+     entries have to be correctable from here too, not only from Career. */
+  const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null)
 
   const weekStart = dayjs().startOf('week')
   const weekEnd = weekStart.add(6, 'day')
@@ -191,9 +195,14 @@ export function ReviewPage() {
       span: 5,
       title: 'Written this week',
       subtitle: thisWeeksEntries.length
-        ? `${thisWeeksEntries.length} journal entr${thisWeeksEntries.length === 1 ? 'y' : 'ies'}`
+        ? `${thisWeeksEntries.length} journal entr${thisWeeksEntries.length === 1 ? 'y' : 'ies'} · click one to edit`
         : 'Nothing written yet this week',
       icon: Flag,
+      // Only real entries are editable — the daily-brief fallback below is not
+      // a journal row, so the handler is wired only when entries exist.
+      ...(thisWeeksEntries.length
+        ? { onEntryClick: (i: number) => setEditingEntry(thisWeeksEntries[i]) }
+        : {}),
       entries: thisWeeksEntries.length
         ? thisWeeksEntries.map(e => ({
             title: e.title ?? 'Journal entry',
@@ -220,6 +229,7 @@ export function ReviewPage() {
     <PageContainer>
       <PageContent>
         <ModuleGrid modules={modules} />
+        <JournalEntryDialog entry={editingEntry} onClose={() => setEditingEntry(null)} />
       </PageContent>
     </PageContainer>
   )

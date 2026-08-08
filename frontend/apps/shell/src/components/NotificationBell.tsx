@@ -31,18 +31,32 @@ const TYPE_ICONS: Record<Notification['type'], LucideIcon> = {
 /* ── Styled ─────────────────────────────────────────────────────────── */
 const Root = styled.div`position: relative;`
 
+/*
+ * 32×32 to match every other TopBar control (measured 2026-08-06: padding
+ * alone rendered this at 28px, one pixel-row shorter than its neighbours, so
+ * the header's right cluster did not sit on a single baseline). Explicit box,
+ * not padding — same fix as `ToolbarIconBtn` in @ledgr/ui.
+ */
 const BellBtn = styled.button`
   position: relative;
-  padding: ${({ theme }) => `${theme.spacing[1.5]}`};
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  padding: 0;
   border-radius: ${({ theme }) => theme.radii.sm};
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   color: ${({ theme }) => theme.color.mutedForeground};
   cursor: pointer;
   display: flex;
   align-items: center;
-  transition: background 120ms, color 120ms;
-  &:hover { background: ${({ theme }) => theme.color.muted}; color: ${({ theme }) => theme.color.foreground}; }
+  justify-content: center;
+  transition: background 120ms, color 120ms, border-color 120ms;
+  &:hover {
+    background: ${({ theme }) => theme.chrome.hoverBg};
+    color: ${({ theme }) => theme.chrome.fg};
+    border-color: ${({ theme }) => theme.chrome.border};
+  }
   ${focusRing}
 `
 

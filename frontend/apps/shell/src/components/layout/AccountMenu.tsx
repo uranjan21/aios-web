@@ -26,16 +26,21 @@ import styled from 'styled-components'
 const StyledContent = styled(DropdownMenuContent)`
   min-width: 240px;
   border-radius: ${({ theme }) => theme.radii.xl};
-  background: ${({ theme }) =>
-    theme.mode === 'dark'
-      ? 'rgba(15, 17, 23, 0.72)'
-      : 'rgba(255, 255, 255, 0.75)'};
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  /*
+   * These three were hardcoded literals that overrode the Popover surface
+   * underneath — including a blue-grey rgba(15, 17, 23, .72) in dark, on a
+   * palette system whose dark surfaces are warm, plus a saturate(180%) that
+   * re-saturated the muted palette showing through the blur. On the glass
+   * tokens now, so the menu follows whichever palette is active. (2026-08-06)
+   */
+  background: ${({ theme }) => theme.glass.background};
+  backdrop-filter: ${({ theme }) => theme.glass.thick};
+  -webkit-backdrop-filter: ${({ theme }) => theme.glass.thick};
   border: 1px solid ${({ theme }) =>
-    theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.04);
-  padding: 4px;
+    theme.mode === 'dark' ? theme.glass.borderStrong : theme.color.border};
+  /* Popover — elevation[4]. Was a light-mode-only literal. */
+  box-shadow: ${({ theme }) => theme.elevation[4]};
+  padding: ${({ theme }) => theme.spacing[1]};
 `
 
 const IdentityHeader = styled.div`
@@ -43,7 +48,7 @@ const IdentityHeader = styled.div`
   align-items: center;
   gap: ${({ theme }) => theme.spacing[2.5]};
   padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[3]}`};
-  margin: 2px 2px 4px 2px;
+  margin: ${({ theme }) => theme.spacing[0.5]} ${({ theme }) => theme.spacing[0.5]} ${({ theme }) => theme.spacing[1]} ${({ theme }) => theme.spacing[0.5]};
   border-radius: ${({ theme }) => theme.radii.lg};
   background: ${({ theme }) =>
     theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)'};
@@ -171,8 +176,8 @@ const SegmentedControl = styled.div`
   border: 1px solid ${({ theme }) =>
     theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'};
   border-radius: ${({ theme }) => theme.radii.sm};
-  padding: 2px;
-  gap: 2px;
+  padding: ${({ theme }) => theme.spacing[0.5]};
+  gap: ${({ theme }) => theme.spacing[0.5]};
 `
 
 const Segment = styled.button<{ $active: boolean }>`

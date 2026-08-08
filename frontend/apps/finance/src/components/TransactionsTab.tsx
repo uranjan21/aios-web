@@ -1,4 +1,5 @@
 import { useDeferredValue, useMemo, useState, useEffect, useRef, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs, { Dayjs } from 'dayjs'
 import isoWeek from 'dayjs/plugin/isoWeek'
@@ -6,6 +7,7 @@ import {
   SegmentedControl, Button, Dialog, Input, ConfirmDialog, Checkbox,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
   Card as GlassCard, AreaToolbar, ToolbarIconBtn, DateNav, DateNavBtn, DateNavLabel,
+  SkeletonKpiRow, SkeletonTable,
 } from '@ledgr/ui'
 import { toast } from 'sonner'
 import {
@@ -25,7 +27,7 @@ import { FilterModal } from './transactions/FilterModal'
 import { TransactionModal } from './transactions/TransactionModal'
 import {
   StyledSkeleton, DesktopSearch, MobileSearchBtn, CardActions,
-  ListHeaderRoot, ListHeaderLabel, ListHeaderSpacer, BulkBtnRow, SortBtn,
+  ListHeaderRoot, ListHeaderLabel, ListHeaderSpacer, BulkBtnRow, SortBtn, PageStack,
 } from './transactions/TransactionsTab.styles'
 
 // Re-export public API consumed by AccountManager and other importers
@@ -41,9 +43,28 @@ dayjs.extend(isoWeek)
  */
 export function TransactionsTab() {
   const queryClient = useQueryClient()
+  /* `?date=YYYY-MM-DD` opens the page on that period instead of the current
+   * month. The Inbox links here after approving, because an email transaction
+   * files under the date it HAPPENED — landing on today's month would show an
+   * empty list and read as if the approval had been lost. */
+  const [searchParams] = useSearchParams()
+  const dateParam = searchParams.get('date')
+  const paramDay = useMemo(() => {
+    if (!dateParam) return null
+    const d = dayjs(dateParam)
+    return d.isValid() ? d : null
+  }, [dateParam])
+
   const [view, setView] = useState<'Daily' | 'Calendar' | 'Weekly' | 'Monthly'>('Monthly')
-  const [month, setMonth] = useState(() => dayjs().startOf('month'))
-  const [selectedDate, setSelectedDate] = useState(() => dayjs().format('YYYY-MM-DD'))
+  const [month, setMonth] = useState(() => (paramDay ?? dayjs()).startOf('month'))
+  const [selectedDate, setSelectedDate] = useState(() => (paramDay ?? dayjs()).format('YYYY-MM-DD'))
+
+  // Re-navigating here with a new ?date= does not remount the component.
+  useEffect(() => {
+    if (!paramDay) return
+    setMonth(paramDay.startOf('month'))
+    setSelectedDate(paramDay.format('YYYY-MM-DD'))
+  }, [paramDay])
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Txn | null>(null)
   const [quickKind, setQuickKind] = useState<Kind>('Expense')
@@ -349,11 +370,15 @@ export function TransactionsTab() {
     </AreaToolbar>
   )
 
+  /* Two bare grey bars matched nothing on this page, so the real content
+   * visibly jumped in over them. This traces what actually arrives: the
+   * three-KPI row, then the 5-column DATE/MERCHANT/CATEGORY/ACCOUNT/AMOUNT
+   * table — same column count and the same PageStack gap. */
   if (isLoading) return (
-    <div style={{ padding: '16px' }}>
-      <StyledSkeleton $height="2.5rem" $margin="0 0 12px 0" />
-      <StyledSkeleton $height="16rem" />
-    </div>
+    <PageStack>
+      <SkeletonKpiRow count={3} />
+      <SkeletonTable rows={8} columns={5} />
+    </PageStack>
   )
 
   // ── Build body per view ─────────────────────────────────────────────────────
@@ -473,14 +498,17 @@ export function TransactionsTab() {
 
   return (
     <>
-      <GlassCard
+      <PageStack>
+        {/* Tiles lead the page, outside the card — the summary of what the
+            card below is showing, not a band wedged into its toolbar. */}
+        {summaryElement}
+        <GlassCard
           title="All Transactions"
           subtitle="Every income, expense and transfer"
           icon={<ArrowLeftRight size={16} />}
           action={cardActions}
         >
           {toolbar}
-          {summaryElement}
           {view === 'Calendar' && (
             <div style={{ marginBottom: 12 }}>
               <TransactionCalendar
@@ -531,6 +559,7 @@ export function TransactionsTab() {
             )}
           </div>
         </GlassCard>
+      </PageStack>
 
       <TransactionModal open={modalOpen} onClose={closeModal} editing={editing} initialKind={quickKind} />
       <ImportCsvModal open={importOpen} onClose={() => setImportOpen(false)} />

@@ -250,6 +250,12 @@ async def search_transactions(
     account_id: Optional[uuid.UUID] = None,
     category: Optional[str] = None,
     tag: Optional[str] = None,
+    # Origin marker, e.g. "upi-tracker" / "upi-tracker-auto". Deliberately NOT
+    # folded into `tag`: that filter is the user's own freeform labels. The two
+    # ledger tables record origin in different columns — FinanceExpense.source
+    # is a real column, while FinanceIncome.source holds the CATEGORY name, so
+    # income's origin lives in its tags. This param hides that asymmetry.
+    source: Optional[str] = None,
     min_amount: Optional[float] = None,
     max_amount: Optional[float] = None,
     date_from: Optional[str] = None,  # YYYY-MM-DD
@@ -265,6 +271,7 @@ async def search_transactions(
     limit = min(limit, 200)
     like = f"%{q}%" if q else None
     tag_like = f"%{tag}%" if tag else None
+    source_like = f"%{source}%" if source else None
 
     def parse_date(s: Optional[str]) -> Optional[datetime]:
         if not s:
@@ -294,7 +301,8 @@ async def search_transactions(
     # Category filter only applies to expenses; income/transfers have no category.
     include_expense = kind in (None, "expense")
     include_income = kind in (None, "income") and not category
-    include_transfer = kind in (None, "transfer") and not category and not tag
+    # Transfers carry neither a category, a tag nor an origin marker.
+    include_transfer = kind in (None, "transfer") and not category and not tag and not source
 
     # Build UNION ALL via SQLAlchemy text() — all WHERE values are bound params
     # so there is zero SQL injection risk despite the dynamic query assembly.
@@ -306,7 +314,13 @@ async def search_transactions(
 
     def _common_clauses(col_prefix: str, table_alias: str) -> str:
         nonlocal p
-        clauses = [f"{table_alias}.user_id = :uid"]
+        # The cast is required: :uid is bound as a Python str and asyncpg sends
+        # it as VARCHAR, which Postgres will not compare to a uuid column
+        # ("operator does not exist: uuid = character varying").
+        # It must be CAST(:uid AS uuid), NOT :uid::uuid — text()'s bind-param
+        # regex requires the character after a name to not be ':', so the
+        # postfix form makes SQLAlchemy stop seeing `uid` as a parameter at all.
+        clauses = [f"{table_alias}.user_id = CAST(:uid AS uuid)"]
         if min_amount is not None:
             params[f"min_a{p}"] = min_amount
             clauses.append(f"{table_alias}.amount >= :min_a{p}"); p += 1
@@ -329,9 +343,12 @@ async def search_transactions(
         if tag_like:
             params[f"tl{p}"] = tag_like
             w += f" AND e.tags ILIKE :tl{p}"; p += 1
+        if source_like:
+            params[f"sl{p}"] = source_like
+            w += f" AND e.source ILIKE :sl{p}"; p += 1
         if account_id:
             params[f"aid{p}"] = str(account_id)
-            w += f" AND e.account_id = :aid{p}::uuid"; p += 1
+            w += f" AND e.account_id = CAST(:aid{p} AS uuid)"; p += 1
         if category:
             params[f"cat{p}"] = category
             w += f" AND e.category = :cat{p}"; p += 1
@@ -349,9 +366,14 @@ async def search_transactions(
         if tag_like:
             params[f"tl{p}"] = tag_like
             w += f" AND i.tags ILIKE :tl{p}"; p += 1
+        if source_like:
+            # Income's `source` column is the category name, so its origin
+            # marker is written to tags instead (see commit_pending_to_ledger).
+            params[f"sl{p}"] = source_like
+            w += f" AND i.tags ILIKE :sl{p}"; p += 1
         if account_id:
             params[f"aid{p}"] = str(account_id)
-            w += f" AND i.account_id = :aid{p}::uuid"; p += 1
+            w += f" AND i.account_id = CAST(:aid{p} AS uuid)"; p += 1
         parts.append(
             f"SELECT id::text, 'income' AS kind, logged_at, amount::float8, "
             f"source AS category, description, account_id::text, tags, NULL::text AS split_group_id "
@@ -365,7 +387,7 @@ async def search_transactions(
             w += f" AND t.description ILIKE :ql{p}"; p += 1
         if account_id:
             params[f"aid{p}"] = str(account_id)
-            w += f" AND (t.from_account_id = :aid{p}::uuid OR t.to_account_id = :aid{p}::uuid)"; p += 1
+            w += f" AND (t.from_account_id = CAST(:aid{p} AS uuid) OR t.to_account_id = CAST(:aid{p} AS uuid))"; p += 1
         parts.append(
             f"SELECT id::text, 'transfer' AS kind, logged_at, amount::float8, "
             f"'Transfer' AS category, description, from_account_id::text AS account_id, "
@@ -380,7 +402,13 @@ async def search_transactions(
     total_sql = f"SELECT COUNT(*) FROM ({union_sql}) AS _u"
     page_sql = f"{union_sql} ORDER BY logged_at DESC LIMIT :lim OFFSET :off"
 
-    total_row = (await db.execute(sa_text(total_sql).bindparams(**params))).scalar_one()
+    # bindparams() rejects any name the statement does not actually contain, so
+    # the COUNT query — which has no LIMIT/OFFSET — must not be handed `lim`/`off`.
+    # Passing them raised ArgumentError on EVERY call, i.e. search and every
+    # filter on the Transactions page were a hard 500 for as long as this
+    # UNION-based implementation has existed.
+    count_params = {k: v for k, v in params.items() if k not in ("lim", "off")}
+    total_row = (await db.execute(sa_text(total_sql).bindparams(**count_params))).scalar_one()
     rows = (await db.execute(sa_text(page_sql).bindparams(**params))).all()
 
     items = [
