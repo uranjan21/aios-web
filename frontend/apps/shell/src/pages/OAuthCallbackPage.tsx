@@ -79,9 +79,12 @@ export function OAuthCallbackPage() {
       return
     }
 
+    let isMounted = true
+
     api
       .post(`/integrations/${provider}/callback`, { code, state })
       .then((resp) => {
+        if (!isMounted) return
         setStatus('success')
         setMessage(`Connected as ${resp.data.email || provider}`)
         // Gmail is the transaction-capture wedge — track it distinctly.
@@ -90,15 +93,18 @@ export function OAuthCallbackPage() {
           gcal: 'Google Calendar', gfit: 'Google Fit', gmail: 'Gmail', notion: 'Notion',
         }
         toast.success(`${providerLabels[provider] ?? provider} connected!`)
-        setTimeout(() => navigate('/app/settings?section=connections'), 2000)
+        setTimeout(() => isMounted && navigate('/app/settings?section=connections'), 2000)
       })
       .catch((err) => {
+        if (!isMounted) return
         setStatus('error')
         const detail = err?.response?.data?.detail || 'Connection failed. Please try again.'
         setMessage(detail)
         toast.error(detail)
-        setTimeout(() => navigate('/app/settings?section=connections'), 4000)
+        setTimeout(() => isMounted && navigate('/app/settings?section=connections'), 4000)
       })
+      
+    return () => { isMounted = false }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (

@@ -120,7 +120,7 @@ export const NavItem = styled.button<{ $active: boolean }>`
   border: none;
   border-radius: ${({ theme }) => theme.radii.md};
 
-  /* color-mix, not an '${accent}14' hex-alpha suffix — the CSS vars are HEX
+  /* color-mix, not an accent-plus-"14" hex-alpha suffix — the CSS vars are HEX
      and appending alpha digits breaks the moment a token is not 6-digit. */
   background: ${({ $active, theme }) =>
     $active ? `color-mix(in srgb, ${theme.color.accent} 8%, transparent)` : "transparent"};

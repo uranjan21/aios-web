@@ -189,7 +189,7 @@ const Segment = styled.button<{ $active: boolean }>`
   border: none;
   background: ${({ $active, theme }) =>
     $active
-      ? theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : '#ffffff'
+      ? theme.color.card
       : 'transparent'};
   color: ${({ $active, theme }) => $active ? theme.color.foreground : theme.color.mutedForeground};
   border-radius: ${({ theme }) => theme.radii.xs ?? theme.radii.sm};

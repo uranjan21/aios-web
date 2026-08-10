@@ -493,7 +493,7 @@ async def _resolve_category(db, category_id: Optional[uuid.UUID], user_id: uuid.
     if not cat:
         return None, None
     if cat.parent_id:
-        parent = (await db.execute(select(Category).where(Category.id == cat.parent_id))).scalar_one_or_none()
+        parent = (await db.execute(select(Category).where(Category.id == cat.parent_id, Category.user_id == user_id))).scalar_one_or_none()
         return (parent.name if parent else cat.name), cat.id
     return cat.name, cat.id
 

@@ -136,17 +136,23 @@ export function GoogleAuthCallbackPage() {
       return
     }
 
+    let isMounted = true
+
     api.post('/auth/google/callback', { code, state })
       .then(({ data }) => {
+        if (!isMounted) return
         setStatus('success')
         setAuthenticated(true)
         if (data.user) setUser(data.user)
-        setTimeout(() => navigate('/app'), 1500)
+        setTimeout(() => isMounted && navigate('/app'), 1500)
       })
       .catch((err) => {
+        if (!isMounted) return
         setStatus('error')
         setErrorMsg(err.response?.data?.detail || 'Authentication failed')
       })
+      
+    return () => { isMounted = false }
   }, [navigate, searchParams, setAuthenticated, setUser])
 
   return (

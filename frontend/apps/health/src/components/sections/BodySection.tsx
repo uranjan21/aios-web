@@ -20,9 +20,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
-import { Scale, TrendingUp, User } from 'lucide-react'
+import { Scale, TrendingUp, Trash2, User } from 'lucide-react'
 import { Button, Card, Dialog, EmptyState, Input, Select, SkeletonPage } from '@ledgr/ui'
 import { healthApi } from '@ct/shared/api/areas'
+import type { HealthLog } from '@ct/shared/types'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 
 const Root = styled.div`
@@ -62,7 +63,10 @@ const WEEKS = 8
 export function BodySection() {
   const qc = useQueryClient()
   const [logOpen, setLogOpen] = useState(false)
-  const [entry, setEntry] = useState({ entry_type: 'weight', value: '' })
+  const [entry, setEntry] = useState({ entry_type: 'weight', value: '', logged_on: '' })
+  /* Non-null puts the dialog into edit mode. A mistyped weight used to be
+     permanent — nothing on this page could correct or remove a reading. */
+  const [editing, setEditing] = useState<HealthLog | null>(null)
 
   const { data: weightLogs, isLoading } = useQuery({
     queryKey: ['health', 'logs', 'weight'],
@@ -92,11 +96,57 @@ export function BodySection() {
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['health'] })
-      setLogOpen(false)
-      setEntry({ entry_type: 'weight', value: '' })
+      closeDialog()
       toast.success('Measurement logged')
     },
     onError: () => toast.error('Could not log that measurement'),
+  })
+
+  const closeDialog = () => {
+    setLogOpen(false)
+    setEditing(null)
+    setEntry({ entry_type: 'weight', value: '', logged_on: '' })
+  }
+
+  const openAdd = () => {
+    setEditing(null)
+    setEntry({ entry_type: 'weight', value: '', logged_on: '' })
+    setLogOpen(true)
+  }
+
+  const openEdit = (l: HealthLog) => {
+    setEditing(l)
+    setEntry({
+      entry_type: l.entry_type,
+      value: l.value != null ? String(l.value) : '',
+      logged_on: dayjs(l.logged_at).format('YYYY-MM-DD'),
+    })
+    setLogOpen(true)
+  }
+
+  const update = useMutation({
+    mutationFn: () =>
+      healthApi.patchLog(editing!.id, {
+        value: Number(entry.value),
+        // Naive local, never toISOString() — see the datetime rule.
+        logged_at: `${entry.logged_on}T${dayjs(editing!.logged_at).format('HH:mm:ss')}`,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['health'] })
+      closeDialog()
+      toast.success('Measurement updated')
+    },
+    onError: () => toast.error('Could not update that measurement'),
+  })
+
+  const remove = useMutation({
+    mutationFn: (id: string) => healthApi.deleteLog(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['health'] })
+      closeDialog()
+      toast.success('Measurement removed')
+    },
+    onError: () => toast.error('Could not remove that measurement'),
   })
 
   const weights = useMemo(
@@ -236,10 +286,11 @@ export function BodySection() {
       kind: 'table',
       span: 12,
       title: 'Measurement log',
-      subtitle: 'Most recent first',
+      subtitle: 'Most recent first · click a row to edit',
       icon: User,
       action: 'Add measurement',
-      onAction: () => setLogOpen(true),
+      onAction: openAdd,
+      onRowClick: (i: number) => openEdit(weights[i]),
       gridCols: '1.2fr 1fr 1fr 1fr',
       cols: [{ l: 'Date' }, { l: 'Weight', a: 'right' }, { l: 'Body fat', a: 'right' }, { l: 'Change', a: 'right' }],
       rows: weights.slice(0, 12).map((l, i) => {
@@ -270,7 +321,7 @@ export function BodySection() {
             icon={<Scale size={20} />}
             title="No measurements yet"
             description="Log a weight and the trend, composition and history fill in."
-            action={<Button size="sm" onClick={() => setLogOpen(true)}>Add a measurement</Button>}
+            action={<Button size="sm" onClick={openAdd}>Add a measurement</Button>}
           />
         </Card>
       ) : (
@@ -279,22 +330,36 @@ export function BodySection() {
 
       <Dialog
         open={logOpen}
-        onOpenChange={(o) => !o && setLogOpen(false)}
+        onOpenChange={(o) => !o && closeDialog()}
         icon={<Scale size={18} />}
         eyebrow="Health"
-        title="Add a measurement"
+        title={editing ? 'Edit measurement' : 'Add a measurement'}
         description="Morning, fasted, same scale gives the cleanest trend."
       >
         <Form>
           <div>
             <Label>What are you logging?</Label>
+            {/* Locked when editing: the measurement type decides which surface
+                the row belongs to, and the column is CHECK-constrained — the
+                server rejects a retype. Delete and re-log instead. */}
             <Select
               fullWidth
+              disabled={!!editing}
               value={entry.entry_type}
               onChange={(v: any) => setEntry(e => ({ ...e, entry_type: String(v) }))}
               options={MEASUREMENTS.map(m => ({ value: m.value, label: m.label }))}
             />
           </div>
+          {editing && (
+            <div>
+              <Label>Date</Label>
+              <Input
+                type="date"
+                value={entry.logged_on}
+                onChange={(e: any) => setEntry(s => ({ ...s, logged_on: e.target.value }))}
+              />
+            </div>
+          )}
           <div>
             <Label>Value</Label>
             <Input
@@ -308,10 +373,26 @@ export function BodySection() {
             />
           </div>
           <Actions>
-            <Button variant="primary" loading={create.isPending} disabled={!entry.value} onClick={() => create.mutate()}>
-              Save
+            <Button
+              variant="primary"
+              loading={create.isPending || update.isPending}
+              disabled={!entry.value}
+              onClick={() => (editing ? update.mutate() : create.mutate())}
+            >
+              {editing ? 'Save changes' : 'Save'}
             </Button>
-            <Button variant="ghost" onClick={() => setLogOpen(false)}>Cancel</Button>
+            <Button variant="ghost" onClick={closeDialog}>Cancel</Button>
+            {editing && (
+              <Button
+                variant="destructive"
+                size="sm"
+                style={{ marginLeft: 'auto' }}
+                loading={remove.isPending}
+                onClick={() => remove.mutate(editing.id)}
+              >
+                <Trash2 size={14} style={{ marginRight: 4 }} /> Delete
+              </Button>
+            )}
           </Actions>
         </Form>
       </Dialog>

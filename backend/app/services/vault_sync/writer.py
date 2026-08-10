@@ -1,6 +1,7 @@
 """VaultWriteGuard — all vault writes go through here. Non-negotiable."""
 import logging
 import re
+import fcntl
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -84,13 +85,20 @@ class VaultWriteGuard:
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
         formatted_entry = f"\n{timestamp} — {entry.strip()}\n"
 
-        current = abs_path.read_text(encoding="utf-8") if abs_path.exists() else ""
-        new_content = current + formatted_entry
-
-        # Atomic write: tmp → rename (never partial write)
-        tmp = abs_path.with_suffix(".tmp")
-        tmp.write_text(new_content, encoding="utf-8")
-        tmp.rename(abs_path)
+        lock_file = abs_path.with_suffix(".lock")
+        with open(lock_file, "w") as lf:
+            fcntl.flock(lf, fcntl.LOCK_EX)
+            try:
+                current = abs_path.read_text(encoding="utf-8") if abs_path.exists() else ""
+                new_content = current + formatted_entry
+        
+                # Atomic write: tmp → rename (never partial write)
+                tmp = abs_path.with_suffix(".tmp")
+                tmp.write_text(new_content, encoding="utf-8")
+                tmp.rename(abs_path)
+            finally:
+                fcntl.flock(lf, fcntl.LOCK_UN)
+                
         logger.info("Appended to vault log: %s", rel_path)
 
     def update_context(self, rel_path: str, new_content: str) -> None:

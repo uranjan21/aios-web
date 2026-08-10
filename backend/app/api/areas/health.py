@@ -606,7 +606,7 @@ async def update_workout(workout_id: _uuid.UUID, body: WorkoutUpdate, current_us
     if body.sets is not None:
         if not body.sets:
             raise HTTPException(status_code=422, detail="At least one set required")
-        for s in (await db.execute(select(WorkoutSet).where(WorkoutSet.session_id == workout_id))).scalars().all():
+        for s in (await db.execute(select(WorkoutSet).where(WorkoutSet.session_id == workout_id, WorkoutSet.user_id == current_user.id))).scalars().all():
             await db.delete(s)
         await db.flush()
         counters: dict = {}
@@ -645,7 +645,7 @@ async def delete_workout(workout_id: _uuid.UUID, current_user=Depends(get_curren
     session_row = (await db.execute(select(WorkoutSession).where(WorkoutSession.user_id == current_user.id, WorkoutSession.id == workout_id))).scalar_one_or_none()
     if not session_row:
         raise HTTPException(status_code=404, detail="Workout not found")
-    for s in (await db.execute(select(WorkoutSet).where(WorkoutSet.session_id == workout_id))).scalars().all():
+    for s in (await db.execute(select(WorkoutSet).where(WorkoutSet.session_id == workout_id, WorkoutSet.user_id == current_user.id))).scalars().all():
         await db.delete(s)
     # Same pairing as the PATCH above: without this the session disappears but
     # the `gym` log it wrote keeps the day counted in the streak.
@@ -867,9 +867,9 @@ async def _replace_routine_children(db, user_id, routine: WorkoutRoutine, body: 
     """Children are replaced wholesale — the editor always sends the full list,
     and diffing rows the client never identifies would invent ids it cannot
     send back."""
-    for e in (await db.execute(select(RoutineExercise).where(RoutineExercise.routine_id == routine.id))).scalars().all():
+    for e in (await db.execute(select(RoutineExercise).where(RoutineExercise.routine_id == routine.id, RoutineExercise.user_id == user_id))).scalars().all():
         await db.delete(e)
-    for d in (await db.execute(select(RoutineDay).where(RoutineDay.routine_id == routine.id))).scalars().all():
+    for d in (await db.execute(select(RoutineDay).where(RoutineDay.routine_id == routine.id, RoutineDay.user_id == user_id))).scalars().all():
         await db.delete(d)
     await db.flush()
 
@@ -1146,7 +1146,7 @@ async def list_meal_plans(current_user=Depends(get_current_user), db=Depends(get
 
 
 async def _write_entries(db, user_id, plan: MealPlan, body: MealPlanIn) -> None:
-    for e in (await db.execute(select(MealPlanEntry).where(MealPlanEntry.plan_id == plan.id))).scalars().all():
+    for e in (await db.execute(select(MealPlanEntry).where(MealPlanEntry.plan_id == plan.id, MealPlanEntry.user_id == user_id))).scalars().all():
         await db.delete(e)
     await db.flush()
     counters: dict = {}

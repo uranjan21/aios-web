@@ -774,8 +774,37 @@ const Thread = styled.span`
   min-height: 16px;
 `
 
+/**
+ * The entry body, a button once a page wires `onEntryClick`. Only the text
+ * column becomes interactive — the dot-and-thread rail is decoration and would
+ * make the hit area read as part of the connector.
+ */
+const TimelineBody = styled.div<{ $interactive?: boolean }>`
+  min-width: 0;
+  flex: 1;
+  /* Resets for the button form a page opts into via onEntryClick. */
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+
+  ${({ $interactive }) =>
+    $interactive &&
+    css`
+      cursor: pointer;
+
+      &:hover > div:first-child > span:first-child {
+        text-decoration: underline;
+      }
+    `}
+`
+
 export function TimelineKind({ m }: { m: TimelineModule }) {
   const c = useModulePalette()
+  const { onEntryClick } = m
   return (
     <Stack>
       {m.entries.map((e, i) => (
@@ -785,7 +814,12 @@ export function TimelineKind({ m }: { m: TimelineModule }) {
             {/* The connector is drawn on every entry except the last. */}
             {i < m.entries.length - 1 && <Thread />}
           </div>
-          <div style={{ minWidth: 0, flex: 1 }}>
+          <TimelineBody
+            as={onEntryClick ? 'button' : 'div'}
+            type={onEntryClick ? 'button' : undefined}
+            $interactive={!!onEntryClick}
+            onClick={onEntryClick ? () => onEntryClick(i) : undefined}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 700 }}>{e.title}</span>
               {e.tagLabel && <Chip $bg={c.alpha(e.colorKey, 0.125)} $color={c(e.colorKey)}>{e.tagLabel}</Chip>}
@@ -794,7 +828,7 @@ export function TimelineKind({ m }: { m: TimelineModule }) {
             {e.body && (
               <div style={{ fontSize: 12, color: c('mutedFg'), marginTop: 4, lineHeight: 1.55, textWrap: 'pretty' }}>{e.body}</div>
             )}
-          </div>
+          </TimelineBody>
         </div>
       ))}
     </Stack>

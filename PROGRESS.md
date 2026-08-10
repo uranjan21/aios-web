@@ -1,5 +1,14 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
+## 2026-08-08 — antigravity
+- Shipped: Audited codebase for memory leaks. Fixed `VaultWatcher` in backend leaking `asyncio.TimerHandle` tasks on shutdown. Fixed unmounted state updates in React components (`VerifyEmailPage`, `GoogleAuthCallbackPage`, `OAuthCallbackPage`) by adding `isMounted` checks. Reviewed APScheduler logic for domain-scoped isolation and fallback safety. Generated `performance_ai_report.md` artifact.
+- Blockers: none
+- Next: merge fixes and review performance reports.
+## 2026-08-08 — antigravity
+- Shipped: Audited backend for multi-tenant isolation and vault sync concurrency. Added missing `user_id` filters to child entity DB queries in `api/areas/health.py` and `finance.py`. Fixed race condition in vault sync `writer.py` using `fcntl.flock`. Generated `backend_security_report.md` artifact.
+- Blockers: none
+- Next: restart backend container to apply the fix. Review and merge changes.
+
 ## 2026-08-06 — claude-code (Transactions audit: approve → ledger, and the search that never ran)
 
 **Ask.** Audit the transaction page and feature in depth — UI/UX, design and

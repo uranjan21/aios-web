@@ -5,7 +5,7 @@
  * heat(12) · checklist(5) · progress(7) — rebuilt from the live habits API.
  * Every module derives exactly from `checks[]`, so nothing here is a stand-in.
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
@@ -50,6 +50,7 @@ export function HabitsSection() {
   const [addOpen, setAddOpen] = useState(false)
   const [draft, setDraft] = useState({ name: '', icon: '' })
   const [manage, setManage] = useState<HabitItem | null>(null)
+  const [edit, setEdit] = useState({ name: '', icon: '' })
 
   const { data: habits, isLoading } = useQuery({
     queryKey: ['health', 'habits'],
@@ -73,6 +74,17 @@ export function HabitsSection() {
     onError: () => toast.error('Failed to add habit'),
   })
 
+  const update = useMutation({
+    mutationFn: (id: string) =>
+      healthApi.patchHabit(id, { name: edit.name.trim(), icon: edit.icon.trim() || null }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['health', 'habits'] })
+      setManage(null)
+      toast.success('Habit updated')
+    },
+    onError: () => toast.error('Could not update that habit'),
+  })
+
   const remove = useMutation({
     mutationFn: (id: string) => healthApi.deleteHabit(id),
     onSuccess: () => {
@@ -82,6 +94,12 @@ export function HabitsSection() {
     },
     onError: () => toast.error('Failed to remove habit'),
   })
+
+  /* ledgr-ui Dialog fires onOpenChange on CLOSE only, so the manage form has
+     to prefill off the selected habit rather than an open handler. */
+  useEffect(() => {
+    if (manage) setEdit({ name: manage.name, icon: manage.icon ?? '' })
+  }, [manage])
 
   const rows = useMemo(() => habits ?? [], [habits])
 

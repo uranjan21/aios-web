@@ -31,6 +31,11 @@ class _DebounceHandler(FileSystemEventHandler):
         self._callback = callback
         self._pending: dict[str, asyncio.TimerHandle] = {}
 
+    def stop(self) -> None:
+        for handle in self._pending.values():
+            handle.cancel()
+        self._pending.clear()
+
     def _schedule(self, path: str, change_type: str) -> None:
         if _should_ignore(path):
             return
@@ -64,11 +69,12 @@ class VaultWatcher:
         self._vault_path = vault_path
         self._callback = callback
         self._observer: Observer | None = None
+        self._handler: _DebounceHandler | None = None
 
     def start(self, loop: asyncio.AbstractEventLoop) -> None:
-        handler = _DebounceHandler(loop, self._callback)
+        self._handler = _DebounceHandler(loop, self._callback)
         self._observer = Observer()
-        self._observer.schedule(handler, self._vault_path, recursive=True)
+        self._observer.schedule(self._handler, self._vault_path, recursive=True)
         self._observer.start()
         logger.info("Vault watcher started on %s", self._vault_path)
 
@@ -77,3 +83,5 @@ class VaultWatcher:
             self._observer.stop()
             self._observer.join()
             logger.info("Vault watcher stopped")
+        if getattr(self, '_handler', None):
+            self._handler.stop()

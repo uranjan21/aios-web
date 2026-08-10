@@ -50,14 +50,17 @@ export function VerifyEmailPage() {
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying')
 
   useEffect(() => {
+    let isMounted = true
     const token = params.get('token')
     if (!token) { setStatus('error'); return }
 
     // The endpoint no longer issues a session cookie (link-prefetch safety) —
     // the user's existing signup session simply clears the verified gate now.
     api.get('/auth/verify-email', { params: { token } })
-      .then(() => setStatus('success'))
-      .catch(() => setStatus('error'))
+      .then(() => { if (isMounted) setStatus('success') })
+      .catch(() => { if (isMounted) setStatus('error') })
+      
+    return () => { isMounted = false }
   }, [params])
 
   if (status === 'verifying') return <Wrap><Card><Message>Verifying your email…</Message></Card></Wrap>
