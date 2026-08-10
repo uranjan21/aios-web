@@ -79,10 +79,14 @@ async def lifespan(app: FastAPI):
             "Start a Redis instance and set REDIS_URL=redis://host:6379/0"
         )
     if settings.environment == "production" and not settings.allowed_origin.startswith("https://"):
+        # Reaching here means ALLOW_INSECURE_HTTP=true was set deliberately —
+        # the config validator refuses to build Settings otherwise. Keep saying
+        # so on every boot; an acknowledged risk is still a live one.
         logger.warning(
-            "ALLOWED_ORIGIN is not https:// (%s) — the auth cookie is sent WITHOUT the "
-            "Secure flag and all traffic, including JWTs, is in cleartext. Put a domain "
-            "in front of this deployment and switch to https as soon as possible.",
+            "RUNNING ON CLEARTEXT HTTP (ALLOWED_ORIGIN=%s, ALLOW_INSECURE_HTTP=true). "
+            "The auth cookie is sent WITHOUT the Secure flag — every JWT, and all "
+            "financial and health data, crosses the network in the clear. See "
+            "docs/DEPLOYMENT.md §4 to switch to https.",
             settings.allowed_origin,
         )
 

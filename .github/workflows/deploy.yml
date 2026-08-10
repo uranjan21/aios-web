@@ -81,6 +81,13 @@ jobs:
           context: ./frontend
           file: ./frontend/apps/shell/Dockerfile
           push: true
+          # Vite inlines these at build time — a runtime env var cannot turn
+          # frontend analytics on. Unset repo secrets resolve to "" here, which
+          # keeps Sentry and PostHog off exactly as before.
+          build-args: |
+            VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }}
+            VITE_POSTHOG_KEY=${{ secrets.VITE_POSTHOG_KEY }}
+            VITE_POSTHOG_HOST=${{ secrets.VITE_POSTHOG_HOST }}
           tags: |
             ${{ steps.tags.outputs.frontend }}
             ${{ steps.tags.outputs.frontend_repo }}:latest

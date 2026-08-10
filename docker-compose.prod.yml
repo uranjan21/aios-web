@@ -120,6 +120,9 @@ services:
       SITE_ADDRESS: ${SITE_ADDRESS:-:80}
       ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
       BACKEND_UPSTREAM: backend:8000
+      # Extra hosts for the edge CSP connect-src (Sentry ingest, PostHog).
+      # Empty = the SPA may only reach its own origin + the two currency APIs.
+      CSP_CONNECT_EXTRA: ${CSP_CONNECT_EXTRA:-}
     ports:
       - "80:80"
       - "443:443"

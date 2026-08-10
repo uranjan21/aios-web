@@ -333,7 +333,7 @@ export function PricingPage() {
     <PageWrapper>
       <Header>
         <Link to="/" style={{ textDecoration: 'none' }}>
-          <Logo><span>ai<span className="accent">os</span></span></Logo>
+          <Logo><span>control <span className="accent">tower</span></span></Logo>
         </Link>
         <div style={{ display: 'flex', gap: '1rem' }}>
           {isAuthenticated ? (
@@ -378,7 +378,7 @@ export function PricingPage() {
           </Panel>
 
           <Summary>
-            <SummaryMeta>{count === 0 ? 'No modules selected' : `${count} of ${TOTAL_MODULES} module${count === 1 ? '' : 's'}`}</SummaryMeta>
+            <SummaryMeta>{count === 0 ? 'No modules selected' : `${count} of ${TOTAL_MODULES} module${TOTAL_MODULES === 1 ? '' : 's'}`}</SummaryMeta>
             <TotalRow>
               <span className="amount">{loading ? `$${monthly}` : format(monthly)}</span>
               <span className="per">/mo</span>

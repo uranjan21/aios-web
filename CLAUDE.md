@@ -118,7 +118,61 @@ docker compose exec backend pytest
 
 ---
 
-## Recent Updates (2026-08-03, latest — Settings: one nav level, 6 sections → 7 real ones)
+## Recent Updates (2026-08-10, latest — final pre-ship audit)
+
+Full audit before the first deploy. Detail in `PROGRESS.md`.
+
+- **The SPA document shipped with no security headers.** `SecurityHeadersMiddleware`
+  only decorates `/api/*`; Caddy serves `index.html` and set nothing but
+  `Cache-Control` — no CSP, and **no `X-Frame-Options`, so the app could be
+  iframed**. `frontend/Caddyfile` now owns the document headers. **Do not copy
+  the backend CSP to the edge**: the API policy has no
+  `fonts.googleapis.com`/`fonts.gstatic.com`, and the SPA loads both from
+  `index.html` — reusing it silently drops DM Sans + Playfair app-wide. Verified
+  against the real built image (fonts, `/api`, WS upgrade, deep-route fallback,
+  and an unlisted host actually blocked). New `CSP_CONNECT_EXTRA` env var (wired
+  through `docker-compose.prod.yml`) is where Sentry/PostHog hosts go.
+- **`VITE_*` are build-time.** `analytics.ts` was unreachable in production
+  because nothing passed them as Docker build args — Sentry and PostHog were
+  dead code in every image. `apps/shell/Dockerfile` takes `ARG VITE_SENTRY_DSN`
+  / `VITE_POSTHOG_KEY` / `VITE_POSTHOG_HOST`; `deploy.yml` passes them from repo
+  secrets. Unset → empty → analytics off, unchanged default.
+- **`deploy.sh` takes a verified `pg_dump` before pulling images.** Rollback
+  restores image tags and cannot un-migrate, while the entrypoint runs
+  `alembic upgrade head` on every boot. Non-fatal so it can't block a hotfix.
+- **Mobile landing was broken**: header overflowed 375 → 486px, primary
+  "Start Free" CTA entirely off-screen; 4-item stats strip overflowed both
+  edges. Fixed in `landing.styles.ts`. Pricing page also still wore the
+  pre-rename `aios` wordmark and read "1 of 6 module".
+- **`token-lint` exits 0 now** — the notes below saying it fails on a stale
+  baseline are obsolete; the baseline was re-locked 6 violations lower. CI still
+  has `continue-on-error` on that step, so it is not yet a real gate.
+- **Production refuses to boot on cleartext http.** `ALLOWED_ORIGIN` must be
+  `https://` or `ALLOW_INSECURE_HTTP=true` must be set — otherwise `Settings`
+  raises. Non-https means the auth cookie loses `Secure` and every JWT crosses
+  the wire in the clear, which used to be a log warning nobody would read. A
+  Hostinger VPS has a **free `srvNNNNNN.hstgr.cloud` hostname that Let's Encrypt
+  accepts**, so TLS needs no domain purchase — `.env.prod.example` now defaults
+  to https. All 8 production guards are covered both ways in
+  `backend/tests/test_config_guards.py`.
+- **`deploy.sh` self-installs the nightly backup cron** (idempotent, deploy
+  user's crontab). Backup paths go through `resolve_backup_dir()`: `/var/backups`
+  needs root and the deploy user is unprivileged, so it falls back to
+  `$APP_DIR/backups` rather than emitting dumps that silently fail to write.
+  **Both locations are on the DB's own disk** — copy them off the box.
+- **`captures/parse` runs on `agent_openai_model`** (small tier), not the chat
+  default. It is strict-JSON extraction and is deliberately unmetered (CAP-1),
+  so per-call cost is the only ceiling.
+- **token-lint is enforced in CI** (`continue-on-error` dropped) after proving
+  it exits 1 on injected drift.
+- **Verified, not assumed:** backend **280 passing**; tsc + build + vitest +
+  token-lint clean; single alembic head `c003` and the full chain applies to an
+  **empty** DB (77 tables); no route-level `user_id` scoping gaps; all admin
+  endpoints `require_admin` + rate-limited.
+
+---
+
+## Recent Updates (2026-08-03 — Settings: one nav level, 6 sections → 7 real ones)
 
 The global sidebar expanded Settings into the same six entries the page's own
 rail already drew. Utsav asked for the local rail only, plus an audit of the

@@ -35,8 +35,8 @@ export function LandingPage() {
       <Header>
         <Logo to="/">control <span className="accent">tower</span></Logo>
         <HeaderNav>
-          <Link to="/pricing">Pricing</Link>
-          <Link to="/support">Support</Link>
+          <Link className="secondary" to="/pricing">Pricing</Link>
+          <Link className="secondary" to="/support">Support</Link>
           {isAuthenticated ? (
             <Button variant="primary" onClick={() => navigate('/app')}>Go to App</Button>
           ) : (

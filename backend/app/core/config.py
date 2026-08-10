@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     google_login_email: str = ""
     allowed_origin: str = "http://localhost:5173"
     environment: str = "development"  # "production" | "development"
+    # Explicit acknowledgement that a production deployment is served over plain
+    # http. A non-https ALLOWED_ORIGIN means the auth cookie cannot carry the
+    # Secure flag, so every JWT crosses the network in cleartext. Production
+    # refuses to start without this, so cleartext auth is always a deliberate
+    # choice rather than something you discover after launch.
+    allow_insecure_http: bool = False
 
     # Database
     database_url: str = "postgresql+asyncpg://localhost:5432/aios_web"
@@ -134,6 +140,17 @@ class Settings(BaseSettings):
             if "localhost" in self.allowed_origin:
                 raise ValueError(
                     "ALLOWED_ORIGIN must not contain 'localhost' in production — set it to your deployed domain"
+                )
+            if not self.allowed_origin.startswith("https://") and not self.allow_insecure_http:
+                raise ValueError(
+                    f"ALLOWED_ORIGIN is {self.allowed_origin!r} — not https. The auth cookie "
+                    "cannot carry the Secure flag over plain http, so every JWT (and all "
+                    "financial and health data) crosses the network in cleartext.\n"
+                    "  Fix: point a hostname at this server and set SITE_ADDRESS=<host> plus "
+                    "ALLOWED_ORIGIN=https://<host>. Caddy provisions the certificate itself, "
+                    "and a Hostinger VPS already has a free srvNNNNNN.hstgr.cloud hostname "
+                    "that Let's Encrypt accepts — see docs/DEPLOYMENT.md §4.\n"
+                    "  To ship on cleartext anyway, set ALLOW_INSECURE_HTTP=true."
                 )
         # TOKEN_ENCRYPTION_KEY is required whenever Google OAuth integrations are configured (H4).
         # An empty key causes Fernet to raise InvalidToken on first OAuth token save.

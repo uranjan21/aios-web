@@ -20,6 +20,35 @@
 {$SITE_ADDRESS::80} {
 	encode zstd gzip
 
+	# ---- security headers ----------------------------------------------------
+	# These apply to the SPA DOCUMENT. The FastAPI SecurityHeadersMiddleware only
+	# ever decorated /api/* JSON responses, so until now index.html shipped with
+	# no CSP and no anti-framing header at all — a financial app that could be
+	# iframed. `header` here sets them on every response Caddy emits, including
+	# the proxied ones (Caddy's header runs after the upstream reply, and
+	# duplicate-safe because we set, not add).
+	#
+	# CSP notes — do not tighten these without re-testing the live app:
+	#  * style-src needs 'unsafe-inline' for styled-components' injected <style>
+	#    and fonts.googleapis.com for the webfont CSS in index.html.
+	#  * font-src needs fonts.gstatic.com — the actual DM Sans / Playfair files.
+	#    Drop either and the whole type system silently falls back to system UI.
+	#  * connect-src 'self' covers same-origin ws:// and wss:// under CSP3.
+	#    CSP_CONNECT_EXTRA is where Sentry's per-project ingest host and PostHog
+	#    go when those are enabled — they are NOT allowed by default.
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		# Ignored by browsers over plain http, so it is safe on the bare-IP setup
+		# and correct the moment SITE_ADDRESS becomes a hostname.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://ipapi.co https://open.er-api.com {$CSP_CONNECT_EXTRA:}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		# Don't advertise the edge version.
+		-Server
+	}
+
 	# ---- backend -------------------------------------------------------------
 	# /health is proxied too so an external uptime monitor can hit it without
 	# knowing the /api prefix.

@@ -38,6 +38,11 @@ export const Header = styled.header`
   position: sticky;
   top: 0;
   z-index: 50;
+  gap: 1rem;
+  @media ${({ theme }) => theme.media.belowSm} {
+    padding: 1rem;
+    gap: 0.75rem;
+  }
 `
 
 export const Logo = styled(Link)`
@@ -49,7 +54,9 @@ export const Logo = styled(Link)`
   gap: 0.5rem;
   color: ${({ theme }) => theme.color.foreground};
   text-decoration: none;
+  white-space: nowrap;
   .accent { color: ${({ theme }) => theme.color.accent}; }
+  @media ${({ theme }) => theme.media.belowSm} { font-size: 1.15rem; }
 `
 
 export const HeaderNav = styled.nav`
@@ -61,8 +68,16 @@ export const HeaderNav = styled.nav`
     font-weight: 500;
     color: ${({ theme }) => theme.color.mutedForeground};
     text-decoration: none;
+    white-space: nowrap;
     transition: color 0.2s;
     &:hover { color: ${({ theme }) => theme.color.foreground}; }
+  }
+  @media ${({ theme }) => theme.media.belowSm} {
+    gap: 1rem;
+    /* A phone can't fit logo + 4 nav items — the primary CTA was being pushed
+       off-screen entirely. Pricing and Support drop out here; both stay one tap
+       away in the footer, which the auth actions do not have. */
+    a.secondary { display: none; }
   }
 `
 
@@ -165,6 +180,11 @@ export const StatsStrip = styled.section`
   display: flex;
   justify-content: center;
   gap: 0;
+  @media ${({ theme }) => theme.media.belowSm} {
+    padding: 1.5rem 1rem;
+    flex-wrap: wrap;
+    row-gap: 1.25rem;
+  }
 `
 
 export const StatItem = styled.div`
@@ -174,7 +194,15 @@ export const StatItem = styled.div`
   padding: 0 2rem;
   border-right: 1px solid ${({ theme }) => theme.color.border};
   &:last-child { border-right: none; }
-  @media ${({ theme }) => theme.media.belowSm} { min-width: 120px; padding: 0 1rem; }
+  /* Four items at a 120px floor overflowed a 375px viewport. Below sm they
+     become a 2x2 grid, so only the left column carries a divider. */
+  @media ${({ theme }) => theme.media.belowSm} {
+    flex: 0 0 50%;
+    min-width: 0;
+    max-width: 50%;
+    padding: 0 0.75rem;
+    &:nth-child(2n) { border-right: none; }
+  }
 `
 
 export const StatNum = styled.div`

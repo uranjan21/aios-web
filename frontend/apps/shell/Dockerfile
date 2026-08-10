@@ -37,6 +37,18 @@ RUN pnpm install --frozen-lockfile
 COPY packages ./packages
 COPY apps ./apps
 
+# Vite inlines import.meta.env.VITE_* at BUILD time, so these have to arrive as
+# build args — setting them on the running container does nothing. Without them
+# packages/shared/src/lib/analytics.ts short-circuits and both Sentry and
+# PostHog stay inert, which is how production shipped with no frontend error
+# reporting at all. Empty default = analytics off, same as before.
+ARG VITE_SENTRY_DSN=""
+ARG VITE_POSTHOG_KEY=""
+ARG VITE_POSTHOG_HOST=""
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN \
+    VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY \
+    VITE_POSTHOG_HOST=$VITE_POSTHOG_HOST
+
 # @ledgr/ui builds to dist/ (tsup); the shell typechecks the whole graph via
 # the root tsconfig, then Vite bundles.
 RUN pnpm --filter @ledgr/ui build \

@@ -92,12 +92,13 @@ jobs:
       - name: Type check
         run: ./node_modules/.bin/tsc -p tsconfig.json
 
-      # Reported, not enforced. The ratchet currently fails on pre-existing
-      # violations, and this job gates production deploys — a design-token
-      # regression should not be able to block shipping a backend fix.
-      # Drop `continue-on-error` once the baseline is green again.
-      - name: Design-token lint (advisory)
-        continue-on-error: true
+      # Enforced as of 2026-08-10. It was advisory because the baseline was
+      # stale and the ratchet failed on pre-existing violations; the baseline
+      # has since been re-locked and the check exits 0, so it now only fires on
+      # NEW drift — which is the whole point of a ratchet. Verified by injecting
+      # a hardcoded hex/spacing/font-size and watching it exit 1.
+      # If a genuine reduction makes it fail, re-lock with `--update`.
+      - name: Design-token lint
         run: node scripts/token-lint.mjs
 
       - name: Build

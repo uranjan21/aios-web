@@ -1,5 +1,91 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
+## 2026-08-10 — claude-code (final pre-ship audit)
+
+**Ask.** Full audit before deploying — every aspect.
+
+**Verified green (not assumed):** backend **265 passing** on host; `tsc`,
+`pnpm build`, vitest all clean; **token-lint now exits 0** (the CLAUDE.md note
+calling it red on a stale baseline is out of date — baseline re-locked, 6
+violations removed). Single alembic head `c003`, and the **whole chain applies
+to an empty database** (77 tables, pgvector + uuid-ossp present) — that is the
+path `entrypoint.sh` takes on a fresh prod DB. Autogenerate drift is cosmetic
+only (composite indexes declared in migrations not mirrored in `__table_args__`,
+TEXT vs VARCHAR, `Column(Text)` missing `nullable=False`) — nothing to apply.
+Route-level sweep found **no missing `user_id` scoping**; the only handlers with
+no user reference are the auth flows, the signature-verified Stripe webhook and
+admin `/stats`. All 5 admin endpoints carry `require_admin` + a rate limit.
+Every LLM call site is quota-gated except the deliberate `captures/parse`.
+
+**Shipped — the SPA document had no security headers at all.** The FastAPI
+`SecurityHeadersMiddleware` only ever decorated `/api/*` JSON; Caddy set nothing
+but `Cache-Control`, so `index.html` shipped with **no CSP and no
+`X-Frame-Options`** — a financial app that could be iframed. Added a header
+block to `frontend/Caddyfile` (CSP, XFO, nosniff, Referrer-Policy,
+Permissions-Policy, HSTS, `-Server`). **The API's CSP could not simply be
+copied**: it lacks `fonts.googleapis.com`/`fonts.gstatic.com`, so reusing it
+would have silently killed DM Sans + Playfair app-wide. Verified by building the
+real web image and running it: fonts load, styled-components injects,
+`/api` + `/health` + SPA deep-route fallback work, same-origin WebSocket
+upgrades, ipapi.co and open.er-api.com reachable, **an unlisted host is
+blocked** (the policy actually fails, it isn't decorative). New
+`CSP_CONNECT_EXTRA` knob for Sentry/PostHog hosts, wired through
+`docker-compose.prod.yml`.
+
+**Shipped — frontend observability could never be turned on.** `analytics.ts`
+reads `VITE_*` vars, but Vite inlines those at **build** time and neither the
+Dockerfile nor `deploy.yml` passed any, so Sentry/PostHog were dead code in
+production. Added build args + `deploy.yml` `build-args` (unset secrets → "",
+i.e. off, exactly as before) + docs.
+
+**Shipped — mobile landing page was broken.** At 375px the header overflowed to
+486px: the logo collided with "Pricing" and the **primary "Start Free" CTA was
+entirely off-screen**. The 4-item stats strip overflowed both edges. Fixed in
+`landing.styles.ts` (mobile padding/gap, secondary links drop out below `sm` —
+both still in the footer — 2×2 stats grid). Measured after: `scrollWidth ==
+clientWidth == 375`, CTA fully on-screen, desktop unchanged.
+
+**Shipped — Pricing page still wore the pre-rename brand** (`aios`) and read
+"1 of 6 **module**" (plural keyed off `count` instead of the total). Both fixed
+and verified live.
+
+**Shipped — deploy had no restore point.** `deploy.sh` rollback restores image
+tags only; it cannot un-migrate, and the entrypoint runs `alembic upgrade head`
+every boot. Added a verified pre-deploy `pg_dump` (non-fatal, so it can't block
+a hotfix).
+
+**Second pass — the four items left as "operator decisions" were closed in code.**
+
+- **Cleartext HTTP is now a refusal, not a warning.** Production would boot
+  happily on `http://<bare-IP>`, silently dropping `Secure` from the auth
+  cookie. `Settings.validate_secrets` now **refuses to construct** unless
+  `ALLOWED_ORIGIN` is https, with `ALLOW_INSECURE_HTTP=true` as the deliberate
+  escape hatch (same pattern as `VAULT_SINGLE_TENANT_ACK`). The error names the
+  fix, including that a Hostinger VPS **already has a free
+  `srvNNNNNN.hstgr.cloud` hostname Let's Encrypt accepts** — so TLS costs
+  nothing and needs no purchase. `.env.prod.example` now ships https by
+  default. New `tests/test_config_guards.py` covers all 8 production guards in
+  both directions (**+15 tests, suite 265 → 280**).
+- **Nightly backup installs itself.** `deploy.sh` adds an idempotent 02:30 cron
+  to the deploy user's crontab. `/var/backups` needs root and the deploy user is
+  unprivileged, so both the cron and the pre-deploy dump resolve their target
+  through `resolve_backup_dir()` — preferred dir if writable, else
+  `$APP_DIR/backups` — because a dump that silently fails to write is worse
+  than none. Both branches tested.
+- **`captures/parse` moved to the small model tier** (`agent_openai_model`,
+  gpt-4o-mini). It is strict-JSON extraction from ≤500 chars and is deliberately
+  unmetered (CAP-1), so per-call cost *is* the exposure — ~16x cheaper now.
+- **token-lint is a real gate**: `continue-on-error` dropped from `ci.yml`.
+  Proved it fails first — injected a hardcoded hex/spacing/font-size, watched it
+  exit 1 catching all three, reverted, confirmed exit 0.
+
+- Blockers: none.
+- Next: on the VPS, set `SITE_ADDRESS`/`ALLOWED_ORIGIN` to the hstgr.cloud
+  hostname (or a domain) and register the https redirect URIs in the Google
+  Cloud OAuth client — §4 of `docs/DEPLOYMENT.md`. After first deploy, confirm
+  `crontab -l | grep ct-backup-nightly` and copy dumps off the box; both backup
+  locations sit on the same disk as the database.
+
 ## 2026-08-08 — antigravity
 - Shipped: Audited codebase for memory leaks. Fixed `VaultWatcher` in backend leaking `asyncio.TimerHandle` tasks on shutdown. Fixed unmounted state updates in React components (`VerifyEmailPage`, `GoogleAuthCallbackPage`, `OAuthCallbackPage`) by adding `isMounted` checks. Reviewed APScheduler logic for domain-scoped isolation and fallback safety. Generated `performance_ai_report.md` artifact.
 - Blockers: none

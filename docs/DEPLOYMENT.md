@@ -167,6 +167,25 @@ GitHub → repo → Settings → Secrets and variables → Actions:
 | `VPS_SSH_PORT` | only if SSH isn't on 22 |
 | `GHCR_PAT` | the `read:packages` token from 2.1 |
 
+Optional — frontend observability. Vite inlines these at **build** time, so they
+are passed as Docker build args by `deploy.yml`; setting them in `.env.prod`
+does nothing. Leave them unset and Sentry/PostHog stay off, which is how the
+app shipped by default:
+
+| Secret | Value |
+|---|---|
+| `VITE_SENTRY_DSN` | Sentry project DSN — frontend error reporting |
+| `VITE_POSTHOG_KEY` | PostHog **project** key (publishable; it ships in the bundle) |
+| `VITE_POSTHOG_HOST` | defaults to `https://us.i.posthog.com` |
+
+If you enable either, add its host to `CSP_CONNECT_EXTRA` in `.env.prod` — the
+edge `connect-src` allowlist does **not** include them by default, so the
+browser will block their network calls:
+
+```bash
+CSP_CONNECT_EXTRA=https://us.i.posthog.com https://o123456.ingest.sentry.io
+```
+
 `GITHUB_TOKEN` is provided automatically and is what pushes the images.
 
 ### 2.4 First deploy
@@ -214,12 +233,31 @@ $DC exec backend alembic current
 ./deploy/deploy.sh ghcr.io/<owner>/control-tower-backend:<sha> ghcr.io/<owner>/control-tower-web:<sha>
 ```
 
-**Backups** — install the nightly dump (see the header of `deploy/backup-db.sh`):
+**Pre-deploy dump** — `deploy.sh` now takes its own gzipped dump into
+`/var/backups/control-tower/pre-deploy-*.sql.gz` *before* pulling images, because
+the backend entrypoint runs `alembic upgrade head` on every boot and the
+automatic rollback restores **image tags only** — it cannot un-migrate the
+database. A failed dump warns loudly but does not block the deploy (an emergency
+hotfix must never be gated on it). This does not replace the nightly cron below;
+it is the restore point for the migration that is about to run.
+
+**Backups** — `deploy.sh` installs the nightly dump into the deploy user's own
+crontab on first run (02:30 daily) and is idempotent, so there is nothing to do
+by hand. It writes to `/var/backups/control-tower` when that is writable and
+otherwise falls back to `/opt/control-tower/backups`, because the deploy user is
+unprivileged and a dump that silently fails to write is worse than none.
+
+Check it landed:
 
 ```bash
-sudo cp deploy/backup-db.sh /usr/local/bin/ct-backup && sudo chmod +x /usr/local/bin/ct-backup
-echo "30 2 * * * /usr/local/bin/ct-backup >> /var/log/ct-backup.log 2>&1" | sudo crontab -
+crontab -l | grep ct-backup-nightly
+ls -lh /opt/control-tower/backups /var/backups/control-tower 2>/dev/null
 ```
+
+⚠️ Both locations are **on the same disk as the database**, which makes them a
+restore point for a bad migration or a bad `DELETE`, not a real backup. Copy
+them off the box (`scp`, object storage) on your own schedule — losing the VPS
+loses both copies.
 
 Restore:
 
@@ -235,13 +273,17 @@ every row in it.
 
 ## 4. Moving to a domain + HTTPS
 
-Right now the app runs over plain HTTP on a bare IP. That means the JWT auth
-cookie travels in cleartext and cannot carry the `Secure` flag — anyone on a
-shared network path can lift a session. Fix it as soon as you have a hostname.
+**Do this at first deploy, not later.** Over plain HTTP the JWT auth cookie
+travels in cleartext and cannot carry the `Secure` flag — anyone on a shared
+network path can lift a session, and this app holds financial and health data.
+
+Since 2026-08-10 the backend **refuses to start** in production on a non-https
+`ALLOWED_ORIGIN` unless you also set `ALLOW_INSECURE_HTTP=true`. That flag
+exists so cleartext is a deliberate, temporary choice; it is not a default.
 
 Hostinger assigns every VPS a free `srvNNNNNN.hstgr.cloud` hostname (hPanel →
 VPS → Overview). If that resolves to your IP it's enough for Let's Encrypt —
-you don't have to buy a domain.
+**you don't have to buy a domain to get TLS.**
 
 1. Point an `A` record at the VPS IP (or confirm the hstgr.cloud hostname resolves).
 2. Edit `/opt/control-tower/.env.prod` — **both lines**:

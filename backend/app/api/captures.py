@@ -72,7 +72,13 @@ async def parse_capture(request: Request, body: ParseBody, current_user=Depends(
     try:
         client = get_openai_client()
         resp = await client.chat.completions.create(
-            model=settings.openai_chat_model,
+            # Small tier, not the chat default. This is strict-JSON extraction
+            # from <=500 chars against a fixed schema — the same shape of task
+            # the scheduled agents already run on `agent_openai_model`, at ~16x
+            # less per call. It also matters because this endpoint is
+            # deliberately NOT metered against the AI quota (CAP-1): the rate
+            # limit is the only ceiling, so the per-call cost is the exposure.
+            model=settings.agent_openai_model,
             messages=[
                 {"role": "system", "content": _PARSE_SYSTEM},
                 {"role": "user", "content": body.text},
