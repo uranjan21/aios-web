@@ -6,6 +6,7 @@ import uuid
 from collections import deque
 
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
+from sqlalchemy import delete as sa_delete
 from sqlmodel import select, desc
 
 from app.core.config import get_settings
@@ -58,13 +59,16 @@ async def get_session(session_id: uuid.UUID, current_user=Depends(get_current_us
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
+    # Newest 100, returned oldest-first. Ordering ascending with a LIMIT opens
+    # every long conversation at its very beginning with no way to reach the end
+    # — the WS history loader below already does it this way.
     messages_result = await db.execute(
         select(ChatMessage)
         .where(ChatMessage.session_id == session_id, ChatMessage.user_id == current_user.id)
-        .order_by(ChatMessage.created_at)
+        .order_by(desc(ChatMessage.created_at))
         .limit(100)
     )
-    messages = messages_result.scalars().all()
+    messages = list(reversed(messages_result.scalars().all()))
     return {"session": session, "messages": messages}
 
 
@@ -78,15 +82,14 @@ async def delete_session(request: Request, session_id: uuid.UUID, current_user=D
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
         
-    messages_result = await db.execute(
-        select(ChatMessage).where(
+    # One statement — loading every row to delete it one at a time is O(n)
+    # round-trips on a long conversation.
+    await db.execute(
+        sa_delete(ChatMessage).where(
             ChatMessage.session_id == session_id,
             ChatMessage.user_id == current_user.id,
         )
     )
-    for msg in messages_result.scalars().all():
-        await db.delete(msg)
-        
     await db.delete(session)
     await db.commit()
     return {"status": "deleted"}
@@ -120,6 +123,30 @@ async def patch_session(session_id: uuid.UUID, body: ChatSessionPatch, current_u
 @router.get("/token-budget")
 async def token_budget(current_user=Depends(get_current_user)):
     return await get_token_budget_status(current_user.id)
+
+
+# Bounds on one chat frame. The rate limit counts messages, not bytes, so
+# without these a few oversized frames cost far more provider spend than they
+# meter. ~32k chars is well past any real prompt and still under every model's
+# context window.
+MAX_MESSAGE_CHARS = 32_000
+MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024
+# 1 credit per this many input tokens, minimum 1 per response — a normal turn
+# still costs 1, a deliberately huge one costs what it consumes.
+INPUT_TOKENS_PER_CREDIT = 8_000
+
+
+def _attachment_bytes(attachments) -> int:
+    """Approximate decoded size of the base64 `data` fields on a message."""
+    if not isinstance(attachments, list):
+        return 0
+    total = 0
+    for att in attachments:
+        if isinstance(att, dict):
+            data = att.get("data")
+            if isinstance(data, str):
+                total += (len(data) * 3) // 4
+    return total
 
 
 async def _ws_rate_limit_check(user_id: str, per_min: int, settings) -> bool:
@@ -283,6 +310,25 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
             model = validate_model(provider, data.get("model"))
             attachments = data.get("attachments")
 
+            # Starlette caps nothing, the rate limit counts MESSAGES and metering
+            # charged a flat credit — so a handful of huge frames cost orders of
+            # magnitude more than they billed. Reject before the quota check and
+            # before any provider call.
+            if not isinstance(user_content, str) or len(user_content) > MAX_MESSAGE_CHARS:
+                await websocket.send_text(json.dumps({
+                    "type": "error",
+                    "code": "too_large",
+                    "message": f"Message too long — keep it under {MAX_MESSAGE_CHARS:,} characters.",
+                }))
+                continue
+            if _attachment_bytes(attachments) > MAX_ATTACHMENT_BYTES:
+                await websocket.send_text(json.dumps({
+                    "type": "error",
+                    "code": "too_large",
+                    "message": f"Attachments too large — keep the total under {MAX_ATTACHMENT_BYTES // (1024 * 1024)} MB.",
+                }))
+                continue
+
             async with AsyncSessionLocal() as session:
                 user_result = await session.execute(select(User).where(User.id == user_id))
                 current_user = user_result.scalar_one_or_none()
@@ -378,6 +424,7 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
             # Accumulated tool call/result pairs for this turn (OpenAI-canonical format).
             turn_tool_calls: list[dict] = []
             turn_tool_results: list[dict] = []
+            turn_input_tokens = 0
             try:
                 async for event in stream_chat_response(
                     current_user.id,
@@ -402,6 +449,8 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
                             "call_id": event["call_id"],
                             "result": event.get("result", ""),
                         })
+                    elif event.get("type") == "done":
+                        turn_input_tokens = (event.get("tokens") or {}).get("input") or 0
                     elif event.get("type") == "tool_confirmation_required":
                         call_id = event.get("tool_call_id")
                         if call_id:
@@ -422,10 +471,13 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
                             tool_results=turn_tool_results or None,
                         ))
                         await session.commit()
-                    # Meter one AI action per completed response (Phase 2).
+                    # Meter per completed response (Phase 2) — proportional to the
+                    # input actually sent, so a huge prompt no longer bills the
+                    # same single credit as a one-line question.
                     from app.services.billing.usage import record_ai_usage
+                    units = max(1, -(-turn_input_tokens // INPUT_TOKENS_PER_CREDIT))
                     async with AsyncSessionLocal() as session:
-                        await record_ai_usage(session, user_id, units=1, source="chat")
+                        await record_ai_usage(session, user_id, units=units, source="chat")
 
     except WebSocketDisconnect:
         pass

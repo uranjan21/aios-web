@@ -24,8 +24,8 @@ import { format } from 'date-fns'
 import dayjs from 'dayjs'
 import { CreditCard, PieChart, Receipt } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
+import { ErrorState, SkeletonPage } from '@ledgr/ui'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { useDomainGoalsModule } from '@ct/shared/hooks/useDomainGoalsModule'
 import { formatAmount } from '@ct/shared/lib/utils'
 
@@ -61,39 +61,77 @@ export function HomeTab() {
   const month = format(new Date(), 'yyyy-MM')
   const prevMonth = now.subtract(1, 'month').format('YYYY-MM')
 
-  const { data: netWorth, isLoading: loadingSnapshot } = useQuery({
+  /*
+   * All eight queries opt out of the global throw (App.tsx) and are handled
+   * together below (F1, 2026-08-16). Every figure on this page is a SUM, so a
+   * request that failed silently does not render "unknown" — it renders a
+   * SMALLER, entirely plausible number. A user cannot tell an under-reported
+   * net worth from a real one, which is why this page must say "couldn't load"
+   * rather than degrade.
+   */
+  const q = { meta: { inlineError: true } } as const
+
+  const netWorthQ = useQuery({
     queryKey: ['finance', 'net-worth'],
     queryFn: financeApi.netWorth,
+    ...q,
   })
-  const { data: snapshots } = useQuery({
+  const snapshotsQ = useQuery({
     queryKey: ['finance', 'snapshots'],
     queryFn: financeApi.snapshots,
     staleTime: 300_000,
+    ...q,
   })
-  const { data: bills } = useQuery({ queryKey: ['finance', 'bills'], queryFn: financeApi.bills })
-  const { data: loans } = useQuery({ queryKey: ['finance', 'loans'], queryFn: financeApi.loans })
+  const billsQ = useQuery({ queryKey: ['finance', 'bills'], queryFn: financeApi.bills, ...q })
+  const loansQ = useQuery({ queryKey: ['finance', 'loans'], queryFn: financeApi.loans, ...q })
   /*
    * 500, not the default 50: every figure on this page is a SUM over the
    * month's rows, so a truncated page would silently under-report the total.
    */
-  const { data: expenses, isLoading: loadingExpenses } = useQuery({
+  const expensesQ = useQuery({
     queryKey: ['finance', 'expenses', month],
     queryFn: () => financeApi.expenses(month, undefined, 500, 0),
+    ...q,
   })
-  const { data: prevExpenses } = useQuery({
+  const prevExpensesQ = useQuery({
     queryKey: ['finance', 'expenses', prevMonth],
     queryFn: () => financeApi.expenses(prevMonth, undefined, 500, 0),
     staleTime: 300_000,
+    ...q,
   })
-  const { data: income } = useQuery({
+  const incomeQ = useQuery({
     queryKey: ['finance', 'income', month],
     queryFn: () => financeApi.income(month),
+    ...q,
   })
-  const { data: prevIncome } = useQuery({
+  const prevIncomeQ = useQuery({
     queryKey: ['finance', 'income', prevMonth],
     queryFn: () => financeApi.income(prevMonth),
     staleTime: 300_000,
+    ...q,
   })
+
+  /*
+   * Gated on ALL eight, not on two. Until 2026-08-16 the skeleton cleared as
+   * soon as net worth and this month's expenses arrived, so the other six
+   * sections popped in afterwards against a page that had already declared
+   * itself loaded.
+   */
+  const panels = [
+    netWorthQ, snapshotsQ, billsQ, loansQ,
+    expensesQ, prevExpensesQ, incomeQ, prevIncomeQ,
+  ]
+  const isError = panels.some((p) => p.isError)
+  const isLoading = panels.some((p) => p.isLoading)
+
+  const netWorth = netWorthQ.data
+  const snapshots = snapshotsQ.data
+  const bills = billsQ.data
+  const loans = loansQ.data
+  const expenses = expensesQ.data
+  const prevExpenses = prevExpensesQ.data
+  const income = incomeQ.data
+  const prevIncome = prevIncomeQ.data
 
   const modules = useMemo<ModuleSpec[]>(() => {
     const today = now.date()
@@ -266,7 +304,18 @@ export function HomeTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [netWorth, snapshots, bills, loans, expenses, prevExpenses, income, prevIncome])
 
-  if (loadingSnapshot || loadingExpenses) return <Skeleton style={{ height: 360 }} />
+  if (isError) {
+    return (
+      <ErrorState
+        title="We couldn't load your finances"
+        description="Nothing has been lost — a request behind this page failed. These figures are sums, so we won't show a partial one."
+        onRetry={() => { panels.forEach((p) => { void p.refetch() }) }}
+      />
+    )
+  }
+
+  /* Shape-matching, not a grey slab: net-worth hero, three KPIs, two halves. */
+  if (isLoading) return <SkeletonPage kpis={3} modules={[12, 6, 6]} />
 
   return <ModuleGrid modules={goalsModule ? [...modules, goalsModule] : modules} />
 }

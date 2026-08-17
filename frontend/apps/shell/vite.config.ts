@@ -16,11 +16,13 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
+    // `@dnd-kit/core` was listed here until 2026-08-17 with zero import sites
+    // repo-wide (the drag-and-drop Kanban left with the Content area on
+    // 2026-07-21), so every dev-server start paid to pre-bundle dead code.
     include: [
       'dayjs',
       'styled-components',
       'framer-motion',
-      '@dnd-kit/core',
     ],
   },
   server: {

@@ -1,11 +1,13 @@
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { ToolbarIconBtn, focusRing } from '@ledgr/ui'
 import styled from 'styled-components'
 
-export const StyledSkeleton = styled(Skeleton)<{ $height?: string; $width?: string; $margin?: string }>`
-  height: ${({ $height }) => $height || 'auto'};
-  width: ${({ $width }) => $width || '100%'};
-  ${({ $margin }) => $margin && `margin: ${$margin};`}
+/**
+ * Inset for the loading rows so they sit on the same left edge as the real
+ * transaction rows below the header. Replaces `StyledSkeleton`, a single grey
+ * 16rem block that told the reader nothing about what was arriving.
+ */
+export const TxnLoadingBody = styled.div`
+  padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[5]} 0`};
 `
 
 /**

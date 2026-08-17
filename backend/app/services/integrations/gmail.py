@@ -114,14 +114,18 @@ async def _sync_account(user_id: uuid.UUID, db, account_email: str) -> int:
             m for m in await asyncio.gather(*(_fetch(i, full=True) for i in financial_ids)) if m
         ]
 
+    # Only the ids fetched this run can be updated below. Hydrating the whole
+    # stored history (body_text included) is hundreds of MB at 50k messages.
+    fetched_ids = [m["id"] for m in meta_msgs + full_msgs]
     existing = {
         m.gmail_id: m
         for m in (await db.execute(
             select(GmailMessage)
             .where(GmailMessage.user_id == user_id)
             .where(GmailMessage.account_email == account_email)
+            .where(GmailMessage.gmail_id.in_(fetched_ids))
         )).scalars().all()
-    }
+    } if fetched_ids else {}
 
     now = datetime.utcnow()  # naive UTC — gmail_messages columns are tz-naive
     count = 0

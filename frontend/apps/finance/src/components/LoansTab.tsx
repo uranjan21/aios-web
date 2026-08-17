@@ -21,10 +21,11 @@ import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
-import { Button, Card, Dialog, EmptyState, Input, Select, Switch } from '@ledgr/ui'
+import {
+  Button, Card, Dialog, EmptyState, ErrorState, Input, Select, SkeletonPage, Switch,
+} from '@ledgr/ui'
 import { Landmark, FileText, PieChart, Trash2 } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import type { FinanceLoan } from '@ct/shared/types'
 import { LoanPaymentsPanel } from './LoanPaymentsPanel'
@@ -35,20 +36,6 @@ const RootContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[5]};
-`
-
-const LoadingContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-`
-
-const LoadHead = styled(Skeleton)`
-  height: 2.5rem;
-`
-
-const LoadBody = styled(Skeleton)`
-  height: 12.5rem;
 `
 
 const UpdateForm = styled.form`
@@ -210,16 +197,26 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
   const [loanForm, setLoanForm] = useState<LoanForm>(EMPTY_LOAN_FORM)
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paid'>('all')
 
-  const { data: loans, isLoading } = useQuery({
+  /* Handled in place below rather than thrown to the route (F1) — see App.tsx. */
+  const loansQ = useQuery({
     queryKey: ['finance', 'loans'],
     queryFn: financeApi.loans,
+    meta: { inlineError: true },
   })
 
-  const { data: loanSummary } = useQuery({
+  const summaryQ = useQuery({
     queryKey: ['finance', 'loans', 'summary'],
     queryFn: financeApi.loansSummary,
     staleTime: 60_000,
+    meta: { inlineError: true },
   })
+
+  const loans = loansQ.data
+  const loanSummary = summaryQ.data
+  /* `payments` is dialog-scoped (`enabled: !!updatingLoan`) and deliberately
+     not part of the first paint. */
+  const isLoading = loansQ.isLoading || summaryQ.isLoading
+  const isError = loansQ.isError || summaryQ.isError
 
   /* Payment history for the loan whose dialog is open. Amortization splits are
      captured per payment and cannot be recomputed later, so this is the only
@@ -496,10 +493,20 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
     }
 
     return specs
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [all, active, listed, statusFilter, onAdd, loanSummary])
 
-  if (isLoading) return <LoadingContainer><LoadHead /><LoadBody /></LoadingContainer>
+  if (isError) {
+    return (
+      <ErrorState
+        title="We couldn't load your loans"
+        description="Nothing has been lost — the request for your loan balances failed."
+        onRetry={() => { void loansQ.refetch(); void summaryQ.refetch() }}
+      />
+    )
+  }
+
+  if (isLoading) return <SkeletonPage kpis={4} modules={[12, 7, 5]} />
 
   return (
     <RootContainer>

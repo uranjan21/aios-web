@@ -1,4 +1,5 @@
 import styled, { css } from 'styled-components'
+import type { DefaultTheme } from 'styled-components'
 import { tabularNums, textRole } from '@ledgr/ui'
 
 /*
@@ -13,7 +14,7 @@ export const Row = styled.div`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing[3]};
-  padding: 11px ${({ theme }) => theme.spacing[1]};
+  padding: ${({ theme }) => theme.spacing[2.5]} ${({ theme }) => theme.spacing[1]};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.xs};
   transition: background 150ms;
@@ -35,7 +36,7 @@ export const RowTitle = styled.div`
 export const RowMeta = styled.div`
   ${textRole('label')};
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-top: 2px;
+  margin-top: ${({ theme }) => theme.spacing[0.5]};
 `
 
 export const RowValue = styled.span`
@@ -55,7 +56,7 @@ export const RowValue = styled.span`
 export const Chip = styled.span<{ $bg: string; $color: string }>`
   ${textRole('label')};
   font-weight: 600;
-  padding: 3px 9px;
+  padding: ${({ theme }) => theme.spacing[0.5]} ${({ theme }) => theme.spacing[2]};
   border-radius: ${({ theme }) => theme.radii.pill};
   background: ${({ $bg }) => $bg};
   color: ${({ $color }) => $color};
@@ -87,7 +88,7 @@ export const FieldLabel = styled.div`
   ${textRole('micro')};
   text-transform: uppercase;
   color: ${({ theme }) => theme.color.mutedForeground};
-  margin-bottom: 7px;
+  margin-bottom: ${({ theme }) => theme.spacing[1.5]};
 `
 
 /**
@@ -115,7 +116,7 @@ export const ModuleButton = styled.button<{ $variant?: 'primary' | 'ghost'; $bor
   ${textRole('body-s')};
   font-weight: ${({ $variant }) => ($variant === 'primary' ? 700 : 600)};
   font-family: inherit;
-  padding: 6px 13px;
+  padding: ${({ theme }) => theme.spacing[1.5]} ${({ theme }) => theme.spacing[3]};
   border-radius: ${({ theme }) => theme.radii.xs};
   cursor: pointer;
   white-space: nowrap;
@@ -189,9 +190,19 @@ export const ToggleKnob = styled.span<{ $on: boolean; $size?: number }>`
   box-shadow: ${({ theme }) => theme.elevation[1]};
 `
 
+/**
+ * A step on the theme's 4pt spacing scale.
+ *
+ * The gap props below are typed against it rather than `number` on purpose:
+ * `$gap?: number` emitting `gap: ${$gap}px` was an escape hatch the token
+ * linter could not see through, and call sites duly drifted to 9 / 15 / 17px.
+ * Off-grid values are now a type error at the call site.
+ */
+export type SpacingStep = keyof DefaultTheme['spacing']
+
 /** Column of rows with no gap — the hairlines do the separating. */
-export const Stack = styled.div<{ $gap?: number }>`
+export const Stack = styled.div<{ $gap?: SpacingStep }>`
   display: flex;
   flex-direction: column;
-  ${({ $gap }) => $gap !== undefined && css`gap: ${$gap}px;`}
+  ${({ $gap }) => $gap !== undefined && css`gap: ${({ theme }) => theme.spacing[$gap]};`}
 `

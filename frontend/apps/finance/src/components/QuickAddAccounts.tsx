@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import { Button, Input, Select, Dialog, SegmentedControl } from '@ledgr/ui'
 import { financeApi } from '@ct/shared/api/areas'
 import styled from 'styled-components'
+import { FieldError, useFieldErrors } from './forms/fieldErrors'
 
 const FormStack = styled.form`
   margin-top: 0.75rem;
@@ -147,6 +148,7 @@ function TypePicker({ meta, value, onChange }: { meta: Record<string, { label: s
 function AddAccountForm({ onSuccess }: { onSuccess?: () => void }) {
   const queryClient = useQueryClient()
   const [values, setValues] = useState({ name: '', type: 'checking', balance: '0', currency: 'INR' })
+  const f = useFieldErrors<'name' | 'balance'>('add-account')
 
   const { mutate, isPending } = useMutation({
     mutationFn: (v: any) => financeApi.createAccount({ ...v, balance: Number(v.balance) }),
@@ -154,16 +156,35 @@ function AddAccountForm({ onSuccess }: { onSuccess?: () => void }) {
       queryClient.invalidateQueries({ queryKey: ['finance', 'accounts'] })
       toast.success('Account created')
       setValues({ name: '', type: 'checking', balance: '0', currency: 'INR' })
+      f.reset()
       onSuccess?.()
     },
     onError: () => toast.error('Failed to create account'),
   })
 
+  /* Field problems are answered on the field; only transport failure toasts. */
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const ok = f.submit({
+      name: values.name.trim() ? undefined : 'Give the account a name.',
+      balance: Number.isFinite(Number(values.balance)) && values.balance.trim() !== ''
+        ? undefined
+        : 'Enter a number, or 0 if you are not sure yet.',
+    })
+    if (ok) mutate({ ...values, name: values.name.trim() })
+  }
+
   return (
-    <FormStack onSubmit={e => { e.preventDefault(); mutate(values) }}>
+    <FormStack noValidate onSubmit={handleSubmit}>
       <div>
         <LabelText>Account Name</LabelText>
-        <FullInput required placeholder="e.g. HDFC Savings" value={values.name} onChange={e => setValues({ ...values, name: e.target.value })} />
+        <FullInput
+          placeholder="e.g. HDFC Savings"
+          value={values.name}
+          {...f.fieldProps('name')}
+          onChange={e => { f.clearField('name'); setValues({ ...values, name: e.target.value }) }}
+        />
+        <FieldError id={f.errorId('name')}>{f.errors.name}</FieldError>
       </div>
       <div>
         <LabelText>Type</LabelText>
@@ -178,7 +199,14 @@ function AddAccountForm({ onSuccess }: { onSuccess?: () => void }) {
       <Grid2Col>
         <div>
           <LabelText>Initial Balance</LabelText>
-          <FullInput type="number" step="0.01" value={values.balance} onChange={e => setValues({ ...values, balance: e.target.value })} />
+          <FullInput
+            type="number"
+            step="0.01"
+            value={values.balance}
+            {...f.fieldProps('balance')}
+            onChange={e => { f.clearField('balance'); setValues({ ...values, balance: e.target.value }) }}
+          />
+          <FieldError id={f.errorId('balance')}>{f.errors.balance}</FieldError>
         </div>
         <div>
           <LabelText>Currency</LabelText>
@@ -336,6 +364,7 @@ function AddInvestmentForm({ onSuccess }: { onSuccess?: () => void }) {
   const queryClient = useQueryClient()
   const [type, setType] = useState('mutual_fund')
   const [values, setValues] = useState({ name: '', invested_amount: '', current_value: '', units: '', purchase_date: '', notes: '' })
+  const f = useFieldErrors<'name' | 'invested_amount'>('add-investment')
 
   const { mutate, isPending } = useMutation({
     mutationFn: (v: Record<string, string>) => financeApi.createInvestment({
@@ -352,25 +381,54 @@ function AddInvestmentForm({ onSuccess }: { onSuccess?: () => void }) {
       toast.success('Holding added')
       setValues({ name: '', invested_amount: '', current_value: '', units: '', purchase_date: '', notes: '' })
       setType('mutual_fund')
+      f.reset()
       onSuccess?.()
     },
     onError: () => toast.error('Failed to add holding'),
   })
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const invested = Number(values.invested_amount)
+    const ok = f.submit({
+      name: values.name.trim() ? undefined : 'Give the holding a name.',
+      invested_amount: values.invested_amount.trim() === '' || !Number.isFinite(invested)
+        ? 'Enter the amount you invested.'
+        : invested <= 0
+          ? 'The invested amount must be more than zero.'
+          : undefined,
+    })
+    if (ok) mutate({ ...values, name: values.name.trim() })
+  }
+
   return (
-    <FormStack onSubmit={e => { e.preventDefault(); mutate(values) }}>
+    <FormStack noValidate onSubmit={handleSubmit}>
       <div>
         <HelperText>Type</HelperText>
         <TypePicker meta={INVESTMENT_TYPE_META} value={type} onChange={setType} />
       </div>
       <div>
         <LabelText>Name</LabelText>
-        <FullInput required placeholder="e.g. Nifty 50 Index Fund" value={values.name} onChange={e => setValues({ ...values, name: e.target.value })} />
+        <FullInput
+          placeholder="e.g. Nifty 50 Index Fund"
+          value={values.name}
+          {...f.fieldProps('name')}
+          onChange={e => { f.clearField('name'); setValues({ ...values, name: e.target.value }) }}
+        />
+        <FieldError id={f.errorId('name')}>{f.errors.name}</FieldError>
       </div>
       <Grid2Col>
         <div>
           <LabelText>Invested (₹)</LabelText>
-          <FullInput required type="number" min="0" value={values.invested_amount} onChange={e => setValues({ ...values, invested_amount: e.target.value })} />
+          <FullInput
+            type="number"
+            min="0"
+            step="0.01"
+            value={values.invested_amount}
+            {...f.fieldProps('invested_amount')}
+            onChange={e => { f.clearField('invested_amount'); setValues({ ...values, invested_amount: e.target.value }) }}
+          />
+          <FieldError id={f.errorId('invested_amount')}>{f.errors.invested_amount}</FieldError>
         </div>
         <div>
           <LabelText>Current (₹)</LabelText>
@@ -402,6 +460,7 @@ function AddLoanForm({ onSuccess }: { onSuccess?: () => void }) {
   const [values, setValues] = useState({
     name: '', lender: '', account_id: '', principal_amount: '', outstanding_amount: '', emi_amount: '', emi_day: '', interest_rate: '', tenure_months: '', notes: ''
   })
+  const f = useFieldErrors<'name' | 'principal_amount' | 'emi_amount' | 'emi_day'>('add-loan')
 
   const { mutate, isPending } = useMutation({
     mutationFn: (v: Record<string, string>) => financeApi.createLoan({
@@ -424,13 +483,40 @@ function AddLoanForm({ onSuccess }: { onSuccess?: () => void }) {
         name: '', lender: '', account_id: '', principal_amount: '', outstanding_amount: '', emi_amount: '', emi_day: '', interest_rate: '', tenure_months: '', notes: ''
       })
       setType('personal')
+      f.reset()
       onSuccess?.()
     },
     onError: () => toast.error('Failed to add loan'),
   })
 
+  /** Positive-number check shared by the two rupee fields. */
+  const money = (raw: string, missing: string) => {
+    if (raw.trim() === '') return missing
+    const n = Number(raw)
+    if (!Number.isFinite(n)) return 'Enter a number.'
+    return n > 0 ? undefined : 'Must be more than zero.'
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const day = Number(values.emi_day)
+    const ok = f.submit({
+      name: values.name.trim() ? undefined : 'Give the loan a name.',
+      principal_amount: money(values.principal_amount, 'Enter the amount borrowed.'),
+      emi_amount: money(values.emi_amount, 'Enter the monthly EMI.'),
+      // Bounded here as well as by the input's min/max: `noValidate` turns off
+      // the browser's own range check, and parseInt would happily send 45.
+      emi_day: values.emi_day.trim() === ''
+        ? 'Enter the day of the month the EMI is taken.'
+        : Number.isInteger(day) && day >= 1 && day <= 31
+          ? undefined
+          : 'Use a day between 1 and 31.',
+    })
+    if (ok) mutate({ ...values, name: values.name.trim() })
+  }
+
   return (
-    <FormStack onSubmit={e => { e.preventDefault(); mutate(values) }}>
+    <FormStack noValidate onSubmit={handleSubmit}>
       <div>
         <HelperText>Type</HelperText>
         <TypePicker meta={LOAN_TYPE_META} value={type} onChange={setType} />
@@ -438,7 +524,13 @@ function AddLoanForm({ onSuccess }: { onSuccess?: () => void }) {
       <Grid2Col>
         <ColSpan2>
           <LabelText>Loan Name</LabelText>
-          <FullInput required placeholder="e.g. Home Loan - HDFC" value={values.name} onChange={e => setValues({ ...values, name: e.target.value })} />
+          <FullInput
+            placeholder="e.g. Home Loan - HDFC"
+            value={values.name}
+            {...f.fieldProps('name')}
+            onChange={e => { f.clearField('name'); setValues({ ...values, name: e.target.value }) }}
+          />
+          <FieldError id={f.errorId('name')}>{f.errors.name}</FieldError>
         </ColSpan2>
         <div>
           <LabelText>Lender</LabelText>
@@ -450,7 +542,15 @@ function AddLoanForm({ onSuccess }: { onSuccess?: () => void }) {
         </div>
         <div>
           <LabelText>Principal (₹)</LabelText>
-          <FullInput required type="number" min="0" value={values.principal_amount} onChange={e => setValues({ ...values, principal_amount: e.target.value })} />
+          <FullInput
+            type="number"
+            min="0"
+            step="0.01"
+            value={values.principal_amount}
+            {...f.fieldProps('principal_amount')}
+            onChange={e => { f.clearField('principal_amount'); setValues({ ...values, principal_amount: e.target.value }) }}
+          />
+          <FieldError id={f.errorId('principal_amount')}>{f.errors.principal_amount}</FieldError>
         </div>
         <div>
           <LabelText>Outstanding (₹)</LabelText>
@@ -458,11 +558,27 @@ function AddLoanForm({ onSuccess }: { onSuccess?: () => void }) {
         </div>
         <div>
           <LabelText>EMI Amount (₹)</LabelText>
-          <FullInput required type="number" min="0" value={values.emi_amount} onChange={e => setValues({ ...values, emi_amount: e.target.value })} />
+          <FullInput
+            type="number"
+            min="0"
+            step="0.01"
+            value={values.emi_amount}
+            {...f.fieldProps('emi_amount')}
+            onChange={e => { f.clearField('emi_amount'); setValues({ ...values, emi_amount: e.target.value }) }}
+          />
+          <FieldError id={f.errorId('emi_amount')}>{f.errors.emi_amount}</FieldError>
         </div>
         <div>
           <LabelText>EMI Day (1-31)</LabelText>
-          <FullInput required type="number" min="1" max="31" value={values.emi_day} onChange={e => setValues({ ...values, emi_day: e.target.value })} />
+          <FullInput
+            type="number"
+            min="1"
+            max="31"
+            value={values.emi_day}
+            {...f.fieldProps('emi_day')}
+            onChange={e => { f.clearField('emi_day'); setValues({ ...values, emi_day: e.target.value }) }}
+          />
+          <FieldError id={f.errorId('emi_day')}>{f.errors.emi_day}</FieldError>
         </div>
         <div>
           <LabelText>Interest % p.a.</LabelText>

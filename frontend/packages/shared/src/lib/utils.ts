@@ -55,6 +55,17 @@ export function formatDate(isoString: string | null): string {
   })
 }
 
+/**
+ * `${n} ${plural(n, 'day')}` → "1 day" / "2 days".
+ *
+ * A real streak of 1 rendered as "1 days" on the dashboard — the same class of
+ * bug Health hit in 2026-07-03. Pass `irregular` when adding an -s is wrong
+ * ("entry" → "entries").
+ */
+export function plural(n: number, singular: string, irregular?: string): string {
+  return Math.abs(n) === 1 ? singular : irregular ?? `${singular}s`
+}
+
 export function exportToCsv(rows: Record<string, unknown>[], filename: string): void {
   if (!rows.length) return
   const headers = Object.keys(rows[0])

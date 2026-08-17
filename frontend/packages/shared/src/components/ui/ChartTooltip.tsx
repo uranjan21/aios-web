@@ -7,7 +7,7 @@ const TooltipContainer = styled.div`
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.md};
   padding: ${({ theme }) => `${theme.spacing[3]}`};
-  box-shadow: ${({ theme }) => theme.shadow.sm};
+  box-shadow: ${({ theme }) => theme.elevation[1]};
   min-width: 140px;
 `
 

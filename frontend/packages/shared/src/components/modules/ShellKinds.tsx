@@ -8,7 +8,7 @@ import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer,
   Tooltip as ReTooltip, XAxis, YAxis,
 } from 'recharts'
-import { textRole } from '@ledgr/ui'
+import { focusRing, insetFocusRing, textRole } from '@ledgr/ui'
 import { useModulePalette, pct } from './palette'
 import {
   Chip, FieldLabel, ModuleButton, Mono, Row, RowBody, RowMeta, RowTitle, RowValue,
@@ -35,7 +35,16 @@ const ClickableRow = styled(Row)`
   border: none;
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
 
-  &:is(button) { cursor: pointer; }
+  /*
+   * INSET ring, not the global outset one: these rows sit flush against each
+   * other with a hairline between them, so a ring drawn 2px outside the box
+   * lands on the divider and reads as a thicker rule rather than a focus
+   * state. Drawn inside, it outlines the row that actually has focus.
+   */
+  &:is(button) {
+    cursor: pointer;
+    ${insetFocusRing}
+  }
 `
 
 /* ── rows ─────────────────────────────────────────────────────────────── */
@@ -82,7 +91,7 @@ const ProgressHead = styled.div`
   align-items: baseline;
   justify-content: space-between;
   gap: ${({ theme }) => theme.spacing[2.5]};
-  margin-bottom: 7px;
+  margin-bottom: ${({ theme }) => theme.spacing[1.5]};
 `
 
 /*
@@ -111,6 +120,8 @@ const ProgressRow = styled.div<{ $interactive: boolean }>`
       &:hover {
         background: ${theme.color.muted};
       }
+
+      ${focusRing}
     `}
 `
 
@@ -118,7 +129,7 @@ export function ProgressKind({ m }: { m: ProgressModule }) {
   const c = useModulePalette()
   const onRowClick = m.onRowClick
   return (
-    <Stack $gap={17}>
+    <Stack $gap={4}>
       {m.rows.map((r, i) => (
         <ProgressRow
           key={i}
@@ -191,7 +202,7 @@ const BarCol = styled.div`
 const barShape = css`
   width: 100%;
   max-width: 40px;
-  border-radius: 7px 7px 3px 3px;
+  border-radius: ${({ theme }) => theme.radii.md} ${({ theme }) => theme.radii.md} ${({ theme }) => theme.radii.xs} ${({ theme }) => theme.radii.xs};
   transition: height 450ms ease, filter 150ms;
 
   &:hover { filter: brightness(1.14); }
@@ -244,9 +255,9 @@ const BarSwatch = styled.span<{ $color: string }>`
 const BarAxis = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing[2]};
-  margin-top: 9px;
+  margin-top: ${({ theme }) => theme.spacing[2]};
   border-top: 1px solid ${({ theme }) => theme.color.border};
-  padding-top: 9px;
+  padding-top: ${({ theme }) => theme.spacing[2]};
 
   span {
     flex: 1;
@@ -353,7 +364,7 @@ const RingHole = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: ${({ theme }) => theme.spacing[0.5]};
 `
 
 const Legend = styled.div`
@@ -361,15 +372,28 @@ const Legend = styled.div`
   min-width: 150px;
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: ${({ theme }) => theme.spacing[2.5]};
 `
 
 const Swatch = styled.span<{ $color: string }>`
   width: 9px;
   height: 9px;
-  border-radius: 3px;
+  border-radius: ${({ theme }) => theme.radii.xs};
   background: ${({ $color }) => $color};
   flex-shrink: 0;
+`
+
+/* The two lines inside the donut hole. Both were inline `fontSize` literals
+ * (19px / 10px) on no scale — they are text roles, so they take text roles. */
+const RingValue = styled.span`
+  ${textRole('title-m')};
+  font-variant-numeric: tabular-nums;
+`
+
+const RingLabel = styled.span<{ $color: string }>`
+  ${textRole('micro')};
+  text-transform: uppercase;
+  color: ${({ $color }) => $color};
 `
 
 export function DonutKind({ m }: { m: DonutModule }) {
@@ -385,12 +409,8 @@ export function DonutKind({ m }: { m: DonutModule }) {
     <DonutWrap>
       <Ring $conic={`conic-gradient(${stops.join(',')})`}>
         <RingHole>
-          <span style={{ fontSize: '19px', fontWeight: 700, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>
-            {m.centerValue}
-          </span>
-          <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: c('mutedFg') }}>
-            {m.centerLabel}
-          </span>
+          <RingValue>{m.centerValue}</RingValue>
+          <RingLabel $color={c('mutedFg')}>{m.centerLabel}</RingLabel>
         </RingHole>
       </Ring>
       <Legend>
@@ -545,7 +565,7 @@ const HeatCells = styled.div`
 const HeatCell = styled.span<{ $bg: string; $border: string }>`
   flex: 1;
   height: 23px;
-  border-radius: 5px;
+  border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ $bg }) => $bg};
   border: 1px solid ${({ $border }) => $border};
   transition: transform 150ms;
@@ -560,7 +580,7 @@ export function HeatKind({ m }: { m: HeatModule }) {
   const shades = [c('muted'), c.alpha(m.colorKey ?? 'health', 0.27), c.alpha(m.colorKey ?? 'health', 0.52), base]
 
   return (
-    <Stack $gap={9}>
+    <Stack $gap={2}>
       <HeatRow>
         <span style={{ width: 136, flexShrink: 0 }} />
         <HeatCells>
@@ -604,7 +624,7 @@ const DayCell = styled.div<{ $bg: string; $border: string; $opacity: number }>`
   border-radius: ${({ theme }) => theme.radii.sm};
   border: 1px solid ${({ $border }) => $border};
   background: ${({ $bg }) => $bg};
-  padding: 6px 7px;
+  padding: ${({ theme }) => theme.spacing[1.5]} ${({ theme }) => theme.spacing[1.5]};
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[1]};
@@ -694,13 +714,13 @@ const DayHead = styled.div<{ $rule: string }>`
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding-bottom: 7px;
+  padding-bottom: ${({ theme }) => theme.spacing[1.5]};
   border-bottom: 2px solid ${({ $rule }) => $rule};
 `
 
 const Block = styled.div<{ $bg: string; $color: string; $interactive?: boolean }>`
   border-radius: ${({ theme }) => theme.radii.xs};
-  padding: 7px ${({ theme }) => theme.spacing[2]};
+  padding: ${({ theme }) => theme.spacing[1.5]} ${({ theme }) => theme.spacing[2]};
   background: ${({ $bg }) => $bg};
   border-left: 2px solid ${({ $color }) => $color};
   transition: transform 150ms;
@@ -770,7 +790,7 @@ const Thread = styled.span`
   flex: 1;
   width: 1px;
   background: ${({ theme }) => theme.color.border};
-  margin-top: 5px;
+  margin-top: ${({ theme }) => theme.spacing[1]};
   min-height: 16px;
 `
 
@@ -841,7 +861,7 @@ const TableHead = styled.div<{ $cols: string }>`
   display: grid;
   grid-template-columns: ${({ $cols }) => $cols};
   gap: ${({ theme }) => theme.spacing[3]};
-  padding: 0 ${({ theme }) => theme.spacing[1]} 10px;
+  padding: 0 ${({ theme }) => theme.spacing[1]} ${({ theme }) => theme.spacing[2.5]};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
 
   span {
@@ -855,7 +875,7 @@ const TableRow = styled.div<{ $cols: string }>`
   display: grid;
   grid-template-columns: ${({ $cols }) => $cols};
   gap: ${({ theme }) => theme.spacing[3]};
-  padding: 11px ${({ theme }) => theme.spacing[1]};
+  padding: ${({ theme }) => theme.spacing[2.5]} ${({ theme }) => theme.spacing[1]};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   align-items: center;
   border-radius: ${({ theme }) => theme.radii.xs};
@@ -870,7 +890,11 @@ const TableRow = styled.div<{ $cols: string }>`
   border-left: none;
   border-right: none;
 
-  &:is(button) { cursor: pointer; }
+  /* Inset for the same reason as ClickableRow — the row carries a divider. */
+  &:is(button) {
+    cursor: pointer;
+    ${insetFocusRing}
+  }
   &:hover { background: ${({ theme }) => theme.color.muted}; }
 `
 
@@ -952,7 +976,7 @@ const ControlRow = styled.div`
   align-items: center;
   flex-wrap: wrap;
   gap: ${({ theme }) => theme.spacing[3]} ${({ theme }) => theme.spacing[4]};
-  padding: 13px ${({ theme }) => theme.spacing[1]};
+  padding: ${({ theme }) => theme.spacing[3]} ${({ theme }) => theme.spacing[1]};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
 
   > *:first-child { min-width: 140px; }
@@ -960,8 +984,8 @@ const ControlRow = styled.div`
 
 const Segment = styled.div`
   display: flex;
-  gap: 3px;
-  padding: 3px;
+  gap: ${({ theme }) => theme.spacing[0.5]};
+  padding: ${({ theme }) => theme.spacing[0.5]};
   border-radius: ${({ theme }) => theme.radii.xs};
   background: ${({ theme }) => theme.color.muted};
   flex-shrink: 0;
@@ -970,8 +994,8 @@ const Segment = styled.div`
 const SegmentOption = styled.span<{ $active: boolean }>`
   ${textRole('body-s')};
   font-weight: 600;
-  padding: 5px 11px;
-  border-radius: 7px;
+  padding: ${({ theme }) => theme.spacing[1]} ${({ theme }) => theme.spacing[2.5]};
+  border-radius: ${({ theme }) => theme.radii.md};
   cursor: pointer;
   white-space: nowrap;
   background: ${({ $active, theme }) => ($active ? theme.color.card : 'transparent')};
@@ -983,10 +1007,10 @@ const SegmentOption = styled.span<{ $active: boolean }>`
 const SelectChip = styled.span`
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: ${({ theme }) => theme.spacing[1.5]};
   ${textRole('body-s')};
   font-weight: 600;
-  padding: 7px 12px;
+  padding: ${({ theme }) => theme.spacing[1.5]} ${({ theme }) => theme.spacing[3]};
   border-radius: ${({ theme }) => theme.radii.xs};
   border: 1px solid ${({ theme }) => theme.color.border};
   color: ${({ theme }) => theme.color.foreground};
@@ -1107,8 +1131,8 @@ export function ControlsKind({ m }: { m: ControlsModule }) {
 const QueueRow = styled.div<{ $bg: string; $border: string }>`
   display: flex;
   align-items: center;
-  gap: 13px;
-  padding: 11px ${({ theme }) => theme.spacing[3]};
+  gap: ${({ theme }) => theme.spacing[3]};
+  padding: ${({ theme }) => theme.spacing[2.5]} ${({ theme }) => theme.spacing[3]};
   border: 1px solid ${({ $border }) => $border};
   border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ $bg }) => $bg};
@@ -1122,7 +1146,7 @@ export function QueueKind({ m }: { m: QueueModule }) {
   const c = useModulePalette()
   const { onPrimary, onSecondary } = m
   return (
-    <Stack $gap={9}>
+    <Stack $gap={2}>
       {m.rows.map((r, i) => (
         <QueueRow
           key={i}
@@ -1172,7 +1196,7 @@ const CheckBox = styled.span<{ $done: boolean }>`
 /** A checklist row is a `label` in the canvas, or a button once wired. */
 const CheckRow = styled(ClickableRow)`
   cursor: pointer;
-  gap: 11px;
+  gap: ${({ theme }) => theme.spacing[2.5]};
 `
 
 /*
@@ -1343,7 +1367,7 @@ const MeterCard = styled.div<{ $interactive: boolean }>`
   padding: ${({ theme }) => theme.spacing[4]};
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: ${({ theme }) => theme.spacing[2.5]};
   min-width: 0;
   /* Resets for the button form a page opts into via onMeterClick. */
   width: 100%;
@@ -1361,6 +1385,8 @@ const MeterCard = styled.div<{ $interactive: boolean }>`
         border-color: ${theme.color.borderHover};
         transform: translateY(-2px);
       }
+
+      ${focusRing}
     `}
 `
 
@@ -1480,7 +1506,7 @@ export function AgendaKind({ m }: { m: AgendaModule }) {
 const NoteArea = styled.textarea<{ $height: string }>`
   width: 100%;
   min-height: ${({ $height }) => $height};
-  padding: 11px 13px;
+  padding: ${({ theme }) => theme.spacing[2.5]} ${({ theme }) => theme.spacing[3]};
   border-radius: ${({ theme }) => theme.radii.sm};
   border: 1px solid ${({ theme }) => theme.color.border};
   background: ${({ theme }) => theme.color.muted};
@@ -1505,7 +1531,7 @@ export function NotesKind({ m }: { m: NotesModule }) {
   const canSubmit = !m.submitting && (!controlled || (m.values ?? []).some((v) => v.trim()))
 
   return (
-    <Stack $gap={15}>
+    <Stack $gap={3.5}>
       {m.prompts.map((pr, i) => (
         <div key={i}>
           <FieldLabel>{pr.label}</FieldLabel>
@@ -1541,7 +1567,7 @@ export function NotesKind({ m }: { m: NotesModule }) {
 const SpanTrack = styled.div`
   flex: 1;
   height: 24px;
-  border-radius: 7px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ theme }) => theme.color.muted};
   position: relative;
 `
@@ -1552,7 +1578,7 @@ const SpanBar = styled.div<{ $start: string; $width: string; $color: string }>`
   bottom: 0;
   left: ${({ $start }) => $start};
   width: ${({ $width }) => $width};
-  border-radius: 7px;
+  border-radius: ${({ theme }) => theme.radii.md};
   background: ${({ $color }) => $color};
   display: flex;
   align-items: center;
@@ -1565,7 +1591,7 @@ const SpanBar = styled.div<{ $start: string; $width: string; $color: string }>`
 export function SpansKind({ m }: { m: SpansModule }) {
   const c = useModulePalette()
   return (
-    <Stack $gap={9}>
+    <Stack $gap={2}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ width: 78, flexShrink: 0 }} />
         <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between' }}>

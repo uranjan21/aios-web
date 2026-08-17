@@ -2,7 +2,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Column
-from sqlalchemy import Text, UniqueConstraint
+from sqlalchemy import Text, UniqueConstraint, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from pgvector.sqlalchemy import Vector
 
 
@@ -45,7 +46,9 @@ class VaultChunk(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
-    file_id: uuid.UUID = Field(foreign_key="vault_files.id", nullable=False)
+    file_id: uuid.UUID = Field(
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("vault_files.id", ondelete="CASCADE"), nullable=False)
+    )
     chunk_index: int = Field(nullable=False)
     content: str = Field(sa_column=Column(Text, nullable=False))
     embedding: Optional[List[float]] = Field(default=None, sa_column=Column(Vector(1536)))

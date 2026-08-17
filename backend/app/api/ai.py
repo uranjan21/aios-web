@@ -4,22 +4,32 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlmodel import select, desc
 
 from app.core.deps import get_current_user, get_db
-from app.core.entitlements import require_plan
+from app.core.entitlements import require_module
 from app.services.billing.usage import enforce_ai_quota, record_ai_usage
 from app.core.rate_limit import limiter
 from app.services.ai.insights import generate_text
 
-router = APIRouter(prefix="/api/ai", tags=["ai"])
+# Gated on the `chat` module, not on `require_plan("pro")`: the webhook sets
+# plan="pro" whenever ANY module is owned, so a $5 finance-only subscriber passed
+# the rank check and got LLM features priced under chat/agents. `require_module`
+# also honours GRACE_STATUSES, so a past_due user keeps AI along with their other
+# modules instead of 402-ing on this router alone. Declared here rather than at the
+# `include_router` in main.py so the gate travels with the router.
+router = APIRouter(
+    prefix="/api/ai",
+    tags=["ai"],
+    dependencies=[Depends(require_module("chat"))],
+)
 logger = logging.getLogger(__name__)
 
 
 class ExplainBody(BaseModel):
-    area: str  # "finance" | "health"
+    area: str  # "finance" | "health"  (validated against the branch below)
 
 
 async def _finance_facts(db, user_id: str) -> str:
@@ -94,7 +104,7 @@ async def _health_facts(db, user_id: str) -> str:
 
 @router.post("/explain")
 @limiter.limit("10/minute")
-async def explain_area(request: Request, body: ExplainBody, current_user=Depends(get_current_user), db=Depends(get_db), _plan=Depends(require_plan("pro")), _quota=Depends(enforce_ai_quota())):
+async def explain_area(request: Request, body: ExplainBody, current_user=Depends(get_current_user), db=Depends(get_db), _quota=Depends(enforce_ai_quota())):
     if body.area == "finance":
         facts = await _finance_facts(db, str(current_user.id))
         system = ("You are a sharp, friendly personal finance coach for a single user in India (amounts in INR ₹). "
@@ -117,12 +127,15 @@ async def explain_area(request: Request, body: ExplainBody, current_user=Depends
 
 
 class SkillGapBody(BaseModel):
-    target_role: str
+    # Bounded because it lands verbatim in an LLM prompt (B10) — same pattern as
+    # api/captures.py. Unbounded str let one request cost arbitrary tokens while
+    # metering charges a flat 1 credit.
+    target_role: str = Field(min_length=1, max_length=200)
 
 
 @router.post("/skill-gap")
 @limiter.limit("10/minute")
-async def skill_gap(request: Request, body: SkillGapBody, current_user=Depends(get_current_user), db=Depends(get_db), _plan=Depends(require_plan("pro")), _quota=Depends(enforce_ai_quota())):
+async def skill_gap(request: Request, body: SkillGapBody, current_user=Depends(get_current_user), db=Depends(get_db), _quota=Depends(enforce_ai_quota())):
     from app.models.career import SkillInventory
 
     skills = (await db.execute(select(SkillInventory).where(SkillInventory.user_id == str(current_user.id)))).scalars().all()
@@ -143,14 +156,15 @@ async def skill_gap(request: Request, body: SkillGapBody, current_user=Depends(g
 
 
 class DraftBody(BaseModel):
-    title: str
-    platform: str = "twitter"
-    notes: Optional[str] = None
+    # Bounded for the same reason as SkillGapBody above.
+    title: str = Field(min_length=1, max_length=300)
+    platform: str = Field(default="twitter", max_length=50)
+    notes: Optional[str] = Field(default=None, max_length=2000)
 
 
 @router.post("/draft")
 @limiter.limit("10/minute")
-async def draft_content(request: Request, body: DraftBody, current_user=Depends(get_current_user), db=Depends(get_db), _plan=Depends(require_plan("pro")), _quota=Depends(enforce_ai_quota())):
+async def draft_content(request: Request, body: DraftBody, current_user=Depends(get_current_user), db=Depends(get_db), _quota=Depends(enforce_ai_quota())):
     platform_rules = {
         "twitter": "a punchy 5-8 tweet thread; first tweet is a scroll-stopping hook; each tweet under 280 chars",
         "linkedin": "a LinkedIn post: strong 1-line hook, short paragraphs, line breaks for rhythm, light CTA at the end",

@@ -339,6 +339,21 @@ def test_api_mappings():
         ("POST", "/api/auth/change-password"),
         # Stripe calls this server-to-server; never a frontend caller.
         ("POST", "/api/billing/webhook"),
+        # ORPHANED, PENDING A PRODUCT DECISION (2026-08-17). The quotes feature's
+        # only frontend consumers were GreetingHero and SavedQuotesCard, both of
+        # which stopped being rendered in an earlier redesign; the 2026-08-16
+        # audit found them unimported and they were deleted, which is what made
+        # these routes scan as unmapped. The router, the `saved_quotes` table and
+        # its user data are all still live and untouched.
+        # Decide one way or the other — rebuild a surface, or retire the router
+        # plus the table with a migration. Do not leave this entry here forever.
+        ("GET", "/api/quotes"),
+        ("POST", "/api/quotes"),
+        ("GET", "/api/quotes/random"),
+        ("POST", "/api/quotes/save"),
+        ("GET", "/api/quotes/{}"),
+        ("PATCH", "/api/quotes/{}"),
+        ("DELETE", "/api/quotes/{}"),
     }
     for key, route in backend_routes.items():
         method, path = key

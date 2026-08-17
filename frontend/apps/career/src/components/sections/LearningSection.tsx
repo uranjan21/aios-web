@@ -227,7 +227,7 @@ export function LearningSection() {
         }),
       },
     ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [all, visible, skills, filter])
 
   if (isLoading) return <SkeletonPage kpis={4} modules={[7, 5]} />

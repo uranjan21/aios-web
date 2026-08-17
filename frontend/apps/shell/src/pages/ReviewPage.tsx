@@ -26,6 +26,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import { BarChart3, CheckSquare, FileText, Flag } from 'lucide-react'
+import { ErrorState, SkeletonPage } from '@ledgr/ui'
 import { api } from '@ct/shared/api/client'
 import { goalsApi } from '@ct/shared/api/goals'
 import { careerApi, type JournalEntry } from '@ct/shared/api/areas'
@@ -62,22 +63,38 @@ export function ReviewPage() {
   const weekStart = dayjs().startOf('week')
   const weekEnd = weekStart.add(6, 'day')
 
-  const { data: tiles = [] } = useQuery({
+  /*
+   * Handled in place below rather than thrown to the route (F1) — see App.tsx.
+   * A weekly review built from a failed request is worse than no review: the
+   * `= []` defaults would present "no goals, no entries" as the week's summary.
+   */
+  const q = { meta: { inlineError: true } } as const
+
+  const tilesQ = useQuery({
     queryKey: ['insights', 'pulse'],
     queryFn: () => api.get<PulseTile[]>('/insights/pulse').then(r => r.data),
     staleTime: 5 * 60_000,
+    ...q,
   })
-  const { data: goals = [] } = useQuery({ queryKey: ['goals'], queryFn: goalsApi.list, staleTime: 60_000 })
-  const { data: briefing } = useQuery({
+  const goalsQ = useQuery({ queryKey: ['goals'], queryFn: goalsApi.list, staleTime: 60_000, ...q })
+  const briefingQ = useQuery({
     queryKey: ['insights', 'briefing', 'today'],
     queryFn: insightsApi.briefingToday,
     staleTime: 10 * 60_000,
+    ...q,
   })
-  const { data: journal = [] } = useQuery({
+  const journalQ = useQuery({
     queryKey: ['career', 'journal'],
     queryFn: () => careerApi.journal(30),
     staleTime: 60_000,
+    ...q,
   })
+
+  const panels = [tilesQ, goalsQ, briefingQ, journalQ]
+  const tiles = tilesQ.data ?? []
+  const goals = goalsQ.data ?? []
+  const briefing = briefingQ.data
+  const journal = journalQ.data ?? []
 
   /** Ticking a goal records a check-in — the old wizard's step 2. */
   const checkIn = useMutation({
@@ -228,7 +245,17 @@ export function ReviewPage() {
   return (
     <PageContainer>
       <PageContent>
-        <ModuleGrid modules={modules} />
+        {panels.some(p => p.isError) ? (
+          <ErrorState
+            title="We couldn't load your week"
+            description="Nothing has been lost — a request behind this review failed. A review built from partial data would be misleading, so we won't show one."
+            onRetry={() => { panels.forEach((p) => { void p.refetch() }) }}
+          />
+        ) : panels.some(p => p.isLoading) ? (
+          <SkeletonPage kpis={4} modules={[7, 5, 12]} />
+        ) : (
+          <ModuleGrid modules={modules} />
+        )}
         <JournalEntryDialog entry={editingEntry} onClose={() => setEditingEntry(null)} />
       </PageContent>
     </PageContainer>

@@ -46,7 +46,7 @@ const Segment = styled.button<{ $active: boolean; $size: 'sm' | 'md' }>`
   background: ${({ theme, $active }) => ($active ? theme.color.card : 'transparent')};
   border: none;
   border-radius: ${({ theme }) => theme.radii.xs};
-  box-shadow: ${({ theme, $active }) => ($active ? theme.shadow.xs : 'none')};
+  box-shadow: ${({ theme, $active }) => ($active ? theme.elevation[1] : 'none')};
   cursor: pointer;
   white-space: nowrap;
   user-select: none;

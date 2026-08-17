@@ -24,12 +24,13 @@ import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import styled from 'styled-components'
-import { Button, Card, Dialog, EmptyState, Input, Select } from '@ledgr/ui'
+import {
+  Button, Card, Dialog, EmptyState, ErrorState, Input, Select, SkeletonPage,
+} from '@ledgr/ui'
 import { Target, TrendingUp, Flag, Trash2 } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { formatCurrency } from '@ct/shared/lib/utils'
 import { fromCalendarDate } from '@ct/shared/lib/calendarDate'
 import type { FinancialGoal } from '@ct/shared/types'
@@ -123,19 +124,27 @@ export function GoalsTab({
   const [editForm, setEditForm] = useState<EditForm>(EMPTY_FORM)
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'overdue'>('all')
 
-  const { data: goals, isLoading } = useQuery({
+  /* Handled in place below rather than thrown to the route (F1) — see App.tsx. */
+  const goalsQ = useQuery({
     queryKey: ['finance', 'goals'],
     queryFn: financeApi.goals,
+    meta: { inlineError: true },
   })
 
   // Monthly savings history — the only real series that speaks to whether the
   // goals are fundable. Sparse for new users, which the bars module handles by
   // simply not rendering.
-  const { data: contribMonthly } = useQuery({
+  const contribMonthlyQ = useQuery({
     queryKey: ['finance', 'goals', 'contributions', 'monthly'],
     queryFn: () => financeApi.goalContributionsMonthly(6),
     staleTime: 60_000,
+    meta: { inlineError: true },
   })
+
+  const goals = goalsQ.data
+  const contribMonthly = contribMonthlyQ.data
+  const isLoading = goalsQ.isLoading || contribMonthlyQ.isLoading
+  const isError = goalsQ.isError || contribMonthlyQ.isError
 
   const updateMutation = useMutation({
     mutationFn: (patch: Partial<{ name: string; icon: string; target_amount: number; current_amount: number; deadline: string | null; color: string }>) =>
@@ -403,10 +412,20 @@ export function GoalsTab({
     })
 
     return specs
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [visible, savingsSeries, avgSaved, ratePerGoal, statusFilterNode, onAdd, contribMonthly])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isError) {
+    return (
+      <ErrorState
+        title="We couldn't load your goals"
+        description="Nothing has been lost — the request for your savings pots failed."
+        onRetry={() => { void goalsQ.refetch(); void contribMonthlyQ.refetch() }}
+      />
+    )
+  }
+
+  if (isLoading) return <SkeletonPage kpis={4} modules={[7, 5]} />
 
   return (
     <Root>

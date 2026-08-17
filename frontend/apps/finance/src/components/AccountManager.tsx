@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
-import { Button, Card, EmptyState, Input, Select, Sheet } from '@ledgr/ui'
+import {
+  Button, Card, EmptyState, ErrorState, Input, Select, Sheet, SkeletonList, SkeletonPage,
+} from '@ledgr/ui'
 import { Trash2, Wallet, PencilLine, ArrowLeftRight, TrendingUp, TrendingDown, Landmark, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import styled from 'styled-components'
@@ -9,7 +11,6 @@ import dayjs from 'dayjs'
 import { financeApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { formatCurrency } from '@ct/shared/lib/utils'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { TransactionModal, type Txn, type Kind } from './TransactionsTab'
 import type { LedgerEntry } from '@ct/shared/types'
 
@@ -17,6 +18,11 @@ const AccountsRoot = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[5]};
+`
+
+/** Insets the ledger skeleton to the padding the real transaction rows use. */
+const SkeletonListShell = styled.div`
+  padding: ${({ theme }) => `${theme.spacing[4]} ${theme.spacing[5]}`};
 `
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -378,18 +384,9 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
 
             <TxnList>
               {ledgerLoading ? (
-                <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {[1, 2, 3, 4].map(i => (
-                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                      <Skeleton style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }} />
-                      <div style={{ flex: 1 }}>
-                        <Skeleton style={{ height: 13, width: '55%', marginBottom: 4 }} />
-                        <Skeleton style={{ height: 11, width: '35%' }} />
-                      </div>
-                      <Skeleton style={{ height: 13, width: 60 }} />
-                    </div>
-                  ))}
-                </div>
+                /* This exact geometry — icon, two lines, trailing amount — is
+                   what SkeletonList draws. It used to be hand-rolled here. */
+                <SkeletonListShell><SkeletonList rows={4} /></SkeletonListShell>
               ) : entries.length === 0 ? (
                 <div style={{ padding: '32px 20px' }}>
                   <EmptyState
@@ -480,10 +477,16 @@ export const AccountManager: React.FC<{ onAdd?: () => void }> = ({ onAdd }) => {
   const [panelAccount, setPanelAccount] = useState<any | null>(null)
   const [typeFilter, setTypeFilter] = useState<string>('all')
 
-  const { data: accounts = [], isLoading } = useQuery({
+  /* Handled in place below rather than thrown to the route (F1) — see App.tsx.
+     `accounts = []` on a failed request is the exact lie this fixes: an empty
+     list reads as "you have no accounts", not "we couldn't reach the server". */
+  const accountsQ = useQuery({
     queryKey: ['finance', 'accounts'],
     queryFn: financeApi.accounts,
+    meta: { inlineError: true },
   })
+  const accounts = accountsQ.data ?? []
+  const isLoading = accountsQ.isLoading
 
   const accountTypes = Array.from(new Set(accounts.map((a: any) => a.type))) as string[]
   const visibleAccounts = typeFilter === 'all'
@@ -565,10 +568,20 @@ export const AccountManager: React.FC<{ onAdd?: () => void }> = ({ onAdd }) => {
           }),
       },
     ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [accounts, visibleAccounts, typeFilter, accountTypes, onAdd])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (accountsQ.isError) {
+    return (
+      <ErrorState
+        title="We couldn't load your accounts"
+        description="Nothing has been lost — the request for your account balances failed."
+        onRetry={() => { void accountsQ.refetch() }}
+      />
+    )
+  }
+
+  if (isLoading) return <SkeletonPage kpis={4} modules={[7, 5]} />
 
   return (
     <AccountsRoot>

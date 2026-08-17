@@ -172,7 +172,7 @@ export function OpportunitiesSection() {
         onRowClick: (i: number) => openDetail(byAge[i]),
       },
     ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [rows, active])
 
   if (isLoading) return <SkeletonPage kpis={0} modules={[12, 12]} />

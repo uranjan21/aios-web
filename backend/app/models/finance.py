@@ -4,7 +4,8 @@ from decimal import Decimal
 from enum import Enum
 from typing import Optional
 from sqlmodel import SQLModel, Field, Column, Relationship
-from sqlalchemy import Text, Numeric, UniqueConstraint
+from sqlalchemy import Text, Numeric, UniqueConstraint, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 
 class FinanceSnapshot(SQLModel, table=True):
@@ -73,8 +74,14 @@ class FinanceExpense(SQLModel, table=True):
     logged_at: datetime = Field(nullable=False)
     amount: Decimal = Field(sa_column=Column(Numeric(10, 2), nullable=False))
     category: Optional[str] = Field(nullable=True)
-    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
-    category_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_categories.id")
+    account_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_accounts.id", ondelete="SET NULL"), nullable=True),
+    )
+    category_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_categories.id", ondelete="SET NULL"), nullable=True),
+    )
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     source: str = Field(default="agent", nullable=False)
     split_group_id: Optional[uuid.UUID] = Field(default=None)  # siblings of one split payment
@@ -124,7 +131,10 @@ class FinanceBill(SQLModel, table=True):
     is_auto_debit: bool = Field(default=False)
     is_active: bool = Field(default=True)
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
-    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
+    account_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_accounts.id", ondelete="SET NULL"), nullable=True),
+    )
     last_posted_period: Optional[str] = Field(default=None)  # "YYYY-MM" of last auto-posted expense
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
@@ -137,8 +147,14 @@ class FinanceIncome(SQLModel, table=True):
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     source: str = Field(nullable=False)  # denormalized top-level category name (rollup/back-compat)
-    category_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_categories.id")
-    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
+    category_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_categories.id", ondelete="SET NULL"), nullable=True),
+    )
+    account_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_accounts.id", ondelete="SET NULL"), nullable=True),
+    )
     tags: Optional[str] = Field(default=None)  # comma-separated freeform labels
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     logged_at: datetime = Field(nullable=False)
@@ -152,8 +168,15 @@ class FinanceTransfer(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
-    from_account_id: uuid.UUID = Field(foreign_key="finance_accounts.id", nullable=False)
-    to_account_id: uuid.UUID = Field(foreign_key="finance_accounts.id", nullable=False)
+    # RESTRICT, not SET NULL: both sides are NOT NULL and a transfer missing one
+    # of them is meaningless, not merely degraded. `delete_account` raises an
+    # explicit 409 before the constraint is ever reached.
+    from_account_id: uuid.UUID = Field(
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_accounts.id", ondelete="RESTRICT"), nullable=False),
+    )
+    to_account_id: uuid.UUID = Field(
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_accounts.id", ondelete="RESTRICT"), nullable=False),
+    )
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     logged_at: datetime = Field(nullable=False)
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
@@ -195,7 +218,10 @@ class FinanceLoan(SQLModel, table=True):
     tenure_months: Optional[int] = Field(default=None)
     is_active: bool = Field(default=True)
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
-    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
+    account_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_accounts.id", ondelete="SET NULL"), nullable=True),
+    )
     last_posted_period: Optional[str] = Field(default=None)  # "YYYY-MM" of last auto-posted EMI
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
     updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
@@ -219,8 +245,14 @@ class FinancePendingTransaction(SQLModel, table=True):
     suggested_category: Optional[str] = Field(default=None)
     # suggested_category resolved to a real node at insert time, so the review
     # UI's category picker arrives pre-filled.
-    category_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_categories.id")
-    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
+    category_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_categories.id", ondelete="SET NULL"), nullable=True),
+    )
+    account_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_accounts.id", ondelete="SET NULL"), nullable=True),
+    )
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
 
     logged_at: datetime = Field(nullable=False)
@@ -261,8 +293,14 @@ class MerchantRule(SQLModel, table=True):
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     match_type: str = Field(default="contains", nullable=False)  # contains | equals | regex
     pattern: str = Field(nullable=False)  # matched against payee_name/description (case-insensitive)
-    category_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_categories.id")
-    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
+    category_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_categories.id", ondelete="SET NULL"), nullable=True),
+    )
+    account_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_accounts.id", ondelete="SET NULL"), nullable=True),
+    )
     priority: int = Field(default=0, nullable=False)  # higher priority wins on tie
     is_active: bool = Field(default=True, nullable=False)
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
@@ -277,7 +315,10 @@ class CCBill(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
-    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
+    account_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_accounts.id", ondelete="SET NULL"), nullable=True),
+    )
     card_name: Optional[str] = Field(default=None)  # label when no account is linked
     statement_date: Optional[date] = Field(default=None)
     due_date: Optional[date] = Field(default=None)
@@ -311,7 +352,10 @@ class ObligationPayment(SQLModel, table=True):
     paid: bool = Field(default=False, nullable=False)
     paid_at: Optional[datetime] = Field(default=None)
     paid_amount: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2)))
-    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
+    account_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_accounts.id", ondelete="SET NULL"), nullable=True),
+    )
     # Amortization split, written only for obligation_type="loan" at the moment
     # the payment is marked paid — the interest share depends on the outstanding
     # balance *at that time*, so it cannot be recomputed correctly afterwards.
@@ -331,12 +375,17 @@ class GoalContribution(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
-    goal_id: uuid.UUID = Field(foreign_key="finance_goals.id", index=True, nullable=False)
+    goal_id: uuid.UUID = Field(
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_goals.id", ondelete="CASCADE"), nullable=False, index=True)
+    )
     # Negative = a withdrawal from the goal, so the series can go down.
     amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     contributed_at: datetime = Field(nullable=False)
     note: Optional[str] = Field(default=None, sa_column=Column(Text))
-    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
+    account_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_accounts.id", ondelete="SET NULL"), nullable=True),
+    )
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
 
 
@@ -352,7 +401,7 @@ class InvestmentTransaction(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     investment_id: uuid.UUID = Field(
-        foreign_key="finance_investments.id", index=True, nullable=False
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_investments.id", ondelete="CASCADE"), nullable=False, index=True)
     )
     kind: str = Field(default="buy", nullable=False)  # buy | sell | dividend
     amount: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
@@ -362,7 +411,10 @@ class InvestmentTransaction(SQLModel, table=True):
     # entered by hand — lets "monthly SIP" mean committed, not incidental.
     is_sip: bool = Field(default=False, nullable=False)
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
-    account_id: Optional[uuid.UUID] = Field(default=None, foreign_key="finance_accounts.id")
+    account_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("finance_accounts.id", ondelete="SET NULL"), nullable=True),
+    )
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
 
 

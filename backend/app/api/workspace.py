@@ -1,7 +1,7 @@
 import uuid
 from typing import List, Optional
 from datetime import date, datetime, time, timedelta
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
@@ -126,10 +126,15 @@ def _reject_nulls(payload: dict, fields: tuple) -> None:
 
 @router.get("/projects", response_model=List[Project])
 async def list_projects(
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    stmt = select(Project).where(Project.user_id == current_user.id).order_by(Project.created_at.desc())
+    stmt = (
+        select(Project).where(Project.user_id == current_user.id)
+        .order_by(Project.created_at.desc()).offset(offset).limit(limit)
+    )
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -191,13 +196,15 @@ async def delete_project(
 @router.get("/sprints", response_model=List[Sprint])
 async def list_sprints(
     project_id: Optional[uuid.UUID] = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     stmt = select(Sprint).where(Sprint.user_id == current_user.id)
     if project_id:
         stmt = stmt.where(Sprint.project_id == project_id)
-    stmt = stmt.order_by(Sprint.created_at.desc())
+    stmt = stmt.order_by(Sprint.created_at.desc()).offset(offset).limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -252,6 +259,8 @@ async def list_tasks(
     sprint_id: Optional[uuid.UUID] = None,
     domain: Optional[str] = None,
     goal_id: Optional[uuid.UUID] = None,
+    limit: int = Query(default=200, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -264,7 +273,7 @@ async def list_tasks(
         stmt = stmt.where(Task.domain == domain)
     if goal_id:
         stmt = stmt.where(Task.goal_id == goal_id)
-    stmt = stmt.order_by(Task.created_at.desc())
+    stmt = stmt.order_by(Task.created_at.desc()).offset(offset).limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -418,6 +427,8 @@ async def list_milestones(
     domain: Optional[str] = None,
     status: Optional[str] = None,
     goal_id: Optional[uuid.UUID] = None,
+    limit: int = Query(default=200, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -429,7 +440,10 @@ async def list_milestones(
         query = query.where(Milestone.status == status)
     if goal_id:
         query = query.where(Milestone.goal_id == goal_id)
-    query = query.order_by(Milestone.due_date.is_(None), Milestone.due_date, Milestone.position)
+    query = (
+        query.order_by(Milestone.due_date.is_(None), Milestone.due_date, Milestone.position)
+        .offset(offset).limit(limit)
+    )
     result = await db.execute(query)
     return result.scalars().all()
 

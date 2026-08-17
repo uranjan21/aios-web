@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import styled from 'styled-components'
 import { Sparkles, ThumbsUp, ThumbsDown, X } from 'lucide-react'
+import { IconButton } from '../primitives/IconButton'
 
 export interface InsightCardProps {
   /** The insight content text */
@@ -28,7 +29,7 @@ const CardWrapper = styled.div`
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.md};
-  box-shadow: ${({ theme }) => theme.shadow.sm};
+  box-shadow: ${({ theme }) => theme.elevation[1]};
   position: relative;
 `
 
@@ -108,23 +109,6 @@ const Actions = styled.div`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => `${theme.spacing[2]}`};
-`
-
-const IconButton = styled.button`
-  background: none;
-  border: none;
-  padding: ${({ theme }) => `${theme.spacing[1]}`};
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: ${({ theme }) => theme.color.mutedForeground};
-  border-radius: ${({ theme }) => theme.radii.sm};
-  cursor: pointer;
-  transition: background 120ms, color 120ms;
-  &:hover {
-    background: ${({ theme }) => theme.color.muted};
-    color: ${({ theme }) => theme.color.foreground};
-  }
 `
 
 export function InsightCard({

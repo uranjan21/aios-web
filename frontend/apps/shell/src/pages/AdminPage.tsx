@@ -4,8 +4,7 @@ import { BarChart3, Cpu, Shield, Users, Search, ChevronLeft, ChevronRight, Trash
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
-import { Card as GlassCard, Select, Button } from '@ledgr/ui'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
+import { Card as GlassCard, Select, Button, Skeleton } from '@ledgr/ui'
 import { adminApi, AdminUser } from '@ct/shared/api/admin'
 import { useAuthStore } from '@ct/shared/stores/authStore'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
@@ -33,9 +32,20 @@ const SearchInput = styled.input`
   &::placeholder { color: ${({ theme }) => theme.color.mutedForeground}; }
 `
 
+/*
+ * The wrapper had `overflow-x: auto` but its grid children had no `min-width`,
+ * so at 375px the grid simply stayed 375px wide: nothing overflowed, so nothing
+ * scrolled, and the `1fr` email column collapsed to a few characters instead.
+ * The floor is the same idiom `TableKind` uses (`ShellKinds.tsx`) — 110px per
+ * column — so the row overflows and the container can actually scroll it.
+ */
+const USER_TABLE_COLS = 5
+
 const Table = styled.div`
   width: 100%;
   overflow-x: auto;
+
+  > * { min-width: ${USER_TABLE_COLS * 110}px; }
 `
 
 const THead = styled.div`
@@ -300,10 +310,16 @@ function UsersTable({ currentAdminId }: { currentAdminId: string }) {
         </THead>
 
         {isLoading ? (
+          /* Load into the row's own 5-column geometry, not a single bar in the
+             first column — otherwise the table visibly re-lays out on arrival. */
           [...Array(5)].map((_, i) => (
-            <div key={i} style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)40' }}>
-              <Skeleton style={{ height: 14, width: '60%' }} />
-            </div>
+            <TRow key={i}>
+              <Skeleton height={14} width="62%" />
+              <Skeleton height={14} width="70%" />
+              <Skeleton height={14} width="80%" />
+              <Skeleton height={14} width={32} />
+              <Skeleton height={14} width={24} />
+            </TRow>
           ))
         ) : !data?.users.length ? (
           <div style={{ padding: '32px 16px', textAlign: 'center', fontSize: 13, color: 'var(--muted-foreground)' }}>

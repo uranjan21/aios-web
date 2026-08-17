@@ -51,7 +51,7 @@ async def test_approve_sets_category_fields_and_balance(app, user_a, db_session_
     """The unified commit path resolves BOTH category fields and adjusts the
     account balance; a same-day/same-amount ledger row blocks a duplicate."""
     from fastapi import HTTPException
-    from app.api.finance_pending import _approve_one
+    from app.api.finance_pending import PendingApprove, _approve_one
     from app.models.user import User
 
     async with db_session_factory() as db:
@@ -77,7 +77,7 @@ async def test_approve_sets_category_fields_and_balance(app, user_a, db_session_
         await db.refresh(pending)
 
         user = (await db.execute(select(User).where(User.id == user_a.id))).scalar_one()
-        await _approve_one(db, user, pending, {"category_id": str(child.id), "account_id": str(account.id)})
+        await _approve_one(db, user, pending, PendingApprove(category_id=child.id, account_id=account.id))
         await db.commit()
 
         expense = (await db.execute(
@@ -100,7 +100,7 @@ async def test_approve_sets_category_fields_and_balance(app, user_a, db_session_
         await db.commit()
         await db.refresh(dup)
         with pytest.raises(HTTPException) as exc:
-            await _approve_one(db, user, dup, {"account_id": str(account.id)})
+            await _approve_one(db, user, dup, PendingApprove(account_id=account.id))
         assert exc.value.status_code == 409
 
 

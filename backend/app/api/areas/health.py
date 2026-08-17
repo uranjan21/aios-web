@@ -1,6 +1,7 @@
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Optional, Annotated
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, AfterValidator
 from sqlmodel import select, desc
 
@@ -360,13 +361,19 @@ async def list_habits(current_user=Depends(get_current_user), db=Depends(get_db)
 
     window_rows = (await db.execute(
         select(HabitCheck).where(
+            HabitCheck.user_id == current_user.id,
             HabitCheck.habit_id.in_(habit_ids),
             HabitCheck.check_date >= window_start,
         )
     )).scalars().all()
+    # The streak only walks back from today, so a year of checks bounds it —
+    # loading every check ever recorded grows without limit for a daily habit.
+    streak_start = (today - _timedelta(days=365)).isoformat()
     all_rows = (await db.execute(
         select(HabitCheck.habit_id, HabitCheck.check_date).where(
-            HabitCheck.habit_id.in_(habit_ids)
+            HabitCheck.user_id == current_user.id,
+            HabitCheck.habit_id.in_(habit_ids),
+            HabitCheck.check_date >= streak_start,
         )
     )).all()
 
@@ -467,15 +474,30 @@ from app.models.health import WorkoutSession, WorkoutSet
 
 
 @router.get("/workouts")
-async def list_workouts(limit: int = 10, current_user=Depends(get_current_user), db=Depends(get_db)):
+async def list_workouts(
+    limit: int = Query(default=10, ge=1, le=50),
+    offset: int = Query(default=0, ge=0),
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
     sessions = (await db.execute(
-        select(WorkoutSession).where(WorkoutSession.user_id == current_user.id).order_by(desc(WorkoutSession.logged_at)).limit(min(limit, 50))
+        select(WorkoutSession).where(WorkoutSession.user_id == current_user.id)
+        .order_by(desc(WorkoutSession.logged_at)).offset(offset).limit(limit)
     )).scalars().all()
+    # One query for every session's sets, not one per session.
+    session_ids = [s.id for s in sessions]
+    sets_by_session: dict = defaultdict(list)
+    if session_ids:
+        for x in (await db.execute(
+            select(WorkoutSet)
+            .where(WorkoutSet.user_id == current_user.id)
+            .where(WorkoutSet.session_id.in_(session_ids))
+            .order_by(WorkoutSet.created_at)
+        )).scalars().all():
+            sets_by_session[x.session_id].append(x)
     out = []
     for s in sessions:
-        sets = (await db.execute(
-            select(WorkoutSet).where(WorkoutSet.session_id == s.id).order_by(WorkoutSet.created_at)
-        )).scalars().all()
+        sets = sets_by_session[s.id]
         out.append({
             "id": str(s.id), "name": s.name, "logged_at": s.logged_at.isoformat(), "notes": s.notes,
             "sets": [
@@ -837,15 +859,7 @@ class RoutineIn(BaseModel):
     exercises: list[RoutineExerciseIn] = []
 
 
-async def _routine_payload(db, routine: WorkoutRoutine) -> dict:
-    exercises = (await db.execute(
-        select(RoutineExercise)
-        .where(RoutineExercise.routine_id == routine.id)
-        .order_by(RoutineExercise.position)
-    )).scalars().all()
-    days = (await db.execute(
-        select(RoutineDay).where(RoutineDay.routine_id == routine.id).order_by(RoutineDay.weekday)
-    )).scalars().all()
+def _routine_dict(routine: WorkoutRoutine, exercises, days) -> dict:
     return {
         "id": str(routine.id),
         "name": routine.name,
@@ -861,6 +875,37 @@ async def _routine_payload(db, routine: WorkoutRoutine) -> dict:
             for e in exercises
         ],
     }
+
+
+async def _routines_payload(db, user_id, routines: list) -> list[dict]:
+    """Children for every routine in two queries, not two per routine."""
+    routine_ids = [r.id for r in routines]
+    if not routine_ids:
+        return []
+    ex_by_routine: dict = defaultdict(list)
+    for e in (await db.execute(
+        select(RoutineExercise)
+        .where(RoutineExercise.user_id == user_id)
+        .where(RoutineExercise.routine_id.in_(routine_ids))
+        .order_by(RoutineExercise.position)
+    )).scalars().all():
+        ex_by_routine[e.routine_id].append(e)
+    days_by_routine: dict = defaultdict(list)
+    for d in (await db.execute(
+        select(RoutineDay)
+        .where(RoutineDay.user_id == user_id)
+        .where(RoutineDay.routine_id.in_(routine_ids))
+        .order_by(RoutineDay.weekday)
+    )).scalars().all():
+        days_by_routine[d.routine_id].append(d)
+    return [
+        _routine_dict(r, ex_by_routine[r.id], days_by_routine[r.id])
+        for r in routines
+    ]
+
+
+async def _routine_payload(db, user_id, routine: WorkoutRoutine) -> dict:
+    return (await _routines_payload(db, user_id, [routine]))[0]
 
 
 async def _replace_routine_children(db, user_id, routine: WorkoutRoutine, body: RoutineIn) -> None:
@@ -892,7 +937,7 @@ async def list_routines(current_user=Depends(get_current_user), db=Depends(get_d
     routines = (await db.execute(
         select(WorkoutRoutine).where(WorkoutRoutine.user_id == current_user.id).order_by(WorkoutRoutine.name)
     )).scalars().all()
-    return [await _routine_payload(db, r) for r in routines]
+    return await _routines_payload(db, current_user.id, routines)
 
 
 @router.post("/routines")
@@ -914,7 +959,7 @@ async def create_routine(body: RoutineIn, current_user=Depends(get_current_user)
     await _replace_routine_children(db, current_user.id, routine, body)
     await db.commit()
     await db.refresh(routine)
-    return await _routine_payload(db, routine)
+    return await _routine_payload(db, current_user.id, routine)
 
 
 @router.patch("/routines/{routine_id}")
@@ -946,7 +991,7 @@ async def update_routine(routine_id: _uuid.UUID, body: RoutineIn, current_user=D
     await _replace_routine_children(db, current_user.id, routine, body)
     await db.commit()
     await db.refresh(routine)
-    return await _routine_payload(db, routine)
+    return await _routine_payload(db, current_user.id, routine)
 
 
 @router.delete("/routines/{routine_id}")
@@ -1106,6 +1151,7 @@ def _scale(food: "FoodItem", grams: float) -> dict:
 async def _plan_payload(db, plan: MealPlan, foods_by_id: dict) -> dict:
     entries = (await db.execute(
         select(MealPlanEntry)
+        .where(MealPlanEntry.user_id == plan.user_id)
         .where(MealPlanEntry.plan_id == plan.id)
         .order_by(MealPlanEntry.weekday, MealPlanEntry.position)
     )).scalars().all()

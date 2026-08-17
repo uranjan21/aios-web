@@ -1,5 +1,56 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
+## 2026-08-10 — claude-code (dev dataset: seed every API surface)
+
+**Ask.** Seed dummy data so all frontend features can be tested.
+
+**`backend/seed_dummy_data.py` rewritten** (was 123 lines covering part of
+Finance/Health, last touched 2026-07-09). **2,511 rows across 55 tables** for one
+user, in one command:
+
+```bash
+docker compose exec backend python seed_dummy_data.py            # demo@aios.dev
+docker compose exec backend python seed_dummy_data.py --list     # who can be seeded
+docker compose exec backend python seed_dummy_data.py --email you@x.com
+```
+
+- **The old one was unsafe on a multi-tenant DB.** It ran
+  `Account.__table__.delete()` — every user's accounts, not the seeded user's.
+  The wipe is now `DELETE … WHERE user_id = :uid` over an explicit
+  `SEEDED_TABLES` allowlist, walking `sorted_tables` in reverse so FKs are
+  satisfied. Verified: seeding demo@aios.dev left the other 4 users' rows
+  (incl. 38 real Google-synced calendar events) untouched.
+- **Every date is relative to today.** The dashboards filter on "this month",
+  "this week" and a 12-week heatmap, so absolute dates render an empty product.
+  Several rows are deliberately dated **today** — without them "Tasks due today"
+  and the career streak read 0 on a fully seeded account.
+- Idempotent. Categories and food items are get-or-create (both carry unique
+  constraints and are reference data); everything else is wipe-and-rebuild.
+- **Verified at the API layer, not just row counts: 83 of 87 parameterless GET
+  endpoints return non-empty data.** The other 4 are correct — two vault-sync
+  endpoints with nothing to report, `verify-email` needing a token param, and
+  `plan-blocks/calendar` returning `connected:false` (no gcal link).
+
+**Two real bugs the seeded data exposed** (both invisible on an empty DB):
+
+- **The Admin page was 100% broken.** `packages/shared/src/api/admin.ts` prefixed
+  every path with `/api` while `client.ts` already sets `baseURL: '/api'` — all
+  5 calls hit `/api/api/admin/*` → 404. Same class as the Automations bug fixed
+  2026-07-04. Swept the repo: admin.ts was the only file affected. Now 200s and
+  the page renders users, plan mix and the signups chart.
+- **"1 days"** on the dashboard career-streak tile (and "1 entries this month",
+  and "1 days left" in `DomainGoalsCard`). Added `plural()` to
+  `@ct/shared/lib/utils` and fixed all three.
+
+- Blockers: none.
+- Next: two surfaces still cannot be seeded from the database and that is worth
+  knowing before demoing — the Dashboard **Schedule / Today's Timeline /
+  MonthlyCalendar read `useDayEventsStore`, a localStorage-only Zustand store**
+  with no API hydration anywhere (so those events never reach the server, do not
+  sync across devices and vanish with the cache); and `plan-blocks/calendar`
+  needs a real Google Calendar connection. The seeded `calendar_events` rows use
+  a `seed-` id prefix and light up as soon as gcal is linked.
+
 ## 2026-08-10 — claude-code (final pre-ship audit)
 
 **Ask.** Full audit before deploying — every aspect.

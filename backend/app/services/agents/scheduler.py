@@ -10,6 +10,8 @@ from sqlalchemy import text
 logger = logging.getLogger(__name__)
 
 _scheduler: AsyncIOScheduler | None = None
+# Strong refs to fire-and-forget tasks so they aren't garbage-collected mid-run.
+_background_tasks: set = set()
 
 # Advisory lock so exactly ONE worker runs cron jobs in a multi-worker deploy —
 # otherwise every worker fires every agent (duplicate LLM spend + pushes).
@@ -56,7 +58,13 @@ async def release_scheduler_leadership() -> None:
 def get_scheduler() -> AsyncIOScheduler:
     global _scheduler
     if _scheduler is None:
-        _scheduler = AsyncIOScheduler(timezone="UTC")
+        # coalesce: a job that fell behind runs ONCE on catch-up instead of
+        # firing every missed interval back-to-back; the explicit grace time
+        # means a skipped fire is logged rather than silently dropped.
+        _scheduler = AsyncIOScheduler(
+            timezone="UTC",
+            job_defaults={"coalesce": True, "misfire_grace_time": 300},
+        )
     return _scheduler
 
 
@@ -78,12 +86,20 @@ def _safe_tz(tz: str | None) -> str:
         return "UTC"
 
 
+# Users are walked in keyset-paginated batches rather than loaded whole, and
+# each batch runs with bounded concurrency — these jobs do DB and network work,
+# so a serial sweep at 10k users outruns the interval and APScheduler starts
+# dropping fires.
+_GLOBAL_JOB_BATCH = 200
+_GLOBAL_JOB_CONCURRENCY = 8
+
+
 async def _run_global_job(module_name: str, func_name: str) -> None:
     from app.models.user import User
     from sqlmodel import select
     from app.db.session import AsyncSessionLocal
     import importlib
-    
+
     try:
         mod = importlib.import_module(module_name)
         func = getattr(mod, func_name)
@@ -91,14 +107,28 @@ async def _run_global_job(module_name: str, func_name: str) -> None:
         logger.error("Could not load global job %s.%s: %s", module_name, func_name, e)
         return
 
-    try:
-        async with AsyncSessionLocal() as session:
-            users = (await session.execute(select(User))).scalars().all()
-        for user in users:
+    sem = asyncio.Semaphore(_GLOBAL_JOB_CONCURRENCY)
+
+    async def _one(user_id) -> None:
+        async with sem:
             try:
-                await func(user.id)
+                await func(user_id)
             except Exception as e:
-                logger.error("Job %s failed for user %s: %s", func_name, user.id, e)
+                # One user's failure must never abort the sweep.
+                logger.error("Job %s failed for user %s: %s", func_name, user_id, e)
+
+    try:
+        after = None
+        while True:
+            async with AsyncSessionLocal() as session:
+                stmt = select(User.id).order_by(User.id).limit(_GLOBAL_JOB_BATCH)
+                if after is not None:
+                    stmt = stmt.where(User.id > after)
+                user_ids = (await session.execute(stmt)).scalars().all()
+            if not user_ids:
+                break
+            await asyncio.gather(*(_one(uid) for uid in user_ids))
+            after = user_ids[-1]
     except Exception as e:
         logger.error("Global job %s failed to get users: %s", func_name, e)
 
@@ -319,7 +349,17 @@ async def start_scheduler() -> None:
         logger.info("APScheduler started — %d/%d agents registered", registered, len(agents))
 
         # Catch-up pass at boot for due days missed while the server was down
-        asyncio.get_running_loop().create_task(_run_global_job("app.services.finance.recurring", "post_due_recurring"))
+        # Hold a reference — a bare create_task is GC-eligible mid-flight and
+        # its exception is never retrieved.
+        catch_up = asyncio.get_running_loop().create_task(
+            _run_global_job("app.services.finance.recurring", "post_due_recurring")
+        )
+        _background_tasks.add(catch_up)
+        catch_up.add_done_callback(lambda t: (
+            _background_tasks.discard(t),
+            not t.cancelled() and t.exception() and logger.error(
+                "Boot catch-up job failed: %s", t.exception()),
+        ))
     except Exception as e:
         logger.error("APScheduler startup failed (non-fatal): %s", e)
 

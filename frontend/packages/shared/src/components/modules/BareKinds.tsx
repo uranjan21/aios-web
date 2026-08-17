@@ -7,6 +7,7 @@ import { Cpu, Plus } from 'lucide-react'
 import { textRole } from '@ledgr/ui'
 import { useModulePalette, pct } from './palette'
 import { Chip, ModuleButton, ToggleKnob, ToggleTrack, Track, TrackFill } from './primitives'
+import type { SpacingStep } from './primitives'
 import type { AgentsModule, ChatModule, KanbanModule, TilesModule } from './types'
 
 /** The translucent gradient card the redesign uses for every raised surface. */
@@ -19,10 +20,10 @@ const SurfaceCard = styled.div<{ $bg?: string; $border?: string }>`
   box-shadow: ${({ theme }) => theme.surface.shadow};
 `
 
-const AutoGrid = styled.div<{ $cols: string; $gap: number }>`
+const AutoGrid = styled.div<{ $cols: string; $gap: SpacingStep }>`
   display: grid;
   grid-template-columns: ${({ $cols }) => $cols};
-  gap: ${({ $gap }) => $gap}px;
+  gap: ${({ $gap, theme }) => theme.spacing[$gap]};
   flex: 1;
   align-content: start;
   min-width: 0;
@@ -44,7 +45,7 @@ const trackFor = (m: { tileCols?: string; cols?: number }) =>
 /* ── tiles ────────────────────────────────────────────────────────────── */
 
 const Tile = styled(SurfaceCard)`
-  padding: ${({ theme }) => theme.spacing[4]} 18px;
+  padding: ${({ theme }) => theme.spacing[4]} ${({ theme }) => theme.spacing[4.5]};
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[2.5]};
@@ -112,7 +113,7 @@ export function TilesKind({ m }: { m: TilesModule }) {
   const c = useModulePalette()
   const { onTileClick } = m
   return (
-    <TileScroller $cols={trackFor(m)} $gap={16}>
+    <TileScroller $cols={trackFor(m)} $gap={4}>
       {m.tiles.map((t, i) => (
         <Tile
           key={i}
@@ -160,7 +161,7 @@ export function TilesKind({ m }: { m: TilesModule }) {
 /* ── kanban ───────────────────────────────────────────────────────────── */
 
 const Column = styled(SurfaceCard)`
-  padding: 13px;
+  padding: ${({ theme }) => theme.spacing[3]};
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[2.5]};
@@ -170,11 +171,11 @@ const Column = styled(SurfaceCard)`
 const KanbanCard = styled.div`
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.sm};
-  padding: 11px;
+  padding: ${({ theme }) => theme.spacing[2.5]};
   background: ${({ theme }) => theme.color.muted};
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: ${({ theme }) => theme.spacing[1.5]};
   cursor: pointer;
   transition: transform 150ms, border-color 150ms;
   /* Resets for the button form a page opts into via onCardClick. */
@@ -200,7 +201,7 @@ export function KanbanKind({ m }: { m: KanbanModule }) {
     return acc
   }, [])
   return (
-    <AutoGrid $cols={trackFor(m)} $gap={14}>
+    <AutoGrid $cols={trackFor(m)} $gap={3.5}>
       {m.columns.map((col, i) => (
         <Column key={i}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -239,10 +240,10 @@ export function KanbanKind({ m }: { m: KanbanModule }) {
 /* ── agents ───────────────────────────────────────────────────────────── */
 
 const AgentCard = styled(SurfaceCard)`
-  padding: ${({ theme }) => theme.spacing[4]} 18px;
+  padding: ${({ theme }) => theme.spacing[4]} ${({ theme }) => theme.spacing[4.5]};
   display: flex;
   flex-direction: column;
-  gap: 13px;
+  gap: ${({ theme }) => theme.spacing[3]};
   transition: box-shadow 200ms, border-color 200ms;
 
   &:hover {
@@ -270,7 +271,7 @@ const IconChip = styled.span<{ $bg: string; $color: string }>`
 const RunBars = styled.div`
   display: flex;
   align-items: flex-end;
-  gap: 3px;
+  gap: ${({ theme }) => theme.spacing[0.5]};
   height: 40px;
 `
 
@@ -287,7 +288,7 @@ const LogLine = styled.div`
   color: ${({ theme }) => theme.color.mutedForeground};
   background: ${({ theme }) => theme.color.muted};
   border-radius: ${({ theme }) => theme.radii.xs};
-  padding: 9px 11px;
+  padding: ${({ theme }) => theme.spacing[2]} ${({ theme }) => theme.spacing[2.5]};
   line-height: 1.55;
 `
 
@@ -309,7 +310,7 @@ export function AgentsKind({ m }: { m: AgentsModule }) {
   const c = useModulePalette()
   const { onToggle, onCardClick } = m
   return (
-    <AutoGrid $cols={trackFor(m)} $gap={16}>
+    <AutoGrid $cols={trackFor(m)} $gap={4}>
       {m.agents.map((ag, i) => {
         const Icon = ag.icon ?? Cpu
         return (
@@ -375,7 +376,7 @@ export function AgentsKind({ m }: { m: AgentsModule }) {
 const ChatLayout = styled.div`
   display: grid;
   grid-template-columns: 242px 1fr;
-  gap: 18px;
+  gap: ${({ theme }) => theme.spacing[4.5]};
   height: 70vh;
   min-height: 540px;
   width: 100%;
@@ -397,7 +398,7 @@ const Pane = styled(SurfaceCard)`
 `
 
 const Thread = styled.div<{ $active: boolean; $accent: string }>`
-  padding: 9px 11px;
+  padding: ${({ theme }) => theme.spacing[2]} ${({ theme }) => theme.spacing[2.5]};
   border-radius: ${({ theme }) => theme.radii.sm};
   background: ${({ $active, theme }) => ($active ? theme.color.muted : 'transparent')};
   border-left: 2px solid ${({ $accent }) => $accent};
@@ -414,7 +415,7 @@ const Bubble = styled.div<{ $mine: boolean }>`
   border-radius: ${({ $mine, theme }) =>
     $mine ? `${theme.radii.md} ${theme.radii.md} 4px ${theme.radii.md}`
           : `${theme.radii.md} ${theme.radii.md} ${theme.radii.md} 4px`};
-  padding: 11px 14px;
+  padding: ${({ theme }) => theme.spacing[2.5]} ${({ theme }) => theme.spacing[3.5]};
   ${textRole('body-m')};
   line-height: 1.6;
   text-wrap: pretty;
@@ -424,7 +425,7 @@ const Composer = styled.input`
   flex: 1;
   min-width: 0;
   height: 42px;
-  padding: 0 14px;
+  padding: 0 ${({ theme }) => theme.spacing[3.5]};
   border-radius: ${({ theme }) => theme.radii.sm};
   border: 1px solid ${({ theme }) => theme.color.border};
   background: ${({ theme }) => theme.color.muted};

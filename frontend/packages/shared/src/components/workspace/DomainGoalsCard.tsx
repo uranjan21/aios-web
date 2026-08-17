@@ -2,12 +2,12 @@ import { useState, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
-import { Button, Dialog, Input, DataTable, Card, Select } from '@ledgr/ui'
+import { Button, Dialog, Input, DataTable, Card, Select, Skeleton } from '@ledgr/ui'
 import { Trash2, PencilLine, CalendarDays, Target, Plus } from 'lucide-react'
 import { goalsApi, type MacroGoal } from '@ct/shared/api/goals'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
+import { plural } from '@ct/shared/lib/utils'
 import { differenceInDays } from 'date-fns'
-import styled from 'styled-components'
+import styled, { useTheme } from 'styled-components'
 
 const GoalCell = styled.div`
   display: flex;
@@ -68,13 +68,6 @@ const LoadingContainer = styled.div`
   gap: 1rem;
 `
 
-const LoadingHeader = styled(Skeleton)`
-  height: 40px;
-`
-
-const LoadingBody = styled(Skeleton)`
-  height: 200px;
-`
 
 const ModalTitle = styled.span`
   color: ${({ theme }) => theme.color.foreground};
@@ -121,6 +114,7 @@ interface DomainGoalsCardProps {
 
 export function DomainGoalsCard({ domain, onAdd, filterNode }: DomainGoalsCardProps) {
   const queryClient = useQueryClient()
+  const theme = useTheme()
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [updatingGoal, setUpdatingGoal] = useState<MacroGoal | null>(null)
   const [form, setForm] = useState({ title: '', description: '', target_date: '', status: 'active' })
@@ -227,10 +221,17 @@ export function DomainGoalsCard({ domain, onAdd, filterNode }: DomainGoalsCardPr
         const days = daysLeft(record.target_date)
         const isDone = record.status === 'completed'
         
-        let color = '#0D9488'
-        if (isDone) color = '#10B981'
-        else if (days !== null && days < 0) color = '#EF4444'
-        else if (record.status !== 'active') color = '#F59E0B'
+        /*
+         * Semantic tokens, not literals. The four hexes that used to live here
+         * sat outside the 252 contrast pairs `scripts/palette-contrast.ts`
+         * guarantees across 6 palettes × 2 modes, so they were unreadable on
+         * whichever palette happened not to suit them — and never changed in
+         * dark mode.
+         */
+        let color = theme.color.info
+        if (isDone) color = theme.color.success
+        else if (days !== null && days < 0) color = theme.color.destructive
+        else if (record.status !== 'active') color = theme.color.warning
         
         return (
           <StatusContainer>
@@ -238,7 +239,7 @@ export function DomainGoalsCard({ domain, onAdd, filterNode }: DomainGoalsCardPr
             {days !== null && !isDone && (
               <DueText>
                 <CalendarDays size={12} />
-                {days > 0 ? `${days} days left` : days === 0 ? 'Due today' : 'Overdue'}
+                {days > 0 ? `${days} ${plural(days, 'day')} left` : days === 0 ? 'Due today' : 'Overdue'}
               </DueText>
             )}
           </StatusContainer>
@@ -275,7 +276,7 @@ export function DomainGoalsCard({ domain, onAdd, filterNode }: DomainGoalsCardPr
     return g.status === 'active'
   })
 
-  if (isLoading) return <LoadingContainer><LoadingHeader /><LoadingBody /></LoadingContainer>;
+  if (isLoading) return <LoadingContainer><Skeleton height={40} /><Skeleton height={200} /></LoadingContainer>;
 
   return (
     <div>

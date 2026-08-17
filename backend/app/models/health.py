@@ -61,12 +61,21 @@ class Habit(SQLModel, table=True):
 
 
 class HabitCheck(SQLModel, table=True):
-    """One row per habit per completed day."""
+    """One row per habit per completed day.
+
+    Per-user, not the old global `(habit_id, check_date)`: `71fb288f8d09`
+    dropped that constraint while adding `user_id` and nothing restored it
+    until `h016`. Without it a double-tapped toggle inserts a second row and
+    the `scalar_one_or_none()` read in `api/areas/health.py` 500s forever.
+    """
     __tablename__ = "health_habit_checks"
+    __table_args__ = (
+        UniqueConstraint("user_id", "habit_id", "check_date", name="uq_habit_check_user_day"),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
-    habit_id: uuid.UUID = Field(foreign_key="health_habits.id", nullable=False)
+    habit_id: uuid.UUID = Field(foreign_key="health_habits.id", nullable=False, index=True)
     check_date: str = Field(nullable=False)  # "YYYY-MM-DD"
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
 

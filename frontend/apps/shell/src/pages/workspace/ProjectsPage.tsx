@@ -230,7 +230,7 @@ export function ProjectsSection({
         : '—',
     ]),
     onRowClick: (i: number) => openEdit(rows[i]),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }], [rows, domainFilter, statusFilter, filterNode])
 
   return (

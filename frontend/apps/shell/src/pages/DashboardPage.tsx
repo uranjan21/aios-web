@@ -20,7 +20,7 @@ import styled, { useTheme } from 'styled-components'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { Loader2, Activity, Calendar, CheckSquare } from 'lucide-react'
-import { textRole } from '@ledgr/ui'
+import { ErrorState, SkeletonPage, textRole } from '@ledgr/ui'
 
 import { financeApi, healthApi, careerApi } from '@ct/shared/api/areas'
 import { workspaceApi, type Task } from '@ct/shared/api/workspace'
@@ -31,7 +31,7 @@ import { ACTIVE_DOMAIN_KEYS, domainLabel } from '@ct/shared/config/domains'
 import { useMotion } from '@ct/shared/hooks/useMotion'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
-import { formatCurrency } from '@ct/shared/lib/utils'
+import { formatCurrency, plural } from '@ct/shared/lib/utils'
 
 const Greeting = styled.h1`
   ${textRole('title-l')};
@@ -96,16 +96,36 @@ export function DashboardPage() {
   const today = new Date()
   const todayKey = fmtDateKey(today)
 
-  const { data: netWorth } = useQuery({ queryKey: ['finance', 'net-worth'], queryFn: financeApi.netWorth })
-  const { data: snapshots } = useQuery({
-    queryKey: ['finance', 'snapshots'], queryFn: financeApi.snapshots, staleTime: 300_000,
+  /*
+   * Every query on this page opts out of the global throw (App.tsx) and is
+   * handled together below: the dashboard is the app's front door, so a failed
+   * request must say "couldn't load" with a retry, not blow the route away and
+   * not — as it did until 2026-08-16 — print ₹0 and "No streak" as if those
+   * were the facts.
+   */
+  const q = { meta: { inlineError: true } } as const
+
+  const netWorthQ = useQuery({ queryKey: ['finance', 'net-worth'], queryFn: financeApi.netWorth, ...q })
+  const snapshotsQ = useQuery({
+    queryKey: ['finance', 'snapshots'], queryFn: financeApi.snapshots, staleTime: 300_000, ...q,
   })
-  const { data: sleep } = useQuery({ queryKey: ['health', 'sleep', 'recent'], queryFn: healthApi.sleepRecent })
-  const { data: habits } = useQuery({ queryKey: ['health', 'habits'], queryFn: healthApi.habits })
-  const { data: journalStats } = useQuery({
-    queryKey: ['career', 'journal', 'stats'], queryFn: careerApi.journalStats, staleTime: 300_000,
+  const sleepQ = useQuery({ queryKey: ['health', 'sleep', 'recent'], queryFn: healthApi.sleepRecent, ...q })
+  const habitsQ = useQuery({ queryKey: ['health', 'habits'], queryFn: healthApi.habits, ...q })
+  const journalStatsQ = useQuery({
+    queryKey: ['career', 'journal', 'stats'], queryFn: careerApi.journalStats, staleTime: 300_000, ...q,
   })
-  const { data: tasks } = useQuery({ queryKey: ['workspace', 'tasks'], queryFn: () => workspaceApi.getTasks() })
+  const tasksQ = useQuery({ queryKey: ['workspace', 'tasks'], queryFn: () => workspaceApi.getTasks(), ...q })
+
+  const panels = [netWorthQ, snapshotsQ, sleepQ, habitsQ, journalStatsQ, tasksQ]
+  const isError = panels.some((p) => p.isError)
+  const isLoading = panels.some((p) => p.isLoading)
+
+  const netWorth = netWorthQ.data
+  const snapshots = snapshotsQ.data
+  const sleep = sleepQ.data
+  const habits = habitsQ.data
+  const journalStats = journalStatsQ.data
+  const tasks = tasksQ.data
 
   const toggleTask = useMutation({
     mutationFn: (t: Task) => workspaceApi.updateTask(t.id, { status: t.status === 'done' ? 'todo' : 'done' }),
@@ -204,9 +224,9 @@ export function DashboardPage() {
                week. Nothing stores a historical streak, so the sub reports the
                month's volume — the fact that IS recorded. */
             label: 'Career streak',
-            value: `${journalStats?.streak_days ?? 0} days`,
+            value: `${journalStats?.streak_days ?? 0} ${plural(journalStats?.streak_days ?? 0, 'day')}`,
             sub: journalStats?.entries_this_month
-              ? `${journalStats.entries_this_month} entries this month`
+              ? `${journalStats.entries_this_month} ${plural(journalStats.entries_this_month, 'entry', 'entries')} this month`
               : 'No journal entries yet',
             dotKey: (journalStats?.streak_days ?? 0) > 0 ? 'success' : 'mutedFg',
           },
@@ -363,7 +383,17 @@ export function DashboardPage() {
           </motion.div>
 
           <motion.div variants={child.variants} style={{ marginTop: 24 }}>
-            <ModuleGrid modules={modules} />
+            {isError ? (
+              <ErrorState
+                title="We couldn't load your day"
+                description="Nothing has been lost — one of the requests behind this page failed."
+                onRetry={() => { panels.forEach((p) => { void p.refetch() }) }}
+              />
+            ) : isLoading ? (
+              <SkeletonPage kpis={4} modules={[7, 5, 12]} />
+            ) : (
+              <ModuleGrid modules={modules} />
+            )}
           </motion.div>
         </motion.div>
       </PageContent>

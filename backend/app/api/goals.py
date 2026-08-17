@@ -6,10 +6,33 @@ from pydantic import BaseModel, Field
 from sqlmodel import select, desc
 
 from app.core.deps import get_current_user, get_db
+from app.core.entitlements import AREA_MODULES
 from app.models.goal import MacroGoal, GoalProgress
 from app.models.user import User
 
 router = APIRouter(prefix="/api/goals", tags=["goals"])
+
+# `category` is a domain key, not free text: `workspace._check_goal_domain`
+# matches a project/task `domain` against it, so an arbitrary string produces a
+# goal no project can ever link to. Retired areas stay accepted because their
+# rows still exist (frontend `config/domains.ts` RETIRED_DOMAINS).
+GOAL_CATEGORIES = set(AREA_MODULES) | {"general", "business", "content"}
+GOAL_PRIORITIES = {"low", "medium", "high", "urgent"}
+GOAL_STATUSES = {"active", "completed", "archived"}
+
+
+def _check_goal_enums(category: Optional[str], priority: Optional[str]) -> None:
+    if category is not None and category not in GOAL_CATEGORIES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"category must be one of {sorted(GOAL_CATEGORIES)}",
+        )
+    if priority is not None and priority not in GOAL_PRIORITIES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"priority must be one of {sorted(GOAL_PRIORITIES)}",
+        )
+
 
 class GoalCreate(BaseModel):
     title: str = Field(min_length=1)
@@ -28,6 +51,7 @@ async def create_goal(
     current_user: User = Depends(get_current_user),
     db = Depends(get_db)
 ):
+    _check_goal_enums(body.category, body.priority)
     goal = MacroGoal(
         user_id=current_user.id,
         title=body.title,
@@ -116,11 +140,12 @@ async def update_goal(
     if not goal or goal.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Goal not found")
     data = body.model_dump(exclude_unset=True)
-    if "status" in data and data["status"] not in ("active", "completed", "archived"):
+    if "status" in data and data["status"] not in GOAL_STATUSES:
         raise HTTPException(status_code=422, detail="Invalid status")
     for f in ("title", "category"):
         if f in data and data[f] is None:
             raise HTTPException(status_code=422, detail=f"{f} cannot be null")
+    _check_goal_enums(data.get("category"), data.get("priority"))
     for field, value in data.items():
         setattr(goal, field, value)
     goal.updated_at = datetime.utcnow()
@@ -144,11 +169,13 @@ async def delete_goal(
     from app.models.workspace import Project, Task
     await db.execute(sa_update(Project).where(Project.goal_id == goal_id).values(goal_id=None))
     await db.execute(sa_update(Task).where(Task.goal_id == goal_id).values(goal_id=None))
-    rows = (await db.execute(
-        select(GoalProgress).where(GoalProgress.goal_id == goal_id)
-    )).scalars().all()
-    for r in rows:
-        await db.delete(r)
+    from sqlalchemy import delete as sa_delete
+    await db.execute(
+        sa_delete(GoalProgress).where(
+            GoalProgress.goal_id == goal_id,
+            GoalProgress.user_id == current_user.id,
+        )
+    )
     await db.delete(goal)
     await db.commit()
     return None

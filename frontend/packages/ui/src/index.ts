@@ -44,6 +44,7 @@ export type {
 
 /* ── Primitives ─────────────────────────────────────────────────────── */
 export * from './primitives/Button';
+export * from './primitives/IconButton';
 export * from './primitives/Input';
 export * from './primitives/Textarea';
 export * from './primitives/Label';

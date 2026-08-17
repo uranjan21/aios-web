@@ -98,6 +98,18 @@ jobs:
       # NEW drift — which is the whole point of a ratchet. Verified by injecting
       # a hardcoded hex/spacing/font-size and watching it exit 1.
       # If a genuine reduction makes it fail, re-lock with `--update`.
+      # ESLint 9 flat config, added 2026-08-16 (audit F3) — the repo had a
+      # `lint` script for months with no eslint binary and no config, so it had
+      # never run. Correctness + a11y only, no formatting rules.
+      #
+      # `--max-warnings` is a ratchet, not decoration: the number is the exact
+      # current warning count, so any NEW warning fails the build while the
+      # pre-existing tail does not. Lower it after a genuine reduction; never
+      # raise it. `rules-of-hooks` is an ERROR and fails regardless of the cap.
+      # No continue-on-error — a gate that cannot fail is not a gate.
+      - name: Lint
+        run: pnpm lint
+
       - name: Design-token lint
         run: node scripts/token-lint.mjs
 
