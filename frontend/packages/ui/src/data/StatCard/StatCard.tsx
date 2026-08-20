@@ -26,7 +26,7 @@ const Root = styled.div`
   background: ${({ theme }) => theme.color.card};
   border: 1px solid ${({ theme }) => theme.color.border};
   border-radius: ${({ theme }) => theme.radii.md};
-  box-shadow: ${({ theme }) => theme.shadow.xs};
+  box-shadow: ${({ theme }) => theme.elevation[1]};
 `;
 
 const Top = styled.div`

@@ -31,8 +31,6 @@ const SCAN_ROOTS = [
   'apps/finance/src',
   'apps/health/src',
   'apps/career/src',
-  'apps/business/src',
-  'apps/content/src',
   'packages/shared/src',
   'packages/ui/src',
 ];
@@ -50,8 +48,6 @@ const THEME_FILES = [
   'packages/shared/src/theme/layout.ts',
   // User-facing swatch palette — persisted colour DATA, not theme styling.
   'packages/shared/src/config/swatches.ts',
-  // Decorative mode-aware hues for the lumina tones — a palette definition.
-  'packages/shared/src/components/lumina/tones.ts',
 ];
 
 /**
@@ -105,8 +101,56 @@ const BRAND_HEXES = new Set([
 const RULES = [
   {
     id: 'hardcoded-font-size',
-    label: 'font-size in raw px (use theme.typography role tokens)',
-    pattern: /font-size:\s*(\d+(?:\.\d+)?)px/g,
+    label: 'font-size in a raw unit — px/rem/em/clamp() (use theme.typography role tokens)',
+    // `Npx` only, until 2026-08-17 — which made every rem/em/clamp() font-size
+    // invisible to the gate (26 of them, concentrated in the marketing pages
+    // and the onboarding wizard, i.e. exactly the surfaces nobody re-checks).
+    // A raw `1.05rem` is the same drift as a raw `17px`.
+    pattern: /font-size:\s*(?:\d+(?:\.\d+)?(?:px|rem|em)\b|clamp\()/g,
+    skip: (rel) => isThemeFile(rel),
+  },
+  {
+    id: 'hardcoded-font-weight',
+    label: 'font-weight literal (use theme.typography.fontWeight.* / textRole)',
+    // 218 raw against 30 tokenized when this rule was written. Matches the CSS
+    // declaration and the inline style-object / chart-prop form, because the
+    // numeric-literal habit lives in both.
+    pattern:
+      /(?:font-weight:\s*(?:\d{3}|bold|bolder|lighter|normal)\b|fontWeight:\s*(?:\d{3}\b|['"](?:\d{3}|bold|bolder|lighter|normal)['"]))/g,
+    skip: (rel) => isThemeFile(rel),
+  },
+  {
+    id: 'hardcoded-line-height',
+    label: 'line-height literal (use theme.typography role tokens / textRole)',
+    // ~55 raw values across 16 distinct numbers against 4 named steps. An
+    // interpolated `line-height: ${...}` is tokenized and does not match.
+    pattern: /line-height:\s*(?:\d+(?:\.\d+)?(?:px|rem|em)?|normal)\b/g,
+    skip: (rel) => isThemeFile(rel),
+  },
+  {
+    id: 'rgba-outside-shadow',
+    label: 'rgba()/rgb() literal outside box-shadow (use theme.color.* or color-mix)',
+    // The sibling `rgba-in-shadow` rule covers box-shadow only, so ~150 raw
+    // rgba() backgrounds, borders and gradient stops were unseen. Anything
+    // already charged to `rgba-in-shadow` is skipped here — one violation is
+    // never counted twice, or both numbers stop meaning anything.
+    pattern: /rgba?\(/g,
+    skip: (rel, m) =>
+      isThemeFile(rel) ||
+      // Bounded 200-char lookback: is this inside a box-shadow declaration?
+      /(?:box-shadow|boxShadow)[^;{}\n]*$/.test(m.input.slice(Math.max(0, m.index - 200), m.index)),
+  },
+  {
+    id: 'hex-alpha-concat',
+    label: "hex-alpha string concat (theme.color.x + '30' / ${theme.color.x}40) — use color-mix()",
+    // This is not style drift, it is a latent bug: it assumes every palette
+    // value is a 6-digit hex. `packages/shared/src/theme/palettes.ts` ALREADY
+    // ships `rgba(...)` overlay tokens, and any future 3-digit hex, `rgb()` or
+    // `oklch()` value turns these into silently invalid CSS that the browser
+    // drops — no error, just a missing colour.
+    pattern:
+      /(?:\$\{[^}\n]{0,160}(?:color|palette|accent)[^}\n]{0,160}\}[0-9a-f]{2}(?![0-9a-f])|(?:color|palette|accent)[a-z0-9_.$[\]'"]{0,80}\s*\+\s*['"`][0-9a-f]{2}['"`])/gi,
+    skip: (rel) => isThemeFile(rel),
   },
   {
     id: 'hardcoded-radius',
@@ -140,7 +184,10 @@ const RULES = [
   {
     id: 'rgba-in-shadow',
     label: 'rgba() literal in box-shadow (use theme.elevation.*)',
-    pattern: /box-shadow:[^;\n]*rgba\(/g,
+    // `boxShadow:` too — the inline style-object form is the same violation,
+    // and leaving it out would have let `rgba-outside-shadow` skip it as
+    // "already charged to the shadow rule" when nothing was charging it.
+    pattern: /(?:box-shadow|boxShadow):[^;\n]*rgba\(/g,
     skip: (rel) => isThemeFile(rel),
   },
   {

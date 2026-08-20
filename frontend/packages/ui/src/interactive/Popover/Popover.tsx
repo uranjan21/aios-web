@@ -45,12 +45,19 @@ export interface PopoverTriggerProps {
 
 export function PopoverTrigger({ children }: PopoverTriggerProps) {
   const { open, setOpen, triggerRef, contentId } = useCtx();
-  if (!isValidElement(children)) return children;
-  
+
+  /*
+   * BOTH hooks run before the non-element bail-out, and the bail-out happens
+   * after them. It used to sit above the `useCallback`s, so a consumer passing
+   * a string, an array or null rendered two fewer hooks than the previous pass
+   * and React tore the subtree down with "Rendered fewer hooks than expected".
+   * A trigger's child is prop data — nothing stops it varying between renders.
+   */
+  const valid = isValidElement(children);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const childProps = (children.props ?? {}) as any;
+  const childProps = (valid ? children.props ?? {} : {}) as any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const origRef = (children as any).ref;
+  const origRef = valid ? (children as any).ref : undefined;
 
   const handleRef = useCallback((node: HTMLElement | null) => {
     triggerRef.current = node;
@@ -62,6 +69,8 @@ export function PopoverTrigger({ children }: PopoverTriggerProps) {
     setOpen(!open);
     childProps.onClick?.(e);
   }, [open, setOpen, childProps.onClick]);
+
+  if (!valid) return children;
 
   return cloneElement(children as ReactElement<Record<string, unknown>>, {
     ref: handleRef,

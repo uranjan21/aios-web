@@ -365,7 +365,7 @@ export function WorkoutsSection() {
         onRowClick: (i: number) => setDetail(rows[i]),
       },
     ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [rows, gymLogs, goals, routines, adherence])
 
   if (isLoading) return <SkeletonPage kpis={4} modules={[7, 5, 12]} />

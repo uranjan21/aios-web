@@ -291,43 +291,93 @@ async def _apply_subscription_object(db, obj: dict) -> None:
 
 from app.models.billing_event import StripeEventIdempotency
 
-async def _is_duplicate_event(db, event_id: str) -> bool:
-    event = (await db.execute(select(StripeEventIdempotency).where(StripeEventIdempotency.event_id == event_id))).scalar_one_or_none()
-    return event is not None
+
+async def _claim_event(db, event_id: str) -> bool:
+    """Atomically claim an event id. False → another delivery already has it.
+
+    Insert-first with ON CONFLICT DO NOTHING: a plain SELECT-then-INSERT let two
+    concurrent deliveries of the same event both pass the check, both apply, and
+    the second insert raise IntegrityError → 500 → Stripe retries forever.
+
+    Dialect note: the test suite runs on SQLite, so the insert construct is chosen
+    from the bound dialect. Both postgresql and sqlite support
+    `on_conflict_do_nothing`; anything else falls back to the old (non-atomic)
+    check-then-insert rather than failing outright.
+    """
+    values = {"event_id": event_id, "processed_at": datetime.utcnow()}
+    try:
+        dialect = db.get_bind().dialect.name
+    except Exception:  # pragma: no cover - unbound session
+        dialect = ""
+    if dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as _insert
+    elif dialect == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert as _insert
+    else:  # pragma: no cover - unsupported dialect
+        existing = (await db.execute(
+            select(StripeEventIdempotency).where(StripeEventIdempotency.event_id == event_id)
+        )).scalar_one_or_none()
+        if existing is not None:
+            return False
+        db.add(StripeEventIdempotency(event_id=event_id))
+        await db.commit()
+        return True
+
+    stmt = _insert(StripeEventIdempotency.__table__).values(**values).on_conflict_do_nothing(
+        index_elements=[StripeEventIdempotency.__table__.c.event_id]
+    )
+    result = await db.execute(stmt)
+    await db.commit()
+    return result.rowcount > 0
 
 
-async def _mark_event_seen(db, event_id: str) -> None:
-    event = StripeEventIdempotency(event_id=event_id)
-    db.add(event)
+async def _release_event(db, event_id: str) -> None:
+    """Give the claim back so Stripe's retry can re-apply a failed event."""
+    from sqlalchemy import delete
+    await db.rollback()  # the failed apply may have left the session dirty
+    await db.execute(
+        delete(StripeEventIdempotency.__table__).where(
+            StripeEventIdempotency.__table__.c.event_id == event_id
+        )
+    )
     await db.commit()
 
 
 async def handle_webhook_event(db, event: dict) -> None:
-    """Process a verified Stripe webhook event."""
+    """Process a verified Stripe webhook event.
+
+    Claim-then-apply, with delete-on-failure. Claiming first is what makes the
+    duplicate check atomic; deleting the claim when the apply raises preserves the
+    existing intent (a past bug marked events seen *before* success, so a failed
+    apply was permanently lost). A status column would be the other valid shape —
+    delete-on-failure was chosen because it needs no schema change and leaves the
+    table meaning exactly one thing: "this event has been fully applied".
+    """
     event_id = event.get("id", "")
-    if event_id and await _is_duplicate_event(db, event_id):
+    if event_id and not await _claim_event(db, event_id):
         logger.info("Skipping duplicate Stripe event %s", event_id)
         return
 
     etype = event.get("type", "")
     obj = event.get("data", {}).get("object", {})
 
-    if etype in ("customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"):
-        await _apply_subscription_object(db, obj)
-    elif etype == "checkout.session.completed":
-        # Fetch the subscription to get plan + period, then apply.
-        sub_id = obj.get("subscription")
-        if sub_id:
-            try:
-                stripe = _stripe()
-                full = await asyncio.to_thread(stripe.Subscription.retrieve, sub_id)
-                await _apply_subscription_object(db, full)
-            except Exception as e:  # pragma: no cover - network
-                logger.error("Failed to retrieve subscription %s: %s", sub_id, e)
-                raise
-    else:
-        logger.debug("Unhandled Stripe event type: %s", etype)
-
-    # Only mark seen after successful processing — a failed write should be retried by Stripe.
-    if event_id:
-        await _mark_event_seen(db, event_id)
+    try:
+        if etype in ("customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"):
+            await _apply_subscription_object(db, obj)
+        elif etype == "checkout.session.completed":
+            # Fetch the subscription to get plan + period, then apply.
+            sub_id = obj.get("subscription")
+            if sub_id:
+                try:
+                    stripe = _stripe()
+                    full = await asyncio.to_thread(stripe.Subscription.retrieve, sub_id)
+                    await _apply_subscription_object(db, full)
+                except Exception as e:  # pragma: no cover - network
+                    logger.error("Failed to retrieve subscription %s: %s", sub_id, e)
+                    raise
+        else:
+            logger.debug("Unhandled Stripe event type: %s", etype)
+    except Exception:
+        if event_id:
+            await _release_event(db, event_id)
+        raise

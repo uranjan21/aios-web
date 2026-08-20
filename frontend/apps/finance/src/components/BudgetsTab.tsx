@@ -16,11 +16,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { toast } from 'sonner'
 import styled from 'styled-components'
-import { Button, Card, Dialog, EmptyState, Input, Select } from '@ledgr/ui'
+import {
+  Button, Card, Dialog, EmptyState, ErrorState, Input, Select, SkeletonPage,
+} from '@ledgr/ui'
 import { Gauge, Trash2 } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { formatAmount } from '@ct/shared/lib/utils'
 import type { BudgetLimit } from '@ct/shared/types'
 
@@ -68,19 +69,33 @@ export function BudgetsTab({ onAddClick }: { onAddClick?: () => void }) {
   const [formLimit, setFormLimit] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'over' | 'near' | 'ok'>('all')
 
-  const { data: budgets, isLoading } = useQuery({
+  /* Handled in place below rather than thrown to the route (F1) — see App.tsx.
+     A failed status request would otherwise draw every meter at 0% spent. */
+  const q = { meta: { inlineError: true } } as const
+
+  const budgetsQ = useQuery({
     queryKey: ['finance', 'budgets'],
     queryFn: financeApi.budgets,
+    ...q,
   })
-  const { data: allCategories } = useQuery({
+  const categoriesQ = useQuery({
     queryKey: ['finance', 'categories'],
     queryFn: () => financeApi.categories('expense'),
     staleTime: 60_000,
+    ...q,
   })
-  const { data: status } = useQuery({
+  const statusQ = useQuery({
     queryKey: ['finance', 'budgets', 'status'],
     queryFn: () => financeApi.budgetStatus(),
+    ...q,
   })
+
+  const panels = [budgetsQ, categoriesQ, statusQ]
+  const budgets = budgetsQ.data
+  const allCategories = categoriesQ.data
+  const status = statusQ.data
+  const isLoading = panels.some((p) => p.isLoading)
+  const isError = panels.some((p) => p.isError)
 
   // Only top-level expense categories can carry a budget.
   const categoryOptions = useMemo(
@@ -188,10 +203,21 @@ export function BudgetsTab({ onAddClick }: { onAddClick?: () => void }) {
         }),
       },
     ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [rows, visible, statusFilter, onAddClick])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isError) {
+    return (
+      <ErrorState
+        title="We couldn't load your budgets"
+        description="Nothing has been lost — the request for your limits or this month's spend failed."
+        onRetry={() => { panels.forEach((p) => { void p.refetch() }) }}
+      />
+    )
+  }
+
+  /* One full-width `meters` module — no KPI strip on this page. */
+  if (isLoading) return <SkeletonPage kpis={0} modules={[12]} />
 
   return (
     <Root>

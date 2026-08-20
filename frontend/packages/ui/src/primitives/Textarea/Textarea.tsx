@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import type { TextareaHTMLAttributes } from 'react';
 import styled from 'styled-components';
-import { focusRing } from '../../utils/focusRing';
+import { focusRing } from '../../theme/mixins';
 
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   invalid?: boolean;

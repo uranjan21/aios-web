@@ -29,8 +29,6 @@
     "apps/finance/src",
     "apps/health/src",
     "apps/career/src",
-    "apps/business/src",
-    "apps/content/src",
     "packages/shared/src"
   ],
   "references": [{ "path": "./apps/shell/tsconfig.node.json" }]

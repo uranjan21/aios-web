@@ -5,11 +5,40 @@ import { Toaster } from 'sonner'
 import { router } from './router'
 import { ThemeProvider } from './components/ThemeProvider'
 
+/** Status of a rejected axios request, without importing axios here. */
+function statusOf(error: unknown): number | undefined {
+  return (error as { response?: { status?: number } } | null)?.response?.status
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
       staleTime: 30_000,
+      /*
+       * The failure floor (F1, 2026-08-16). Call sites destructure with a
+       * default — `const { data: goals = [] }` — so a failed request used to
+       * render the EMPTY state: the user read "your data is gone" rather than
+       * "the request failed". On an app holding finance and health records
+       * that is the worst possible lie to tell.
+       *
+       * So a server/transport failure is thrown to the route's
+       * RouteErrorBoundary instead of being silently swallowed. This is a
+       * FLOOR, not the treatment: a surface that handles its own error opts
+       * out with `meta: { inlineError: true }` and renders `<ErrorState
+       * onRetry={refetch}>` in place, which is strictly better because it
+       * stays recoverable without losing the rest of the page.
+       *
+       * 4xx are never thrown — 401 is already handled by the axios
+       * interceptor (refresh, then redirect), 402 drives UpgradeWall, and
+       * 403/404 are legitimate "not yours / not there" answers that a surface
+       * may correctly render as empty.
+       */
+      throwOnError: (error, query) => {
+        if (query.meta?.inlineError === true) return false
+        const status = statusOf(error)
+        return status === undefined || status >= 500
+      },
     },
   },
 })

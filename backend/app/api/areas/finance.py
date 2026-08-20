@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Optional, Annotated
@@ -10,7 +12,27 @@ from app.models.finance import FinanceSnapshot, FinanceExpense, BudgetLimit, Acc
 from app.services.finance.xirr import portfolio_xirr
 import uuid
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/areas/finance", tags=["finance"])
+
+# Strong refs to fire-and-forget budget-alert tasks. A bare `asyncio.create_task`
+# keeps only a weak reference, so the loop may collect the task mid-flight (the
+# alert silently never fires) and any exception inside it is never retrieved.
+# Same pattern as `api/knowledge.py`'s manual sync.
+_background_tasks: set = set()
+
+
+def _spawn_budget_alert(user_id: uuid.UUID, category: str) -> None:
+    from app.services.finance.budget_alerts import check_budget_alerts
+
+    task = asyncio.create_task(check_budget_alerts(user_id, category))
+    _background_tasks.add(task)
+    task.add_done_callback(lambda t: (
+        _background_tasks.discard(t),
+        not t.cancelled() and t.exception() and logger.error(
+            "Budget alert task failed: %s", t.exception()),
+    ))
 
 from app.api.finance_pending import router as finance_pending_router
 router.include_router(finance_pending_router, prefix="/pending", tags=["finance-pending"])
@@ -484,13 +506,26 @@ class SplitPart(BaseModel):
     amount: float
 
 
-async def _resolve_category(db, category_id: Optional[uuid.UUID], user_id: uuid.UUID) -> tuple[Optional[str], Optional[uuid.UUID]]:
+async def _resolve_category(
+    db, category_id: Optional[uuid.UUID], user_id: uuid.UUID, *, strict: bool = True
+) -> tuple[Optional[str], Optional[uuid.UUID]]:
     """Resolve a category node to its TOP-LEVEL ancestor name (denormalized for
-    rollup) + the exact node id. Returns (None, None) if not found."""
+    rollup) + the exact node id.
+
+    "No category supplied" is `(None, None)` — that is a legitimate state and
+    callers fall back to "Uncategorized". A category id that does NOT resolve to
+    one of this user's categories is NOT: silently returning `(None, None)` made
+    `update_expense` clear a correctly-set category and return 200 whenever the
+    client sent a typo'd or foreign UUID, so a client bug looked like server
+    data loss. `strict=False` is for the background auto-commit cron, where
+    raising an HTTPException has nobody to answer it.
+    """
     if category_id is None:
         return None, None
     cat = (await db.execute(select(Category).where(Category.id == category_id, Category.user_id == user_id))).scalar_one_or_none()
     if not cat:
+        if strict:
+            raise HTTPException(status_code=404, detail="Category not found")
         return None, None
     if cat.parent_id:
         parent = (await db.execute(select(Category).where(Category.id == cat.parent_id, Category.user_id == user_id))).scalar_one_or_none()
@@ -549,11 +584,9 @@ async def create_expense(body: ExpenseCreate, current_user=Depends(get_current_u
     for e in created:
         await db.refresh(e)
 
-    import asyncio
-    from app.services.finance.budget_alerts import check_budget_alerts
     categories = {e.category for e in created if e.category}
     for cat in categories:
-        asyncio.create_task(check_budget_alerts(current_user.id, cat))
+        _spawn_budget_alert(current_user.id, cat)
     return created[0] if len(created) == 1 else {"split_group_id": str(created[0].split_group_id), "items": created}
 
 
@@ -600,9 +633,7 @@ async def update_expense(expense_id: uuid.UUID, body: ExpenseUpdate, current_use
     await db.commit()
     await db.refresh(expense)
     if expense.category:
-        import asyncio
-        from app.services.finance.budget_alerts import check_budget_alerts
-        asyncio.create_task(check_budget_alerts(current_user.id, expense.category))
+        _spawn_budget_alert(current_user.id, expense.category)
     return expense
 
 
@@ -1405,6 +1436,31 @@ async def delete_account(account_id: uuid.UUID, current_user=Depends(get_current
     account = result.scalar_one_or_none()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
+
+    # Every other child row detaches via ON DELETE SET NULL (migration
+    # f002_account_fk_ondelete). Transfers cannot: both sides are NOT NULL and a
+    # transfer with one end missing is meaningless, so the constraint is
+    # RESTRICT and this is the message the user gets instead of a 500.
+    from sqlalchemy import func as sa_func, or_ as sa_or
+    transfer_count = (await db.execute(
+        select(sa_func.count()).select_from(FinanceTransfer).where(
+            FinanceTransfer.user_id == current_user.id,
+            sa_or(
+                FinanceTransfer.from_account_id == account_id,
+                FinanceTransfer.to_account_id == account_id,
+            ),
+        )
+    )).scalar_one()
+    if transfer_count:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"This account is used by {transfer_count} transfer"
+                f"{'s' if transfer_count != 1 else ''}. Delete or re-point them first — "
+                "a transfer cannot exist with one side missing."
+            ),
+        )
+
     await db.delete(account)
     await db.commit()
     return {"status": "deleted"}
@@ -1577,6 +1633,11 @@ async def delete_category(category_id: uuid.UUID, current_user=Depends(get_curre
         db.add(i)
         moved += 1
 
+    # `finance_pending_transactions.category_id` and `finance_merchant_rules.
+    # category_id` are NOT cleared here on purpose: both are written by the Gmail
+    # ingestion pipeline outside this router, so hand-clearing them would leave
+    # every other writer broken. Migration f002 gives all four category FKs
+    # ON DELETE SET NULL — the constraint owns that, not this handler.
     for c in [c for c in cats if c.parent_id == category.id]:
         await db.delete(c)
     await db.delete(category)

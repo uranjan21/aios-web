@@ -1,15 +1,19 @@
 {
-  "generated": "2026-08-10",
+  "generated": "2026-08-17",
   "counts": {
-    "hardcoded-font-size": 12,
-    "hardcoded-radius": 8,
+    "hardcoded-font-size": 35,
+    "hardcoded-font-weight": 227,
+    "hardcoded-line-height": 45,
+    "rgba-outside-shadow": 91,
+    "hex-alpha-concat": 59,
+    "hardcoded-radius": 1,
     "pill-radius": 0,
-    "hardcoded-hex": 28,
-    "hardcoded-spacing": 81,
-    "rgba-in-shadow": 21,
+    "hardcoded-hex": 22,
+    "hardcoded-spacing": 33,
+    "rgba-in-shadow": 12,
     "hardcoded-font-family": 0,
     "adhoc-breakpoint": 0,
-    "inline-style-static-value": 28,
+    "inline-style-static-value": 21,
     "undefined-css-var": 0
   }
 }

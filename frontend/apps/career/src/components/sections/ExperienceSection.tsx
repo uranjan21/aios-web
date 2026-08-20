@@ -194,7 +194,7 @@ export function ExperienceSection() {
         })),
       },
     ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [all])
 
   if (isLoading) return <SkeletonPage kpis={4} modules={[12]} />

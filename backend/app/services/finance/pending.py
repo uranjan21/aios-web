@@ -40,9 +40,17 @@ async def ledger_duplicate(session, user_id: uuid.UUID, kind: str, logged_at: da
     return row is not None
 
 
+class AccountNotFound(Exception):
+    """A non-None account_id did not resolve to one of the user's accounts."""
+
+
 async def apply_balance(session, account_id, delta, user_id: uuid.UUID) -> None:
-    """Signed balance adjustment; no-op when there's no account or it's not the
-    user's. Cron-safe twin of api.areas.finance._adjust_balance (no HTTP errors)."""
+    """Signed balance adjustment; no-op only when there is no account at all.
+
+    A non-None id that doesn't resolve RAISES. It used to log a warning and
+    return, which meant the caller had already written a ledger row against an
+    account whose balance never moved — a silent inconsistency behind a 200.
+    Cron-safe twin of api.areas.finance._adjust_balance (no HTTP errors)."""
     if account_id is None:
         return
     account = (await session.execute(
@@ -50,7 +58,7 @@ async def apply_balance(session, account_id, delta, user_id: uuid.UUID) -> None:
     )).scalar_one_or_none()
     if not account:
         logger.warning("Pending commit: account %s not found for user %s", account_id, user_id)
-        return
+        raise AccountNotFound(str(account_id))
     account.balance = account.balance + Decimal(str(delta))
     session.add(account)
 
@@ -71,7 +79,11 @@ async def commit_pending_to_ledger(
     account balance. Caller flips pending.status and commits the session."""
     from app.api.areas.finance import _resolve_category  # lazy: avoids circular import
 
-    top_name, cat_id = await _resolve_category(session, category_id, user_id)
+    # strict=False: the auto-commit cron also lands here, and a category that
+    # vanished between ingestion and commit must degrade to "Uncategorized"
+    # rather than raise an HTTPException at nobody. The approve endpoint
+    # validates a client-supplied category_id before calling this.
+    top_name, cat_id = await _resolve_category(session, category_id, user_id, strict=False)
     amount = Decimal(str(amount))
 
     if kind == "expense":
@@ -147,15 +159,23 @@ async def run_auto_commit_pending_transactions(user_id: uuid.UUID) -> None:
                 description = pending.description or (
                     f"Payee: {pending.payee_name}" if pending.payee_name else "Transaction"
                 )
-                await commit_pending_to_ledger(
-                    session, user_id, pending,
-                    amount=pending.amount,
-                    kind=kind,
-                    category_id=pending.category_id,
-                    account_id=pending.account_id,
-                    description=description,
-                    source="upi-tracker-auto",
-                )
+                try:
+                    await commit_pending_to_ledger(
+                        session, user_id, pending,
+                        amount=pending.amount,
+                        kind=kind,
+                        category_id=pending.category_id,
+                        account_id=pending.account_id,
+                        description=description,
+                        source="upi-tracker-auto",
+                    )
+                except AccountNotFound:
+                    # Deferred, not dropped: one unresolvable account must not
+                    # abort the rest of this user's queue.
+                    pending.auto_commit_at = None
+                    session.add(pending)
+                    logger.info("Auto-commit deferred pending %s to review — unknown account", pending.id)
+                    continue
                 pending.status = "approved"
                 # Marked here, not inferred from auto_commit_at later — that
                 # column is a deadline and stays set even when the user beat it.

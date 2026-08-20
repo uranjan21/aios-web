@@ -2,10 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import { useState } from 'react'
-import { Button, Switch, Badge, Select } from '@ledgr/ui'
+import { Button, Switch, Badge, Select, SkeletonTable } from '@ledgr/ui'
 import { Trash2, Zap, Receipt, Plus } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import type { FinanceBill } from '@ct/shared/types'
 import { Table } from '@ct/shared/components/ui/Table'
 import styled from 'styled-components'
@@ -62,20 +61,6 @@ const ActionContainer = styled.div`
       opacity: 1;
     }
   }
-`
-
-const LoadingContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-`
-
-const LoadingHeader = styled(Skeleton)`
-  height: 40px;
-`
-
-const LoadingBody = styled(Skeleton)`
-  height: 200px;
 `
 
 function getDaysUntilDue(dueDay: number): number {
@@ -212,7 +197,8 @@ export function BillsTab({ onAdd }: { onAdd?: () => void } = {}) {
     }
   ]
 
-  if (isLoading) return <LoadingContainer><LoadingHeader /><LoadingBody /></LoadingContainer>;
+  /* This surface IS a table — load into its geometry, not a pair of slabs. */
+  if (isLoading) return <SkeletonTable rows={6} columns={5} />;
 
   return (
     <Table

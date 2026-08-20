@@ -3,6 +3,7 @@ verify the safe defaults: free plan, entitlements inert, paid endpoints 404,
 and per-user isolation of subscription state.
 """
 import pytest
+import pytest_asyncio
 
 
 @pytest.mark.asyncio
@@ -289,3 +290,94 @@ async def test_subscription_is_per_user(client_a, client_b, user_a, db_session_f
     rb = await client_b.get("/api/billing/subscription")
     assert ra.json()["plan"] == "pro"
     assert rb.json()["plan"] == "free"
+
+
+# ── B11: webhook idempotency must be atomic (claim-then-apply) ────────────────
+
+@pytest_asyncio.fixture
+async def idempotency_table(app):
+    """`stripe_event_idempotency` isn't in conftest's table list — create it for
+    these tests only, then drop it so the shared in-memory DB is left as found."""
+    from sqlmodel import SQLModel
+    from tests.conftest import _test_engine
+    from app.models.billing_event import StripeEventIdempotency
+    table = StripeEventIdempotency.__table__
+    async with _test_engine.begin() as conn:
+        await conn.run_sync(lambda c: SQLModel.metadata.create_all(c, tables=[table]))
+    yield
+    async with _test_engine.begin() as conn:
+        await conn.run_sync(lambda c: SQLModel.metadata.drop_all(c, tables=[table]))
+
+
+def _sub_event(event_id: str, customer: str, price_id: str) -> dict:
+    return {
+        "id": event_id,
+        "type": "customer.subscription.updated",
+        "data": {"object": {
+            "customer": customer, "id": "sub_idem", "status": "active",
+            "items": {"data": [{"price": {"id": price_id}}]},
+        }},
+    }
+
+
+@pytest.mark.asyncio
+async def test_claim_event_is_atomic_and_second_delivery_is_a_noop(
+    user_a, db_session_factory, idempotency_table, monkeypatch
+):
+    """Insert-first with ON CONFLICT DO NOTHING: the second concurrent delivery
+    must be told 'duplicate' rather than raising IntegrityError → 500 → Stripe
+    retrying forever."""
+    from app.core.config import get_settings
+    from app.models.billing import Subscription
+    from app.services.billing import service as billing
+    monkeypatch.setattr(get_settings(), "stripe_module_prices", {"finance": "price_fin"})
+    async with db_session_factory() as db:
+        db.add(Subscription(user_id=user_a.id, plan="free", status="active", stripe_customer_id="cus_idem"))
+        await db.commit()
+
+    async with db_session_factory() as db:
+        assert await billing._claim_event(db, "evt_dup") is True
+        assert await billing._claim_event(db, "evt_dup") is False
+
+    # A full second delivery of an already-applied event is a no-op, not a 500.
+    async with db_session_factory() as db:
+        await billing.handle_webhook_event(db, _sub_event("evt_dup", "cus_idem", "price_fin"))
+
+    from sqlmodel import select
+    async with db_session_factory() as db:
+        sub = (await db.execute(select(Subscription).where(Subscription.user_id == user_a.id))).scalar_one()
+        assert sub.modules in (None, [])  # skipped as duplicate — never applied
+
+
+@pytest.mark.asyncio
+async def test_failed_apply_releases_the_claim_so_stripe_can_retry(
+    user_a, db_session_factory, idempotency_table, monkeypatch
+):
+    """The claim is deleted when the apply raises — a past bug marked events seen
+    before success, permanently losing any event that failed."""
+    from app.core.config import get_settings
+    from app.models.billing import Subscription
+    from app.services.billing import service as billing
+    monkeypatch.setattr(get_settings(), "stripe_module_prices", {"finance": "price_fin"})
+    async with db_session_factory() as db:
+        db.add(Subscription(user_id=user_a.id, plan="free", status="active", stripe_customer_id="cus_fail"))
+        await db.commit()
+
+    async def _boom(db, obj):
+        raise RuntimeError("apply failed")
+
+    monkeypatch.setattr(billing, "_apply_subscription_object", _boom)
+    async with db_session_factory() as db:
+        with pytest.raises(RuntimeError):
+            await billing.handle_webhook_event(db, _sub_event("evt_retry", "cus_fail", "price_fin"))
+
+    # Claim released → Stripe's retry gets a fresh claim and this time it applies.
+    monkeypatch.undo()
+    monkeypatch.setattr(get_settings(), "stripe_module_prices", {"finance": "price_fin"})
+    async with db_session_factory() as db:
+        await billing.handle_webhook_event(db, _sub_event("evt_retry", "cus_fail", "price_fin"))
+
+    from sqlmodel import select
+    async with db_session_factory() as db:
+        sub = (await db.execute(select(Subscription).where(Subscription.user_id == user_a.id))).scalar_one()
+        assert set(sub.modules) == {"finance"}

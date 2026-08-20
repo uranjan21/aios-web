@@ -297,8 +297,12 @@ async def seed_finance(s: AsyncSession, uid, cats: dict) -> dict:
     s.add_all(bills)
 
     loans = [
+        # Deliberately late in its term. Net worth = accounts + investments −
+        # loans, and the property itself is not modelled as an asset, so a
+        # freshly-drawn home loan makes the headline KPI negative and red for
+        # reasons that have nothing to do with the demo.
         FinanceLoan(user_id=uid, name="Home loan", loan_type="home", lender="HDFC",
-                    principal_amount=money(4200000), outstanding_amount=money(3315000),
+                    principal_amount=money(4200000), outstanding_amount=money(980000),
                     interest_rate=Decimal("8.45"), emi_amount=money(36800), emi_day=5,
                     tenure_months=240, account_id=salary_ac.id),
         FinanceLoan(user_id=uid, name="Car loan", loan_type="vehicle", lender="ICICI",
@@ -669,7 +673,13 @@ async def seed_career(s: AsyncSession, uid):
         s.add(CareerEvent(user_id=uid, occurred_at=dt_ago(d, 17), event_type=kind, title=title,
                           description="Auto-seeded milestone.", source="seed"))
 
+    # A day-0 entry so the dashboard's "Career streak" tile is non-zero and the
+    # journal opens on something written today rather than a gap.
     journals = [
+        (0, "Seeded the whole dataset",
+         "Filled every domain with realistic data so the app can actually be walked end to end. "
+         "The interesting part was how many surfaces key off *today* specifically — a dataset "
+         "with no rows dated today reads as an empty product."),
         (2, "Shipping beats polishing",
          "Spent the morning on the pre-ship audit. The thing I keep relearning: the bugs that "
          "matter are the ones you can only see by running the real artifact, not by reading it."),
@@ -776,11 +786,14 @@ async def seed_workspace(s: AsyncSession, uid):
     s.add_all(sprints)
     await s.flush()
 
+    # due_offset 0 = due TODAY. The dashboard's "Tasks due today" tile and
+    # "Today's Focus" list read exactly that, so a few must land on today or the
+    # busiest page in the app renders its empty state on a fully seeded account.
     tasks = [
-        ("Point DNS at the VPS", "career", "todo", "high", 1, 0, 0),
-        ("Set SITE_ADDRESS + ALLOWED_ORIGIN to https", "career", "todo", "high", 1, 0, 0),
+        ("Point DNS at the VPS", "career", "todo", "high", 0, 0, 0),
+        ("Set SITE_ADDRESS + ALLOWED_ORIGIN to https", "career", "todo", "high", 0, 0, 0),
         ("Register https OAuth redirect URIs", "career", "todo", "high", 2, 0, 0),
-        ("Verify nightly backup cron on VPS", "career", "in_progress", "medium", 2, 0, 0),
+        ("Verify nightly backup cron on VPS", "career", "in_progress", "medium", 0, 0, 0),
         ("Smoke-test signup → verify → login", "career", "todo", "high", 3, 0, 0),
         ("Write launch post", "career", "todo", "low", 6, 0, 0),
         ("Close CSP follow-ups", "career", "done", "medium", -1, 0, 1),
@@ -789,7 +802,7 @@ async def seed_workspace(s: AsyncSession, uid):
         ("Bank reconciliation matcher", "career", "in_progress", "high", 5, 1, 3),
         ("Invoice PDF export", "career", "todo", "medium", 9, 1, 3),
         ("Multi-firm switcher", "career", "todo", "low", 14, 1, 3),
-        ("Hit 4 gym sessions this week", "health", "in_progress", "medium", 2, 2, None),
+        ("Hit 4 gym sessions this week", "health", "in_progress", "medium", 0, 2, None),
         ("Meal-prep Sunday", "health", "todo", "low", 4, 2, None),
         ("Book blood panel", "health", "todo", "medium", 11, 2, None),
         ("Cancel unused subscriptions", "finance", "todo", "medium", 3, 3, None),

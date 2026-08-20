@@ -1,16 +1,24 @@
 from functools import lru_cache
 from typing import Literal
-import secrets
 
-from pydantic import model_validator, Field, ConfigDict
+from pydantic import model_validator, ConfigDict
 from pydantic_settings import BaseSettings
 
-_INSECURE_DEFAULTS = {"change-me-in-production", "changeme", "secret", "demo1234", ""}
+# The default APP_SECRET_KEY. It MUST be a fixed literal, not a generated one:
+# a `default_factory=secrets.token_urlsafe(32)` produces a fresh 43-char key per
+# *process*, which passes both production guards below while giving every
+# gunicorn worker a different JWT signing key (the Dockerfile runs gunicorn
+# without --preload). Half of all authenticated requests then 401 at random,
+# with nothing in the logs. Fixed literal + membership in _INSECURE_DEFAULTS
+# means an unset var is a hard startup failure in production instead.
+_DEV_SECRET = "dev-only-insecure-secret-do-not-use-in-production"
+
+_INSECURE_DEFAULTS = {"change-me-in-production", "changeme", "secret", "demo1234", "", _DEV_SECRET}
 
 
 class Settings(BaseSettings):
     # App
-    app_secret_key: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
+    app_secret_key: str = _DEV_SECRET
     app_email: str = "demo@aios.dev"
     app_password: str = "demo1234"
     google_login_email: str = ""
@@ -120,7 +128,11 @@ class Settings(BaseSettings):
         if self.environment == "production":
             if self.app_secret_key in _INSECURE_DEFAULTS or len(self.app_secret_key) < 32:
                 raise ValueError(
-                    "APP_SECRET_KEY must be at least 32 chars and not a default value in production"
+                    "APP_SECRET_KEY must be set to a random value of at least 32 chars in "
+                    "production — it is unset or still a default. Every worker signs JWTs "
+                    "with this key, so it must be identical across the fleet and across "
+                    "restarts.\n"
+                    '  Generate one with: python -c "import secrets; print(secrets.token_urlsafe(48))"'
                 )
             if self.app_password in _INSECURE_DEFAULTS:
                 raise ValueError("APP_PASSWORD must not be a default value in production")

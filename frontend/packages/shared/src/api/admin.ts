@@ -30,17 +30,17 @@ export interface UsersResponse {
 
 export const adminApi = {
   stats: () =>
-    api.get<AdminStats>('/api/admin/stats').then(r => r.data),
+    api.get<AdminStats>('/admin/stats').then(r => r.data),
 
   listUsers: (params: { search?: string; limit?: number; offset?: number } = {}) =>
-    api.get<UsersResponse>('/api/admin/users', { params }).then(r => r.data),
+    api.get<UsersResponse>('/admin/users', { params }).then(r => r.data),
 
   overridePlan: (userId: string, plan: string, status = 'active') =>
-    api.patch<AdminUser>(`/api/admin/users/${userId}/plan`, { plan, status }).then(r => r.data),
+    api.patch<AdminUser>(`/admin/users/${userId}/plan`, { plan, status }).then(r => r.data),
 
   toggleAdmin: (userId: string, is_admin: boolean) =>
-    api.patch<AdminUser>(`/api/admin/users/${userId}/admin`, { is_admin }).then(r => r.data),
+    api.patch<AdminUser>(`/admin/users/${userId}/admin`, { is_admin }).then(r => r.data),
 
   deleteUser: (userId: string) =>
-    api.delete(`/api/admin/users/${userId}`).then(r => r.data),
+    api.delete(`/admin/users/${userId}`).then(r => r.data),
 }

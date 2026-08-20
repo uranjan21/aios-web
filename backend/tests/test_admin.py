@@ -131,3 +131,41 @@ async def test_override_plan_with_invalid_plan_is_400(admin_client, user_b):
         json={"plan": "enterprise", "status": "active"},
     )
     assert resp.status_code == 400
+
+
+# ── B8: an override must actually change entitlement ──────────────────────────
+
+@pytest.mark.asyncio
+async def test_override_plan_changes_entitled_modules(
+    admin_client, user_b, db_session_factory, monkeypatch
+):
+    """`modules` is the entitlement source of truth, so a user who has touched the
+    modules UI (non-None `modules`) used to keep their old access after an admin
+    granted them a bigger plan — the override wrote `plan` only."""
+    from types import SimpleNamespace
+    from sqlmodel import select
+    from app.core.config import get_settings
+    from app.core.entitlements import ALL_MODULES, get_entitled_modules
+    from app.models.billing import Subscription
+
+    s = get_settings()
+    monkeypatch.setattr(s, "stripe_secret_key", "sk_test_admin")
+    monkeypatch.setattr(s, "stripe_price_pro", "price_admin")
+    principal = SimpleNamespace(id=user_b.id, is_admin=False)
+
+    async with db_session_factory() as db:
+        db.add(Subscription(user_id=user_b.id, plan="free", status="active", modules=["finance"]))
+        await db.commit()
+    async with db_session_factory() as db:
+        assert await get_entitled_modules(db, principal) == {"finance"}
+
+    resp = await admin_client.patch(
+        f"/api/admin/users/{user_b.id}/plan",
+        json={"plan": "household", "status": "active"},
+    )
+    assert resp.status_code == 200
+
+    async with db_session_factory() as db:
+        sub = (await db.execute(select(Subscription).where(Subscription.user_id == user_b.id))).scalar_one()
+        assert sub.bundle is True
+        assert await get_entitled_modules(db, principal) == set(ALL_MODULES)

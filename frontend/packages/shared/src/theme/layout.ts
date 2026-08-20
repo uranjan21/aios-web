@@ -5,30 +5,18 @@
  * All values are multiples of the 12pt base unit where applicable.
  */
 
-/**
- * 12pt spacing scale for app-level structural spacing (section gaps, page
- * padding, card-to-card distance). Key × 12 = pixel value.
+/*
+ * NOTE: this file deliberately exports NO `spacing` scale.
  *
- * Use this for layout decisions. For component-internal spacing (button
- * padding, form field gaps) use theme.spacing from the DS instead.
+ * It used to export a 12pt one whose keys collided with `@ledgr/ui`'s 4pt
+ * `theme.spacing` — same shape, 3× the value at every step (`spacing[4]` was
+ * 48px here and 16px there). That exact collision already cost this project
+ * once (2026-07-13: a `buildTheme()` spacing override tripled all 121 internal
+ * ledgr-ui usages). Its last importer is gone; it stays gone.
+ *
+ * Structural dimensions belong here as NAMED constants. Anything measured on a
+ * scale comes from `theme.spacing`.
  */
-export const spacing = {
-  0:   '0',
-  px:  '1px',
-  0.5: '6px',
-  1:   '12px',
-  2:   '24px',
-  3:   '36px',
-  4:   '48px',
-  5:   '60px',
-  6:   '72px',
-  8:   '96px',
-  10:  '120px',
-  12:  '144px',
-  16:  '192px',
-  20:  '240px',
-  24:  '288px',
-} as const
 
 /** Left navigation sidebar — expanded and collapsed widths */
 export const SIDEBAR_NAV_WIDTH = '228px'            // 19 × 12pt
@@ -54,14 +42,4 @@ export const PAGE_PADDING = {
   mobile:  '12px',   // 1 × 12pt
   tablet:  '24px',   // 2 × 12pt
   desktop: '36px',   // 3 × 12pt
-} as const
-
-/** Command palette max-width */
-export const COMMAND_PALETTE_WIDTH = '504px'  // 42 × 12pt
-
-/** Assistant drawer default dimensions */
-export const ASSISTANT = {
-  width:      '420px',   // 35 × 12pt
-  minHeight:  '480px',   // 40 × 12pt
-  historyRail: '264px',  // 22 × 12pt — matches SETTINGS_RAIL_WIDTH
 } as const

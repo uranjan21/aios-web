@@ -17,6 +17,7 @@ import { Button, Dialog, Input } from '@ledgr/ui'
 import { Dumbbell, Plus, Trash2 } from 'lucide-react'
 import { healthApi, type WorkoutRoutine, type RoutinePayload } from '@ct/shared/api/areas'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
+import { FieldError, useFieldErrors } from './forms/fieldErrors'
 
 /** 0 = Monday, matching the backend's date.weekday(). */
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -102,6 +103,7 @@ export function RoutineDialog({
   const [notes, setNotes] = useState('')
   const [days, setDays] = useState<number[]>([])
   const [exercises, setExercises] = useState<Draft[]>([{ ...EMPTY_EX }])
+  const f = useFieldErrors<'name' | 'exercises'>('routine')
 
   /* Dialog only fires onOpenChange on CLOSE, so prefill hangs off [open,
      editing] — an onOpenChange(true) branch would never run. */
@@ -124,6 +126,8 @@ export function RoutineDialog({
     } else {
       setName(''); setNotes(''); setDays([]); setExercises([{ ...EMPTY_EX }])
     }
+    f.reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editing])
 
   const invalidate = () => {
@@ -156,9 +160,15 @@ export function RoutineDialog({
   const toggleDay = (d: number) =>
     setDays(prev => (prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort((a, b) => a - b)))
 
+  /*
+   * Both of these were toasts (F2). A toast fires at the bottom-right of the
+   * screen while the offending field sits unmarked in the dialog — the user is
+   * told the save failed and left to work out which of six inputs caused it.
+   * Server failure stays a toast, in `save.onError`, because it belongs to no
+   * field.
+   */
   const submit = () => {
     const trimmed = name.trim()
-    if (!trimmed) { toast.error('Give the routine a name'); return }
     const cleaned = exercises
       .map(e => ({
         exercise: e.exercise.trim(),
@@ -167,7 +177,13 @@ export function RoutineDialog({
         target_weight_kg: e.target_weight_kg ? Number(e.target_weight_kg) : null,
       }))
       .filter(e => e.exercise)
-    if (!cleaned.length) { toast.error('Add at least one exercise'); return }
+
+    const ok = f.submit({
+      name: trimmed ? undefined : 'Give the routine a name.',
+      exercises: cleaned.length ? undefined : 'Name at least one exercise.',
+    })
+    if (!ok) return
+
     save.mutate({ name: trimmed, notes: notes.trim() || null, is_active: true, days, exercises: cleaned })
   }
 
@@ -184,7 +200,14 @@ export function RoutineDialog({
       <Form onSubmit={e => { e.preventDefault(); submit() }}>
         <div>
           <Label>Name</Label>
-          <Input value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Push Day" autoFocus required />
+          <Input
+            value={name}
+            onChange={(e: any) => { f.clearField('name'); setName(e.target.value) }}
+            placeholder="Push Day"
+            autoFocus
+            {...f.fieldProps('name')}
+          />
+          <FieldError id={f.errorId('name')}>{f.errors.name}</FieldError>
         </div>
 
         <div>
@@ -213,9 +236,16 @@ export function RoutineDialog({
             <ExerciseRow key={i} style={{ marginBottom: 8 }}>
               <Input
                 value={ex.exercise}
-                onChange={(e: any) => setExercises(list => list.map((x, j) => j === i ? { ...x, exercise: e.target.value } : x))}
+                onChange={(e: any) => {
+                  f.clearField('exercises')
+                  setExercises(list => list.map((x, j) => j === i ? { ...x, exercise: e.target.value } : x))
+                }}
                 placeholder="Bench Press"
                 aria-label={`Exercise ${i + 1}`}
+                /* The requirement is "at least one named exercise", so the
+                   message sits under the group; only the first row carries the
+                   invalid mark and the description that points at it. */
+                {...(i === 0 ? f.fieldProps('exercises') : {})}
               />
               <Input
                 type="number" min="0" step="1" value={ex.target_sets}
@@ -241,6 +271,7 @@ export function RoutineDialog({
               </Button>
             </ExerciseRow>
           ))}
+          <FieldError id={f.errorId('exercises')}>{f.errors.exercises}</FieldError>
           <Button type="button" variant="ghost" size="sm" onClick={() => setExercises(l => [...l, { ...EMPTY_EX }])}>
             <Plus size={14} style={{ marginRight: 4 }} /> Add exercise
           </Button>

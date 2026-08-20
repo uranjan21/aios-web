@@ -29,6 +29,7 @@
 
 import type { ReactNode, CSSProperties } from 'react'
 import styled from 'styled-components'
+import { focusRing } from '../../theme/mixins'
 
 // ── Shell ─────────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ const Shell = styled.div<{ $fullWidth: boolean }>`
   border: 1px solid ${({ theme }) => theme.color.border};
   padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[3]}`};
   border-radius: ${({ theme }) => theme.radii.md};
-  box-shadow: ${({ theme }) => theme.shadow.xs};
+  box-shadow: ${({ theme }) => theme.elevation[1]};
   margin-bottom: 0;
   min-height: 44px;
   overflow-x: auto;
@@ -101,7 +102,13 @@ export const ToolbarMeta = styled.span`
   white-space: nowrap;
 `
 
-/** Icon button slot — white bg, thin border. Height matches Button size="sm" (32px). */
+/**
+ * Toolbar action slot — card bg, thin border, 32px tall.
+ *
+ * @deprecated for icon-only use. It is width-auto and carries a label, so it is
+ * a small toolbar *button*, not an icon button. Reach for `IconButton size="sm"`
+ * when there is no text; this stays only for the labelled call sites.
+ */
 export const ToolbarIconBtn = styled.button`
   display: flex;
   align-items: center;
@@ -118,13 +125,10 @@ export const ToolbarIconBtn = styled.button`
   cursor: pointer;
   white-space: nowrap;
   transition: all 120ms;
+  ${focusRing}
   &:hover {
     background: ${({ theme }) => theme.color.muted};
     color: ${({ theme }) => theme.color.foreground};
-  }
-  &:focus-visible {
-    outline: 2px solid ${({ theme }) => theme.color.ring};
-    outline-offset: 2px;
   }
   &[aria-pressed="true"], &[data-active="true"] {
     background: ${({ theme }) => `${theme.color.primary}10`};
@@ -141,6 +145,10 @@ export const DateNav = styled.div`
   flex-shrink: 0;
 `
 
+/**
+ * @deprecated use `IconButton size="sm" variant="ghost"` — same 32px geometry,
+ * with the `aria-label` this one lets call sites forget.
+ */
 export const DateNavBtn = styled.button`
   display: flex;
   align-items: center;
@@ -154,7 +162,7 @@ export const DateNavBtn = styled.button`
   cursor: pointer;
   transition: background 120ms, color 120ms;
   &:hover { background: ${({ theme }) => theme.color.muted}; color: ${({ theme }) => theme.color.foreground}; }
-  &:focus-visible { outline: 2px solid ${({ theme }) => theme.color.ring}; outline-offset: 2px; }
+  ${focusRing}
 `
 
 export const DateNavLabel = styled.span`

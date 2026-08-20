@@ -23,12 +23,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import styled from 'styled-components'
 import dayjs from 'dayjs'
-import { Button, Card, Dialog, EmptyState, Input, SegmentedControl, Select } from '@ledgr/ui'
+import {
+  Button, Card, Dialog, EmptyState, ErrorState, Input, SegmentedControl, Select, SkeletonPage,
+} from '@ledgr/ui'
 import { ArrowLeftRight, Gem, PieChart, TrendingUp, Trash2 } from 'lucide-react'
 import { financeApi, type InvestmentTransaction } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { formatCurrency } from '@ct/shared/lib/utils'
 import type { FinanceInvestment } from '@ct/shared/types'
 import { InvestmentTxnDialog } from './InvestmentTxnDialog'
@@ -106,27 +107,43 @@ export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void } = {})
   const [txnOpen, setTxnOpen] = useState(false)
   const [viewingFlow, setViewingFlow] = useState<InvestmentTransaction | null>(null)
 
-  const { data: holdings, isLoading } = useQuery({
+  /* Handled in place below rather than thrown to the route (F1) — see App.tsx.
+     A failed holdings or summary request must not render as a ₹0 portfolio. */
+  const q = { meta: { inlineError: true } } as const
+
+  const holdingsQ = useQuery({
     queryKey: ['finance', 'investments'],
     queryFn: financeApi.investments,
+    ...q,
   })
 
-  const { data: summary } = useQuery({
+  const summaryQ = useQuery({
     queryKey: ['finance', 'investments', 'summary'],
     queryFn: financeApi.investmentsSummary,
+    ...q,
   })
 
-  const { data: perf } = useQuery({
+  const perfQ = useQuery({
     queryKey: ['finance', 'investments', 'performance', rangeDays],
     queryFn: () => financeApi.investmentsPerformance(rangeDays),
     staleTime: 60_000,
+    ...q,
   })
 
-  const { data: cashflows } = useQuery({
+  const cashflowsQ = useQuery({
     queryKey: ['finance', 'investments', 'transactions'],
     queryFn: () => financeApi.investmentTransactions({ limit: 25 }),
     staleTime: 60_000,
+    ...q,
   })
+
+  const panels = [holdingsQ, summaryQ, perfQ, cashflowsQ]
+  const holdings = holdingsQ.data
+  const summary = summaryQ.data
+  const perf = perfQ.data
+  const cashflows = cashflowsQ.data
+  const isLoading = panels.some((p) => p.isLoading)
+  const isError = panels.some((p) => p.isError)
 
   /* A cashflow write moves the parent holding's book value server-side, so the
    * holdings list and both derived summaries have to go with it. */
@@ -427,10 +444,20 @@ export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void } = {})
         onRowClick: (i: number) => setViewingFlow(flows[i]),
       },
     ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [all, visible, summary, typeFilter, onAddClick, perf, cashflows, rangeDays])
 
-  if (isLoading) return <Skeleton style={{ height: 320 }} />
+  if (isError) {
+    return (
+      <ErrorState
+        title="We couldn't load your portfolio"
+        description="Nothing has been lost — a request for your holdings or their performance failed."
+        onRetry={() => { panels.forEach((p) => { void p.refetch() }) }}
+      />
+    )
+  }
+
+  if (isLoading) return <SkeletonPage kpis={4} modules={[7, 5, 12, 12]} />
 
   return (
     <Root>

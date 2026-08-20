@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlmodel import select, desc
+from sqlmodel import select, desc, func
 
 from app.core.deps import get_current_user, get_db
 from app.models.career import CareerEvent, SkillInventory, JobOpportunity, CareerJournalEntry
@@ -321,9 +321,17 @@ async def journal_stats(current_user=Depends(get_current_user), db=Depends(get_d
     today = date.today()
     month_start = today.replace(day=1)
 
+    # Total is a COUNT, not a page — the rest of this only needs entries recent
+    # enough to break a streak or fall in this month, so a year bounds it.
+    total_entries = (await db.execute(
+        select(func.count()).select_from(CareerJournalEntry)
+        .where(CareerJournalEntry.user_id == current_user.id)
+    )).scalar_one()
+
     result = await db.execute(
         select(CareerJournalEntry)
         .where(CareerJournalEntry.user_id == current_user.id)
+        .where(CareerJournalEntry.entry_date >= today - timedelta(days=365))
         .order_by(desc(CareerJournalEntry.entry_date))
     )
     entries = result.scalars().all()
@@ -349,7 +357,7 @@ async def journal_stats(current_user=Depends(get_current_user), db=Depends(get_d
                 theme_counts[tag] = theme_counts.get(tag, 0) + 1
 
     return {
-        "total_entries": len(entries),
+        "total_entries": total_entries,
         "entries_this_month": len(this_month),
         "words_this_month": sum(e.word_count for e in this_month),
         "streak_days": streak,

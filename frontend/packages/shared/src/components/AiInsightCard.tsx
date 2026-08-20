@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Button } from '@ledgr/ui'
+import { Button, Skeleton } from '@ledgr/ui'
 import { toast } from 'sonner'
 import { Sparkles, RefreshCw } from 'lucide-react'
 import { aiApi } from '@ct/shared/api/areas'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 import { Card as GlassCard } from '@ledgr/ui';
 import { UpgradeWall, is402 } from '@ct/shared/components/UpgradeWall'
 import styled from 'styled-components'
@@ -33,20 +32,6 @@ const HintText = styled.p`
   margin: 0;
 `
 
-const SkelInsightLine1 = styled(Skeleton)`
-  height: 0.875rem;
-  width: 100%;
-`
-
-const SkelInsightLine2 = styled(Skeleton)`
-  height: 0.875rem;
-  width: 83.333333%;
-`
-
-const SkelInsightLine3 = styled(Skeleton)`
-  height: 0.875rem;
-  width: 66.666667%;
-`
 
 /** "Explain this month/week" — one-click LLM insight card for an area page. */
 export function AiInsightCard({ area, title, className }: { area: 'finance' | 'health'; title?: string; className?: string }) {
@@ -81,9 +66,9 @@ export function AiInsightCard({ area, title, className }: { area: 'finance' | 'h
         <UpgradeWall feature="AI area analysis" />
       ) : isPending ? (
         <SkeletonStack>
-          <SkelInsightLine1 />
-          <SkelInsightLine2 />
-          <SkelInsightLine3 />
+          <Skeleton height="0.875rem" width="100%" />
+          <Skeleton height="0.875rem" width="83%" />
+          <Skeleton height="0.875rem" width="67%" />
         </SkeletonStack>
       ) : data ? (
         <ResultText>{data.text}</ResultText>

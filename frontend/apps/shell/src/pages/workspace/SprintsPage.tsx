@@ -208,7 +208,7 @@ export function SprintsSection({
       { t: s.status || 'planned', tag: true, colorKey: STATUS_KEY[s.status || 'planned'] ?? 'info' },
     ]),
     onRowClick: (i: number) => openEdit(rows[i]),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }], [rows, projects, domainFilter, statusFilter, filterNode])
 
   return (

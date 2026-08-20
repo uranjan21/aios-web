@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlmodel import select, func
 
 from app.core.deps import get_db, require_admin
+from app.core.entitlements import ALL_MODULES, _modules_for
 from app.core.rate_limit import limiter
 from app.models.user import User
 from app.models.billing import Subscription
@@ -108,14 +109,27 @@ async def override_plan(
     if not user:
         raise HTTPException(404, "User not found")
 
+    # `modules`/`bundle` are the entitlement source of truth (`modules_for_subscription`
+    # only falls back to `plan` when `modules is None`, and `set_modules` writes
+    # `modules` as soon as the user touches the modules UI). Writing `plan` alone made
+    # this override a no-op for those users, so derive the module set from the granted
+    # plan using the canonical mapping in core/entitlements.
+    granted_modules = sorted(_modules_for(body.plan, body.addons, body.status))
+    granted_bundle = set(granted_modules) == set(ALL_MODULES)
+
     sub = (await db.execute(select(Subscription).where(Subscription.user_id == user_id))).scalar_one_or_none()
     if sub is None:
-        sub = Subscription(user_id=user_id, plan=body.plan, status=body.status, addons=body.addons)
+        sub = Subscription(
+            user_id=user_id, plan=body.plan, status=body.status, addons=body.addons,
+            modules=granted_modules, bundle=granted_bundle,
+        )
         db.add(sub)
     else:
         sub.plan = body.plan
         sub.status = body.status
         sub.addons = body.addons
+        sub.modules = granted_modules
+        sub.bundle = granted_bundle
         sub.updated_at = datetime.utcnow()
         db.add(sub)
 
@@ -123,7 +137,7 @@ async def override_plan(
         admin_id=current_admin.id,
         action="override_plan",
         target_user_id=user_id,
-        details=json.dumps({"plan": body.plan, "status": body.status})
+        details=json.dumps({"plan": body.plan, "status": body.status, "modules": granted_modules})
     )
     db.add(audit)
 

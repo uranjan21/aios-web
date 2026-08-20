@@ -17,7 +17,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Activity, BookOpen, Briefcase } from 'lucide-react'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
-import { KpiCard, KpiGrid } from '@ledgr/ui'
+import { ErrorState, KpiCard, KpiGrid, SkeletonKpiRow } from '@ledgr/ui'
 import { useAreaSection } from '@ct/shared/hooks/useAreaSection'
 import { JournalSection } from '@ct/career/components/JournalSection'
 import { OpportunitiesSection } from '@ct/career/components/sections/OpportunitiesSection'
@@ -32,11 +32,26 @@ export function CareerPage() {
   // so /app/career resolves to it.
   const section = useAreaSection('/app/career', 'journal')
 
-  const { data: skills } = useQuery({ queryKey: ['career', 'skills'], queryFn: careerApi.skills })
-  const { data: opportunities } = useQuery({
+  /*
+   * Handled in place below rather than thrown to the route (F1) — see App.tsx.
+   * These two drive the KPI strip, so a failed request used to render "0 active
+   * pipeline / 0 in play": a confident, wrong answer about someone's job search.
+   */
+  const skillsQ = useQuery({
+    queryKey: ['career', 'skills'],
+    queryFn: careerApi.skills,
+    meta: { inlineError: true },
+  })
+  const opportunitiesQ = useQuery({
     queryKey: ['career', 'opportunities'],
     queryFn: careerApi.opportunities,
+    meta: { inlineError: true },
   })
+
+  const skills = skillsQ.data
+  const opportunities = opportunitiesQ.data
+  const kpisFailed = skillsQ.isError || opportunitiesQ.isError
+  const kpisLoading = skillsQ.isLoading || opportunitiesQ.isLoading
 
   const activeOpps = opportunities?.filter(o => !['rejected', 'closed'].includes(o.status)) ?? []
   const inPlay = opportunities?.filter(o => ['interview', 'offer'].includes(o.status)).length ?? 0
@@ -65,16 +80,29 @@ export function CareerPage() {
           <ExperienceSection />
         ) : (
         <>
-        <KpiGrid>
-          <KpiCard label="Active pipeline" value={String(activeOpps.length)} color="primary" icon={Briefcase} />
-          <KpiCard
-            label="In play"
-            value={String(inPlay)}
-            color={inPlay > 0 ? 'emerald' : undefined}
-            icon={Activity}
+        {/* The KPI strip alone reports the failure — OpportunitiesSection owns
+            its own request and stays mounted, so one dead endpoint does not
+            take the pipeline down with it. */}
+        {kpisFailed ? (
+          <ErrorState
+            title="We couldn't load your pipeline summary"
+            description="Nothing has been lost — the request behind these figures failed."
+            onRetry={() => { void skillsQ.refetch(); void opportunitiesQ.refetch() }}
           />
-          <KpiCard label="Skills tracked" value={String(skills?.length ?? 0)} icon={BookOpen} />
-        </KpiGrid>
+        ) : kpisLoading ? (
+          <SkeletonKpiRow count={3} />
+        ) : (
+          <KpiGrid>
+            <KpiCard label="Active pipeline" value={String(activeOpps.length)} color="primary" icon={Briefcase} />
+            <KpiCard
+              label="In play"
+              value={String(inPlay)}
+              color={inPlay > 0 ? 'emerald' : undefined}
+              icon={Activity}
+            />
+            <KpiCard label="Skills tracked" value={String(skills?.length ?? 0)} icon={BookOpen} />
+          </KpiGrid>
+        )}
 
         <OpportunitiesSection />
         </>

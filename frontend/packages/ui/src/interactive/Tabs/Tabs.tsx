@@ -135,7 +135,7 @@ const triggerStyles = {
     border-radius: ${({ theme }) => theme.radii.md};
     color: ${({ $selected, theme }) => ($selected ? theme.color.foreground : theme.color.mutedForeground)};
     background: ${({ $selected, theme }) => ($selected ? theme.color.card : 'transparent')};
-    box-shadow: ${({ $selected, theme }) => ($selected ? theme.shadow.xs : 'none')};
+    box-shadow: ${({ $selected, theme }) => ($selected ? theme.elevation[1] : 'none')};
     font-weight: ${({ theme }) => theme.typography.fontWeight.medium};
     font-size: ${({ theme }) => theme.typography.fontSize.base};
     &:hover:not(:disabled) {

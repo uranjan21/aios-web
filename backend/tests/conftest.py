@@ -158,6 +158,7 @@ def _isolation_tables():
     from app.models.agent import Agent
     from app.models.push import PushSubscription
     from app.models.billing import Subscription, AIUsageRecord, FailedWebhook
+    from app.models.billing_event import StripeEventIdempotency
     from app.models.action import AgentAction
     from app.models.forecast import Forecast
     from app.models.automations import AutomationRule
@@ -177,7 +178,7 @@ def _isolation_tables():
     return [m.__table__ for m in (
         OAuthState,
         User, ChatSession, ChatMessage, Capture, IntegrationCredential, Agent, PushSubscription, Subscription, AIUsageRecord,
-        FailedWebhook, AgentAction, Forecast, AutomationRule, AdminAuditLog,
+        FailedWebhook, StripeEventIdempotency, AgentAction, Forecast, AutomationRule, AdminAuditLog,
         Project, Sprint, Task, Milestone, PlanBlock, MacroGoal, GoalProgress, ContentItem, ContentCampaign,
         HealthLog, HealthGoal, Habit, HabitCheck, WorkoutSession, WorkoutSet, FoodItem,
         WorkoutRoutine, RoutineExercise, RoutineDay,

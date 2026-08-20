@@ -255,9 +255,23 @@ ls -lh /opt/control-tower/backups /var/backups/control-tower 2>/dev/null
 ```
 
 ⚠️ Both locations are **on the same disk as the database**, which makes them a
-restore point for a bad migration or a bad `DELETE`, not a real backup. Copy
-them off the box (`scp`, object storage) on your own schedule — losing the VPS
-loses both copies.
+restore point for a bad migration or a bad `DELETE`, not a real backup — losing
+the VPS loses both copies. Set `BACKUP_REMOTE` in `.env.prod` and every verified
+dump is pushed off-box automatically:
+
+```bash
+curl https://rclone.org/install.sh | sudo bash
+rclone config                                       # add an s3/b2/drive remote
+echo 'BACKUP_REMOTE=s3:my-bucket/control-tower' >> /opt/control-tower/.env.prod
+```
+
+`deploy.sh` bakes `BACKUP_REMOTE` into the cron line it installs (cron runs with
+a near-empty environment, so it has to be explicit) — re-run a deploy after
+setting it, or edit the existing line with `crontab -e`. Either `rclone` or the
+`aws` CLI works; with neither installed the script warns and keeps the local
+dump. Uploads are best-effort and never fail a deploy. Verify with
+`rclone ls s3:my-bucket/control-tower`, and do one timed restore drill
+(`docs/PRODUCTION_RUNBOOK.md` §0) — an untested backup is a guess.
 
 Restore:
 

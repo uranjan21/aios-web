@@ -115,7 +115,11 @@ ensure_backup_cron() {
     return 0
   fi
   local dir; dir="$(resolve_backup_dir)"
-  local line="30 2 * * * APP_DIR=${APP_DIR} BACKUP_DIR=${dir} ${script} >> ${dir}/backup.log 2>&1 # ${marker}"
+  # BACKUP_REMOTE must be carried into the cron line explicitly — cron runs with
+  # a near-empty environment, so a remote set only in the deploy shell would
+  # silently never apply to the nightly dumps.
+  local remote="${BACKUP_REMOTE:-}"
+  local line="30 2 * * * APP_DIR=${APP_DIR} BACKUP_DIR=${dir} BACKUP_REMOTE=${remote} ${script} >> ${dir}/backup.log 2>&1 # ${marker}"
   if { crontab -l 2>/dev/null; echo "$line"; } | crontab - 2>/dev/null; then
     echo "==> installed nightly backup cron (02:30 → ${dir})"
   else

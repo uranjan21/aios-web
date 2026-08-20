@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import type { ButtonHTMLAttributes, ElementType, ReactNode } from 'react';
 import styled, { css } from 'styled-components';
-import { focusRing } from '../../utils/focusRing';
+import { focusRing } from '../../theme/mixins';
 
 export type ButtonVariant =
   | 'primary'

@@ -4,6 +4,67 @@
 
 ---
 
+## 0. Before you take real users
+
+Four items. Until all four are done you cannot detect an incident and cannot
+recover from one. None takes more than 15 minutes.
+
+**1 · Error tracking.** Free tier at sentry.io → Project → Client Keys.
+
+```bash
+# On the VPS, in /opt/control-tower/.env.prod
+SENTRY_DSN=https://<key>@o123456.ingest.sentry.io/456
+CSP_CONNECT_EXTRA=https://o123456.ingest.sentry.io   # or the browser blocks FE reports
+docker compose -f docker-compose.prod.yml up -d backend web   # `restart` does NOT re-read env_file
+```
+
+Frontend is **build-time**: add `VITE_SENTRY_DSN` as a GitHub repo secret
+(Settings → Secrets → Actions), then re-run the deploy workflow. Verify both
+arrive by forcing one error and checking the Sentry issue stream.
+
+**2 · Uptime monitor.** Nothing currently watches `/health`. Point a free
+external check (UptimeRobot / BetterStack / Healthchecks.io) at
+`https://<SITE_ADDRESS>/health`, 1–5 min interval, alerting to email **and** SMS.
+Alert on non-200 **and** on the body containing `"db": false` — the endpoint
+returns `degraded` when Postgres is unreachable while the process is alive.
+
+```bash
+curl -sf https://<SITE_ADDRESS>/health | jq .
+# {"status":"ok","service":"control-tower","db":true,"watcher":false}
+```
+
+**3 · Off-box backups.** `BACKUP_REMOTE` unset ⇒ dumps sit on the database's own
+disk and losing the VPS loses the data permanently.
+
+```bash
+curl https://rclone.org/install.sh | sudo bash
+rclone config                                    # add an s3/b2/drive remote
+echo 'BACKUP_REMOTE=s3:my-bucket/control-tower' >> /opt/control-tower/.env.prod
+BACKUP_REMOTE=s3:my-bucket/control-tower APP_DIR=/opt/control-tower \
+  /opt/control-tower/deploy/backup-db.sh        # run once by hand
+rclone ls s3:my-bucket/control-tower             # prove the object landed
+```
+
+`deploy.sh` reinstalls the nightly cron with `BACKUP_REMOTE` baked into the line,
+so re-run a deploy (or `crontab -e`) after setting it.
+
+**4 · One restore drill.** An untested backup is a guess. Restore a real dump
+into a throwaway container and record the wall-clock time — that number is your
+RTO. Do it once now, not during the incident.
+
+```bash
+docker run -d --name restore-drill -e POSTGRES_PASSWORD=x pgvector/pgvector:pg15
+sleep 10
+time (gzip -dc /var/backups/control-tower/control_tower-<stamp>.sql.gz \
+      | docker exec -i restore-drill psql -U postgres postgres)
+docker exec restore-drill psql -U postgres postgres -c '\dt' | wc -l   # expect ~77 tables
+docker rm -f restore-drill
+```
+
+Write the measured RTO and the dump size here: `RTO = ____ · size = ____`.
+
+---
+
 ## 1. Required environment variables
 
 Set these in `.env.prod` before first deploy. Missing any will cause the backend to refuse to start.
@@ -11,10 +72,12 @@ Set these in `.env.prod` before first deploy. Missing any will cause the backend
 | Variable | Notes |
 |---|---|
 | `ENVIRONMENT` | Must be `production` |
-| `APP_SECRET_KEY` | Min 32 chars, random. `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
+| `APP_SECRET_KEY` | Min 32 chars, random. `python -c "import secrets; print(secrets.token_urlsafe(48))"`. **One value for the whole fleet** — every worker signs JWTs with it, so a per-worker value 401s roughly half of all requests. Production refuses to boot if it is unset. |
 | `APP_PASSWORD` | Not a default value. Used only for the legacy env-credential login (dev-only anyway). |
-| `DATABASE_URL` | `postgresql+asyncpg://user:pass@db:5432/control_tower` |
-| `REDIS_URL` | `redis://redis:6379/0`. Required for distributed rate limiting. |
+| `DATABASE_URL` | Required by the backend, but **injected by `docker-compose.prod.yml` `environment:`** from `DB_USER`/`DB_PASSWORD`/`DB_NAME`. Do not set it in `.env.prod` — compose's `environment:` outranks `env_file`, so it would be ignored. |
+| `REDIS_URL` | Same — injected by compose as `redis://redis:6379/0`. Required for distributed rate limiting; production refuses to boot without it. |
+| `BACKUP_REMOTE` | rclone remote or `s3://` URL. Unset means dumps never leave the DB's own disk. |
+| `SENTRY_DSN` | Unset means production errors are invisible. See §0. |
 | `RESEND_API_KEY` | For transactional email (verification). Get at resend.com. |
 | `ALLOWED_ORIGIN` | Your deployed frontend URL, no trailing slash. No `localhost`. |
 | `VAULT_SYNC_ENABLED` | `false` for public multi-tenant SaaS. |
@@ -115,15 +178,42 @@ gunzip -c control_tower_20260714_000000.sql.gz | \
 ## 6. Redis failover
 
 Redis is used for:
-- WebSocket chat rate limiting (per-user sliding window)
-- APScheduler leader election (advisory lock via `pg_try_advisory_lock` — actually DB-backed, Redis not used here)
+- HTTP rate limiting (slowapi, shared counters across workers — `app/core/rate_limit.py`)
+- WebSocket chat rate limiting (per-user sliding window — `app/api/chat.py`)
+- Pending chat tool-call confirmations (300s TTL keys)
+- **Not** APScheduler leader election — that is a Postgres `pg_try_advisory_lock`.
 
-If Redis goes down:
-- The backend logs a warning and **allows** all WS messages (fail-open rate limiting).
-- Per-connection deque fallback activates automatically.
-- No data loss — Redis holds no persistent state.
+### What actually happens when Redis goes down
 
-**Recovery:** restart the Redis container. The backend reconnects automatically on the next request.
+Two different paths, and they behave differently. Know which one you are looking at.
+
+| Path | Behaviour |
+|---|---|
+| **HTTP endpoints** (`app/core/rate_limit.py`) | The limiter is built with `in_memory_fallback_enabled=True`, so it **degrades to per-process counters** and requests keep serving. Limits become per-worker, i.e. effectively `WEB_CONCURRENCY ×` more permissive. |
+| **WebSocket chat** (`app/api/chat.py`) | Redis calls are wrapped in `try/except` — **fail-open**, all messages allowed, per-connection deque fallback. |
+| **Pending tool confirmations** | Fall back to a per-connection dict; a confirmation will not survive a WS reconnect. |
+
+No data loss either way — Redis holds no durable state.
+
+> ⚠️ **This section previously documented fail-open for everything.** That was
+> only ever true of the WebSocket path. Before the 2026-08-16 fix the HTTP
+> limiter ran on slowapi's defaults (`swallow_errors=False`, no fallback), so a
+> Redis outage **500'd every rate-limited endpoint** — and `/health` was itself
+> rate-limited, so `deploy.sh wait_healthy()` failed and the next deploy rolled
+> back blaming the new image. `/health` is no longer rate-limited, for exactly
+> that reason: it must report on the app, not on the rate limiter.
+
+**Triage:** if HTTP endpoints are 500ing, Redis is *not* the cause — look at
+Postgres and the app logs. Rate-limit counters resetting or users reporting
+looser limits than configured is the real Redis-down signature.
+
+```bash
+docker compose -f docker-compose.prod.yml exec redis redis-cli ping   # expect PONG
+docker compose -f docker-compose.prod.yml logs redis --tail=50
+```
+
+**Recovery:** restart the Redis container. The limiter reconnects on its own and
+resumes using shared storage; no backend restart needed.
 
 ---
 

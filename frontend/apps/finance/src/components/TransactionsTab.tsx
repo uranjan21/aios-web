@@ -7,7 +7,7 @@ import {
   SegmentedControl, Button, Dialog, Input, ConfirmDialog, Checkbox,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
   Card as GlassCard, AreaToolbar, ToolbarIconBtn, DateNav, DateNavBtn, DateNavLabel,
-  SkeletonKpiRow, SkeletonTable,
+  SkeletonKpiRow, SkeletonList, SkeletonTable,
 } from '@ledgr/ui'
 import { toast } from 'sonner'
 import {
@@ -26,7 +26,7 @@ import { BulkCategorizeDialog, BulkTagDialog } from './transactions/BulkDialogs'
 import { FilterModal } from './transactions/FilterModal'
 import { TransactionModal } from './transactions/TransactionModal'
 import {
-  StyledSkeleton, DesktopSearch, MobileSearchBtn, CardActions,
+  TxnLoadingBody, DesktopSearch, MobileSearchBtn, CardActions,
   ListHeaderRoot, ListHeaderLabel, ListHeaderSpacer, BulkBtnRow, SortBtn, PageStack,
 } from './transactions/TransactionsTab.styles'
 
@@ -535,7 +535,7 @@ export function TransactionsTab() {
               </TxnHeaderRoot>
             )}
             {showLoadingBody ? (
-              <StyledSkeleton $height="16rem" $margin="12px 0 0 0" />
+              <TxnLoadingBody><SkeletonList rows={6} /></TxnLoadingBody>
             ) : (
               <TxnListBody
                 txns={bodyTxns}

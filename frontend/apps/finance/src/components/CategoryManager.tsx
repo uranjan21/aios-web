@@ -1,12 +1,11 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, Dialog, Select, Input, Card } from '@ledgr/ui'
+import { Button, Dialog, Select, Input, Card, SkeletonList } from '@ledgr/ui'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import { Trash2, Edit, Plus, PlusCircle, ChevronRight, ChevronDown, Tags } from 'lucide-react'
 import { toast } from 'sonner'
 import styled from 'styled-components'
 import { financeApi } from '@ct/shared/api/areas'
-import { Skeleton } from '@ct/shared/components/ui/skeleton'
 
 // ── Styled ────────────────────────────────────────────────────────────────────
 
@@ -290,12 +289,9 @@ export const CategoryManager: React.FC = () => {
     >
       {isLoading ? (
         <TreeContainer>
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', gap: '8px' }}>
-              <Skeleton style={{ height: 16, width: 16, borderRadius: '50%' }} />
-              <Skeleton style={{ height: 16, width: '40%' }} />
-            </div>
-          ))}
+          {/* A category row is a colour dot plus a name — SkeletonList with no
+              trailing value draws exactly that. */}
+          <SkeletonList rows={4} trailing={false} />
         </TreeContainer>
       ) : topLevelCategories.length === 0 ? (
         <div style={{ padding: '24px 0', textAlign: 'center', fontSize: 13, color: 'var(--muted-foreground)' }}>

@@ -59,6 +59,27 @@ def test_production_refuses_weak_secret_key(secret):
         _settings(app_secret_key=secret)
 
 
+def test_production_refuses_unset_secret_key(monkeypatch):
+    """The default must be a fixed literal that this guard catches, not a
+    per-process random value. A generated default is >32 chars and not in
+    `_INSECURE_DEFAULTS`, so it passes both checks — and then each gunicorn
+    worker signs JWTs with a different key (no --preload), 401ing roughly half
+    of all authenticated requests with nothing in the logs."""
+    monkeypatch.delenv("APP_SECRET_KEY", raising=False)
+    unset = {k: v for k, v in GOOD.items() if k != "app_secret_key"}
+    with pytest.raises(ValueError, match="APP_SECRET_KEY"):
+        Settings(**unset, _env_file=None)
+
+
+def test_default_secret_key_is_stable_across_instances(monkeypatch):
+    """Two Settings built the same way must agree on the signing key — a
+    `default_factory` would give them different ones, which is what B1 was."""
+    monkeypatch.delenv("APP_SECRET_KEY", raising=False)
+    a = Settings(environment="development", _env_file=None)
+    b = Settings(environment="development", _env_file=None)
+    assert a.app_secret_key == b.app_secret_key
+
+
 def test_production_refuses_default_app_password():
     with pytest.raises(ValueError, match="APP_PASSWORD"):
         _settings(app_password="demo1234")

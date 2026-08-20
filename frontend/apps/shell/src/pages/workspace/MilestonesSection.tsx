@@ -230,7 +230,7 @@ export function MilestonesSection({
         })),
       })),
     ]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [data, filterNode])
 
   if (isLoading) return <SkeletonPage kpis={4} modules={[12]} />

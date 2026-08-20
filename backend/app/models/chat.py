@@ -2,7 +2,8 @@ import uuid
 from datetime import date, datetime, timezone
 from typing import Optional, Any
 from sqlmodel import SQLModel, Field, Column
-from sqlalchemy import Text, JSON
+from sqlalchemy import Text, JSON, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 
 class ChatSession(SQLModel, table=True):
@@ -24,7 +25,9 @@ class ChatMessage(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
-    session_id: uuid.UUID = Field(foreign_key="chat_sessions.id", nullable=False)
+    session_id: uuid.UUID = Field(
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("chat_sessions.id", ondelete="CASCADE"), nullable=False)
+    )
     role: str = Field(nullable=False)
     content: str = Field(sa_column=Column(Text, nullable=False))
     tool_calls: Optional[Any] = Field(default=None, sa_column=Column(JSON))

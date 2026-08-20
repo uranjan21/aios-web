@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { Popover, PopoverTrigger, PopoverContent } from '../../interactive/Popover/Popover';
-import { focusRing } from '../../utils/focusRing';
+import { focusRing } from '../../theme/mixins';
 
 export interface DatePickerProps {
   value: string;

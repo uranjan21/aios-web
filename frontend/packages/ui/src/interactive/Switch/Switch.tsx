@@ -54,7 +54,7 @@ const Track = styled.span<{ $checked: boolean; $size: 'sm' | 'md' | 'lg' }>`
     height: ${({ $size }) => dimensions[$size].thumb};
     background: ${({ theme }) => theme.color.card};
     border-radius: 50%;
-    box-shadow: ${({ theme }) => theme.shadow.sm};
+    box-shadow: ${({ theme }) => theme.elevation[1]};
     transition: transform ${({ theme }) => theme.motion.duration.normal} ${({ theme }) => theme.motion.easing.standard};
   }
 `;

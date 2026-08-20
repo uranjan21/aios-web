@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { createBrowserRouter, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
-import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
+import { RouteErrorBoundary, RouteErrorElement } from '@/components/RouteErrorBoundary'
 import { PageTransition } from '@/components/PageTransition'
 import styled from 'styled-components'
 import { SkeletonPage } from '@ledgr/ui'
@@ -160,21 +160,21 @@ function Page({ children }: { children: React.ReactNode }) {
 }
 
 export const router = createBrowserRouter([
-  { path: '/', element: <Page><LandingPage /></Page>, errorElement: <RouteErrorBoundary /> },
-  { path: '/pricing', element: <Page><PricingPage /></Page>, errorElement: <RouteErrorBoundary /> },
-  { path: '/login', element: <Page><LoginPage /></Page>, errorElement: <RouteErrorBoundary /> },
+  { path: '/', element: <Page><LandingPage /></Page>, errorElement: <RouteErrorElement /> },
+  { path: '/pricing', element: <Page><PricingPage /></Page>, errorElement: <RouteErrorElement /> },
+  { path: '/login', element: <Page><LoginPage /></Page>, errorElement: <RouteErrorElement /> },
 
-  { path: '/signup', element: <Page><LoginPage initialMode="signup" /></Page>, errorElement: <RouteErrorBoundary /> },
-  { path: '/verify-email', element: <Page><VerifyEmailPage /></Page>, errorElement: <RouteErrorBoundary /> },
-  { path: '/forgot-password', element: <Page><ForgotPasswordPage /></Page>, errorElement: <RouteErrorBoundary /> },
-  { path: '/reset-password', element: <Page><ResetPasswordPage /></Page>, errorElement: <RouteErrorBoundary /> },
-  { path: '/auth/google/callback', element: <Page><GoogleAuthCallbackPage /></Page>, errorElement: <RouteErrorBoundary /> },
+  { path: '/signup', element: <Page><LoginPage initialMode="signup" /></Page>, errorElement: <RouteErrorElement /> },
+  { path: '/verify-email', element: <Page><VerifyEmailPage /></Page>, errorElement: <RouteErrorElement /> },
+  { path: '/forgot-password', element: <Page><ForgotPasswordPage /></Page>, errorElement: <RouteErrorElement /> },
+  { path: '/reset-password', element: <Page><ResetPasswordPage /></Page>, errorElement: <RouteErrorElement /> },
+  { path: '/auth/google/callback', element: <Page><GoogleAuthCallbackPage /></Page>, errorElement: <RouteErrorElement /> },
   // Google redirects here after a Connections (gmail/gcal/gfit/notion) consent —
   // must match the backend's redirect_uri exactly, which has no /app prefix.
-  { path: '/integrations/:provider/callback', element: <Page><OAuthCallbackPage /></Page>, errorElement: <RouteErrorBoundary /> },
+  { path: '/integrations/:provider/callback', element: <Page><OAuthCallbackPage /></Page>, errorElement: <RouteErrorElement /> },
   {
     element: <Page><LegalLayout /></Page>,
-    errorElement: <RouteErrorBoundary />,
+    errorElement: <RouteErrorElement />,
     children: [
       { path: '/privacy-policy', element: <PrivacyPolicyPage /> },
       { path: '/terms-of-service', element: <TermsOfServicePage /> },
@@ -188,7 +188,7 @@ export const router = createBrowserRouter([
         <AppShell />
       </RequireAuth>
     ),
-    errorElement: <RouteErrorBoundary />,
+    errorElement: <RouteErrorElement />,
     children: [
       { index: true, element: <Page><DashboardPage /></Page> },
       { path: 'chat', element: <Page><RequireModule module="chat"><ChatPage /></RequireModule></Page> },

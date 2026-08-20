@@ -27,7 +27,16 @@ _settings = get_settings()
 # Use Redis in multi-worker deploys so counters are shared across processes;
 # fall back to per-process memory only when REDIS_URL is unset (single worker / dev).
 if _settings.redis_url:
-    limiter = Limiter(key_func=_get_client_ip, storage_uri=_settings.redis_url)
+    # in_memory_fallback_enabled: slowapi defaults to swallow_errors=False with no
+    # fallback, so a Redis outage re-raises out of the limiter and EVERY rate-limited
+    # endpoint returns 500 — i.e. Redis becomes a total-outage SPOF for the whole API.
+    # With the fallback on, a dead storage backend degrades to per-process counters
+    # (slightly permissive across workers) instead of taking the service down.
+    limiter = Limiter(
+        key_func=_get_client_ip,
+        storage_uri=_settings.redis_url,
+        in_memory_fallback_enabled=True,
+    )
 else:
     if _settings.environment == "production":
         logger.warning(
