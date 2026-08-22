@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { Sparkles, RefreshCw } from 'lucide-react'
 import { aiApi } from '@ct/shared/api/areas'
 import { Card as GlassCard } from '@ledgr/ui';
-import { UpgradeWall, is402 } from '@ct/shared/components/UpgradeWall'
+import { NeedsApiKey, isMissingKeyError } from '@ct/shared/components/NeedsApiKey'
 import styled from 'styled-components'
 
 const ThemedSparkles = styled(Sparkles)`
@@ -35,11 +35,11 @@ const HintText = styled.p`
 
 /** "Explain this month/week" — one-click LLM insight card for an area page. */
 export function AiInsightCard({ area, title, className }: { area: 'finance' | 'health'; title?: string; className?: string }) {
-  const [planBlocked, setPlanBlocked] = useState(false)
+  const [needsKey, setNeedsKey] = useState(false)
   const { mutate, data, isPending, isError } = useMutation({
     mutationFn: () => aiApi.explain(area),
     onError: (err) => {
-      if (is402(err)) { setPlanBlocked(true); return }
+      if (isMissingKeyError(err)) { setNeedsKey(true); return }
       toast.error('AI temporarily unavailable')
     },
   })
@@ -62,8 +62,8 @@ export function AiInsightCard({ area, title, className }: { area: 'finance' | 'h
         </Button>
       }
     >
-      {planBlocked ? (
-        <UpgradeWall feature="AI area analysis" />
+      {needsKey ? (
+        <NeedsApiKey feature="AI area analysis" />
       ) : isPending ? (
         <SkeletonStack>
           <Skeleton height="0.875rem" width="100%" />

@@ -4,7 +4,6 @@ import { NotificationBell } from '@/components/NotificationBell'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useUIStore } from '@ct/shared/stores/uiStore'
 import { useAuthStore } from '@ct/shared/stores/authStore'
-import { useSubscription } from '@ct/shared/hooks/useSubscription'
 import { DropdownMenu, DropdownMenuTrigger } from '@ledgr/ui'
 import { AccountMenuBody } from './AccountMenu'
 import styled from 'styled-components'
@@ -297,8 +296,6 @@ export function TopBar() {
   const location = useLocation()
   const navigate = useNavigate()
   const user = useAuthStore(s => s.user)
-
-  useSubscription()
 
   /*
    * Breadcrumbs, 2026-08-01. This used to be a THIRD flat nav — six hardcoded

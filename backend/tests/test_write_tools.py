@@ -359,11 +359,10 @@ async def test_log_health_metric_general(app, user_a, db_session_factory):
 
 
 @pytest.mark.asyncio
-async def test_upi_transaction_parsing_path(app, user_a, db_session_factory):
+async def test_upi_transaction_parsing_path(app, user_a, db_session_factory, user_a_has_key):
     from app.services.agents.runners import run_agent_task
     from app.models.finance import FinancePendingTransaction
     from app.models.google_sync import GmailMessage
-    from app.models.billing import AIUsageRecord
     from unittest.mock import patch
     from datetime import datetime
 
@@ -385,9 +384,8 @@ async def test_upi_transaction_parsing_path(app, user_a, db_session_factory):
     """
 
     with patch("app.services.finance.email_extraction.generate_text", return_value=mock_json):
-        with patch("app.services.billing.usage.ai_allowed", return_value=True):
-            result = await run_agent_task("aios-upi-tracker", user_a.id)
-            assert "queued 2 transaction" in result
+        result = await run_agent_task("aios-upi-tracker", user_a.id)
+        assert "queued 2 transaction" in result
 
     # Verify the pending transactions were correctly written with Decimal precision
     async with db_session_factory() as db:
@@ -416,11 +414,10 @@ async def test_upi_transaction_parsing_path(app, user_a, db_session_factory):
         )).scalars().one()
         assert msg.extracted_at is not None
 
-    # Second run: nothing unextracted → skip-if-empty (no LLM call, no metering,
-    # no duplicate pending rows).
+    # Second run: nothing unextracted → skip-if-empty (no LLM call, no
+    # duplicate pending rows).
     with patch("app.services.finance.email_extraction.generate_text", return_value=mock_json) as gen:
-        with patch("app.services.billing.usage.ai_allowed", return_value=True):
-            result2 = await run_agent_task("aios-upi-tracker", user_a.id)
+        result2 = await run_agent_task("aios-upi-tracker", user_a.id)
     assert "No new transaction emails" in result2
     assert gen.call_count == 0
 
@@ -429,7 +426,6 @@ async def test_upi_transaction_parsing_path(app, user_a, db_session_factory):
             select(FinancePendingTransaction).where(FinancePendingTransaction.user_id == user_a.id)
         )).scalars().all()
         assert len(txs) == 2
-        usage = (await db.execute(
-            select(AIUsageRecord).where(AIUsageRecord.user_id == user_a.id, AIUsageRecord.source == "agents")
-        )).scalars().all()
-        assert len(usage) == 1
+        # AI usage metering was deleted with billing (2026-08-17) — the app is
+        # free and every LLM call runs on the user's own key, so there is no
+        # usage row to assert on. The extraction assertions above are the point.

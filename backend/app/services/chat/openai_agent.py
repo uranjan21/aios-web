@@ -8,15 +8,11 @@ from uuid import UUID
 from openai import APIConnectionError, RateLimitError
 
 from app.core.config import get_settings
-from app.services.ai.openai_client import get_openai_client
+from app.services.ai.keys import get_user_api_key
+from app.services.ai.openai_client import LLM_STREAM_TIMEOUT_SECONDS, get_openai_client
 from app.services.chat.agent import _trim_history
 from app.services.chat.context_builder import build_prompt
-from app.services.chat.memory import (
-    ESTIMATED_TOKENS,
-    get_token_budget_status,
-    record_usage,
-    reserve_budget,
-)
+from app.services.chat.memory import get_token_budget_status, record_usage
 from app.services.chat.tools import tool_definitions_for, execute_tool, CONFIRMATION_PENDING
 
 logger = logging.getLogger(__name__)
@@ -49,40 +45,41 @@ async def stream_openai_chat_response(
 ) -> AsyncGenerator[dict, None]:
     settings = get_settings()
     openai_model = settings.openai_chat_model
-    openai_api_key = settings.openai_api_key
 
     from app.db.session import AsyncSessionLocal
     from sqlmodel import select
     from app.models.user import User
-    from app.core.security import decrypt_token
-    
+
+    # BYOK: the user's own OpenAI key, or nothing. This path is also reachable
+    # directly (agent.py delegates here), so it repeats the no-key guard rather
+    # than assuming the caller checked.
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
-        if user:
-            if user.openai_chat_model:
-                openai_model = user.openai_chat_model
-            if user.openai_api_key_encrypted:
-                openai_api_key = decrypt_token(user.openai_api_key_encrypted)
+        if user and user.openai_chat_model:
+            openai_model = user.openai_chat_model
+        api_key = await get_user_api_key(session, user_id, "openai")
+
+    if not api_key:
+        yield {
+            "type": "error",
+            "code": "no_api_key",
+            "provider": "openai",
+            "message": (
+                "No openai API key configured. "
+                "Add your own key in Settings → AI & knowledge to use chat."
+            ),
+        }
+        return
 
     if override_model:
         openai_model = override_model
-
-    uses_custom_key = bool(user and user.openai_api_key_encrypted)
-
-    if not uses_custom_key:
-        try:
-            await reserve_budget(user_id, session_id, estimated_input=ESTIMATED_TOKENS)
-        except Exception as e:
-            # Note: if user uses their own key, they probably shouldn't hit the limit. We can handle bypass later.
-            yield {"type": "error", "code": "token_budget_exceeded", "message": str(e)}
-            return
 
     static_system, dynamic_context, vault_enabled = await build_prompt(
         user_message, user_id, user_name=user.name if user else None
     )
     openai_tools = _openai_tools(tool_definitions_for(vault_enabled))
-    client = get_openai_client(api_key=openai_api_key)
+    client = get_openai_client(api_key, timeout=LLM_STREAM_TIMEOUT_SECONDS)
 
     # Dynamic context rides in the latest user message so the stable prefix
     # (system + tools + history) stays eligible for OpenAI's automatic prompt
@@ -274,14 +271,14 @@ async def stream_openai_chat_response(
         }
 
     finally:
-        if not uses_custom_key and total_input_tokens + total_output_tokens > 0:
+        # Consumption counter only — the spend itself lands on the user's key.
+        if total_input_tokens + total_output_tokens > 0:
             try:
                 await record_usage(
                     user_id,
                     session_id,
                     total_input_tokens,
                     total_output_tokens,
-                    pre_reserved=ESTIMATED_TOKENS,
                 )
             except Exception as e:
                 logger.error("Failed to record token usage for session %s: %s", session_id, e)

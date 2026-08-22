@@ -151,7 +151,7 @@ def _email_context(messages, body_chars: int) -> str:
 async def run_email_extraction_agent(task_id: str, user_id: uuid.UUID) -> str:
     from app.models.agent import Agent
     from app.models.user import User
-    from app.services.billing.usage import ai_allowed, record_ai_usage
+    from app.services.ai.keys import list_user_providers
 
     is_statement = task_id == RECONCILER_TASK
 
@@ -160,19 +160,23 @@ async def run_email_extraction_agent(task_id: str, user_id: uuid.UUID) -> str:
             user_id, session, limit=_BATCH_LIMIT[task_id], statement=is_statement
         )
         if not messages:
-            # Skip-if-empty: no LLM call, no metering.
+            # Skip-if-empty: no LLM call at all.
             return "No new transaction emails to process."
 
         user = (await session.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
         agent = (await session.execute(
             select(Agent).where(Agent.user_id == user_id, Agent.task_id == task_id)
         )).scalar_one_or_none()
-        allowed = user is not None and await ai_allowed(session, user)
+        has_key = user is not None and bool(await list_user_providers(session, user_id))
 
-    if not allowed:
-        # Leave the messages unextracted so they're picked up when quota resets.
-        logger.info("Agent %s skipped for user %s — AI quota exceeded", task_id, user_id)
-        return f"{len(messages)} transaction email(s) are waiting, but the AI quota is exhausted this month."
+    if not has_key:
+        # BYOK, background job: leave the messages unextracted so they are picked
+        # up on the first run after the user adds a key. No raise, no retry loop.
+        logger.info("Agent %s skipped for user %s — no API key configured", task_id, user_id)
+        return (
+            f"{len(messages)} transaction email(s) are waiting. Add your own provider "
+            "API key in Settings → AI & knowledge and they will be parsed on the next run."
+        )
 
     from app.core.config import get_settings
     settings = get_settings()
@@ -280,7 +284,6 @@ async def run_email_extraction_agent(task_id: str, user_id: uuid.UUID) -> str:
                 row.extracted_at = now
                 session.add(row)
         await session.commit()
-        await record_ai_usage(session, user_id, units=1, source="agents")
 
     if queued:
         try:

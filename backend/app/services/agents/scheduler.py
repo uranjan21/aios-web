@@ -133,11 +133,6 @@ async def _run_global_job(module_name: str, func_name: str) -> None:
         logger.error("Global job %s failed to get users: %s", func_name, e)
 
 
-async def _run_billing_usage_report() -> None:
-    """APScheduler entry — batch metered AI usage to Stripe."""
-    from app.services.billing.usage import run_usage_report_job
-    await run_usage_report_job()
-
 async def _run_briefing_job() -> None:
     from app.services.insights.briefing import run_briefing_job
     await run_briefing_job()
@@ -334,15 +329,6 @@ async def start_scheduler() -> None:
             trigger=CronTrigger(minute="*/10", timezone="UTC"),
             replace_existing=True,
             misfire_grace_time=600,
-        )
-
-        # Hourly at :15 — batch metered AI usage to Stripe (Phase 2).
-        _safe_add_job(
-            "billing_usage_report",
-            func=_run_billing_usage_report,
-            trigger=CronTrigger(minute=15, timezone="UTC"),
-            replace_existing=True,
-            misfire_grace_time=1800,
         )
 
         scheduler.start()

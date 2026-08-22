@@ -8,8 +8,6 @@ export interface AdminUser {
   auth_provider: string
   is_admin: boolean
   created_at: string | null
-  plan: string
-  plan_status: string
   stripe_customer_id: string | null
   current_period_end: string | null
 }
@@ -35,8 +33,6 @@ export const adminApi = {
   listUsers: (params: { search?: string; limit?: number; offset?: number } = {}) =>
     api.get<UsersResponse>('/admin/users', { params }).then(r => r.data),
 
-  overridePlan: (userId: string, plan: string, status = 'active') =>
-    api.patch<AdminUser>(`/admin/users/${userId}/plan`, { plan, status }).then(r => r.data),
 
   toggleAdmin: (userId: string, is_admin: boolean) =>
     api.patch<AdminUser>(`/admin/users/${userId}/admin`, { is_admin }).then(r => r.data),

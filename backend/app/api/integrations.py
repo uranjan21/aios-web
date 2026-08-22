@@ -8,7 +8,6 @@ from pydantic import BaseModel
 from sqlmodel import select
 
 from app.core.deps import get_current_user, get_db
-from app.core.entitlements import require_plan
 from app.models.integration import IntegrationCredential
 from app.models.oauth_state import OAuthState
 from app.services.integrations.google_oauth import (
@@ -81,7 +80,7 @@ async def list_integrations(current_user=Depends(get_current_user), db=Depends(g
     return out
 
 
-@router.get("/{provider}/auth-url", dependencies=[Depends(require_plan("pro"))])
+@router.get("/{provider}/auth-url")
 async def get_auth_url(provider: str, current_user=Depends(get_current_user), db=Depends(get_db)):
     if provider not in PROVIDERS:
         raise HTTPException(status_code=404, detail="Unknown provider")

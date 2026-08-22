@@ -7,6 +7,7 @@ import { Plus } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
 import { trackOnce } from '@ct/shared/lib/analytics'
 import { CategoryPicker } from '../CategoryPicker'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import styled from 'styled-components'
 import type { Txn, Kind } from './types'
 
@@ -50,6 +51,7 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
   const [accountId, setAccountId] = useState<string | undefined>()
   const [tags, setTags] = useState<string[]>([])
   const [description, setDescription] = useState<string>('')
+  const f = useFieldErrors<'amount' | 'date' | 'category' | 'account' | 'fromAccount' | 'toAccount'>('txn')
 
   const { data: accounts } = useQuery({
     queryKey: ['finance', 'accounts'],
@@ -69,6 +71,7 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
   // by the `open`/`editing` props — not an onOpenChange(true) callback.
   useEffect(() => {
     if (!open) return
+    f.reset()
     if (editing) {
       setAmount(String(editing.amount))
       setCategoryId(editing.category_id ?? undefined)
@@ -87,6 +90,7 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
       setTags([])
       setKind(initialKind)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- f is stable; adding it re-runs the prefill on every error change
   }, [open, editing, initialKind])
 
   const { mutate, isPending } = useMutation({
@@ -97,10 +101,6 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
       const logged_at = dayjs(date).format('YYYY-MM-DD') + 'T' + dayjs().format('HH:mm:ss')
       const amt = parseFloat(amount)
       const tagsStr = tags.join(',') || undefined
-      if (effectiveKind !== 'Transfer') {
-        if (!accountId) return Promise.reject({ response: { data: { detail: 'An account is required' } } })
-        if (!categoryId) return Promise.reject({ response: { data: { detail: 'Select a category' } } })
-      }
       if (isEdit) {
         const patch = {
           amount: amt,
@@ -130,16 +130,10 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
           account_id: accountId,
           tags: tagsStr })
       }
-      if (!fromAccountId || !toAccountId) {
-        return Promise.reject({ response: { data: { detail: 'Select both accounts' } } })
-      }
-      if (fromAccountId === toAccountId) {
-        return Promise.reject({ response: { data: { detail: 'From and To accounts must be different' } } })
-      }
       return financeApi.createTransfer({
         amount: amt,
-        from_account_id: fromAccountId,
-        to_account_id: toAccountId,
+        from_account_id: fromAccountId!,
+        to_account_id: toAccountId!,
         description: description?.trim() || undefined,
         logged_at })
     },
@@ -150,6 +144,37 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
       onClose()
     },
     onError: (e: any) => toast.error(e?.response?.data?.detail || `Failed to save ${effectiveKind.toLowerCase()}`) })
+
+
+  /**
+   * Every one of these used to be a `Promise.reject` inside `mutationFn`, which
+   * surfaced as the same red toast a network failure gets — "Select a category"
+   * with no idea which of the six controls is the offender. They are field
+   * problems, so they are answered on the field; the toast keeps only what
+   * belongs to no field (the server's own rejection).
+   */
+  const validate = () => {
+    const amt = Number(amount)
+    const isTransfer = effectiveKind === 'Transfer'
+    return f.submit({
+      amount: amount.trim() === '' || !Number.isFinite(amt)
+        ? 'Enter an amount.'
+        : amt <= 0
+          ? 'The amount must be more than zero.'
+          : undefined,
+      date: date ? undefined : 'Pick a date.',
+      category: isTransfer || categoryId ? undefined : `Choose a ${effectiveKind === 'Expense' ? 'category' : 'source'}.`,
+      account: isTransfer || accountId ? undefined : 'Choose the account this came from.',
+      fromAccount: !isTransfer || fromAccountId ? undefined : 'Choose the account to move money from.',
+      toAccount: !isTransfer
+        ? undefined
+        : !toAccountId
+          ? 'Choose the account to move money to.'
+          : toAccountId === fromAccountId
+            ? 'Pick a different account — a transfer cannot end where it started.'
+            : undefined,
+    })
+  }
 
   return (
     <Dialog
@@ -182,26 +207,30 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
           />
         </FullWidthWrap>
       )}
-      <form id="transaction-form" onSubmit={e => { e.preventDefault(); mutate() }}>
+      <form id="transaction-form" noValidate onSubmit={e => { e.preventDefault(); if (validate()) mutate() }}>
         <FormGrid>
           <div>
             <FormLabel htmlFor="txn-amount">Amount (₹)</FormLabel>
-            <Input id="txn-amount" type="number" startAdornment="₹" placeholder="0.00" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} required />
+            <Input id="txn-amount" type="number" startAdornment="₹" placeholder="0.00" min="0" step="0.01" value={amount} {...f.fieldProps('amount')} onChange={e => { f.clearField('amount'); setAmount(e.target.value) }} />
+            <FieldError id={f.errorId('amount')}>{f.errors.amount}</FieldError>
           </div>
           <div>
             <FormLabel htmlFor="txn-date">Date</FormLabel>
-            <Input id="txn-date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
+            <Input id="txn-date" type="date" value={date} {...f.fieldProps('date')} onChange={e => { f.clearField('date'); setDate(e.target.value) }} />
+            <FieldError id={f.errorId('date')}>{f.errors.date}</FieldError>
           </div>
         </FormGrid>
         {effectiveKind === 'Transfer' ? (
           <FormGrid>
             <div>
               <FormLabel htmlFor="txn-from-account">From Account</FormLabel>
-              <Select id="txn-from-account" placeholder="Source account" options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))} value={fromAccountId} onChange={(v: string | number) => setFromAccountId(String(v))} />
+              <Select id="txn-from-account" placeholder="Source account" options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))} value={fromAccountId} onChange={(v: string | number) => { f.clearField('fromAccount'); f.clearField('toAccount'); setFromAccountId(String(v)) }} />
+              <FieldError id={f.errorId('fromAccount')}>{f.errors.fromAccount}</FieldError>
             </div>
             <div>
               <FormLabel htmlFor="txn-to-account">To Account</FormLabel>
-              <Select id="txn-to-account" placeholder="Destination account" options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))} value={toAccountId} onChange={(v: string | number) => setToAccountId(String(v))} />
+              <Select id="txn-to-account" placeholder="Destination account" options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))} value={toAccountId} onChange={(v: string | number) => { f.clearField('toAccount'); setToAccountId(String(v)) }} />
+              <FieldError id={f.errorId('toAccount')}>{f.errors.toAccount}</FieldError>
             </div>
           </FormGrid>
         ) : (
@@ -212,13 +241,15 @@ export function TransactionModal({ open, onClose, editing, initialKind = 'Expens
                 kind={effectiveKind === 'Income' ? 'income' : 'expense'}
                 categories={(userCategories ?? []) as any}
                 value={categoryId}
-                onChange={setCategoryId}
+                onChange={(v) => { f.clearField('category'); setCategoryId(v) }}
                 label={effectiveKind === 'Expense' ? 'category' : 'source'}
               />
+              <FieldError id={f.errorId('category')}>{f.errors.category}</FieldError>
             </div>
             <div>
               <FormLabel htmlFor="txn-account">Account</FormLabel>
-              <Select id="txn-account" placeholder="Select account" options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))} value={accountId} onChange={(v: string | number) => setAccountId(String(v))} />
+              <Select id="txn-account" placeholder="Select account" options={(accounts ?? []).map((a: any) => ({ label: a.name, value: a.id }))} value={accountId} onChange={(v: string | number) => { f.clearField('account'); setAccountId(String(v)) }} />
+              <FieldError id={f.errorId('account')}>{f.errors.account}</FieldError>
             </div>
           </FormGrid>
         )}

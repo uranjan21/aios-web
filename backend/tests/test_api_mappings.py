@@ -337,8 +337,6 @@ def test_api_mappings():
         ("POST", "/api/auth/signup"),
         ("PATCH", "/api/auth/profile"),
         ("POST", "/api/auth/change-password"),
-        # Stripe calls this server-to-server; never a frontend caller.
-        ("POST", "/api/billing/webhook"),
         # ORPHANED, PENDING A PRODUCT DECISION (2026-08-17). The quotes feature's
         # only frontend consumers were GreetingHero and SavedQuotesCard, both of
         # which stopped being rendered in an earlier redesign; the 2026-08-16

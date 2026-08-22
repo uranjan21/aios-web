@@ -8,6 +8,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useChat } from '@ct/shared/hooks/useChat'
 import { useUIStore } from '@ct/shared/stores/uiStore'
 import { chatApi } from '@ct/shared/api/chat'
+import { keysApi } from '@ct/shared/api/keys'
+import { NeedsApiKey } from '@ct/shared/components/NeedsApiKey'
 import { AssistantChatInput, AttachedFile } from './AssistantChatInput'
 import { Message } from './messages'
 import { SessionList } from './SessionList'
@@ -16,7 +18,7 @@ import {
   FAB, ResizeHandle, AssistantWindow, AssistantHeader,
   HeaderLeft, HeaderTitle, HeaderRight, HeaderActionButton,
   MessagesContainer, SettingsPanel, SettingRow, SettingLabel,
-  HistorySidebar, HistoryHeader, QuotaLine,
+  HistorySidebar, HistoryHeader,
   EmptyStateContainer, EmptyStateIconWrapper,
   QuickPromptsGrid, QuickPromptButton,
 } from './GlobalAssistant.styles'
@@ -30,7 +32,7 @@ export function GlobalAssistant() {
   const setIsOpen = useUIStore(s => s.setAssistantOpen)
 
   const theme = useTheme()
-  const { messages, sessionId, isStreaming, tokenInfo, sendMessage, retryLast, canRetry, connected, newSession, loadSession, loadingMessages, confirmTool, cancelTool } = useChat()
+  const { messages, sessionId, isStreaming, sendMessage, retryLast, canRetry, connected, newSession, loadSession, loadingMessages, confirmTool, cancelTool } = useChat()
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const pinnedRef = useRef(true)
@@ -50,12 +52,15 @@ export function GlobalAssistant() {
     staleTime: Infinity,
     enabled: isOpen,
   })
-  const { data: budget } = useQuery({
-    queryKey: ['chat', 'token-budget'],
-    queryFn: chatApi.tokenBudget,
+  /* No provider key installed → every turn would come back 428. Say so above
+     the composer rather than letting the user type into a dead socket. */
+  const { data: keys } = useQuery({
+    queryKey: ['api-keys'],
+    queryFn: keysApi.list,
     staleTime: 60_000,
     enabled: isOpen,
   })
+  const needsKey = !!keys && Object.keys(keys).length === 0
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768)
@@ -210,7 +215,6 @@ export function GlobalAssistant() {
     ...providerModels.map(id => ({ id, name: id, description: '' })),
   ]
 
-  const remaining = tokenInfo?.daily_remaining ?? (budget ? budget.daily_limit - budget.used_today : null)
 
   return (
     <>
@@ -356,10 +360,8 @@ export function GlobalAssistant() {
             </MessagesContainer>
 
             <div style={{ padding: '0 16px 16px', position: 'relative' }}>
-              {remaining !== null && remaining !== undefined && (
-                <QuotaLine title="Daily AI token budget remaining">
-                  {remaining.toLocaleString()} tokens left today
-                </QuotaLine>
+              {needsKey && (
+                <div style={{ paddingBottom: 12 }}><NeedsApiKey feature="The assistant" /></div>
               )}
               <AssistantChatInput
                 onSendMessage={handleAssistantSend}

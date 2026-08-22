@@ -61,7 +61,7 @@ This document provides a categorized list of all features currently implemented 
 
 ## 7. SaaS & Infrastructure ⚙️
 *   **Multi-Tenancy:** Row-level isolation across all tables ensuring absolute privacy.
-*   **Modular Pricing / Billing:** Pay-per-module Stripe integration with a free base tier and metered AI usage caps.
+*   **Free, bring-your-own-API-key:** No billing, subscriptions or usage caps. Each user supplies their own OpenAI/Anthropic key (encrypted at rest) and their provider bills them directly.
 *   **Authentication:** JWT-based strict authentication with Google OAuth integration support.
 *   **Theme Engine:** "Premium Black + Gold" design system utilizing @ledgr/ui.
 

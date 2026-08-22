@@ -5,7 +5,7 @@ import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import { Button, Input, Select, Dialog, SegmentedControl } from '@ledgr/ui'
 import { financeApi } from '@ct/shared/api/areas'
 import styled from 'styled-components'
-import { FieldError, useFieldErrors } from './forms/fieldErrors'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 
 const FormStack = styled.form`
   margin-top: 0.75rem;
@@ -226,6 +226,7 @@ function AddCategoryForm({ onSuccess }: { onSuccess?: () => void }) {
   const [subcategoryText, setSubcategoryText] = useState('')
   const [icon, setIcon] = useState('')
   const syncedIdRef = useRef<string | null>(null)
+  const f = useFieldErrors<'category'>('add-category')
 
   const topLevel = (categories ?? []).filter((c: any) => !c.parent_id)
   const categoryMatch = topLevel.find((c: any) => c.name.toLowerCase() === categoryText.trim().toLowerCase())
@@ -248,6 +249,7 @@ function AddCategoryForm({ onSuccess }: { onSuccess?: () => void }) {
     setSubcategoryText('')
     setIcon('')
     syncedIdRef.current = null
+    f.reset()
   }
 
   const saveMutation = useMutation({
@@ -255,7 +257,6 @@ function AddCategoryForm({ onSuccess }: { onSuccess?: () => void }) {
       const catName = categoryText.trim()
       const subName = subcategoryText.trim()
       const iconValue = icon.trim() || null
-      if (!catName) throw new Error('Category name is required')
 
       let categoryId: string
       if (!categoryMatch) {
@@ -290,6 +291,15 @@ function AddCategoryForm({ onSuccess }: { onSuccess?: () => void }) {
     onError: (e: any) => toast.error(e?.response?.data?.detail || e?.message || 'Failed to save'),
   })
 
+  /* The category name was the one thing the mutation threw on; a throw inside
+     mutationFn lands in the same toast as a network failure and never points
+     at the field that is empty. */
+  const handleSave = () => {
+    if (f.submit({ category: categoryText.trim() ? undefined : 'Name the category.' })) {
+      saveMutation.mutate()
+    }
+  }
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => financeApi.deleteCategory(id),
     onSuccess: () => {
@@ -317,9 +327,11 @@ function AddCategoryForm({ onSuccess }: { onSuccess?: () => void }) {
         <FullInput
           list="category-options"
           value={categoryText}
-          onChange={(e) => { setCategoryText(e.target.value); setSubcategoryText('') }}
+          {...f.fieldProps('category')}
+          onChange={(e) => { f.clearField('category'); setCategoryText(e.target.value); setSubcategoryText('') }}
           placeholder="Select existing or type a new category"
         />
+        <FieldError id={f.errorId('category')}>{f.errors.category}</FieldError>
         <datalist id="category-options">
           {topLevel.map((c: any) => <option key={c.name} value={c.name}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>)}
         </datalist>
@@ -347,7 +359,7 @@ function AddCategoryForm({ onSuccess }: { onSuccess?: () => void }) {
       <InfoText>{helperText}</InfoText>
 
       <ActionsGroup>
-        <Button variant="primary" onClick={() => saveMutation.mutate()} loading={saveMutation.isPending} style={{ width: '100%' }}>Save</Button>
+        <Button variant="primary" onClick={handleSave} loading={saveMutation.isPending} style={{ width: '100%' }}>Save</Button>
         {activeMatch ? (
           <Popconfirm title="Delete this?" onConfirm={() => activeMatch && deleteMutation.mutate(activeMatch.id)}>
             <Button variant="destructive" loading={deleteMutation.isPending}>Delete</Button>

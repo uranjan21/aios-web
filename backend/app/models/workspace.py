@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, date, time
 from typing import Optional
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, ForeignKey
+from sqlalchemy import CheckConstraint, Column, ForeignKey
 from sqlalchemy.dialects.postgresql import TIMESTAMP, UUID as PG_UUID
 
 
@@ -46,6 +46,19 @@ class Sprint(SQLModel, table=True):
 
 class Task(SQLModel, table=True):
     __tablename__ = "tasks"
+    # Mirrors migration m002_enum_checks. Project/Sprint carry the same words
+    # but nothing validates them anywhere, so they are left unconstrained
+    # until a writer is pinned down — see the note at the end of that file.
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('todo', 'in_progress', 'done')",
+            name="ck_tasks_status",
+        ),
+        CheckConstraint(
+            "priority IN ('low', 'medium', 'high', 'urgent')",
+            name="ck_tasks_priority",
+        ),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True)
@@ -85,6 +98,13 @@ class Milestone(SQLModel, table=True):
     """
 
     __tablename__ = "workspace_milestones"
+    # Mirrors migration m002_enum_checks.
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('upcoming', 'at_risk', 'hit', 'missed')",
+            name="ck_workspace_milestones_status",
+        ),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True)

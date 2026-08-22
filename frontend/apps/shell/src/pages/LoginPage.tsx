@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useLocation, Link, Navigate } from 'react-router-dom'
 import styled, { keyframes, useTheme } from 'styled-components'
 import { api } from '@ct/shared/api/client'
 import { useAuthStore } from '@ct/shared/stores/authStore'
@@ -643,7 +643,7 @@ const Forgot = styled(Link)`
   &:hover { color: ${GOLD_LIT}; }
 `
 
-const ErrorBox = styled.div`
+const ErrorBox = styled.div.attrs({ role: 'alert' })`
   font-size: ${({ theme }) => theme.typography.fontSize.sm};
   color: #fca5a5;
   padding: ${({ theme }) => `${theme.spacing[2.5]} ${theme.spacing[3]}`};
@@ -810,8 +810,17 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
   const [rememberMe, setRememberMe] = useState(false)
   const [signupSent, setSignupSent] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
   const setAuthenticated = useAuthStore(s => s.setAuthenticated)
   const setUser = useAuthStore(s => s.setUser)
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+
+  /* Where RequireAuth bounced the user from, so sign-in returns them to the
+     page they actually asked for instead of always dropping them on /app.
+     Only in-app paths are honoured — `from` arrives in router state, and an
+     absolute URL there would turn the form into an open redirect. */
+  const rawFrom = (location.state as { from?: string } | null)?.from
+  const from = typeof rawFrom === 'string' && rawFrom.startsWith('/app') ? rawFrom : '/app'
 
   const isSignup = mode === 'signup'
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -851,19 +860,23 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
         setSignupSent(true)
         return
       }
-      const { data } = await api.post('/auth/login', { email, password })
+      const { data } = await api.post('/auth/login', { email, password, remember: rememberMe })
       setAuthenticated(true)
       if (data.user) {
         setUser(data.user)
         identify(data.user.id)
       }
-      navigate('/app')
+      navigate(from, { replace: true })
     } catch (err) {
       setError(errorMessage(err, isSignup ? 'Could not create account' : 'Invalid email or password'))
     } finally {
       setLoading(false)
     }
   }
+
+  /* A signed-in user landing here (a stale bookmark, the browser's back
+     button after login) was shown the sign-in form as if they were logged out. */
+  if (isAuthenticated) return <Navigate to={from} replace />
 
   return (
     <Root>
@@ -913,7 +926,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
             <Dot />
             <span>3 domains</span>
             <TickerSep>·</TickerSep>
-            <span>8 agents on schedule</span>
+            <span>7 agents on schedule</span>
             <TickerSep>·</TickerSep>
             <span>vault synced</span>
           </Ticker>
@@ -956,6 +969,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
                     id="signup-name"
                     type="text"
                     placeholder="Your name"
+                    autoComplete="name"
                     value={name}
                     onChange={e => setName(e.target.value)}
                     autoFocus
@@ -972,6 +986,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
                     id="login-email"
                     type="email"
                     placeholder="you@example.com"
+                    autoComplete={isSignup ? 'email' : 'username'}
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     autoFocus={!isSignup}
@@ -991,6 +1006,8 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: AuthMode })
                     id="login-password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder={isSignup ? 'At least 8 characters' : '••••••••••'}
+                    autoComplete={isSignup ? 'new-password' : 'current-password'}
+                    minLength={isSignup ? 8 : undefined}
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     required

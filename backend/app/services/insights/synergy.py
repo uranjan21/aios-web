@@ -87,8 +87,7 @@ async def _get_threshold(session, user_id: uuid.UUID) -> float:
 
 async def compute_correlations_for_user(session, user_id: uuid.UUID):
     from app.models.user import User
-    from app.core.entitlements import get_entitled_modules
-    from app.services.billing.usage import ai_allowed, record_ai_usage
+    from app.services.ai.keys import list_user_providers
 
     series = await _extract_series(session, user_id, days=45)
     dates = sorted(series.keys())
@@ -96,12 +95,9 @@ async def compute_correlations_for_user(session, user_id: uuid.UUID):
 
     threshold = await _get_threshold(session, user_id)
 
-    # LLM phrasing is metered — over-quota / unentitled users get the fallback wording.
+    # LLM phrasing runs on the user's own key — without one, the plain wording.
     user = (await session.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
-    can_use_ai = False
-    if user is not None:
-        entitled = await get_entitled_modules(session, user)
-        can_use_ai = "agents" in entitled and await ai_allowed(session, user)
+    can_use_ai = user is not None and bool(await list_user_providers(session, user_id))
     
     candidates = []
     
@@ -155,14 +151,13 @@ async def compute_correlations_for_user(session, user_id: uuid.UUID):
         if existing:
             continue
             
-        # Generate LLM phrasing (metered; falls back to a plain sentence)
+        # Generate LLM phrasing (user's own key; falls back to a plain sentence)
         text = f"Noticeable relationship between {m1} and {m2} (r={r:.2f}). Try an experiment to see if changing one affects the other."
         if can_use_ai:
             system = "You are an AI finding lifestyle correlations. Write ONE short sentence explaining the correlation and ONE suggested experiment to test it."
             prompt = f"Metric A: {m1}, Metric B: {m2}. Correlation (r): {r:.2f}, Lag: {lag} days. (Positive means they move together, negative means opposite)."
             try:
                 text = await generate_text(system, prompt, max_tokens=100, user_id=str(user_id))
-                await record_ai_usage(session, user_id, 1, "synergy")
             except Exception:
                 pass
             

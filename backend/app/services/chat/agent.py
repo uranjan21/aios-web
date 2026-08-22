@@ -9,8 +9,10 @@ import anthropic
 import tiktoken
 
 from app.core.config import get_settings
+from app.services.ai.keys import get_user_api_key, list_user_providers
+from app.services.ai.openai_client import LLM_STREAM_TIMEOUT_SECONDS, get_anthropic_client
 from app.services.chat.context_builder import build_prompt
-from app.services.chat.memory import reserve_budget, record_usage, get_token_budget_status, ESTIMATED_TOKENS
+from app.services.chat.memory import record_usage, get_token_budget_status
 from app.services.chat.tools import tool_definitions_for, execute_tool, CONFIRMATION_PENDING
 
 logger = logging.getLogger(__name__)
@@ -79,16 +81,15 @@ async def stream_chat_response(
 ) -> AsyncGenerator[dict, None]:
     settings = get_settings()
     effective_provider = provider or settings.llm_provider
-    anthropic_api_key = settings.anthropic_api_key
     claude_model = model or settings.claude_model
-
-    openai_api_key = settings.openai_api_key
 
     from app.db.session import AsyncSessionLocal
     from sqlmodel import select
     from app.models.user import User
-    from app.core.security import decrypt_token
 
+    # BYOK: the turn runs on the user's own key. Which providers they have
+    # installed also decides which one we can route to — a stored preference for
+    # a provider they never configured must not hard-fail the turn.
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
@@ -97,24 +98,30 @@ async def stream_chat_response(
                 effective_provider = user.llm_provider
             if user.claude_model and not model:
                 claude_model = user.claude_model
-            if user.anthropic_api_key_encrypted:
-                anthropic_api_key = decrypt_token(user.anthropic_api_key_encrypted)
-            if user.openai_api_key_encrypted:
-                openai_api_key = decrypt_token(user.openai_api_key_encrypted)
+        installed = await list_user_providers(session, user_id)
 
-    # Fall back to whichever provider actually has a key — a stored per-user
-    # preference or a legacy LLM_PROVIDER value (e.g. "nvidia") must not crash
-    # the turn.
-    if effective_provider not in ("openai", "anthropic"):
-        effective_provider = "openai" if openai_api_key else "anthropic"
-    if effective_provider == "openai" and not openai_api_key and anthropic_api_key:
-        effective_provider = "anthropic"
-    elif effective_provider == "anthropic" and not anthropic_api_key and openai_api_key:
-        effective_provider = "openai"
-
-    if effective_provider == "anthropic" and not anthropic_api_key:
-        yield {"type": "error", "code": "no_api_key", "message": "No AI provider key is configured."}
-        return
+        if effective_provider not in ("openai", "anthropic"):
+            effective_provider = "openai"
+        if effective_provider not in installed:
+            other = "anthropic" if effective_provider == "openai" else "openai"
+            if other in installed:
+                effective_provider = other
+            else:
+                yield {
+                    "type": "error",
+                    "code": "no_api_key",
+                    "provider": effective_provider,
+                    "message": (
+                        f"No {effective_provider} API key configured. "
+                        "Add your own key in Settings → AI & knowledge to use chat."
+                    ),
+                }
+                return
+        api_key = (
+            await get_user_api_key(session, user_id, "anthropic")
+            if effective_provider == "anthropic"
+            else None
+        )
 
     if effective_provider == "openai":
         from app.services.chat.openai_agent import stream_openai_chat_response
@@ -130,22 +137,12 @@ async def stream_chat_response(
             yield event
         return
 
-    uses_custom_key = (effective_provider == "anthropic" and user and user.anthropic_api_key_encrypted) or \
-                      (effective_provider == "openai" and user and user.openai_api_key_encrypted)
-
-    if not uses_custom_key:
-        try:
-            await reserve_budget(user_id, session_id, estimated_input=ESTIMATED_TOKENS)
-        except Exception as e:
-            yield {"type": "error", "code": "token_budget_exceeded", "message": str(e)}
-            return
-
     static_system, dynamic_context, vault_enabled = await build_prompt(
         user_message, user_id, user_name=user.name if user else None
     )
     tools = tool_definitions_for(vault_enabled)
 
-    client = anthropic.AsyncAnthropic(api_key=anthropic_api_key)
+    client = get_anthropic_client(api_key, timeout=LLM_STREAM_TIMEOUT_SECONDS)
 
     # Dynamic context rides in the latest user message, after the cacheable
     # prefix (tools + system + history). Persisted history stays raw.
@@ -311,15 +308,15 @@ async def stream_chat_response(
         }
 
     finally:
-        # Always record usage — even if stream is abandoned mid-response, unless using custom key
-        if not uses_custom_key and total_input_tokens + total_output_tokens > 0:
+        # Always record usage — even if the stream is abandoned mid-response.
+        # This is the user's own consumption counter, not a billing meter.
+        if total_input_tokens + total_output_tokens > 0:
             try:
                 await record_usage(
                     user_id,
                     session_id,
                     total_input_tokens,
                     total_output_tokens,
-                    pre_reserved=ESTIMATED_TOKENS,
                 )
             except Exception as e:
                 logger.error("Failed to record token usage for session %s: %s", session_id, e)

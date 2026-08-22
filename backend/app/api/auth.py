@@ -38,12 +38,22 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 # ── Helpers ─────────────────────────────────────────────────────────────
 
 _COOKIE_DAYS = 7
+# "Remember me" on the sign-in form. The checkbox existed on the page since it
+# was built but was never sent anywhere — every session was 7 days whatever the
+# user chose. It extends the session rather than shortening the default one, so
+# leaving it unchecked behaves exactly as before.
+_REMEMBER_DAYS = 30
 
-def _issue_cookie(response: Response, user_id: str, token_version: int = 1):
+def _issue_cookie(
+    response: Response,
+    user_id: str,
+    token_version: int = 1,
+    days: int = _COOKIE_DAYS,
+):
     settings = get_settings()
     token = create_access_token(
         {"sub": user_id, "ver": token_version},
-        expires_delta=timedelta(days=_COOKIE_DAYS),
+        expires_delta=timedelta(days=days),
     )
     response.set_cookie(
         key="aios_token",
@@ -56,7 +66,7 @@ def _issue_cookie(response: Response, user_id: str, token_version: int = 1):
         # a bare-IP VPS). It hardens automatically the moment ALLOWED_ORIGIN
         # becomes https://…, and every other production guard stays independent.
         secure=settings.allowed_origin.startswith("https://"),
-        max_age=_COOKIE_DAYS * 24 * 3600,
+        max_age=days * 24 * 3600,
     )
 
 
@@ -83,6 +93,7 @@ def _user_dict(user: User) -> dict:
 class LoginRequest(BaseModel):
     email: str
     password: str
+    remember: bool = False
 
 
 @router.post("/login")
@@ -104,7 +115,12 @@ async def login(request: Request, body: LoginRequest, response: Response, db=Dep
         else:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    _issue_cookie(response, str(user.id), user.token_version)
+    _issue_cookie(
+        response,
+        str(user.id),
+        user.token_version,
+        days=_REMEMBER_DAYS if body.remember else _COOKIE_DAYS,
+    )
     return {"status": "ok", "user": _user_dict(user)}
 
 
@@ -236,21 +252,13 @@ async def _send_existing_account(email: str) -> None:
 
 
 async def _seed_new_user(user_id) -> None:
-    """Provision a new user (default agents + free subscription). Non-fatal on failure."""
+    """Provision a new user (default agents). Non-fatal on failure."""
     try:
         from app.api.agents import seed_default_agents_for_user
         await seed_default_agents_for_user(user_id)
     except Exception:  # pragma: no cover - provisioning must never block signup
         import logging
         logging.getLogger(__name__).warning("Default agent seeding failed for %s", user_id, exc_info=True)
-    try:
-        from app.db.session import AsyncSessionLocal
-        from app.services.billing.service import get_or_create_subscription
-        async with AsyncSessionLocal() as session:
-            await get_or_create_subscription(session, user_id)
-    except Exception:  # pragma: no cover
-        import logging
-        logging.getLogger(__name__).warning("Free subscription seeding failed for %s", user_id, exc_info=True)
 
 
 # ── Logout ──────────────────────────────────────────────────────────────

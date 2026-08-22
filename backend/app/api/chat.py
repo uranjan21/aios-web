@@ -16,7 +16,6 @@ from app.core.rate_limit import limiter
 from app.db.session import AsyncSessionLocal
 from app.models.chat import ChatSession, ChatMessage
 from app.models.user import User
-from app.services.billing.usage import ai_allowed
 from app.services.chat.agent import stream_chat_response
 from app.services.chat.memory import get_token_budget_status
 
@@ -125,15 +124,12 @@ async def token_budget(current_user=Depends(get_current_user)):
     return await get_token_budget_status(current_user.id)
 
 
-# Bounds on one chat frame. The rate limit counts messages, not bytes, so
-# without these a few oversized frames cost far more provider spend than they
-# meter. ~32k chars is well past any real prompt and still under every model's
-# context window.
+# Bounds on one chat frame. These survive the removal of metering: they are an
+# abuse guard (the rate limit counts messages, not bytes), not a billing lever.
+# ~32k chars is well past any real prompt and still under every model's context
+# window.
 MAX_MESSAGE_CHARS = 32_000
 MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024
-# 1 credit per this many input tokens, minimum 1 per response — a normal turn
-# still costs 1, a deliberately huge one costs what it consumes.
-INPUT_TOKENS_PER_CREDIT = 8_000
 
 
 def _attachment_bytes(attachments) -> int:
@@ -310,10 +306,9 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
             model = validate_model(provider, data.get("model"))
             attachments = data.get("attachments")
 
-            # Starlette caps nothing, the rate limit counts MESSAGES and metering
-            # charged a flat credit — so a handful of huge frames cost orders of
-            # magnitude more than they billed. Reject before the quota check and
-            # before any provider call.
+            # Starlette caps nothing and the rate limit counts MESSAGES, so a
+            # handful of huge frames could pin the user's own provider bill.
+            # Reject before any provider call.
             if not isinstance(user_content, str) or len(user_content) > MAX_MESSAGE_CHARS:
                 await websocket.send_text(json.dumps({
                     "type": "error",
@@ -332,13 +327,16 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
             async with AsyncSessionLocal() as session:
                 user_result = await session.execute(select(User).where(User.id == user_id))
                 current_user = user_result.scalar_one_or_none()
-                if current_user is None or not await ai_allowed(session, current_user):
-                    await websocket.send_text(json.dumps({
-                        "type": "error",
-                        "code": "ai_quota_exceeded",
-                        "message": "Monthly AI quota exceeded. Upgrade or add the chat module to continue.",
-                    }))
-                    continue
+            if current_user is None:
+                await websocket.send_text(json.dumps({
+                    "type": "error",
+                    "code": "unauthorized",
+                    "message": "Account not found.",
+                }))
+                continue
+            # No quota gate: the turn runs on this user's own provider key.
+            # stream_chat_response emits a `no_api_key` error event when they
+            # have not configured one.
 
             if not session_id_str:
                 # Title from the first message — free, keeps history scannable.
@@ -424,7 +422,6 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
             # Accumulated tool call/result pairs for this turn (OpenAI-canonical format).
             turn_tool_calls: list[dict] = []
             turn_tool_results: list[dict] = []
-            turn_input_tokens = 0
             try:
                 async for event in stream_chat_response(
                     current_user.id,
@@ -449,8 +446,6 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
                             "call_id": event["call_id"],
                             "result": event.get("result", ""),
                         })
-                    elif event.get("type") == "done":
-                        turn_input_tokens = (event.get("tokens") or {}).get("input") or 0
                     elif event.get("type") == "tool_confirmation_required":
                         call_id = event.get("tool_call_id")
                         if call_id:
@@ -471,13 +466,6 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
                             tool_results=turn_tool_results or None,
                         ))
                         await session.commit()
-                    # Meter per completed response (Phase 2) — proportional to the
-                    # input actually sent, so a huge prompt no longer bills the
-                    # same single credit as a one-line question.
-                    from app.services.billing.usage import record_ai_usage
-                    units = max(1, -(-turn_input_tokens // INPUT_TOKENS_PER_CREDIT))
-                    async with AsyncSessionLocal() as session:
-                        await record_ai_usage(session, user_id, units=units, source="chat")
 
     except WebSocketDisconnect:
         pass

@@ -83,8 +83,7 @@ Set these in `.env.prod` before first deploy. Missing any will cause the backend
 | `VAULT_SYNC_ENABLED` | `false` for public multi-tenant SaaS. |
 | `STRIPE_SECRET_KEY` | Must start `sk_live_` in production. |
 | `STRIPE_PUBLISHABLE_KEY` | Starts `pk_live_`. |
-| `STRIPE_WEBHOOK_SECRET` | From Stripe dashboard → Webhooks. |
-| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | At least one required for AI features. |
+| `TOKEN_ENCRYPTION_KEY` | **Required.** Encrypts users' own LLM API keys and OAuth tokens. Rotating it forces every user to re-enter their key. |
 | `WEB_CONCURRENCY` | Number of gunicorn workers (default 4). Set to `2×vCPUs`. |
 
 ---
@@ -138,12 +137,6 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 # 3. Rolling restart (zero-downtime if behind a load balancer)
 docker compose -f docker-compose.prod.yml up -d --no-deps backend
 ```
-
-### Stripe webhook secret rotation
-
-1. In Stripe dashboard, regenerate the webhook secret.
-2. Update `STRIPE_WEBHOOK_SECRET` in `.env.prod`.
-3. Restart backend.
 
 ### Database password rotation
 
@@ -221,7 +214,8 @@ resumes using shared storage; no backend restart needed.
 
 ### Symptoms
 - Chat responses return `{"type": "error", "code": "ai_quota_exceeded"}` for all users.
-- `AIUsageRecord` rows accumulate near `AI_FREE_MONTHLY_CREDITS` (default 200/user/month).
+- A user reports AI features returning 428 `no_api_key` — they have not added their
+  own provider key yet (Settings → AI & knowledge). This is expected, not an incident.
 
 ### Triage
 
@@ -234,7 +228,8 @@ docker compose -f docker-compose.prod.yml exec db psql -U control_tower control_
 
 ### Remediation
 
-- Raise `AI_FREE_MONTHLY_CREDITS` in `.env.prod` and restart backend (takes effect immediately for new requests).
+- There is no usage cap to raise: every user's AI usage is billed by their own
+  provider to their own key. Operator spend on LLMs is structurally zero.
 - Or reset a specific user's usage counter by deleting their records for the current month (rare, manual operation).
 
 ---
@@ -268,7 +263,7 @@ docker compose -f docker-compose.prod.yml restart backend
 
 1. Check `/api/health` for `db` status.
 2. Check backend logs: `docker compose logs backend --tail=100 | grep -i error`.
-3. Check Stripe webhook failures: `SELECT * FROM failed_webhooks ORDER BY created_at DESC LIMIT 10;`
+3. (Billing was removed 2026-08-17 — there are no webhooks or payment failures to check.)
 4. If an agent run is spinning: `SELECT * FROM agents WHERE is_active=true AND last_run_at < now() - interval '2 hours';`
 
 Contact: utsavranjan.sk@gmail.com

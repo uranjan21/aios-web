@@ -51,12 +51,13 @@ class Settings(BaseSettings):
     vault_owner_email: str = ""
     vault_watch_interval_seconds: int = 5
 
-    # AI
+    # AI — bring-your-own-key: there is deliberately NO instance-level API key.
+    # Every LLM call reads the authenticated user's own encrypted key (see
+    # `app/services/ai/keys.py`); a server key would silently pay for users who
+    # never configured one, which is exactly the uncapped-spend hole BYOK closes.
     llm_provider: Literal["openai", "anthropic"] = "openai"
-    anthropic_api_key: str = ""
     claude_model: str = "claude-sonnet-4-5"
     openai_chat_model: str = "gpt-4o"
-    openai_api_key: str = ""
     # Scheduled agent runs (briefs, digests, email extraction) are structured
     # summarize/parse tasks — they default to the small tier (~16x cheaper than
     # the chat default). Per-user and per-agent model overrides still win.
@@ -105,24 +106,6 @@ class Settings(BaseSettings):
     rate_limit_chat_per_min: int = 20
     rate_limit_global_per_min: int = 120
 
-    # Billing (Stripe) — billing is OFF until a secret key + Pro price id are set.
-    stripe_secret_key: str = ""
-    stripe_publishable_key: str = ""
-    stripe_webhook_secret: str = ""
-    stripe_price_pro: str = ""
-    stripe_price_household: str = ""
-    # Modular pricing (Phase 1): JSON map of module/bundle key → Stripe price id,
-    # e.g. {"finance":"price_…","everything":"price_…","ai_usage":"price_…"}.
-    stripe_module_prices: dict[str, str] = {}
-    # Metered AI (Phase 2): free AI actions per calendar month. Past this, Chat/
-    # Agents owners are billed for overage; everyone else is hard-capped.
-    ai_free_monthly_credits: int = 200
-
-    @property
-    def billing_enabled(self) -> bool:
-        """True only when Stripe is configured. Entitlement checks no-op when False."""
-        return bool(self.stripe_secret_key and (self.stripe_price_pro or self.stripe_module_prices))
-
     @model_validator(mode="after")
     def validate_secrets(self) -> "Settings":
         if self.environment == "production":
@@ -145,10 +128,6 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "RESEND_API_KEY must be set in production so verification emails can be delivered"
                 )
-            if self.stripe_secret_key and not self.stripe_secret_key.startswith("sk_live_"):
-                raise ValueError(
-                    "STRIPE_SECRET_KEY must use a live key (sk_live_…) in production, not a test key"
-                )
             if "localhost" in self.allowed_origin:
                 raise ValueError(
                     "ALLOWED_ORIGIN must not contain 'localhost' in production — set it to your deployed domain"
@@ -164,8 +143,16 @@ class Settings(BaseSettings):
                     "that Let's Encrypt accepts — see docs/DEPLOYMENT.md §4.\n"
                     "  To ship on cleartext anyway, set ALLOW_INSECURE_HTTP=true."
                 )
-        # TOKEN_ENCRYPTION_KEY is required whenever Google OAuth integrations are configured (H4).
-        # An empty key causes Fernet to raise InvalidToken on first OAuth token save.
+            if not self.token_encryption_key:
+                raise ValueError(
+                    "TOKEN_ENCRYPTION_KEY must be set in production. It encrypts every "
+                    "user's own OpenAI/Anthropic API key at rest (bring-your-own-key), not "
+                    "just Google OAuth tokens — without it those credentials cannot be "
+                    "stored or read at all.\n"
+                    "  Generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+                )
+        # Outside production the key is only required when Google OAuth is configured (H4):
+        # an empty key causes Fernet to raise InvalidToken on the first OAuth token save.
         if (self.gcal_client_id or self.gfit_client_id or self.gmail_client_id) and not self.token_encryption_key:
             raise ValueError(
                 "TOKEN_ENCRYPTION_KEY must be set when GCAL_CLIENT_ID, GFIT_CLIENT_ID or GMAIL_CLIENT_ID is configured. "

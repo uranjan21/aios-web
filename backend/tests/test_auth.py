@@ -19,6 +19,25 @@ async def test_login_correct_password(client):
 
 
 @pytest.mark.asyncio
+async def test_login_remember_me_extends_the_session(client):
+    """The sign-in form's "Remember me" must actually reach the cookie.
+
+    It was a checkbox wired to nothing for as long as the page existed — every
+    session was 7 days whichever way it was ticked.
+    """
+    plain = await client.post(
+        "/api/auth/login", json={"email": "admin@example.com", "password": "testpass"}
+    )
+    remembered = await client.post(
+        "/api/auth/login",
+        json={"email": "admin@example.com", "password": "testpass", "remember": True},
+    )
+    assert plain.status_code == remembered.status_code == 200
+    assert "Max-Age=604800" in plain.headers["set-cookie"]        # 7 days, unchanged default
+    assert "Max-Age=2592000" in remembered.headers["set-cookie"]  # 30 days
+
+
+@pytest.mark.asyncio
 async def test_me_unauthenticated(client):
     resp = await client.get("/api/auth/me")
     assert resp.status_code == 401

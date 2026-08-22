@@ -7,8 +7,6 @@ import {
   Zap, ChevronRight, Bot, Check, Star, ArrowRight, Globe, Lock, Layers,
 } from 'lucide-react'
 import { useAuthStore } from '@ct/shared/stores/authStore'
-import { usePricingCurrency } from '@ct/shared/hooks/usePricingCurrency'
-import { MODULE_PRICE, BUNDLE_PRICE, TOTAL_MODULES, FREE_BASE_BLURB } from '@ct/shared/lib/pricing'
 import { DOMAINS, AI_FEATURES, COMPARE_ROWS, STATS, fade } from './landing/landing.data'
 import {
   PageWrapper, Header, Logo, HeaderNav,
@@ -18,15 +16,13 @@ import {
   DomainGrid, DomainCard, DomainIcon, DomainName, DomainDesc, DomainFeatures, DomainFeat,
   AiSection, AiTitle, AiSubtitle, AiGrid, AiCard, AiCardTitle, AiCardDesc,
   CompareSection, CompareTable, CompareHeader, CompareRow,
-  PricingWrap, PriceCards, PriceCard, PriceBadge, PriceName, PriceAmount, PricePer, PriceFeats, PriceFeat, PriceUsdNote,
+  PricingWrap, PriceCards, PriceCard, PriceBadge, PriceName, PriceAmount, PricePer, PriceFeats, PriceFeat,
   FinalCTA, FinalTitle, FinalSub, Footer,
 } from './landing/landing.styles'
 
 export function LandingPage() {
   const navigate = useNavigate()
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
-  const { currency, loading, format } = usePricingCurrency()
-  const isUSD = currency.code === 'USD'
   const theme = useTheme()
 
   return (
@@ -35,7 +31,7 @@ export function LandingPage() {
       <Header>
         <Logo to="/">control <span className="accent">tower</span></Logo>
         <HeaderNav>
-          <Link className="secondary" to="/pricing">Pricing</Link>
+          <Link className="secondary" to="/support">Support</Link>
           <Link className="secondary" to="/support">Support</Link>
           {isAuthenticated ? (
             <Button variant="primary" onClick={() => navigate('/app')}>Go to App</Button>
@@ -65,7 +61,7 @@ export function LandingPage() {
               Start for free <ChevronRight size={16} />
             </span>
           </Button>
-          <Button variant="outline" size="lg" onClick={() => navigate('/pricing')}>
+          <Button variant="outline" size="lg" onClick={() => navigate('/signup')}>
             View plans
           </Button>
         </CTARow>
@@ -158,58 +154,50 @@ export function LandingPage() {
         </CompareTable>
       </CompareSection>
 
-      {/* ── Pricing preview ── */}
+      {/* ── Free + BYOK ── */}
       <PricingWrap>
         <SectionLabel>Pricing</SectionLabel>
-        <SectionTitle>Pay only for what you use.</SectionTitle>
+        <SectionTitle>Free. All of it.</SectionTitle>
         <PriceCards>
-          <PriceCard>
-            <PriceName>Free</PriceName>
-            <PriceAmount>{loading ? '$0' : format(0)}</PriceAmount>
-            <PricePer>forever · no card required</PricePer>
+          <PriceCard $featured>
+            <PriceBadge>No catch</PriceBadge>
+            <PriceName style={{ color: `${theme.color.primaryForeground}B3` }}>Everything</PriceName>
+            <PriceAmount>$0</PriceAmount>
+            <PricePer>forever · no card, no trial, no tiers</PricePer>
             <PriceFeats>
-              {[FREE_BASE_BLURB, 'Core tracking & logging', 'Upgrade a module anytime'].map(f => (
+              {[
+                'Every area — Finance, Health, Career',
+                'AI chat, agents and integrations included',
+                'Self-host it or run it as-is',
+                'Your data stays yours — export or delete anytime',
+              ].map(f => (
+                <PriceFeat key={f}><Check size={13} style={{ color: 'var(--accent)' }} />{f}</PriceFeat>
+              ))}
+            </PriceFeats>
+            <Button variant="secondary" fullWidth onClick={() => navigate('/signup')}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Create your account <ArrowRight size={14} /></span>
+            </Button>
+          </PriceCard>
+          <PriceCard>
+            <PriceName>You bring the AI key</PriceName>
+            <PriceAmount>Your usage</PriceAmount>
+            <PricePer>billed by OpenAI or Anthropic, direct to you</PricePer>
+            <PriceFeats>
+              {[
+                'Paste your own API key in Settings',
+                'Encrypted at rest — we never see your usage',
+                'No credits, no caps, no metering',
+                'Everything except AI works without a key',
+              ].map(f => (
                 <PriceFeat key={f}><Check size={13} style={{ color: 'var(--accent)' }} />{f}</PriceFeat>
               ))}
             </PriceFeats>
             <Button variant="outline" fullWidth onClick={() => navigate('/signup')}>Get started</Button>
           </PriceCard>
-          <PriceCard>
-            <PriceName>Per module</PriceName>
-            <PriceAmount>{loading ? `$${MODULE_PRICE}` : format(MODULE_PRICE)}</PriceAmount>
-            {!isUSD && !loading
-              ? <PriceUsdNote>≈ ${MODULE_PRICE} USD · per module / mo</PriceUsdNote>
-              : <PricePer>per module · per month</PricePer>}
-            <PriceFeats>
-              {['Enable any of 8 modules', 'Areas + AI Chat, Agents, Integrations', 'Switch anytime — prorated', 'Metered AI on top of usage'].map(f => (
-                <PriceFeat key={f}><Check size={13} style={{ color: 'var(--accent)' }} />{f}</PriceFeat>
-              ))}
-            </PriceFeats>
-            <Button variant="secondary" fullWidth onClick={() => navigate('/pricing')}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Build your plan <ArrowRight size={14} /></span>
-            </Button>
-          </PriceCard>
-          <PriceCard $featured>
-            <PriceBadge>Best value</PriceBadge>
-            <PriceName style={{ color: `${theme.color.primaryForeground}B3` }}>Everything</PriceName>
-            <PriceAmount>{loading ? `$${BUNDLE_PRICE}` : format(BUNDLE_PRICE)}</PriceAmount>
-            {!isUSD && !loading
-              ? <PriceUsdNote>≈ ${BUNDLE_PRICE} USD · per month</PriceUsdNote>
-              : <PricePer>per month</PricePer>}
-            <PriceFeats>
-              {[`All ${TOTAL_MODULES} modules unlocked`, 'Every life area + AI services', 'Cheaper than 6 modules à la carte', 'Free monthly AI usage cap included'].map(f => (
-                <PriceFeat key={f}><Check size={13} style={{ color: 'var(--accent)' }} />{f}</PriceFeat>
-              ))}
-            </PriceFeats>
-            <Button variant="secondary" fullWidth onClick={() => navigate('/signup')}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Start free trial <ArrowRight size={14} /></span>
-            </Button>
-          </PriceCard>
         </PriceCards>
         <div style={{ marginTop: '1.5rem', fontSize: 13, color: 'var(--muted-foreground)' }}>
-          <Link to="/pricing" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
-            Build your plan & see all modules →
-          </Link>
+          There is no paid plan. The app costs nothing to use — AI features run on
+          a provider key you supply, so your usage is billed to you at cost.
         </div>
       </PricingWrap>
 
@@ -233,7 +221,6 @@ export function LandingPage() {
       <Footer>
         <div>© {new Date().getFullYear()} Control Tower · Built for humans, powered by AI.</div>
         <div className="links">
-          <Link to="/pricing">Pricing</Link>
           <Link to="/privacy-policy">Privacy</Link>
           <Link to="/terms-of-service">Terms</Link>
           <Link to="/support">Support</Link>

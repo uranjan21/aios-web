@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime, timezone
 from typing import Optional
 from sqlmodel import SQLModel, Field, Column
-from sqlalchemy import Text, UniqueConstraint
+from sqlalchemy import CheckConstraint, Text, UniqueConstraint
 
 
 class ContentCampaign(SQLModel, table=True):
@@ -25,6 +25,15 @@ class ContentCampaign(SQLModel, table=True):
 
 class ContentItem(SQLModel, table=True):
     __tablename__ = "content_items"
+    # Mirrors migration m002_enum_checks. `platform` and `content_type` are
+    # deliberately left open — both grow with the product.
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('idea', 'in_progress', 'scheduled', 'published', "
+            "'archived')",
+            name="ck_content_items_status",
+        ),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)

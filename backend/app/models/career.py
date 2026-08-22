@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime, timezone
 from typing import Optional
 from sqlmodel import SQLModel, Field, Column
-from sqlalchemy import Text, UniqueConstraint, ForeignKey
+from sqlalchemy import CheckConstraint, Text, UniqueConstraint, ForeignKey
 from sqlalchemy.dialects.postgresql import TIMESTAMP, UUID as PG_UUID
 
 
@@ -37,6 +37,15 @@ class SkillInventory(SQLModel, table=True):
 # Job opportunity / application tracker
 class JobOpportunity(SQLModel, table=True):
     __tablename__ = "job_opportunities"
+    # Mirrors the CHECK in migration m002_enum_checks — the test suite builds
+    # SQLite from this metadata, so a migration-only constraint isn't tested.
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('prospect', 'applied', 'screening', 'interview', "
+            "'offer', 'rejected', 'closed')",
+            name="ck_job_opportunities_status",
+        ),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
@@ -102,6 +111,13 @@ class LearningResource(SQLModel, table=True):
     """
 
     __tablename__ = "career_learning_resources"
+    # Mirrors migration m002_enum_checks.
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('planned', 'in_progress', 'completed', 'abandoned')",
+            name="ck_career_learning_resources_status",
+        ),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)

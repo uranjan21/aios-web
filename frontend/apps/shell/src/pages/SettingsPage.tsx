@@ -1,7 +1,4 @@
-import { useEffect } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
-import { Bell, CreditCard, Cpu, Link2, Palette, Settings, Shield, UserCircle } from 'lucide-react'
-import { toast } from 'sonner'
+import { Bell, Cpu, Link2, Palette, Settings, Shield, UserCircle } from 'lucide-react'
 import { AreaSettingsPage } from '@ct/shared/components/layout/AreaSettingsPage'
 import { useNavigate } from 'react-router-dom'
 import { useAreaSection } from '@ct/shared/hooks/useAreaSection'
@@ -9,7 +6,6 @@ import { AppearanceSection } from './settings/sections/AppearanceSection'
 import { ProfileModules } from './settings/sections/ProfileModules'
 import { ConnectionsModules } from './settings/sections/ConnectionsModules'
 import { NotificationsModules } from './settings/sections/NotificationsModules'
-import { PlanModules } from './settings/sections/PlanModules'
 import { AiModules } from './settings/sections/AiModules'
 import { SecurityModules } from './settings/sections/SecurityModules'
 
@@ -28,8 +24,8 @@ import { SecurityModules } from './settings/sections/SecurityModules'
  * 2. Six sections became SEVEN, because the old set had one grab-bag and a lot
  *    of repetition. `general` held the display-name form, the Gmail account
  *    list and account deletion; meanwhile `security` re-listed connected apps,
- *    `ai` re-listed entitlements and credits that `billing` already showed
- *    twice, and three sections drew `control: 'select'` rows — a chip with a
+ *    `ai` re-listed entitlements and credits that `billing` showed too, and
+ *    three sections drew `control: 'select'` rows — a chip with a
  *    chevron and no handler, so they read as dropdowns and could not be
  *    opened. Every one of those is gone.
  *
@@ -44,8 +40,11 @@ import { SecurityModules } from './settings/sections/SecurityModules'
  *                     the endpoints exist for all five
  *   ai             <- model + keys, plus knowledge-source CRUD, which had no UI
  *                     at all (`knowledgeApi.save`/`.remove` had no caller)
- *   plan           <- billing + usage, plus the module and free-area pickers.
- *                     `billingApi.setFreeArea` had no caller anywhere
+
+ * `plan` (billing + usage + the module pickers) was deleted on 2026-08-20 when
+ * the product became free and bring-your-own-key. The rail is six tabs in the
+ * same three groups; the AI tab now owns everything about AI cost, because the
+ * only thing that costs anything is the user's own provider key.
  *   security       <- password, verification, sign-out, and account deletion,
  *                     moved out of `general` to sit with the other credential
  *                     actions rather than beside the display-name field
@@ -53,7 +52,6 @@ import { SecurityModules } from './settings/sections/SecurityModules'
  * Admin stayed at its own `/app/admin` destination.
  */
 export function SettingsPage() {
-  const queryClient = useQueryClient()
   const navigate = useNavigate()
 
   /*
@@ -66,18 +64,11 @@ export function SettingsPage() {
     status: 'profile', admin: 'profile',
     briefing: 'notifications', automations: 'notifications',
     'ai-config': 'ai', knowledge: 'ai',
-    billing: 'plan', 'ai-usage': 'plan',
+    /* Billing is gone (2026-08-20). The two tabs that used to answer these
+       keys were deleted with it, so old links land on the AI tab — the one
+       place that still says anything about what AI costs, and who pays it. */
+    billing: 'ai', 'ai-usage': 'ai', plan: 'ai',
   })
-
-  // Returning from Stripe Checkout — confirm and refresh the subscription.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('billing') === 'success') {
-      toast.success('Subscription active — welcome to Pro!')
-      queryClient.invalidateQueries({ queryKey: ['billing', 'subscription'] })
-      window.history.replaceState({}, '', window.location.pathname)
-    }
-  }, [queryClient])
 
   const groups = [
     {
@@ -85,7 +76,6 @@ export function SettingsPage() {
       items: [
         { key: 'profile', label: 'Profile', icon: <UserCircle size={15} />, content: <ProfileModules /> },
         { key: 'security', label: 'Security & privacy', icon: <Shield size={15} />, content: <SecurityModules /> },
-        { key: 'plan', label: 'Plan & usage', icon: <CreditCard size={15} />, content: <PlanModules /> },
       ],
     },
     {

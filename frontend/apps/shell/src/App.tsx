@@ -30,9 +30,10 @@ const queryClient = new QueryClient({
        * stays recoverable without losing the rest of the page.
        *
        * 4xx are never thrown — 401 is already handled by the axios
-       * interceptor (refresh, then redirect), 402 drives UpgradeWall, and
-       * 403/404 are legitimate "not yours / not there" answers that a surface
-       * may correctly render as empty.
+       * interceptor (refresh, then redirect), 428 drives the "add your API
+       * key" prompt on AI surfaces, and 403/404 are legitimate
+       * "not yours / not there" answers that a surface may correctly render
+       * as empty.
        */
       throwOnError: (error, query) => {
         if (query.meta?.inlineError === true) return false
