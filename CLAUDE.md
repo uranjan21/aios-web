@@ -128,7 +128,46 @@ docker compose exec backend pytest
 
 ---
 
-## Recent Updates (2026-08-10, latest — final pre-ship audit)
+## Recent Updates (2026-08-22, latest — login audit + the Guide page)
+
+Full entry in `PROGRESS.md`.
+
+- **"Remember me" was a checkbox wired to nothing** for as long as the sign-in
+  page has existed: `POST /auth/login` had no such field and `_issue_cookie`
+  hardcoded 7 days. Now `LoginRequest.remember` → `_issue_cookie(days=)`, 30 days
+  when ticked. **Unchecked is still exactly 7 days** — the flag extends the
+  session, it never shortens the default one, so nobody's existing login changes.
+- **`RequireAuth` discarded the requested path.** It redirected to `/login` with
+  no state, so every bounced deep link landed on `/app` after signing in. It now
+  passes `from`, and LoginPage honours it **only when it starts with `/app`** —
+  an absolute URL arriving in router state would turn the sign-in form into an
+  open redirect. A signed-in user hitting `/login` now redirects instead of
+  being shown the form.
+- **Password managers could not fill or save the form** — no `autoComplete`
+  anywhere. Now `username`/`current-password` on sign-in and
+  `email`/`new-password` on signup. The error box gained `role="alert"`; the
+  ticker's "8 agents on schedule" is **7**, matching both the seed roster and the
+  tick count the page's own HUD ring draws.
+- **Deliberately NOT changed:** the ambient HUD still draws `business` and
+  `content` nodes (areas deleted 2026-07-21) — `aria-hidden` decoration, and
+  re-siting the composition is a design call, not a bug fix. The hero also sells
+  "Vault Synced" while `VAULT_SYNC_ENABLED` is false in hosted prod; that is
+  marketing copy and Utsav's call.
+- **New `/app/guide`** — the product manual, in the System nav group, `g u`.
+  Ten module-kit modules; every row naming a destination navigates to it, and
+  rows describing something with no destination (the key caps) carry no handler
+  and stay inert. **Not module-gated** — gating the page that explains the
+  modules hides it from the people who need it. Static, no API calls.
+  Note it was written while a parallel session removed billing, so it depends on
+  no pricing, no free area and no Plan tab; "What costs what" became "Where each
+  setting lives" when `@ct/shared/lib/pricing` was deleted underneath it.
+- **Verified:** backend **289 passing**; tsc, `pnpm build`, vitest **32** clean.
+  Login walked at 1280px and 375px (no overflow, no console errors); Guide walked
+  at 1440px — rows are real `<button>`s, clicking Goals lands on
+  `/app/workspace/goals`, Keyboard's rows are correctly not buttons. Cookie
+  max-age asserted directly at 604800 / 2592000.
+
+## Recent Updates (2026-08-10 — final pre-ship audit)
 
 Full audit before the first deploy. Detail in `PROGRESS.md`.
 
@@ -772,5 +811,5 @@ The Business area was completely refactored from a monolithic single-business da
 
 ---
 
-**Last Updated**: 2026-08-17 | **Version**: 0.5.0 | **Free for all, bring-your-own-API-key.** No billing of any kind — see `docs/DYNAMIC_PRICING_PLAN.md` for what was removed and why the instance-key fallback must never come back.
+**Last Updated**: 2026-08-22 | **Version**: 0.5.0 | **Free for all, bring-your-own-API-key.** No billing of any kind — see `docs/DYNAMIC_PRICING_PLAN.md` for what was removed and why the instance-key fallback must never come back.
 

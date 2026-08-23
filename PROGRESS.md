@@ -1,6 +1,6 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
-## 2026-08-21 — claude-code (login audit + a Guide page for users)
+## 2026-08-22 — claude-code (login audit + a Guide page for users)
 
 **Ask.** Audit the login page; build a guide page for users.
 
