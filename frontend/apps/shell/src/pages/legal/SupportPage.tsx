@@ -116,7 +116,7 @@ export function SupportPage() {
     <div>
       <Title>How can we help?</Title>
       <Subtitle>
-        Whether you have a question about features, pricing, or anything else, our team is ready to answer all your questions.
+        Whether you have a question about features, your own API key, or anything else, we are ready to help.
       </Subtitle>
 
       <Grid>

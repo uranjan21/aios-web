@@ -32,7 +32,6 @@ export function LandingPage() {
         <Logo to="/">control <span className="accent">tower</span></Logo>
         <HeaderNav>
           <Link className="secondary" to="/support">Support</Link>
-          <Link className="secondary" to="/support">Support</Link>
           {isAuthenticated ? (
             <Button variant="primary" onClick={() => navigate('/app')}>Go to App</Button>
           ) : (
@@ -61,12 +60,16 @@ export function LandingPage() {
               Start for free <ChevronRight size={16} />
             </span>
           </Button>
-          <Button variant="outline" size="lg" onClick={() => navigate('/signup')}>
-            View plans
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => document.getElementById('whats-included')?.scrollIntoView({ behavior: 'smooth' })}
+          >
+            What's included
           </Button>
         </CTARow>
         <TrustBar initial="hidden" animate="show" variants={fade} transition={{ duration: 0.55, delay: 0.45 }}>
-          <TrustItem><Check size={13} /> Free forever plan</TrustItem>
+          <TrustItem><Check size={13} /> Free forever, no tiers</TrustItem>
           <TrustItem><Lock size={13} /> End-to-end isolated data</TrustItem>
           <TrustItem><Globe size={13} /> Self-hostable</TrustItem>
           <TrustItem><Star size={13} /> No credit card required</TrustItem>
@@ -134,21 +137,22 @@ export function LandingPage() {
       </AiSection>
 
       {/* ── Feature comparison ── */}
-      <CompareSection>
-        <SectionLabel>Plans</SectionLabel>
-        <SectionTitle>Free is genuinely useful. Everything is life-changing.</SectionTitle>
+      <CompareSection id="whats-included">
+        <SectionLabel>What you get</SectionLabel>
+        <SectionTitle>Everything is included. Some of it runs on your key.</SectionTitle>
         <SectionSubtitle style={{ margin: '0 auto 0' }}>
-          Start free with one area, then add only the modules you want.
+          There are no plans and nothing to unlock. The only thing you supply is an
+          AI provider key — and only the AI features need it.
         </SectionSubtitle>
         <CompareTable>
           <CompareHeader>Feature</CompareHeader>
-          <CompareHeader>Free</CompareHeader>
-          <CompareHeader $highlight>Everything</CompareHeader>
+          <CompareHeader>Included</CompareHeader>
+          <CompareHeader $highlight>Uses your API key</CompareHeader>
           {COMPARE_ROWS.map(r => (
             <Fragment key={r.label}>
               <CompareRow><Layers size={13} style={{ opacity: 0.5 }} />{r.label}</CompareRow>
-              <CompareRow>{r.free ? <Check size={14} className="yes" /> : <span className="no">—</span>}</CompareRow>
-              <CompareRow $highlight>{r.paid ? <Check size={14} className="yes" /> : <span className="no">—</span>}</CompareRow>
+              <CompareRow>{r.included ? <Check size={14} className="yes" /> : <span className="no">—</span>}</CompareRow>
+              <CompareRow $highlight>{r.needsKey ? <Check size={14} className="yes" /> : <span className="no">—</span>}</CompareRow>
             </Fragment>
           ))}
         </CompareTable>

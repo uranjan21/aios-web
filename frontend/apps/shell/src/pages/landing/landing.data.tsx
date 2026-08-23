@@ -48,13 +48,18 @@ export const AI_FEATURES = [
   { title: 'Autonomous Agents', desc: 'Schedule AI tasks that run in the background: weekly digests, budget reviews, health check-ins.' },
 ]
 
+// Everything is free, so a Free-vs-Paid table has nothing to compare. The
+// question a visitor actually has now is "which of this needs the API key you
+// keep mentioning?" — so that is what these columns answer.
+//   included → in the app, works with no key at all
+//   needsKey → runs an LLM, so it uses the key you supply
 export const COMPARE_ROWS = [
-  { label: 'Dashboard + 1 area of your choice', free: true, paid: true },
-  { label: 'All 3 life areas (Finance, Health, Career)', free: false, paid: true },
-  { label: 'Auto transaction capture from Gmail', free: false, paid: true },
-  { label: 'Unlimited entries & connected accounts', free: false, paid: true },
-  { label: 'AI Chat Assistant', free: false, paid: true },
-  { label: 'Autonomous Agents', free: false, paid: true },
-  { label: 'Integrations (Google, Gmail & syncs)', free: false, paid: true },
-  { label: 'Pay only for the modules you enable', free: false, paid: true },
+  { label: 'Dashboard + all life areas', included: true, needsKey: false },
+  { label: 'Finance, Health & Career tracking', included: true, needsKey: false },
+  { label: 'Unlimited entries & connected accounts', included: true, needsKey: false },
+  { label: 'Google & Gmail integrations and syncs', included: true, needsKey: false },
+  { label: 'Export or delete all your data', included: true, needsKey: false },
+  { label: 'Auto transaction capture from Gmail', included: true, needsKey: true },
+  { label: 'AI Chat Assistant', included: true, needsKey: true },
+  { label: 'Autonomous Agents & daily briefings', included: true, needsKey: true },
 ]
