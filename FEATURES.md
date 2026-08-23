@@ -1,86 +1,130 @@
-> **Accuracy note (2026-07-21).** This file previously advertised several
-> things that did not exist in any form: a "Premium Animated Loader" with
-> four named visual styles (the loader is a plain `<Spinner>`), and
-> "business-specific dashboards with tailored metrics" (those five files
-> contained hardcoded EmptyState and no API calls). It also referenced
-> `SAAS_IMPLEMENTATION_PLAN.md`, which does not exist. Those claims are
-> removed. The Business and Content areas were deleted on 2026-07-21.
+# Control Tower — Features
 
-# Control Tower Web Features
-
-This document provides a categorized list of all features currently implemented in the Control Tower Web platform, as well as planned capabilities.
-
-**Note:** This file is automatically maintained. Whenever a new feature is added to the application, this document must be updated to reflect the change.
-
-## 1. Finance Area 💰
-*   **Transactions Management:** Log and manage income, expenses, and transfers.
-*   **Intelligent Categorization:** Hierarchical income and expense tree structure.
-*   **Multi-Account Tracking:** Track balances and transactions across multiple user-defined accounts.
-*   **Analytics & Reporting:** Dedicated sections for tracking Budgets, Goals, Loans, Investments, and Bills.
-*   **Real-time Balances:** Live balance recalculation with row-level locking to prevent race conditions.
-*   **Email Ingestion (Finance OS):** Deterministic parsers read bank/credit-card alert emails from Gmail (HDFC/Axis/ICICI/SBI/CRED, read-only) and queue transactions idempotently into the review Inbox; a manual "Sync emails" trigger plus a 6-hourly poller.
-*   **Auto-categorisation Rules:** Merchant rules (contains/equals/regex) that set category + account on ingested transactions automatically.
-*   **Month-end Payables Checklist:** Unified view of rent, subscriptions, EMIs, and credit-card bills — how much, to whom, from which account — with per-month paid/unpaid tracking.
-*   **Investment Commitment:** Track committed monthly SIP vs actually invested, alongside planned-vs-actual spend via budgets.
-*   **Vault Summary & Backup:** Owner-only monthly finance summary written to the Obsidian vault, plus monthly CSV backup of all finance tables.
-
-## 2. Health & Wellness 🏃‍♂️
-*   **Fitness & Workouts:** Log workouts, exercises, and fitness goals.
-*   **Nutrition Tracking:** Track daily meals and food intake.
-*   **Body Metrics:** Log weight, body fat percentage, and steps.
-*   **Sleep Tracking:** Monitor daily sleep duration.
-*   **Habit Tracker:** Daily checklist for recurring healthy habits.
-*   **Third-party Integrations:** Support for Google Fit metrics syncing.
-
-## 3. Business Portfolio Hub 🏢
-*   **Multi-Tenant Businesses:** Support for tracking multiple independent businesses (SaaS, Agency, E-commerce, Content, Freelance) in one portfolio hub.
-*   **Event Logging:** Track product ships, marketing launches, and major business events.
-*   **MRR Tracking:** Independent MRR history and revenue tracking per business.
-
-## 4. Content Management System (CMS) 📝
-*   **Overview Dashboard:** KPI cards, platform-mix pie charts, and publishing-cadence tracking.
-*   **Pipeline Kanban:** Drag-and-drop workflow across Idea -> In Progress -> Scheduled -> Published.
-*   **Content Calendar:** Monthly calendar view for scheduling posts.
-*   **Content Library:** Searchable and filterable data table for all content pieces.
-*   **Campaign Management:** Group content into broader campaigns and track collective performance.
-*   **AI Editor Drawer:** Write content with AI-assisted drafting, set publish dates, attach to campaigns, and track manual engagement metrics (views, likes, comments, shares).
-
-## 5. Career Area 💼
-*   **Career Journal:** Log milestones, daily notes, and reflections.
-*   **Job Opportunities:** Pipeline tracking for roles, applications, and job prospects.
-
-## 6. Core AI & OS Capabilities 🧠
-*   **Global Capture (⌘L) & Contextual Task Creation (R7):** Intercepts ⌘L on projects or sprints detail pages to open a Contextual Task Creation dialog pre-populating project/sprint fields; falls back to NLP-powered Global Capture note logging elsewhere.
-*   **AI Vault Extractor & Global Inbox:** Automatically monitors the Obsidian Vault for new markdown file modifications, parses the text asynchronously using LLMs to extract intents (finance, health, business events), and queues them into a Global Inbox (e.g. pending transactions or actions) for user review or 24-hour auto-commit.
-*   **Active Database + Vault Write Tools:** Proactive write capabilities (`create_action`, `update_goal`, `log_transaction`, `log_health_metric`) allowing chat and background agents to record structured data in Postgres, mirror the change into the relevant vault log file, and sync that file straight back into the vault store for RAG/search freshness.
-*   **Interactive Saved Quotes (R6):** Save quotes, mark favorites, delete, and view random quotes via dedicated REST endpoints.
-*   **Global Chat Assistant:** Overhauled interactive chat interface featuring custom transitions, keyboard accessibility (Escape key closing), responsive mobile width, tooltips, and strict WCAG 4.5:1 text contrast compliance. Supports file attachments (images/text), on-the-fly model switching, and chat session history.
-*   **Per-User LLM Configuration (BYOK):** Override system default LLMs (OpenAI vs Anthropic) per-user and supply personal API keys to bypass token metering limits via the AI Configuration settings.
-*   **Background Agents:** Scheduled tasks (anomaly scan, weekly digest, recurring financial tasks) with domain-scoped facts isolation, explicit task-to-domain mapping, graceful fallback modes with standardized warning prefixes, and structured writeback execution for selected agents via parsed action blocks. Features a URL-addressable advanced filtering UI for managing run-states, errors, and schedules, plus a real seed endpoint and clearer last-output inspection on the Agents page.
-*   **Local Vault Sync:** Secure, local markdown file synchronization.
-
-## 7. SaaS & Infrastructure ⚙️
-*   **Multi-Tenancy:** Row-level isolation across all tables ensuring absolute privacy.
-*   **Modular Pricing / Billing:** Pay-per-module Stripe integration with a free base tier and metered AI usage caps.
-*   **Authentication:** JWT-based strict authentication with Google OAuth integration support.
-*   **Theme Engine:** "Premium Black + Gold" design system utilizing @ledgr/ui.
-
-
-## 8. Workspace & Task Management 🗂️
-*   **Cross-Domain Projects:** Group and track initiatives across Finance, Health, Career, and Business, complete with unified edit capabilities.
-*   **Sprint Planning:** Organize work into time-bound sprints with easy modification and management.
-*   **Task Tracking:** Manage daily to-dos with cross-domain tagging and prioritization.
+> **Accuracy contract.** This file states what a user can actually *reach in the running
+> app*, not what exists in the codebase. A capability that computes on the server but has
+> no screen is listed under **Built but not reachable**, never as a shipped feature.
+> Verified against source on **2026-08-23** (`FEATURE_AUDIT_2026_08_23.md`).
+>
+> **History of drift.** On 2026-07-21 this file advertised a "Premium Animated Loader" and
+> "business-specific dashboards" that existed in no form. Those were removed — but the file
+> then kept full sections for the **Business** and **Content** areas, which were deleted the
+> same day, for another two years of edits. Both sections are now gone. If you add a
+> feature, add it here; if you delete one, delete it here.
 
 ---
 
-## Upcoming / Planned Features 🚀
+## 1. Finance 💰
 
+* **Email ingestion (the flagship).** Deterministic parsers read bank/credit-card alert
+  emails from linked Gmail accounts (HDFC/Axis/ICICI/SBI/CRED, read-only) and queue
+  transactions idempotently into a review Inbox. Manual "Sync emails" trigger plus a
+  6-hourly poller. Skip-if-empty: no unparsed financial mail means no LLM call and no
+  metered credit.
+* **Statement reconciler.** Parses statement line items daily and reconciles against the
+  ledger (±3 days, same amount) so alert-captured transactions are not double-queued.
+* **Review inbox.** Approve/dismiss individually or in bulk; pre-filled category and
+  account; opt-in timed auto-commit (off by default — review-first).
+* **Auto-categorisation rules.** Merchant rules (contains/equals/regex) setting category
+  and account on ingested transactions.
+* **Transactions.** Income, expenses and transfers with hierarchical categories, CSV
+  import, inline edit and bulk operations.
+* **Accounts.** Multi-account balances with `Decimal` arithmetic and row-level locking.
+* **Budgets · Bills · Investments · Loans.** Limits by category, month-end payables
+  checklist (rent, subscriptions, EMIs, card bills with per-month paid/unpaid state),
+  committed SIP vs actually invested, and a client-side loan payoff planner.
+* **Vault summary & CSV backup.** Monthly finance summary written to the Obsidian vault
+  plus a CSV backup of all finance tables. **Self-host only** — inert whenever
+  `VAULT_SYNC_ENABLED=false`, which is the shipped production default.
 
-1.  **Engagement & Retention:** Daily Executive Briefings via email/push and a GitHub-style Activity Heatmap.
-2.  **Frictionless Financial Sync:** Plaid integration for auto-categorized bank transactions.
-3.  **Cross-Domain Synergies:** An AI engine that correlates data across domains (e.g., Sleep vs. Productivity, Diet vs. Spending) to generate actionable insights.
-4.  **Multiplayer / Household Mode:** Secure sharing of finances and tasks across family members while keeping individual health/career data private.
-5.  **Predictive Life Forecasting:** AI models that forecast future outcomes based on current trajectories (e.g., predicted burnout, financial runway).
-6.  **Agentic Automation (Actionable AI):** AI that not only suggests insights but takes actions on your behalf (e.g., auto-blocking calendar time for stress relief, drafting outreach emails).
-7.  **Voice-First Quick Capture:** Push-to-talk voice memos for completely hands-free logging, transcribed and routed by NLP.
-8.  **Macro Goal Synthesis:** Visual mapping of daily micro-habits against annual macro-goals.
+## 2. Health 🏃
+
+* **Workouts, nutrition, body metrics, sleep.** Manual logging with per-metric targets.
+* **Habit tracker.** Daily checklist for recurring habits.
+* ⚠️ **Google Fit sync is connect-only.** The 30-minute `google_sync` job writes
+  `google_fit_metrics`, but the Health area does not read that table — synced steps and
+  weight do **not** appear on any Health screen. The data is currently visible only to the
+  Health Coach agent. Tracked as R5 in `SHIPMENT_READINESS_2026_08_23.md`.
+
+## 3. Career 💼
+
+* **Journal.** Milestones, daily notes and reflections, with a logging streak.
+* **Skills inventory.** Levels including `day_0`, which drives the learning queue.
+* **Learning.** Resources linked to the `day_0` skills they close.
+* **Experience** and **Opportunities.** Roles held; pipeline for applications and prospects.
+* All Career data is manual entry — nothing feeds it automatically.
+
+## 4. Workspace 🗂️
+
+* **Projects · Sprints · Tasks.** Cross-domain, with domain tagging, priorities and
+  server-enforced consistency (a task inherits its project's domain and sprint).
+* **Goals · Milestones.** Set here for every domain — areas show read-only progress only.
+  `GET /api/goals` returns the latest weekly `progress_score`.
+* **Savings pots.** Finance's ₹ target/current pots at `/app/workspace/goals?domain=finance`.
+
+## 5. Daily 📅
+
+* **Today.** Greeting, four KPI tiles, Today's Focus, and a 12-week activity heat grid.
+* **This week.** Week planner over server-backed plan blocks, joined with Google Calendar.
+* **Weekly review.** A guided flow that *writes* — records goal progress and creates focus
+  captures. Currently the only screen that surfaces the daily briefing.
+* ⚠️ **The dashboard "Schedule" is browser-local.** It is backed by a `localStorage`
+  store; entries never reach the server, never sync across devices, and are lost when the
+  browser cache is cleared. Tracked as R4.
+
+## 6. AI 🧠
+
+* **Chat assistant.** Streaming, tool-calling, file attachments, session history, per-user
+  model choice from a server-side allowlist, and prompt caching (verified 95% prefix hit).
+  Vault tools are gated to the vault owner; every other tenant gets RAG-only knowledge.
+* **Background agents.** 7 seeded per user, 4 active by default: Morning Brief, Monthly
+  Finance, Health Coach, Vault Extractor — plus the two Gmail trackers, which auto-enable
+  when Gmail is connected. Timezone-aware crons, small-model tier by default, and Morning
+  Brief skips dormant days rather than burning a credit.
+* **Daily briefing.** Generated per user at their local delivery time, idempotent per day.
+  Reachable only via Weekly Review (see R1).
+* **Quick capture (⌘L)** and the **⌘K command palette** with navigate / log / ask modes.
+* **Per-user LLM configuration (BYOK).** Override the system provider and supply a personal
+  key to bypass metering.
+* **Knowledge sources.** Configure, sync and remove an external knowledge source for RAG.
+
+## 7. Platform ⚙️
+
+* **Multi-tenancy.** Row-level isolation on every user-data table, verified by live
+  cross-tenant attack.
+* **Auth.** JWT in an httpOnly `SameSite=Strict` cookie (`aios_token`), Google OAuth, email
+  verification, password reset, token-version revocation.
+* **Modular billing.** Pay-per-module Stripe integration with a free base tier and metered
+  AI. **Currently disabled** — never exercised against live Stripe keys.
+* **Account deletion.** One-click, cascades from live ORM metadata.
+* **PWA + push notifications**, **design system** (@ledgr/ui, light/dark), **admin panel**.
+
+---
+
+## Built but NOT reachable by any user
+
+Each of these computes on the server and has no screen. They are features on paper only.
+Full evidence in `docs/FEATURE_AUDIT_2026_08_23.md`.
+
+| Capability | State | Disposition |
+|---|---|---|
+| **Cross-domain Synergy Engine** | Nightly job, correlations, adaptive threshold, metered LLM phrasing. `insightsApi.discoveries` has **0 call sites**. | 🔴 **Surface it — this is the product's differentiator** |
+| **Insight 👍/👎 feedback** | Endpoint live; `insightsApi.feedback` has **0 call sites**, so the anti-slop threshold can never adapt | 🔴 Ship with the feed |
+| **Activity heatmap** | `insightsApi.heatmap` has **0 call sites** | 🔴 Re-mount on Today |
+| **Forecast engine** | Nightly 02:30 job writes rows; `forecastsApi` has **0 importers** | ⚫ Surface or retire |
+| **What-if simulator** | Route + Monte-Carlo service + api method, **0 callers** | ⚫ Retire or re-site |
+| **4 of 5 automation templates** | `streak_save_evening`, `weekly_review_sunday`, `payday_snapshot`, `idle_goal_nudge_7d` cannot be enabled from any screen | 🟡 Rules screen, or delete |
+| **Saved quotes** | 7 routes + table, **0 consumers** since an earlier redesign | ⚫ Retire router + table |
+| **Data export** | **Does not exist.** Deletion ships without its counterpart | 🔴 Build |
+| **Onboarding** | `WelcomeWizard` is a 4-slide carousel; completion is never persisted server-side | 🔴 Build real onboarding |
+
+---
+
+## Planned
+
+1. **Make the moat visible** — Discoveries feed with feedback, heatmap and briefing on Today.
+2. **Real onboarding** — pick area → connect Gmail/Google → log first entry, persisted as the activation event.
+3. **Data export** — the missing half of the trust posture.
+4. **Google Fit → Health screens** — close the loop on an advertised integration.
+5. **Frictionless bank sync** — beyond email parsing.
+6. **Voice-first capture** — push-to-talk, transcribed and NLP-routed.
+7. **Household / multiplayer** — shared finance and tasks; health and career stay private.

@@ -1,5 +1,75 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
+## 2026-08-23 — claude-code (feature audit + shipment readiness: pressure-testing the product)
+
+**Ask.** Audit the app's features and shipment readiness; pressure-test which ideas are
+good, bad, need improvement, or need deleting. Track it in md files.
+
+**Deliverables:** `docs/FEATURE_AUDIT_2026_08_23.md` (feature-by-feature verdicts) +
+`docs/SHIPMENT_READINESS_2026_08_23.md` (go/no-go). `FEATURES.md` rewritten — it was
+materially false. This audit judges the **product**; `AUDIT_2026_08_16.md` judged the
+**code** and its open blockers are carried forward rather than re-derived.
+
+**🔴 The headline: the moat has no user interface.** `services/insights/synergy.py` — the
+cross-domain correlation engine that `PRODUCT_ROADMAP.md` calls "the reason to pay" — runs
+nightly at 03:00 UTC for every user, meters AI credits, and writes `Insight` rows that
+**no screen in the application reads**:
+
+```
+$ grep -rn "insightsApi\.[a-zA-Z]*" frontend --include=*.tsx --include=*.ts \
+    | grep -v "packages/shared/src/api/insights.ts"
+→ 3 hits: briefingPreferences, updateBriefingPreferences, briefingToday
+```
+
+`discoveries`, `feedback` and `heatmap` have **zero call sites**. `DashboardPage.tsx:7-11`
+records the cause in its own header: the 2026-08-02 canvas redesign dropped `BriefingCard`,
+`DiscoveriesFeed` and the heatmap because "the canvas draws none of them", leaving the
+components in the tree unreferenced. A visual-fidelity pass deleted the differentiator.
+
+**Second-order:** `_get_threshold()` raises the correlation bar when a user's 👎 rate
+exceeds 40% over 10+ rated insights. Feedback can never be recorded, so the anti-slop
+guardrail is permanently inert and the north-star metric ("insight usefulness > 60%") is
+**unmeasurable by construction**.
+
+**Why no gate caught it.** `test_api_mappings.get_frontend_endpoints()` regex-matches path
+strings in *any* `.ts`/`.tsx` file. An `api/*.ts` module with **zero importers** still
+satisfies it. The test proves a path string exists, not that a user can reach the feature —
+which is also how `forecastsApi` (nightly 02:30 job, 0 importers) rotted silently.
+
+**Other verified findings.** Dashboard "Schedule" is a `localStorage` zustand store —
+silent data loss on the front door, and one of *three* unreconciled calendar models.
+Google Fit syncs every 30 min into `google_fit_metrics`, which `api/areas/health.py`
+**never reads** — an advertised integration that connects and displays nothing.
+`WelcomeWizard` is a 4-slide carousel whose completion call is commented out and which is
+gated on `localStorage`, so activation is unmeasurable and it re-shows per device. **No
+data-export endpoint exists** in 244 routes, while deletion does. 4 of 5 automation
+templates are unreachable from any screen. `/api/quotes` (7 routes + table, 0 consumers) is
+still undecided despite an explicit 2026-08-17 "do not leave this entry here forever".
+Pricing caps à-la-carte at the bundle, so the 6th module is free and nobody rationally buys
+5 — a 2-tier product wearing a 6-option configurator.
+
+**Deliberately recorded as good, not just problems:** the Gmail→ledger pipeline is
+genuinely differentiated and is the thing to build the product around; isolation is grade
+A; money is `Decimal` + row-locked throughout; the AI cost engineering (small-model tier,
+dormancy skip, skip-if-empty, 95% cache hit) is real.
+
+**Gates re-run on this branch:** tsc ✅ · `pnpm build` ✅ 11.78s · vitest ✅ (1 file, 2
+tests) · ESLint ✅ 0 errors/290 warnings · token-lint ✅ no regressions. Backend suite
+**could not run here** — all 290 tests error in collection because `tiktoken` downloads
+`cl100k_base` at runtime and this sandbox's egress proxy returns 403. Environment
+limitation, not a regression (CI has egress; last measured 298 passing on 2026-08-17) — but
+logged as R8: the suite should not need public internet to collect.
+
+- Shipped: two audit docs (feature verdicts + go/no-go) and an honest `FEATURES.md`; no
+  application code changed — this session was diagnosis, and the fixes are sequenced in the
+  audit rather than half-applied.
+- Blockers: B1 (per-worker `APP_SECRET_KEY` → random 401s above 1 worker) is still open and
+  remains the most dangerous item in the repo. R1 (invisible moat) blocks charging anyone.
+- Next: re-mount `DiscoveriesFeed` + heatmap + `BriefingCard` on `/app` with 👍/👎 wired to
+  `insightsApi.feedback`, then add a reachability assertion to `test_api_mappings` so a
+  dead api module fails CI. Both are small; together they turn nightly compute the product
+  already pays for into the feature it sells.
+
 ## 2026-08-10 — claude-code (dev dataset: seed every API surface)
 
 **Ask.** Seed dummy data so all frontend features can be tested.
