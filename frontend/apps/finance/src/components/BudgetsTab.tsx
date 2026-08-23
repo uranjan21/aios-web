@@ -11,7 +11,7 @@
  * the canvas does not draw it. Clicking a meter opens its editor, which is
  * where the old table's pencil/trash column went.
  */
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback} from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { toast } from 'sonner'
@@ -20,6 +20,7 @@ import {
   Button, Card, Dialog, EmptyState, ErrorState, Input, Select, SkeletonPage,
 } from '@ledgr/ui'
 import { Gauge, Trash2 } from 'lucide-react'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { financeApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { formatAmount } from '@ct/shared/lib/utils'
@@ -31,7 +32,7 @@ const Root = styled.div`
   gap: ${({ theme }) => theme.spacing[5]};
 `
 
-const Form = styled.div`
+const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[3]};
@@ -67,6 +68,7 @@ export function BudgetsTab({ onAddClick }: { onAddClick?: () => void }) {
   const [editing, setEditing] = useState<BudgetLimit | null>(null)
   const [formCategory, setFormCategory] = useState('')
   const [formLimit, setFormLimit] = useState('')
+  const f = useFieldErrors<'category' | 'monthly_limit'>('edit-budget')
   const [statusFilter, setStatusFilter] = useState<'all' | 'over' | 'near' | 'ok'>('all')
 
   /* Handled in place below rather than thrown to the route (F1) — see App.tsx.
@@ -107,6 +109,7 @@ export function BudgetsTab({ onAddClick }: { onAddClick?: () => void }) {
     setEditing(null)
     setFormCategory('')
     setFormLimit('')
+    f.reset()
   }
 
   const upsert = useMutation({
@@ -132,11 +135,29 @@ export function BudgetsTab({ onAddClick }: { onAddClick?: () => void }) {
     onError: () => toast.error('Failed to delete budget'),
   })
 
-  const openEdit = (b: BudgetLimit) => {
+  /* The Save button used to be `disabled` on empty strings, which let "0"
+     through to a `Field(gt=0)` endpoint and came back as a generic toast. The
+     limit is a field problem, so it is answered on the field. */
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault()
+    const limit = Number(formLimit)
+    const ok = f.submit({
+      category: formCategory ? undefined : 'Pick the category to cap.',
+      monthly_limit: formLimit.trim() === '' || !Number.isFinite(limit)
+        ? 'Enter a monthly limit.'
+        : limit <= 0
+          ? 'The limit must be more than zero.'
+          : undefined,
+    })
+    if (ok) upsert.mutate({ category: formCategory, monthly_limit: formLimit })
+  }
+
+  const openEdit = useCallback((b: BudgetLimit) => {
+    f.reset()
     setEditing(b)
     setFormCategory(b.category)
     setFormLimit(String(b.monthly_limit))
-  }
+  }, [f])
 
   /** Each budget joined to what has actually been spent against it. */
   const rows = useMemo(() => {
@@ -204,7 +225,7 @@ export function BudgetsTab({ onAddClick }: { onAddClick?: () => void }) {
       },
     ]
      
-  }, [rows, visible, statusFilter, onAddClick])
+  }, [rows, visible, statusFilter, onAddClick, openEdit])
 
   if (isError) {
     return (
@@ -242,15 +263,16 @@ export function BudgetsTab({ onAddClick }: { onAddClick?: () => void }) {
         title={`Budget — ${editing?.category ?? ''}`}
         description="The monthly ceiling for this category."
       >
-        <Form>
+        <Form noValidate onSubmit={handleSave}>
           <div>
             <Label>Category</Label>
             <Select
               fullWidth
               value={formCategory}
-              onChange={(v: any) => setFormCategory(String(v))}
+              onChange={(v: any) => { f.clearField('category'); setFormCategory(String(v)) }}
               options={categoryOptions.map(c => ({ value: c, label: c }))}
             />
+            <FieldError id={f.errorId('category')}>{f.errors.category}</FieldError>
           </div>
           <div>
             <Label>Monthly limit</Label>
@@ -260,23 +282,21 @@ export function BudgetsTab({ onAddClick }: { onAddClick?: () => void }) {
               min="0"
               step="100"
               value={formLimit}
-              onChange={(e: any) => setFormLimit(e.target.value)}
+              {...f.fieldProps('monthly_limit')}
+              onChange={(e: any) => { f.clearField('monthly_limit'); setFormLimit(e.target.value) }}
               autoFocus
             />
+            <FieldError id={f.errorId('monthly_limit')}>{f.errors.monthly_limit}</FieldError>
           </div>
           <Actions>
-            <Button
-              variant="primary"
-              loading={upsert.isPending}
-              disabled={!formCategory || !formLimit}
-              onClick={() => upsert.mutate({ category: formCategory, monthly_limit: formLimit })}
-            >
+            <Button variant="primary" type="submit" loading={upsert.isPending}>
               Save
             </Button>
-            <Button variant="ghost" onClick={closeEdit}>Cancel</Button>
+            <Button variant="ghost" type="button" onClick={closeEdit}>Cancel</Button>
             <Spacer />
             <Button
               variant="destructive"
+              type="button"
               size="sm"
               loading={remove.isPending}
               onClick={() => editing && remove.mutate(editing.category)}

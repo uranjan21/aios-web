@@ -11,13 +11,14 @@
  * the target — from the record that exists, and stays inert because ticking a
  * day is not a thing you can do; you log the session instead.
  */
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback} from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { Activity, CheckSquare, Dumbbell, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button, Card, Dialog, EmptyState, Input, SkeletonPage } from '@ledgr/ui'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { healthApi, type WorkoutRoutine } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import type { WorkoutSessionItem } from '@ct/shared/types'
@@ -85,6 +86,9 @@ export function WorkoutsSection() {
   const [logOpen, setLogOpen] = useState(false)
   const [name, setName] = useState('')
   const [sets, setSets] = useState<SetRow[]>([{ ...EMPTY_SET }])
+  /* Keys are `set-{i}-exercise` / `set-{i}-reps` as well as the fixed fields,
+     so a bad row is marked where it is rather than summarised at the bottom. */
+  const f = useFieldErrors<string>('workout-log')
   /* Non-null puts the log dialog into edit mode. A session was correctable
      only by deleting and re-logging it until 2026-08-06. */
   const [editingSession, setEditingSession] = useState<WorkoutSessionItem | null>(null)
@@ -138,6 +142,32 @@ export function WorkoutsSection() {
     onError: () => toast.error('Failed to log workout'),
   })
 
+  /* The Save button was `disabled` whenever no row was usable, which is the
+     one state a user cannot debug: nothing says whether the exercise name or
+     the rep count is the missing half. Both are checked per row now. */
+  const submitLog = () => {
+    const found: Record<string, string | undefined> = {}
+    let usable = 0
+    sets.forEach((r, i) => {
+      const exercise = r.exercise.trim()
+      const reps = Number(r.reps)
+      const blank = !exercise && r.reps.trim() === '' && r.weight_kg.trim() === ''
+      if (blank) return
+      if (!exercise) found[`set-${i}-exercise`] = 'Name the exercise.'
+      if (r.reps.trim() === '' || !Number.isInteger(reps) || reps < 1) {
+        found[`set-${i}-reps`] = 'At least 1 rep.'
+      }
+      if (exercise && Number.isInteger(reps) && reps >= 1) usable += 1
+    })
+    if (usable === 0 && Object.keys(found).length === 0) {
+      found.sets = 'Add at least one set — an exercise and its reps.'
+    }
+    if (editingSession && !loggedOn) found.loggedOn = 'Pick the date this session happened.'
+    if (!f.submit(found)) return
+    if (editingSession) update.mutate()
+    else create.mutate()
+  }
+
   const cleanSets = () =>
     sets
       .filter(r => r.exercise.trim() && Number(r.reps) > 0)
@@ -148,6 +178,7 @@ export function WorkoutsSection() {
       }))
 
   const closeLog = () => {
+    f.reset()
     setLogOpen(false)
     setEditingSession(null)
     setName('')
@@ -155,15 +186,17 @@ export function WorkoutsSection() {
     setSets([{ ...EMPTY_SET }])
   }
 
-  const openLog = () => {
+  const openLog = useCallback(() => {
+    f.reset()
     setEditingSession(null)
     setName('')
     setLoggedOn('')
     setSets([{ ...EMPTY_SET }])
     setLogOpen(true)
-  }
+  }, [f])
 
   const openEditSession = (s: WorkoutSessionItem) => {
+    f.reset()
     setEditingSession(s)
     setName(s.name)
     setLoggedOn(dayjs(s.logged_at).format('YYYY-MM-DD'))
@@ -366,7 +399,7 @@ export function WorkoutsSection() {
       },
     ]
      
-  }, [rows, gymLogs, goals, routines, adherence])
+  }, [rows, gymLogs, goals, routines, adherence, openLog])
 
   if (isLoading) return <SkeletonPage kpis={4} modules={[7, 5, 12]} />
 
@@ -424,7 +457,8 @@ export function WorkoutsSection() {
           {editingSession && (
             <div>
               <Label>Date</Label>
-              <Input type="date" value={loggedOn} onChange={(e: any) => setLoggedOn(e.target.value)} />
+              <Input type="date" value={loggedOn} {...f.fieldProps('loggedOn')} onChange={(e: any) => { f.clearField('loggedOn'); setLoggedOn(e.target.value) }} />
+              <FieldError id={f.errorId('loggedOn')}>{f.errors.loggedOn}</FieldError>
             </div>
           )}
 
@@ -434,9 +468,11 @@ export function WorkoutsSection() {
                 {i === 0 && <Label>Exercise</Label>}
                 <Input
                   value={r.exercise}
-                  onChange={(e: any) => setSets(s => s.map((x, j) => (j === i ? { ...x, exercise: e.target.value } : x)))}
+                  {...f.fieldProps(`set-${i}-exercise`)}
+                  onChange={(e: any) => { f.clearField(`set-${i}-exercise`); f.clearField('sets'); setSets(s => s.map((x, j) => (j === i ? { ...x, exercise: e.target.value } : x))) }}
                   placeholder="Bench press"
                 />
+                <FieldError id={f.errorId(`set-${i}-exercise`)}>{f.errors[`set-${i}-exercise`]}</FieldError>
               </div>
               <div>
                 {i === 0 && <Label>Reps</Label>}
@@ -444,9 +480,11 @@ export function WorkoutsSection() {
                   type="number"
                   min="1"
                   value={r.reps}
-                  onChange={(e: any) => setSets(s => s.map((x, j) => (j === i ? { ...x, reps: e.target.value } : x)))}
+                  {...f.fieldProps(`set-${i}-reps`)}
+                  onChange={(e: any) => { f.clearField(`set-${i}-reps`); f.clearField('sets'); setSets(s => s.map((x, j) => (j === i ? { ...x, reps: e.target.value } : x))) }}
                   placeholder="8"
                 />
+                <FieldError id={f.errorId(`set-${i}-reps`)}>{f.errors[`set-${i}-reps`]}</FieldError>
               </div>
               <div>
                 {i === 0 && <Label>Weight (kg)</Label>}
@@ -471,16 +509,16 @@ export function WorkoutsSection() {
             </SetRowGrid>
           ))}
 
-          <Button variant="outline" size="sm" onClick={() => setSets(s => [...s, { ...EMPTY_SET }])}>
+          <Button variant="outline" size="sm" type="button" onClick={() => { f.clearField('sets'); setSets(s => [...s, { ...EMPTY_SET }]) }}>
             <Plus size={12} style={{ marginRight: 4 }} /> Add set
           </Button>
+          <FieldError id={f.errorId('sets')}>{f.errors.sets}</FieldError>
 
           <Actions>
             <Button
               variant="primary"
               loading={create.isPending || update.isPending}
-              disabled={!sets.some(r => r.exercise.trim() && Number(r.reps) > 0)}
-              onClick={() => (editingSession ? update.mutate() : create.mutate())}
+              onClick={submitLog}
             >
               {editingSession ? 'Save changes' : 'Save workout'}
             </Button>

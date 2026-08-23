@@ -20,7 +20,7 @@
  * goals against the rate every deadline collectively demands — the same
  * question. Per-goal detail lives in the timeline and in each goal's ledger.
  */
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback} from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import styled from 'styled-components'
@@ -171,7 +171,7 @@ export function GoalsTab({
     onError: () => toast.error('Failed to delete goal'),
   })
 
-  const openUpdate = (goal: FinancialGoal) => {
+  const openUpdate = useCallback((goal: FinancialGoal) => {
     setUpdatingGoal(goal)
     f.reset()
     setEditForm({
@@ -182,7 +182,7 @@ export function GoalsTab({
       deadline: goal.deadline ? String(goal.deadline).slice(0, 10) : '',
       color: goal.color ?? '',
     })
-  }
+  }, [f])
 
   const closeEdit = () => {
     setUpdatingGoal(null)
@@ -433,7 +433,7 @@ export function GoalsTab({
 
     return specs
      
-  }, [visible, savingsSeries, avgSaved, ratePerGoal, statusFilterNode, onAdd, contribMonthly])
+  }, [visible, savingsSeries, avgSaved, ratePerGoal, statusFilterNode, onAdd, contribMonthly, openUpdate])
 
   if (isError) {
     return (

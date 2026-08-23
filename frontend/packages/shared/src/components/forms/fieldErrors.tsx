@@ -21,7 +21,7 @@
  * Usage: mark the form `noValidate`, do explicit checks on submit, and call
  * `clearField` from each `onChange` so a message goes as soon as it is fixed.
  */
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import styled from 'styled-components'
 
 /** Message per field name. A field is valid when its key is absent. */
@@ -88,5 +88,12 @@ export function useFieldErrors<K extends string>(formId: string): UseFieldErrors
 
   const reset = useCallback(() => setErrors({}), [])
 
-  return { errors, fieldProps, errorId, clearField, submit, reset }
+  // Memoised: callers put this object (or its members) in useMemo/useCallback
+  // dependency arrays, and a fresh object literal every render would silently
+  // defeat every one of those memos. Identity now changes only when `errors`
+  // actually changes.
+  return useMemo(
+    () => ({ errors, fieldProps, errorId, clearField, submit, reset }),
+    [errors, fieldProps, errorId, clearField, submit, reset],
+  )
 }

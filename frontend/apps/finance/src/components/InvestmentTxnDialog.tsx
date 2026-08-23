@@ -20,6 +20,7 @@ import { ArrowLeftRight, Trash2 } from 'lucide-react'
 import { financeApi, type InvestmentTransaction } from '@ct/shared/api/areas'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import { formatCurrency } from '@ct/shared/lib/utils'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import type { FinanceInvestment } from '@ct/shared/types'
 
 const FormContainer = styled.form`
@@ -102,16 +103,19 @@ const EMPTY = { investment_id: '', kind: 'buy' as Kind, amount: '', units: '', t
 export function InvestmentTxnDialog({ open, onClose, holdings, viewing, holdingName }: Props) {
   const queryClient = useQueryClient()
   const [form, setForm] = useState(EMPTY)
+  const f = useFieldErrors<'investment_id' | 'amount' | 'units' | 'transacted_at'>('investment-txn')
 
   /* Dialog fires onOpenChange on CLOSE only, so prefill/reset has to hang off
      `open` — an onOpenChange(true) branch would never run. */
   useEffect(() => {
     if (!open) return
+    f.reset()
     setForm({
       ...EMPTY,
       investment_id: holdings[0]?.id ?? '',
       transacted_at: dayjs().format('YYYY-MM-DD'),
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- f is stable; adding it re-runs the reset on every error change
   }, [open, holdings])
 
   const invalidate = () => {
@@ -142,18 +146,26 @@ export function InvestmentTxnDialog({ open, onClose, holdings, viewing, holdingN
     onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to remove cashflow'),
   })
 
+  /* These were three toasts that named no field. They are all field problems —
+     the backend's own contract is `amount > 0` and a required investment_id —
+     so they are answered on the control that is wrong. */
   const handleSave = () => {
-    if (!form.investment_id) { toast.error('Pick a holding'); return }
     const amount = parseFloat(form.amount)
-    if (Number.isNaN(amount) || amount <= 0) {
-      toast.error('Amount must be greater than zero — use the kind to say buy or sell')
-      return
-    }
-    const units = form.units ? parseFloat(form.units) : undefined
-    if (units !== undefined && (Number.isNaN(units) || units < 0)) {
-      toast.error('Units must be a non-negative number')
-      return
-    }
+    const hasUnits = form.units.trim() !== ''
+    const units = hasUnits ? parseFloat(form.units) : undefined
+    const ok = f.submit({
+      investment_id: form.investment_id ? undefined : 'Pick a holding.',
+      amount: form.amount.trim() === '' || !Number.isFinite(amount)
+        ? 'Enter an amount.'
+        : amount <= 0
+          ? 'Must be more than zero — the kind says buy or sell, not the sign.'
+          : undefined,
+      units: hasUnits && (!Number.isFinite(units!) || units! < 0)
+        ? 'Units cannot be negative.'
+        : undefined,
+      transacted_at: form.transacted_at ? undefined : 'Pick a date.',
+    })
+    if (!ok) return
     createMutation.mutate({
       investment_id: form.investment_id,
       kind: form.kind,
@@ -221,23 +233,24 @@ export function InvestmentTxnDialog({ open, onClose, holdings, viewing, holdingN
       onOpenChange={(o) => { if (!o) onClose() }}
       size="md"
     >
-      <FormContainer onSubmit={e => { e.preventDefault(); handleSave() }}>
+      <FormContainer noValidate onSubmit={e => { e.preventDefault(); handleSave() }}>
         <FormGroup>
           <Label>Holding</Label>
           <Select
             fullWidth
             value={form.investment_id}
-            onChange={(v: any) => setForm(f => ({ ...f, investment_id: String(v) }))}
+            onChange={(v: any) => { f.clearField('investment_id'); setForm(prev => ({ ...prev, investment_id: String(v) })) }}
             placeholder="Select a holding"
             options={holdings.map(h => ({ value: h.id, label: h.name }))}
           />
+          <FieldError id={f.errorId('investment_id')}>{f.errors.investment_id}</FieldError>
         </FormGroup>
 
         <FormGroup>
           <Label>Kind</Label>
           <SegmentedControl
             value={form.kind}
-            onChange={(v: any) => setForm(f => ({ ...f, kind: v as Kind }))}
+            onChange={(v: any) => setForm(prev => ({ ...prev, kind: v as Kind }))}
             options={[
               { label: 'Buy', value: 'buy' },
               { label: 'Sell', value: 'sell' },
@@ -256,11 +269,12 @@ export function InvestmentTxnDialog({ open, onClose, holdings, viewing, holdingN
               min="0.01"
               step="0.01"
               value={form.amount}
-              onChange={(e: any) => setForm(f => ({ ...f, amount: e.target.value }))}
+              {...f.fieldProps('amount')}
+              onChange={(e: any) => { f.clearField('amount'); setForm(prev => ({ ...prev, amount: e.target.value })) }}
               placeholder="0.00"
               autoFocus
-              required
             />
+            <FieldError id={f.errorId('amount')}>{f.errors.amount}</FieldError>
           </FormGroup>
           <FormGroup>
             <Label>Units (optional)</Label>
@@ -269,9 +283,11 @@ export function InvestmentTxnDialog({ open, onClose, holdings, viewing, holdingN
               min="0"
               step="0.0001"
               value={form.units}
-              onChange={(e: any) => setForm(f => ({ ...f, units: e.target.value }))}
+              {...f.fieldProps('units')}
+              onChange={(e: any) => { f.clearField('units'); setForm(prev => ({ ...prev, units: e.target.value })) }}
               placeholder="0"
             />
+            <FieldError id={f.errorId('units')}>{f.errors.units}</FieldError>
           </FormGroup>
         </Pair>
 
@@ -281,15 +297,16 @@ export function InvestmentTxnDialog({ open, onClose, holdings, viewing, holdingN
             <Input
               type="date"
               value={form.transacted_at}
-              onChange={(e: any) => setForm(f => ({ ...f, transacted_at: e.target.value }))}
-              required
+              {...f.fieldProps('transacted_at')}
+              onChange={(e: any) => { f.clearField('transacted_at'); setForm(prev => ({ ...prev, transacted_at: e.target.value })) }}
             />
+            <FieldError id={f.errorId('transacted_at')}>{f.errors.transacted_at}</FieldError>
           </FormGroup>
           <FormGroup>
             <Label>Part of a SIP?</Label>
             <SegmentedControl
               value={form.is_sip ? 'yes' : 'no'}
-              onChange={(v: any) => setForm(f => ({ ...f, is_sip: v === 'yes' }))}
+              onChange={(v: any) => setForm(prev => ({ ...prev, is_sip: v === 'yes' }))}
               options={[{ label: 'No', value: 'no' }, { label: 'Yes', value: 'yes' }]}
             />
           </FormGroup>
@@ -299,7 +316,7 @@ export function InvestmentTxnDialog({ open, onClose, holdings, viewing, holdingN
           <Label>Notes</Label>
           <Input
             value={form.notes}
-            onChange={(e: any) => setForm(f => ({ ...f, notes: e.target.value }))}
+            onChange={(e: any) => setForm(prev => ({ ...prev, notes: e.target.value }))}
             placeholder="Optional"
           />
         </FormGroup>

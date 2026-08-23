@@ -4,6 +4,7 @@ import { Button, Dialog, Select, Input, Card, SkeletonList } from '@ledgr/ui'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import { Trash2, Edit, Plus, PlusCircle, ChevronRight, ChevronDown, Tags } from 'lucide-react'
 import { toast } from 'sonner'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import styled from 'styled-components'
 import { financeApi } from '@ct/shared/api/areas'
 
@@ -174,6 +175,7 @@ export const CategoryManager: React.FC = () => {
   const [activeKind, setActiveKind] = useState<'expense' | 'income'>('expense')
   const [modal, setModal] = useState<ModalState | null>(null)
   const [values, setValues] = useState({ name: '', icon: '', parent_id: '' })
+  const f = useFieldErrors<'name'>('category')
 
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ['finance', 'categories'],
@@ -218,31 +220,38 @@ export const CategoryManager: React.FC = () => {
   const topLevelCategories = allKindCats.filter(c => !c.parent_id)
 
   const openCreateTop = () => {
+    f.reset()
     setValues({ name: '', icon: '', parent_id: '' })
     setModal({ mode: 'create-top', kind: activeKind })
   }
 
   const openCreateSub = (parent: any) => {
+    f.reset()
     setValues({ name: '', icon: '', parent_id: '' })
     setModal({ mode: 'create-sub', parentId: parent.id, parentName: parent.name, kind: parent.kind || activeKind })
   }
 
   const openEdit = (category: any) => {
+    f.reset()
     setValues({ name: category.name, icon: category.icon ?? '', parent_id: category.parent_id ?? '' })
     setModal({ mode: 'edit', category })
   }
 
+  /* The name was `required`, i.e. a browser bubble on the first field and
+     nothing once `noValidate` is on. The server's uniqueness rejection stays a
+     toast — the client cannot know the tree it is competing with. */
   const handleSubmit = () => {
     if (!modal) return
+    if (!f.submit({ name: values.name.trim() ? undefined : 'Name the category.' })) return
     const icon = values.icon?.trim() || null
     if (modal.mode === 'create-top') {
-      createMutation.mutate({ name: values.name, icon, parent_id: null, kind: modal.kind })
+      createMutation.mutate({ name: values.name.trim(), icon, parent_id: null, kind: modal.kind })
     } else if (modal.mode === 'create-sub') {
-      createMutation.mutate({ name: values.name, icon, parent_id: modal.parentId, kind: modal.kind })
+      createMutation.mutate({ name: values.name.trim(), icon, parent_id: modal.parentId, kind: modal.kind })
     } else {
       updateMutation.mutate({
         id: modal.category.id,
-        data: { name: values.name, icon, parent_id: values.parent_id || null },
+        data: { name: values.name.trim(), icon, parent_id: values.parent_id || null },
       })
     }
   }
@@ -325,15 +334,16 @@ export const CategoryManager: React.FC = () => {
         onOpenChange={open => { if (!open) setModal(null) }}
         size="sm"
       >
-        <FormContainer onSubmit={e => { e.preventDefault(); handleSubmit() }}>
+        <FormContainer noValidate onSubmit={e => { e.preventDefault(); handleSubmit() }}>
           <FormGroup>
             <Label>Name</Label>
             <Input
-              required
               placeholder="e.g. Groceries"
               value={values.name}
-              onChange={e => setValues({ ...values, name: e.target.value })}
+              {...f.fieldProps('name')}
+              onChange={e => { f.clearField('name'); setValues({ ...values, name: e.target.value }) }}
             />
+            <FieldError id={f.errorId('name')}>{f.errors.name}</FieldError>
           </FormGroup>
           <FormGroup>
             <Label>Emoji Icon</Label>

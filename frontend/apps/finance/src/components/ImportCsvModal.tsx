@@ -6,6 +6,7 @@ import { Dialog, Button, Select, Textarea, Badge } from '@ledgr/ui'
 import { toast } from 'sonner'
 import { Upload } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { formatCurrency } from '@ct/shared/lib/utils'
 import styled from 'styled-components'
 
@@ -263,6 +264,7 @@ export function ImportCsvModal({ open, onClose }: { open: boolean; onClose: () =
   const [rows, setRows] = useState<PreviewRow[]>([])
   const [checking, setChecking] = useState(false)
   const [page, setPage] = useState(0)
+  const f = useFieldErrors<'dateCol' | 'dateFormat' | 'descCol' | 'debitCol'>('import-csv')
 
   const { data: accounts } = useQuery({
     queryKey: ['finance', 'accounts'],
@@ -287,6 +289,7 @@ export function ImportCsvModal({ open, onClose }: { open: boolean; onClose: () =
   const reset = () => {
     setStep(0); setRawText(''); setDateCol(undefined); setDescCol(undefined)
     setDebitCol(undefined); setCreditCol(NONE); setRows([]); setPage(0)
+    f.reset()
   }
   const close = () => { reset(); onClose() }
 
@@ -296,21 +299,29 @@ export function ImportCsvModal({ open, onClose }: { open: boolean; onClose: () =
     reader.readAsText(file)
   }
 
+  /* Mapping problems belong to the three selects, not to a toast that names
+     none of them. "No valid rows" is likewise attributed to whichever column
+     actually threw every row away rather than blaming the mapping in general. */
   const buildPreview = async () => {
-    if (dateCol === undefined || descCol === undefined || debitCol === undefined) {
-      toast.error('Map the date, description and debit columns first')
-      return
-    }
+    const mapped = f.submit({
+      dateCol: dateCol === undefined ? 'Pick the column holding the date.' : undefined,
+      descCol: descCol === undefined ? 'Pick the column holding the description.' : undefined,
+      debitCol: debitCol === undefined ? 'Pick the column holding the debit amount.' : undefined,
+    })
+    if (!mapped || dateCol === undefined || descCol === undefined || debitCol === undefined) return
+
     const credit = creditCol === NONE ? undefined : Number(creditCol)
     const out: PreviewRow[] = []
+    let badDates = 0
+    let badAmounts = 0
     for (let r = 1; r < parsed.length; r++) {
       const cells = parsed[r]
       const d = dayjs(cells[dateCol]?.trim(), dateFormat, true)
-      if (!d.isValid()) continue
+      if (!d.isValid()) { badDates++; continue }
       const desc = (cells[descCol] ?? '').trim()
       const debit = parseAmount(cells[debitCol] ?? '')
       const creditVal = credit !== undefined ? parseAmount(cells[credit] ?? '') : 0
-      if (debit <= 0 && creditVal <= 0) continue
+      if (debit <= 0 && creditVal <= 0) { badAmounts++; continue }
       const kind: 'expense' | 'income' = debit > 0 ? 'expense' : 'income'
       out.push({
         index: out.length, include: true, duplicate: false, kind,
@@ -320,9 +331,12 @@ export function ImportCsvModal({ open, onClose }: { open: boolean; onClose: () =
       })
     }
     if (out.length === 0) {
-      toast.error('No valid rows found — check column mapping and date format')
+      f.submit(badDates >= badAmounts
+        ? { dateFormat: `No date in that column matched ${dateFormat}. Pick the format your file uses.` }
+        : { debitCol: 'No amount was read from that column. Check it is the debit/withdrawal column.' })
       return
     }
+    f.reset()
     setChecking(true)
     try {
       const { duplicates } = await financeApi.importCheck(
@@ -399,16 +413,18 @@ export function ImportCsvModal({ open, onClose }: { open: boolean; onClose: () =
                 placeholder="Select"
                 options={colOptions}
                 value={dateCol !== undefined ? String(dateCol) : undefined}
-                onChange={(v: string | number) => setDateCol(Number(v))}
+                onChange={(v: string | number) => { f.clearField('dateCol'); setDateCol(Number(v)) }}
               />
+              <FieldError id={f.errorId('dateCol')}>{f.errors.dateCol}</FieldError>
             </div>
             <div>
               <LabelInfo>Date format</LabelInfo>
               <SelectFull
-                options={DATE_FORMATS.map(f => ({ label: f, value: f }))}
+                options={DATE_FORMATS.map(fmt => ({ label: fmt, value: fmt }))}
                 value={dateFormat}
-                onChange={(v: string | number) => setDateFormat(String(v))}
+                onChange={(v: string | number) => { f.clearField('dateFormat'); setDateFormat(String(v)) }}
               />
+              <FieldError id={f.errorId('dateFormat')}>{f.errors.dateFormat}</FieldError>
             </div>
             <div>
               <LabelInfo>Description column</LabelInfo>
@@ -416,8 +432,9 @@ export function ImportCsvModal({ open, onClose }: { open: boolean; onClose: () =
                 placeholder="Select"
                 options={colOptions}
                 value={descCol !== undefined ? String(descCol) : undefined}
-                onChange={(v: string | number) => setDescCol(Number(v))}
+                onChange={(v: string | number) => { f.clearField('descCol'); setDescCol(Number(v)) }}
               />
+              <FieldError id={f.errorId('descCol')}>{f.errors.descCol}</FieldError>
             </div>
             <div>
               <LabelInfo>Debit / withdrawal column</LabelInfo>
@@ -425,8 +442,9 @@ export function ImportCsvModal({ open, onClose }: { open: boolean; onClose: () =
                 placeholder="Select"
                 options={colOptions}
                 value={debitCol !== undefined ? String(debitCol) : undefined}
-                onChange={(v: string | number) => setDebitCol(Number(v))}
+                onChange={(v: string | number) => { f.clearField('debitCol'); setDebitCol(Number(v)) }}
               />
+              <FieldError id={f.errorId('debitCol')}>{f.errors.debitCol}</FieldError>
             </div>
             <div>
               <LabelInfo>Credit / deposit column (optional)</LabelInfo>

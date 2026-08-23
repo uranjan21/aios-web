@@ -9,7 +9,7 @@
  * page. That moved to /app/workspace/* on 2026-08-01 and this took its place,
  * which is what the redesign specifies. The old `?view=` URLs redirect.
  */
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback} from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CalendarCheck, BarChart3, Flag, Trash2 } from 'lucide-react'
@@ -106,14 +106,14 @@ export function WeekPlanPage() {
     staleTime: 5 * 60_000,
   })
 
-  const openAdd = () => {
+  const openAdd = useCallback(() => {
     setEditing(null)
     setDraft({
       block_date: iso(weekDays[0]), start_time: '09:00', end_time: '10:00',
       title: '', domain: '', is_priority: false,
     })
     setAddOpen(true)
-  }
+  }, [weekDays])
 
   /* A block in the week grid has no action affordance of its own, so clicking
      it opens the editor and Delete lives in the dialog footer. Calendar
@@ -321,7 +321,7 @@ export function WeekPlanPage() {
     }
 
     return mods
-  }, [data, weekDays, weekStart, todayIso, cal])
+  }, [data, weekDays, weekStart, todayIso, cal, openAdd])
 
   return (
     <PageContainer>

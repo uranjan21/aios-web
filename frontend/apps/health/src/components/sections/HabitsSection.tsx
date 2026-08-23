@@ -12,6 +12,7 @@ import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { BarChart3, CheckSquare, Circle, Trash2 } from 'lucide-react'
 import { Button, Card, Dialog, EmptyState, Input, SkeletonPage } from '@ledgr/ui'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { healthApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import type { HabitItem } from '@ct/shared/types'
@@ -51,6 +52,8 @@ export function HabitsSection() {
   const [draft, setDraft] = useState({ name: '', icon: '' })
   const [manage, setManage] = useState<HabitItem | null>(null)
   const [edit, setEdit] = useState({ name: '', icon: '' })
+  const fNew = useFieldErrors<'name'>('new-habit')
+  const fEdit = useFieldErrors<'name'>('edit-habit')
 
   const { data: habits, isLoading } = useQuery({
     queryKey: ['health', 'habits'],
@@ -98,7 +101,8 @@ export function HabitsSection() {
   /* ledgr-ui Dialog fires onOpenChange on CLOSE only, so the manage form has
      to prefill off the selected habit rather than an open handler. */
   useEffect(() => {
-    if (manage) setEdit({ name: manage.name, icon: manage.icon ?? '' })
+    if (manage) { fEdit.reset(); setEdit({ name: manage.name, icon: manage.icon ?? '' }) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fEdit is stable; adding it re-runs the prefill on every error change
   }, [manage])
 
   const rows = useMemo(() => habits ?? [], [habits])
@@ -122,7 +126,7 @@ export function HabitsSection() {
         subtitle: `Darker means done · ${rows.length} habit${rows.length === 1 ? '' : 's'} tracked daily`,
         icon: CheckSquare,
         action: 'Add habit',
-        onAction: () => setAddOpen(true),
+        onAction: () => { fNew.reset(); setAddOpen(true) },
         dayLabels: heatDays.map(d => d.format('D')),
         colorKey: 'health',
         habits: rows.map((h) => {
@@ -185,7 +189,7 @@ export function HabitsSection() {
             icon={<CheckSquare size={20} />}
             title="No habits yet"
             description="Add a habit and check it off each day — the grid fills in as you go."
-            action={<Button size="sm" onClick={() => setAddOpen(true)}>Add your first habit</Button>}
+            action={<Button size="sm" onClick={() => { fNew.reset(); setAddOpen(true) }}>Add your first habit</Button>}
           />
         </Card>
       ) : (
@@ -205,10 +209,12 @@ export function HabitsSection() {
             <Label>Name</Label>
             <Input
               value={draft.name}
-              onChange={(e: any) => setDraft(d => ({ ...d, name: e.target.value }))}
+              {...fNew.fieldProps('name')}
+              onChange={(e: any) => { fNew.clearField('name'); setDraft(d => ({ ...d, name: e.target.value })) }}
               placeholder="Drink 2L water"
               autoFocus
             />
+            <FieldError id={fNew.errorId('name')}>{fNew.errors.name}</FieldError>
           </div>
           <div>
             <Label>Icon (emoji, optional)</Label>
@@ -220,7 +226,11 @@ export function HabitsSection() {
             />
           </div>
           <Actions>
-            <Button variant="primary" disabled={!draft.name.trim() || create.isPending} onClick={() => create.mutate()}>
+            <Button
+              variant="primary"
+              disabled={create.isPending}
+              onClick={() => { if (fNew.submit({ name: draft.name.trim() ? undefined : 'Name the habit.' })) create.mutate() }}
+            >
               {create.isPending ? 'Adding…' : 'Add habit'}
             </Button>
             <Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button>
@@ -243,8 +253,10 @@ export function HabitsSection() {
             <Label>Name</Label>
             <Input
               value={edit.name}
-              onChange={(e: any) => setEdit(d => ({ ...d, name: e.target.value }))}
+              {...fEdit.fieldProps('name')}
+              onChange={(e: any) => { fEdit.clearField('name'); setEdit(d => ({ ...d, name: e.target.value })) }}
             />
+            <FieldError id={fEdit.errorId('name')}>{fEdit.errors.name}</FieldError>
           </div>
           <div>
             <Label>Icon (emoji, optional)</Label>
@@ -258,8 +270,11 @@ export function HabitsSection() {
           <Actions>
             <Button
               variant="primary"
-              disabled={!edit.name.trim() || update.isPending}
-              onClick={() => manage && update.mutate(manage.id)}
+              disabled={update.isPending}
+              onClick={() => {
+                if (!manage) return
+                if (fEdit.submit({ name: edit.name.trim() ? undefined : 'Name the habit.' })) update.mutate(manage.id)
+              }}
             >
               {update.isPending ? 'Saving…' : 'Save changes'}
             </Button>

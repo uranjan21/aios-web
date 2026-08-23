@@ -20,6 +20,7 @@ import { Button, Dialog, Input, Select, Switch } from '@ledgr/ui'
 import { Apple, Plus, Trash2 } from 'lucide-react'
 import { healthApi, type MealPlan, type MealPlanPayload } from '@ct/shared/api/areas'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const MEAL_TYPES = [
@@ -116,6 +117,7 @@ export function MealPlanDialog({
   const [isActive, setIsActive] = useState(false)
   const [day, setDay] = useState(0)
   const [entries, setEntries] = useState<Draft[]>([])
+  const f = useFieldErrors<'name' | 'entries'>('meal-plan')
 
   /* The WHOLE catalogue, not the search default of 25 — these selects have to
      resolve foods the plan already references, and a capped list renders a
@@ -128,6 +130,7 @@ export function MealPlanDialog({
 
   useEffect(() => {
     if (!open) return
+    f.reset()
     setDay(new Date().getDay() === 0 ? 6 : new Date().getDay() - 1) // JS Sun=0 → Mon=0
     if (editing) {
       setName(editing.name)
@@ -142,11 +145,12 @@ export function MealPlanDialog({
     } else {
       setName(''); setIsActive(false); setEntries([])
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- f is stable; adding it re-runs the prefill on every error change
   }, [open, editing])
 
   const foodOptions = useMemo(() => [
     { value: CUSTOM, label: 'Something else…' },
-    ...(foods ?? []).map(f => ({ value: f.id, label: f.name })),
+    ...(foods ?? []).map(food => ({ value: food.id, label: food.name })),
   ], [foods])
 
   const dayEntries = entries.filter(e => e.weekday === day)
@@ -193,9 +197,11 @@ export function MealPlanDialog({
     onError: () => toast.error('Failed to delete plan'),
   })
 
+  /* Both of these were toasts fired from a dialog that is a whole week of
+     inputs — "Add at least one meal" in particular gave no clue which of the
+     seven days it was looking at (any of them will do). */
   const submit = () => {
     const trimmed = name.trim()
-    if (!trimmed) { toast.error('Give the plan a name'); return }
     const cleaned = entries
       .map(e => ({
         weekday: e.weekday,
@@ -205,7 +211,11 @@ export function MealPlanDialog({
         quantity_grams: Number(e.quantity_grams) || 0,
       }))
       .filter(e => e.food_id || e.custom_name)
-    if (!cleaned.length) { toast.error('Add at least one meal'); return }
+    const ok = f.submit({
+      name: trimmed ? undefined : 'Give the plan a name.',
+      entries: cleaned.length ? undefined : 'Add at least one meal — any day will do.',
+    })
+    if (!ok) return
     save.mutate({ name: trimmed, is_active: isActive, entries: cleaned })
   }
 
@@ -219,10 +229,11 @@ export function MealPlanDialog({
       onOpenChange={(o) => { if (!o) onClose() }}
       size="md"
     >
-      <Form onSubmit={e => { e.preventDefault(); submit() }}>
+      <Form noValidate onSubmit={e => { e.preventDefault(); submit() }}>
         <div>
           <Label>Name</Label>
-          <Input value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Cut — 2000 kcal" autoFocus required />
+          <Input value={name} {...f.fieldProps('name')} onChange={(e: any) => { f.clearField('name'); setName(e.target.value) }} placeholder="Cut — 2000 kcal" autoFocus />
+          <FieldError id={f.errorId('name')}>{f.errors.name}</FieldError>
         </div>
 
         <ToggleRow>
@@ -287,14 +298,15 @@ export function MealPlanDialog({
           ))}
           <Button
             type="button" variant="ghost" size="sm"
-            onClick={() => setEntries(l => [...l, {
+            onClick={() => { f.clearField('entries'); setEntries(l => [...l, {
               weekday: day, meal_type: 'lunch',
               food_id: (foods ?? [])[0]?.id ?? null,
               custom_name: '', quantity_grams: '100',
-            }])}
+            }]) }}
           >
             <Plus size={14} style={{ marginRight: 4 }} /> Add meal to {WEEKDAYS[day]}
           </Button>
+          <FieldError id={f.errorId('entries')}>{f.errors.entries}</FieldError>
         </div>
 
         <Actions>

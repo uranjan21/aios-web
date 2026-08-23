@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { SWATCH_COLORS_REQUIRED } from '@ct/shared/config/swatches'
 import { Button, Input, Select, Dialog, SegmentedControl } from '@ledgr/ui'
 import { financeApi } from '@ct/shared/api/areas'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import styled from 'styled-components'
 
 const FormStack = styled.form`
@@ -111,6 +112,7 @@ function AddBudgetForm({ onSuccess }: { onSuccess?: () => void }) {
   })
 
   const [values, setValues] = useState({ category: '', monthly_limit: '' })
+  const f = useFieldErrors<'category' | 'monthly_limit'>('add-budget')
 
   const { mutate, isPending } = useMutation({
     mutationFn: (v: { category: string; monthly_limit: string }) =>
@@ -119,6 +121,7 @@ function AddBudgetForm({ onSuccess }: { onSuccess?: () => void }) {
       queryClient.invalidateQueries({ queryKey: ['finance', 'budgets'] })
       toast.success('Budget added')
       setValues({ category: '', monthly_limit: '' })
+      f.reset()
       onSuccess?.()
     },
     onError: () => toast.error('Failed to save budget'),
@@ -127,15 +130,33 @@ function AddBudgetForm({ onSuccess }: { onSuccess?: () => void }) {
   const topLevelCategories = (allCategories ?? []).filter(c => c.parent_id === null).map(c => c.name)
   const available = topLevelCategories.filter(c => !budgets?.some(b => b.category === c))
 
+  /* `monthly_limit` is `Field(gt=0)` server-side; an empty select posts an
+     empty category. Both are field problems, so neither is a toast. */
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const limit = Number(values.monthly_limit)
+    const ok = f.submit({
+      category: values.category ? undefined : 'Pick the category to cap.',
+      monthly_limit: values.monthly_limit.trim() === '' || !Number.isFinite(limit)
+        ? 'Enter a monthly limit.'
+        : limit <= 0
+          ? 'The limit must be more than zero.'
+          : undefined,
+    })
+    if (ok) mutate(values)
+  }
+
   return (
-    <FormStack onSubmit={e => { e.preventDefault(); mutate(values) }}>
+    <FormStack noValidate onSubmit={handleSubmit}>
       <div>
         <LabelText>Category</LabelText>
-        <Select value={values.category} onChange={v => setValues({ ...values, category: String(v) })} options={[{label: 'Select category', value: ''}, ...available.map(c => ({ label: c, value: c }))]} />
+        <Select value={values.category} onChange={v => { f.clearField('category'); setValues({ ...values, category: String(v) }) }} options={[{label: 'Select category', value: ''}, ...available.map(c => ({ label: c, value: c }))]} />
+        <FieldError id={f.errorId('category')}>{f.errors.category}</FieldError>
       </div>
       <div>
         <LabelText>Monthly Limit (₹)</LabelText>
-        <Input required type="number" min="1" value={values.monthly_limit} onChange={e => setValues({ ...values, monthly_limit: e.target.value })} />
+        <Input type="number" min="1" step="0.01" value={values.monthly_limit} {...f.fieldProps('monthly_limit')} onChange={e => { f.clearField('monthly_limit'); setValues({ ...values, monthly_limit: e.target.value }) }} />
+        <FieldError id={f.errorId('monthly_limit')}>{f.errors.monthly_limit}</FieldError>
       </div>
       <SubmitButton type="submit" variant="primary" loading={isPending}>Add Budget</SubmitButton>
     </FormStack>
@@ -148,6 +169,7 @@ function AddGoalForm({ onSuccess }: { onSuccess?: () => void }) {
   const [color, setColor] = useState(SWATCH_COLORS_REQUIRED[0].value)
   
   const [values, setValues] = useState({ name: '', category: 'savings', target_amount: '', current_amount: '', deadline: '' })
+  const f = useFieldErrors<'name' | 'target_amount' | 'current_amount'>('add-goal')
 
   const { mutate, isPending } = useMutation({
     mutationFn: (v: Record<string, string>) =>
@@ -166,13 +188,34 @@ function AddGoalForm({ onSuccess }: { onSuccess?: () => void }) {
       setValues({ name: '', category: 'savings', target_amount: '', current_amount: '', deadline: '' })
       setIcon('🎯')
       setColor(SWATCH_COLORS_REQUIRED[0].value)
+      f.reset()
       onSuccess?.()
     },
     onError: () => toast.error('Failed to create goal'),
   })
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const target = Number(values.target_amount)
+    const saved = values.current_amount.trim() === '' ? 0 : Number(values.current_amount)
+    const ok = f.submit({
+      name: values.name.trim() ? undefined : 'Give the goal a name.',
+      target_amount: values.target_amount.trim() === '' || !Number.isFinite(target)
+        ? 'Enter the amount you are saving towards.'
+        : target <= 0
+          ? 'The target must be more than zero.'
+          : undefined,
+      current_amount: !Number.isFinite(saved)
+        ? 'Enter a number, or leave this blank.'
+        : saved < 0
+          ? 'You cannot have saved a negative amount.'
+          : undefined,
+    })
+    if (ok) mutate({ ...values, name: values.name.trim() })
+  }
+
   return (
-    <FormStack onSubmit={e => { e.preventDefault(); mutate(values) }}>
+    <FormStack noValidate onSubmit={handleSubmit}>
       <div>
         <LabelMuted>Icon</LabelMuted>
         <OptionsContainer>
@@ -205,7 +248,8 @@ function AddGoalForm({ onSuccess }: { onSuccess?: () => void }) {
       </div>
       <div>
         <LabelText>Goal Name</LabelText>
-        <Input required placeholder="e.g. Europe Trip" value={values.name} onChange={e => setValues({ ...values, name: e.target.value })} />
+        <Input placeholder="e.g. Europe Trip" value={values.name} {...f.fieldProps('name')} onChange={e => { f.clearField('name'); setValues({ ...values, name: e.target.value }) }} />
+        <FieldError id={f.errorId('name')}>{f.errors.name}</FieldError>
       </div>
       <div>
         <LabelText>Category</LabelText>
@@ -214,11 +258,13 @@ function AddGoalForm({ onSuccess }: { onSuccess?: () => void }) {
       <Grid2Col>
         <div>
           <LabelText>Target (₹)</LabelText>
-          <Input required type="number" min="1" value={values.target_amount} onChange={e => setValues({ ...values, target_amount: e.target.value })} />
+          <Input type="number" min="1" step="0.01" value={values.target_amount} {...f.fieldProps('target_amount')} onChange={e => { f.clearField('target_amount'); setValues({ ...values, target_amount: e.target.value }) }} />
+          <FieldError id={f.errorId('target_amount')}>{f.errors.target_amount}</FieldError>
         </div>
         <div>
           <LabelText>Saved (₹)</LabelText>
-          <Input type="number" min="0" value={values.current_amount} onChange={e => setValues({ ...values, current_amount: e.target.value })} />
+          <Input type="number" min="0" step="0.01" value={values.current_amount} {...f.fieldProps('current_amount')} onChange={e => { f.clearField('current_amount'); setValues({ ...values, current_amount: e.target.value }) }} />
+          <FieldError id={f.errorId('current_amount')}>{f.errors.current_amount}</FieldError>
         </div>
       </Grid2Col>
       <div>
@@ -236,6 +282,7 @@ function AddBillForm({ onSuccess }: { onSuccess?: () => void }) {
   
   const [values, setValues] = useState({ name: '', amount: '', due_day: '', category: 'other', account_id: '', notes: '' })
   const [isAutoDebit, setIsAutoDebit] = useState(false)
+  const f = useFieldErrors<'name' | 'amount' | 'due_day'>('add-bill')
 
   const { mutate, isPending } = useMutation({
     mutationFn: (v: Record<string, any>) =>
@@ -253,25 +300,52 @@ function AddBillForm({ onSuccess }: { onSuccess?: () => void }) {
       toast.success('Bill added')
       setValues({ name: '', amount: '', due_day: '', category: 'other', account_id: '', notes: '' })
       setIsAutoDebit(false)
+      f.reset()
       onSuccess?.()
     },
     onError: () => toast.error('Failed to add bill'),
   })
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const amount = Number(values.amount)
+    const day = Number(values.due_day)
+    const ok = f.submit({
+      name: values.name.trim() ? undefined : 'Give the bill a name.',
+      amount: values.amount.trim() === '' || !Number.isFinite(amount)
+        ? 'Enter the amount.'
+        : amount <= 0
+          ? 'Must be more than zero.'
+          : undefined,
+      // `BillCreate.due_day` is a bare `int` server-side — nothing rejects 45
+      // there, and `noValidate` turns off the input's own max. This is the
+      // only bound that exists, so it is checked rather than assumed.
+      due_day: values.due_day.trim() === '' || !Number.isInteger(day)
+        ? 'Enter the day of the month it is due.'
+        : day < 1 || day > 31
+          ? 'Pick a day between 1 and 31.'
+          : undefined,
+    })
+    if (ok) mutate({ ...values, name: values.name.trim() })
+  }
+
   return (
-    <FormStack onSubmit={e => { e.preventDefault(); mutate(values) }}>
+    <FormStack noValidate onSubmit={handleSubmit}>
       <div>
         <LabelText>Bill Name</LabelText>
-        <Input required placeholder="Netflix, Electricity…" value={values.name} onChange={e => setValues({ ...values, name: e.target.value })} />
+        <Input placeholder="Netflix, Electricity…" value={values.name} {...f.fieldProps('name')} onChange={e => { f.clearField('name'); setValues({ ...values, name: e.target.value }) }} />
+        <FieldError id={f.errorId('name')}>{f.errors.name}</FieldError>
       </div>
       <Grid2Col>
         <div>
           <LabelText>Amount (₹)</LabelText>
-          <Input required type="number" min="0" value={values.amount} onChange={e => setValues({ ...values, amount: e.target.value })} />
+          <Input type="number" min="0" step="0.01" value={values.amount} {...f.fieldProps('amount')} onChange={e => { f.clearField('amount'); setValues({ ...values, amount: e.target.value }) }} />
+          <FieldError id={f.errorId('amount')}>{f.errors.amount}</FieldError>
         </div>
         <div>
           <LabelText>Due Day (1-31)</LabelText>
-          <Input required type="number" min="1" max="31" value={values.due_day} onChange={e => setValues({ ...values, due_day: e.target.value })} />
+          <Input type="number" min="1" max="31" step="1" value={values.due_day} {...f.fieldProps('due_day')} onChange={e => { f.clearField('due_day'); setValues({ ...values, due_day: e.target.value }) }} />
+          <FieldError id={f.errorId('due_day')}>{f.errors.due_day}</FieldError>
         </div>
       </Grid2Col>
       <div>

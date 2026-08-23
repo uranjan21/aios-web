@@ -13,6 +13,7 @@ import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { BarChart3, Circle, ClipboardList, Flag } from 'lucide-react'
 import { Button, Dialog, Input, Select, SkeletonPage } from '@ledgr/ui'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { healthApi, type MealPlan, type MealPlanToday } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { parseMealNotes } from '../nutrition/mealNotes'
@@ -71,6 +72,7 @@ export function NutritionSection() {
   const qc = useQueryClient()
   const [logOpen, setLogOpen] = useState(false)
   const [meal, setMeal] = useState({ ...EMPTY_MEAL })
+  const f = useFieldErrors<'food_name' | 'calories' | 'protein' | 'carbs' | 'fat'>('log-meal')
   const [planOpen, setPlanOpen] = useState(false)
   const [editingPlan, setEditingPlan] = useState<MealPlan | null>(null)
 
@@ -123,9 +125,35 @@ export function NutritionSection() {
     onError: () => toast.error('Could not log that'),
   })
 
+  /** A non-negative macro figure, or the reason it is not one. */
+  const macro = (raw: string) => {
+    if (raw.trim() === '') return undefined
+    const n = Number(raw)
+    if (!Number.isFinite(n)) return 'Enter a number, or leave it blank.'
+    return n < 0 ? 'Cannot be negative.' : undefined
+  }
+
+  /* "Save meal" was `disabled` on a missing calorie count and silently coerced
+     every macro with `Number(x) || 0`, so a typo filed as zero. */
+  const submitMeal = () => {
+    const calories = Number(meal.calories)
+    const ok = f.submit({
+      food_name: meal.food_name.trim() ? undefined : 'Say what you ate.',
+      calories: meal.calories.trim() === '' || !Number.isFinite(calories)
+        ? 'Enter the calories.'
+        : calories < 0
+          ? 'Cannot be negative.'
+          : undefined,
+      protein: macro(meal.protein),
+      carbs: macro(meal.carbs),
+      fat: macro(meal.fat),
+    })
+    if (ok) logMeal.mutate()
+  }
+
   const logMeal = useMutation({
     mutationFn: () => healthApi.logMeal({
-      food_name: meal.food_name.trim() || 'Meal',
+      food_name: meal.food_name.trim(),
       calories: Number(meal.calories) || 0,
       protein: Number(meal.protein) || 0,
       carbs: Number(meal.carbs) || 0,
@@ -136,6 +164,7 @@ export function NutritionSection() {
       qc.invalidateQueries({ queryKey: ['health'] })
       setLogOpen(false)
       setMeal({ ...EMPTY_MEAL })
+      f.reset()
       toast.success('Meal logged')
     },
     onError: () => toast.error('Failed to log that meal'),
@@ -325,7 +354,7 @@ export function NutritionSection() {
         icon: Circle,
         action: 'Log meal',
         actionVariant: 'primary',
-        onAction: () => setLogOpen(true),
+        onAction: () => { f.reset(); setLogOpen(true) },
         entries: meals.map((m) => {
           const parsed = parseMealNotes(m.notes)
           return {
@@ -356,7 +385,7 @@ export function NutritionSection() {
         }),
       },
     ]
-  }, [today, goals, water, mealLogs, logWater, planToday, activePlanFull, logPlanned])
+  }, [today, goals, water, mealLogs, logWater, planToday, activePlanFull, logPlanned, f])
 
   if (isLoading) return <SkeletonPage kpis={0} modules={[7, 5, 6, 6]} />
 
@@ -383,22 +412,24 @@ export function NutritionSection() {
           {/* Picking a food overwrites name + all four figures below, which
               stay editable — the catalogue is a starting point, not a lock. */}
           <FoodPicker
-            onPick={(m) => setMeal(prev => ({
+            onPick={(m) => { f.reset(); setMeal(prev => ({
               ...prev,
               food_name: m.food_name,
               calories: String(m.calories),
               protein: String(m.protein),
               carbs: String(m.carbs),
               fat: String(m.fat),
-            }))}
+            })) }}
           />
           <div>
             <Label>What did you eat?</Label>
             <Input
               value={meal.food_name}
-              onChange={(e: any) => setMeal(m => ({ ...m, food_name: e.target.value }))}
+              {...f.fieldProps('food_name')}
+              onChange={(e: any) => { f.clearField('food_name'); setMeal(m => ({ ...m, food_name: e.target.value })) }}
               placeholder="Grilled chicken bowl"
             />
+            <FieldError id={f.errorId('food_name')}>{f.errors.food_name}</FieldError>
           </div>
           <Grid2>
             <div>
@@ -416,31 +447,35 @@ export function NutritionSection() {
                 type="number"
                 min="0"
                 value={meal.calories}
-                onChange={(e: any) => setMeal(m => ({ ...m, calories: e.target.value }))}
+                {...f.fieldProps('calories')}
+                onChange={(e: any) => { f.clearField('calories'); setMeal(m => ({ ...m, calories: e.target.value })) }}
                 placeholder="520"
               />
+              <FieldError id={f.errorId('calories')}>{f.errors.calories}</FieldError>
             </div>
           </Grid2>
           <Grid2>
             <div>
               <Label>Protein (g)</Label>
-              <Input type="number" min="0" step="0.1" value={meal.protein} onChange={(e: any) => setMeal(m => ({ ...m, protein: e.target.value }))} placeholder="0" />
+              <Input type="number" min="0" step="0.1" value={meal.protein} {...f.fieldProps('protein')} onChange={(e: any) => { f.clearField('protein'); setMeal(m => ({ ...m, protein: e.target.value })) }} placeholder="0" />
+              <FieldError id={f.errorId('protein')}>{f.errors.protein}</FieldError>
             </div>
             <div>
               <Label>Carbs (g)</Label>
-              <Input type="number" min="0" step="0.1" value={meal.carbs} onChange={(e: any) => setMeal(m => ({ ...m, carbs: e.target.value }))} placeholder="0" />
+              <Input type="number" min="0" step="0.1" value={meal.carbs} {...f.fieldProps('carbs')} onChange={(e: any) => { f.clearField('carbs'); setMeal(m => ({ ...m, carbs: e.target.value })) }} placeholder="0" />
+              <FieldError id={f.errorId('carbs')}>{f.errors.carbs}</FieldError>
             </div>
           </Grid2>
           <div>
             <Label>Fat (g)</Label>
-            <Input type="number" min="0" step="0.1" value={meal.fat} onChange={(e: any) => setMeal(m => ({ ...m, fat: e.target.value }))} placeholder="0" />
+            <Input type="number" min="0" step="0.1" value={meal.fat} {...f.fieldProps('fat')} onChange={(e: any) => { f.clearField('fat'); setMeal(m => ({ ...m, fat: e.target.value })) }} placeholder="0" />
+              <FieldError id={f.errorId('fat')}>{f.errors.fat}</FieldError>
           </div>
           <Actions>
             <Button
               variant="primary"
               loading={logMeal.isPending}
-              disabled={!Number(meal.calories)}
-              onClick={() => logMeal.mutate()}
+              onClick={submitMeal}
             >
               Save meal
             </Button>

@@ -308,6 +308,12 @@ export function TransactionRow({
         <InlineEditWrap>
           <Input
             type="number" size="sm" startAdornment="₹" min="0" step="0.01" value={amt}
+            /* The row is one line — there is no room for a message under the
+               field, so the invalid state IS the message: red border plus
+               aria-invalid for assistive tech, alongside the disabled tick. */
+            invalid={!amtValid}
+            aria-invalid={!amtValid}
+            title={amtValid ? undefined : 'Enter an amount greater than zero'}
             onChange={e => setAmt(e.target.value)} style={{ width: 120, height: 32 }} aria-label="Edit amount"
             onKeyDown={e => { if (e.key === 'Enter' && amtValid) saveInline.mutate(); if (e.key === 'Escape') onCancelEdit() }}
             autoFocus
