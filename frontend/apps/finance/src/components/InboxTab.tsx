@@ -24,6 +24,7 @@ import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { Button, Card, Dialog, EmptyState, Input, Select, SkeletonPage } from '@ledgr/ui'
 import { CheckSquare, Inbox as InboxIcon, Zap } from 'lucide-react'
+import { MerchantRulesDialog } from './MerchantRulesDialog'
 import { financeApi, type FinancePendingTransaction } from '@ct/shared/api/areas'
 import { agentsApi } from '@ct/shared/api/agents'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
@@ -84,6 +85,7 @@ export function InboxTab() {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [editing, setEditing] = useState<FinancePendingTransaction | null>(null)
+  const [rulesOpen, setRulesOpen] = useState(false)
   const [edit, setEdit] = useState<Edit>({ amount: '', account_id: '', category_id: '', description: '' })
 
   const { data: pending, isLoading } = useQuery({
@@ -386,6 +388,10 @@ export function InboxTab() {
         ? 'Applied before anything reaches this inbox'
         : 'No rules yet — categories are matched by name',
       icon: Zap,
+      /* Before 2026-08-23 this card could list and toggle rules but not create
+         or delete them — `createRule`/`deleteRule` had no caller in the app. */
+      action: 'Manage',
+      onAction: () => setRulesOpen(true),
       rows: [
         ...activeRules.map((r) => ({
           title: r.pattern,
@@ -459,6 +465,14 @@ export function InboxTab() {
           />
         </Card>
       )}
+
+      <MerchantRulesDialog
+        open={rulesOpen}
+        onClose={() => setRulesOpen(false)}
+        rules={activeRules}
+        categories={categories ?? []}
+        categoryName={categoryName}
+      />
 
       <Dialog
         open={!!editing}

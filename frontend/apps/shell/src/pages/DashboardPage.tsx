@@ -16,13 +16,15 @@
  */
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import styled, { useTheme } from 'styled-components'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
-import { Loader2, Activity, Calendar, CheckSquare } from 'lucide-react'
+import { Loader2, Activity, Calendar, CheckSquare, Sparkles, Sunrise } from 'lucide-react'
 import { ErrorState, SkeletonPage, textRole } from '@ledgr/ui'
 
 import { financeApi, healthApi, careerApi } from '@ct/shared/api/areas'
+import { insightsApi } from '@ct/shared/api/insights'
 import { workspaceApi, type Task } from '@ct/shared/api/workspace'
 import { useDayEventsStore, fmtDateKey } from '@ct/shared/stores/dayEventsStore'
 import { useAuthStore } from '@ct/shared/stores/authStore'
@@ -57,6 +59,8 @@ const SpinningLoader = styled(Loader2)<{ $spinning?: boolean }>`
 
 const WEEKS = 12
 const DAY_MS = 86_400_000
+/** Row order matches `mondayOf`, which anchors each column on a Monday. */
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
 function timeGreeting(): string {
   const h = new Date().getHours()
@@ -85,6 +89,7 @@ function mondayOf(d: Date): Date {
 export function DashboardPage() {
   const theme = useTheme()
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const events = useDayEventsStore((s) => s.events)
   const { stagger, child } = useMotion()
@@ -115,6 +120,40 @@ export function DashboardPage() {
     queryKey: ['career', 'journal', 'stats'], queryFn: careerApi.journalStats, staleTime: 300_000, ...q,
   })
   const tasksQ = useQuery({ queryKey: ['workspace', 'tasks'], queryFn: () => workspaceApi.getTasks(), ...q })
+  /*
+   * The briefing and the discoveries feed. Both are produced server-side on a
+   * schedule and were rendered by NO surface between 2026-08-02 and 2026-08-23
+   * — the synergy job kept correlating and metering AI credits into a table
+   * nothing read. They are deliberately NOT in `panels` below: neither is
+   * load-bearing for the page, so a failure on either should leave the rest of
+   * the dashboard standing rather than replacing it with an error.
+   */
+  const briefingQ = useQuery({
+    queryKey: ['insights', 'briefing', 'today'],
+    queryFn: insightsApi.briefingToday,
+    staleTime: 300_000,
+    ...q,
+  })
+  const discoveriesQ = useQuery({
+    queryKey: ['insights', 'discoveries'],
+    queryFn: insightsApi.discoveries,
+    staleTime: 300_000,
+    ...q,
+  })
+  /*
+   * Cross-domain logging activity. Until 2026-08-23 this page derived its heat
+   * grid client-side from habit checks alone, so a user who logged spending
+   * every day but kept no habits saw NO activity at all — and the endpoint that
+   * counts every domain (captures, health, finance, career) had no caller. The
+   * server also returns the current streak, which the client could not compute
+   * because it never had the other domains' data.
+   */
+  const heatmapQ = useQuery({
+    queryKey: ['insights', 'heatmap', WEEKS * 7],
+    queryFn: () => insightsApi.heatmap(WEEKS * 7),
+    staleTime: 300_000,
+    ...q,
+  })
 
   const panels = [netWorthQ, snapshotsQ, sleepQ, habitsQ, journalStatsQ, tasksQ]
   const isError = panels.some((p) => p.isError)
@@ -126,6 +165,9 @@ export function DashboardPage() {
   const habits = habitsQ.data
   const journalStats = journalStatsQ.data
   const tasks = tasksQ.data
+  const briefing = briefingQ.data
+  const discoveries = useMemo(() => discoveriesQ.data ?? [], [discoveriesQ.data])
+  const heatmap = heatmapQ.data
 
   const toggleTask = useMutation({
     mutationFn: (t: Task) => workspaceApi.updateTask(t.id, { status: t.status === 'done' ? 'todo' : 'done' }),
@@ -157,6 +199,29 @@ export function DashboardPage() {
       toast.error('Could not update that habit')
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['health', 'habits'] }),
+  })
+
+  /*
+   * Rating an insight is what tunes the engine: `_get_threshold` raises the
+   * required correlation from 0.6 to 0.7 once a user's recent thumbs-down rate
+   * passes 40%. Optimistic, because the card should settle immediately — and
+   * the server returns the updated row, so a failure just refetches the truth.
+   */
+  const rateInsight = useMutation({
+    mutationFn: ({ id, feedback }: { id: string; feedback: 1 | -1 }) =>
+      insightsApi.feedback(id, feedback),
+    onMutate: async ({ id, feedback }) => {
+      await qc.cancelQueries({ queryKey: ['insights', 'discoveries'] })
+      const prev = qc.getQueryData<typeof discoveries>(['insights', 'discoveries'])
+      qc.setQueryData<typeof discoveries>(['insights', 'discoveries'], (old) =>
+        old?.map((d) => (d.id === id ? { ...d, feedback } : d)))
+      return { prev }
+    },
+    onError: (_e, _vars, ctx) => {
+      qc.setQueryData(['insights', 'discoveries'], ctx?.prev)
+      toast.error('Could not record that rating')
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['insights', 'discoveries'] }),
   })
 
   /** Open tasks that are due today or already late, soonest first. */
@@ -240,6 +305,24 @@ export function DashboardPage() {
           },
         ],
       },
+      /*
+       * The daily brief. `insights_briefing` generates one per user per day at
+       * their local delivery time; before 2026-08-23 the only way to see it was
+       * to navigate to Weekly Review, which is not a daily destination.
+       */
+      {
+        kind: 'prose',
+        span: 12,
+        title: 'Your brief',
+        subtitle: 'What yesterday means for today',
+        icon: Sunrise,
+        markdown: briefing?.status === 'ready' ? briefing.briefing?.content_md : undefined,
+        emptyTitle: "Today's brief isn't ready",
+        emptyLabel:
+          'Briefs are written each morning at your delivery time. Turn it on, or change when it arrives, in Settings → Notifications.',
+        action: 'Briefing settings',
+        onAction: () => navigate('/app/settings/notifications'),
+      },
       {
         kind: 'checklist',
         span: 7,
@@ -289,38 +372,73 @@ export function DashboardPage() {
           colorKey: categoryColor(e.category, theme),
         })),
       },
+      /*
+       * Discoveries — the cross-domain correlations the nightly synergy job
+       * finds. This is the one thing in the product that no single-purpose app
+       * can do, so it sits on the front door rather than behind a link, and it
+       * renders its own empty state instead of disappearing: a user with no
+       * correlations yet should still learn that the feature exists.
+       */
+      {
+        kind: 'discoveries',
+        span: 12,
+        title: 'Discoveries',
+        subtitle: 'Patterns across your areas that no single app would catch',
+        icon: Sparkles,
+        items: discoveries.slice(0, 4).map((d) => ({
+          title: d.title,
+          body: d.body,
+          attribution: `${d.metric_a} x ${d.metric_b} - ${d.n} ${plural(d.n, 'day')}`,
+          rated: (d.feedback === 1 || d.feedback === -1 ? d.feedback : null) as 1 | -1 | null,
+          busy: rateInsight.isPending && rateInsight.variables?.id === d.id,
+        })),
+        onRate: (i: number, feedback: 1 | -1) => {
+          const item = discoveries[i]
+          if (item) rateInsight.mutate({ id: item.id, feedback })
+        },
+      },
     ]
 
-    /* 12 columns = the last 12 weeks, one row per habit. Cell intensity is that
-       week's check count bucketed into the kind's four steps. */
-    if (habits?.length) {
+    /*
+     * Cross-domain logging activity, GitHub-style: one row per weekday, one
+     * column per week, over the same 12 weeks. Counts come from the server
+     * (`/insights/heatmap`), which sums captures, health logs, finance entries
+     * and career events — the heat this page drew before 2026-08-23 was habit
+     * checks only, and so read empty for anyone who does not keep habits.
+     *
+     * The `heat` kind takes intensity steps 0-3, not raw counts, so the day
+     * totals are bucketed here. The per-row trailing label reports how many of
+     * the 12 weeks that weekday saw any activity at all, which is the question
+     * a weekday row can actually answer ("Sundays are where I fall off").
+     */
+    if (heatmap) {
       const weekStarts = Array.from({ length: WEEKS }, (_, i) => {
         const d = mondayOf(today)
         d.setDate(d.getDate() - (WEEKS - 1 - i) * 7)
         return d
       })
 
+      const bucket = (n: number) => (n === 0 ? 0 : n <= 2 ? 1 : n <= 5 ? 2 : 3)
+
       specs.push({
         kind: 'heat',
         span: 12,
         title: '12-Week Activity',
-        subtitle: 'Your consistency across all habit tracking',
+        subtitle: heatmap.streak > 0
+          ? `${heatmap.streak}-${plural(heatmap.streak, 'day')} logging streak across every area`
+          : 'Log anything in any area to start a streak',
         icon: Activity,
-        colorKey: 'health',
+        colorKey: 'accent',
         dayLabels: weekStarts.map((d) => String(d.getDate())),
-        habits: habits.slice(0, 6).map((h) => {
-          const checks = new Set(h.checks ?? [])
+        habits: WEEKDAYS.map((label, dayIdx) => {
+          const cells = weekStarts.map((start) =>
+            bucket(heatmap.days[fmtDateKey(new Date(start.getTime() + dayIdx * DAY_MS))] ?? 0))
+          const active = cells.filter((v) => v > 0).length
           return {
-            label: h.name,
-            cells: weekStarts.map((start) => {
-              let hit = 0
-              for (let i = 0; i < 7; i++) {
-                if (checks.has(fmtDateKey(new Date(start.getTime() + i * DAY_MS)))) hit++
-              }
-              return hit === 0 ? 0 : hit <= 2 ? 1 : hit <= 4 ? 2 : 3
-            }),
-            streak: h.streak > 0 ? `${h.streak}-day streak` : 'No streak',
-            broken: h.streak === 0,
+            label,
+            cells,
+            streak: active === 0 ? 'Never' : `${active}/${WEEKS} weeks`,
+            broken: active === 0,
           }
         }),
       })
@@ -331,6 +449,7 @@ export function DashboardPage() {
   }, [
     netWorth, snapshots, sleep, habits, journalStats, focusTasks, overdueCount,
     todaysEvents, theme, todayKey, toggleTask.isPending, toggleHabit.isPending,
+    briefing, discoveries, rateInsight.isPending, navigate, heatmap,
   ])
 
   const handleTouchStart = (e: React.TouchEvent) => {

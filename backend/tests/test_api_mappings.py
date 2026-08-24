@@ -371,3 +371,135 @@ def test_api_mappings():
 
     if errors:
         pytest.fail("\n".join(errors))
+
+
+# ── Reachability ──────────────────────────────────────────────────────────────
+# `test_api_mappings` above proves a path STRING exists somewhere in the frontend
+# tree. It does not prove a user can reach it: `get_frontend_endpoints()` walks
+# every .ts/.tsx file, so a route referenced only inside an `api/*.ts` module that
+# nothing imports still scans as "mapped".
+#
+# That gap is not hypothetical. Between 2026-08-02 and 2026-08-23 the Synergy
+# Engine — the product's stated differentiator — ran nightly, metered AI credits
+# and wrote `Insight` rows while `insightsApi.discoveries`, `.feedback` and
+# `.heatmap` had ZERO call sites, because a redesign dropped the components that
+# used them. Every gate stayed green the whole time. `forecastsApi` rotted the
+# same way and is still unconsumed.
+#
+# This test closes it: every exported member of an `api/*.ts` module must be
+# referenced from OUTSIDE that module. It is deliberately a source-level check
+# with no import graph — cheap, and it fails on exactly the shape of rot above.
+
+_API_MEMBER_RE = re.compile(
+    r"^\s{2}([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*(?:\(|async\b|function\b)", re.MULTILINE
+)
+
+
+def _api_modules():
+    """Every `packages/shared/src/api/*.ts` module except the axios client itself."""
+    repo_root = Path(__file__).parent.parent.parent
+    api_dir = repo_root / "frontend/packages/shared/src/api"
+    return [
+        p for p in sorted(api_dir.glob("*.ts"))
+        if p.stem not in ("client",) and not p.stem.endswith(".test")
+    ]
+
+
+def _frontend_sources(exclude: Path | None = None):
+    repo_root = Path(__file__).parent.parent.parent
+    frontend_root = repo_root / "frontend"
+    roots = [p / "src" for p in (frontend_root / "apps").iterdir() if (p / "src").is_dir()]
+    roots.append(frontend_root / "packages/shared/src")
+    for base in roots:
+        for root, _, files in os.walk(base):
+            for name in files:
+                if not name.endswith((".ts", ".tsx")):
+                    continue
+                path = Path(root) / name
+                if exclude is not None and path == exclude:
+                    continue
+                yield path
+
+
+# Members intentionally defined ahead of the surface that will consume them, or
+# consumed somewhere this source-level scan cannot see. Each entry needs a reason
+# and an owner — an empty list is the goal, not a place to park rot.
+ALLOWED_UNREACHABLE: dict[str, str] = {
+    # `forecastsApi` as a whole: the nightly `forecasts_nightly` job writes rows
+    # no screen reads. Retire-or-surface decision is tracked as R6 in
+    # docs/SHIPMENT_READINESS_2026_08_23.md. Listed so this test can go green
+    # without pretending the module is wired.
+    "forecasts.ts": "R6 - forecast engine pending a retire-or-surface decision",
+}
+
+# Individual members, same contract as above: a reason and a tracking id, never
+# a silent park. Keyed "<module>:<member>". Everything here was surfaced by this
+# test on the day it was written (2026-08-23) and is recorded in
+# docs/FEATURE_AUDIT_2026_08_23.md Part 3.
+ALLOWED_UNREACHABLE_MEMBERS: dict[str, str] = {
+    # What-If Simulator: backing route + 400-run Monte-Carlo service survive, but
+    # SimulatorTab was deleted in the 2026-08-02 redesign. Retire or re-site.
+    "areas.ts:simulate": "R6 - simulator UI deleted, backend never retired",
+    # Credit-card bill CRUD. The payables checklist reads bills through
+    # `payables`, so these four are a second, unused path to the same data.
+    "areas.ts:ccBills": "CC-1 - superseded by the payables checklist",
+    "areas.ts:createCCBill": "CC-1 - superseded by the payables checklist",
+    "areas.ts:patchCCBill": "CC-1 - superseded by the payables checklist",
+    "areas.ts:deleteCCBill": "CC-1 - superseded by the payables checklist",
+    # Nutrition food library CRUD: the food ITEMS table is reference data the
+    # nutrition logger reads, but nothing lets a user curate it.
+    "areas.ts:createFood": "NUT-1 - no food-library management surface",
+    "areas.ts:patchFood": "NUT-1 - no food-library management surface",
+    "areas.ts:deleteFood": "NUT-1 - no food-library management surface",
+    # Career events: the journal writes through `createJournalEntry`; these are
+    # the older generic event path.
+    "areas.ts:createEvent": "CAR-1 - superseded by the journal entry path",
+    "areas.ts:patchEvent": "CAR-1 - superseded by the journal entry path",
+    "areas.ts:deleteEvent": "CAR-1 - superseded by the journal entry path",
+    # Analyses with no home since the redesign moved their host pages.
+    "areas.ts:skillGap": "CAR-2 - no surface since Career lost its Roadmap tab",
+    "areas.ts:workoutPrs": "HLT-1 - personal-best analysis has no card",
+    "workspace.ts:getStats": "WS-1 - workspace stats have no card",
+    # A bank account can be created and edited but NOT deleted from any screen.
+    # This one is a real user-facing gap, not dead code.
+    "areas.ts:deleteAccount": "FIN-4 - no delete affordance in AccountManager",
+    # Manual re-run of the ingestion pipeline. InboxTab triggers the agent
+    # instead, which is the same work by a different path.
+    "areas.ts:ingestRun": "FIN-5 - InboxTab triggers the agent instead",
+}
+
+
+def test_api_members_are_reachable():
+    """An exported api member with no consumer is a feature no user can reach."""
+    unreachable: list[str] = []
+
+    for module in _api_modules():
+        if module.name in ALLOWED_UNREACHABLE:
+            continue
+
+        text = module.read_text(encoding="utf-8")
+        members = set(_API_MEMBER_RE.findall(strip_comments(text)))
+        if not members:
+            continue
+
+        # One pass over the tree per module keeps this a few seconds, not minutes.
+        remaining = set(members)
+        for source in _frontend_sources(exclude=module):
+            if not remaining:
+                break
+            body = strip_comments(source.read_text(encoding="utf-8"))
+            for member in list(remaining):
+                if re.search(rf"\.{re.escape(member)}\b", body):
+                    remaining.discard(member)
+
+        for member in sorted(remaining):
+            if f"{module.name}:{member}" in ALLOWED_UNREACHABLE_MEMBERS:
+                continue
+            unreachable.append(
+                f"{module.name}: `{member}` is exported but never called outside its own "
+                f"api module — no user can reach it. Wire a surface, delete it, or add it "
+                f"to ALLOWED_UNREACHABLE with a reason."
+            )
+
+    if unreachable:
+        pytest.fail("\n".join(unreachable))

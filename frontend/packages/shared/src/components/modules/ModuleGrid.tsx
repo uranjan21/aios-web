@@ -14,8 +14,8 @@ import { textRole } from '@ledgr/ui'
 import { useModulePalette } from './palette'
 import { ModuleButton } from './primitives'
 import {
-  AgendaKind, BarsKind, CalendarKind, ChecklistKind, ControlsKind, DonutKind,
-  HeatKind, HeroKind, MetersKind, NotesKind, ProgressKind, QueueKind, RowsKind,
+  AgendaKind, BarsKind, CalendarKind, ChecklistKind, ControlsKind, DiscoveriesKind, DonutKind,
+  HeatKind, HeroKind, ProseKind, MetersKind, NotesKind, ProgressKind, QueueKind, RowsKind,
   SeriesKind, SpansKind, TableKind, TimelineKind, WeekKind,
 } from './ShellKinds'
 import { AgentsKind, ChatKind, KanbanKind, TilesKind } from './BareKinds'
@@ -150,6 +150,8 @@ function KindBody({ m }: { m: ModuleSpec }) {
     case 'hero':      return <HeroKind m={m} />
     case 'meters':    return <MetersKind m={m} />
     case 'agenda':    return <AgendaKind m={m} />
+    case 'discoveries': return <DiscoveriesKind m={m} />
+    case 'prose':     return <ProseKind m={m} />
   }
 }
 

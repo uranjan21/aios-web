@@ -2,13 +2,15 @@
  * The fourteen module kinds that render inside the standard card shell.
  * Ported from the modular page renderer in `Control Tower Redesign.dc.html`.
  */
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import styled, { css, useTheme } from 'styled-components'
 import { Check, ChevronDown } from 'lucide-react'
 import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer,
   Tooltip as ReTooltip, XAxis, YAxis,
 } from 'recharts'
-import { focusRing, insetFocusRing, textRole } from '@ledgr/ui'
+import { InsightCard, focusRing, insetFocusRing, textRole } from '@ledgr/ui'
 import { useModulePalette, pct } from './palette'
 import {
   Chip, FieldLabel, ModuleButton, Mono, Row, RowBody, RowMeta, RowTitle, RowValue,
@@ -16,6 +18,7 @@ import {
 } from './primitives'
 import type {
   AgendaModule, BarsModule, CalendarModule, ChecklistModule, ControlsModule,
+  DiscoveriesModule, ProseModule,
   DonutModule, HeatModule, HeroModule, MetersModule, NotesModule, ProgressModule,
   QueueModule, RowsModule, SeriesModule, SpansModule, TableModule, TimelineModule,
   WeekModule,
@@ -1622,5 +1625,156 @@ export function SpansKind({ m }: { m: SpansModule }) {
         </div>
       ))}
     </Stack>
+  )
+}
+
+/* ── discoveries ──────────────────────────────────────────────────────── */
+
+const DiscoveryStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing[3]};
+`
+
+/*
+ * Dims an already-rated card's controls instead of removing them, so the row
+ * does not reflow under the cursor the instant it is clicked and the user can
+ * still see which way they voted.
+ */
+const RatedWrap = styled.div<{ $rated: boolean }>`
+  opacity: ${({ $rated }) => ($rated ? 0.55 : 1)};
+  transition: opacity 150ms;
+`
+
+const EmptyBlock = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing[1]};
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[0.5]}`};
+`
+
+const EmptyHead = styled.div`
+  ${textRole('body-m')};
+  font-weight: ${({ theme }) => theme.typography.fontWeight.semibold};
+  color: ${({ theme }) => theme.color.foreground};
+`
+
+const EmptyBody = styled.div`
+  ${textRole('body-s')};
+  color: ${({ theme }) => theme.color.mutedForeground};
+  max-width: 46ch;
+  line-height: ${({ theme }) => theme.typography.lineHeight.normal};
+`
+
+export function DiscoveriesKind({ m }: { m: DiscoveriesModule }) {
+  const { onRate, onDismiss } = m
+
+  if (!m.items.length) {
+    return (
+      <EmptyBlock>
+        <EmptyHead>{m.emptyTitle ?? 'Nothing spotted yet'}</EmptyHead>
+        <EmptyBody>
+          {m.emptyLabel ??
+            'Patterns need about three weeks of logging across two areas before they mean anything. Keep going and they show up here.'}
+        </EmptyBody>
+      </EmptyBlock>
+    )
+  }
+
+  return (
+    <DiscoveryStack>
+      {m.items.map((it, i) => (
+        <RatedWrap key={i} $rated={it.rated != null}>
+          <InsightCard
+            title={it.title}
+            text={it.body}
+            {...(it.attribution && { attribution: it.attribution })}
+            {...(onRate && !it.busy && {
+              onRateUp: () => onRate(i, 1),
+              onRateDown: () => onRate(i, -1),
+            })}
+            {...(onDismiss && !it.busy && { onDismiss: () => onDismiss(i) })}
+          />
+        </RatedWrap>
+      ))}
+    </DiscoveryStack>
+  )
+}
+
+/* ── prose ────────────────────────────────────────────────────────────── */
+
+/*
+ * Scoped typography for generated markdown. The briefing is written by an LLM,
+ * so the styling has to hold for whatever it emits rather than for one known
+ * shape — hence rules for every block element the GFM subset can produce, and
+ * `overflow-wrap` so an unbroken URL cannot widen the card past its column.
+ */
+const Prose = styled.div`
+  ${textRole('body-m')};
+  color: ${({ theme }) => theme.color.foreground};
+  line-height: ${({ theme }) => theme.typography.lineHeight.relaxed};
+  overflow-wrap: anywhere;
+
+  > *:first-child { margin-top: 0; }
+  > *:last-child { margin-bottom: 0; }
+
+  p { margin: 0 0 ${({ theme }) => theme.spacing[3]}; }
+
+  h1, h2, h3, h4 {
+    ${textRole('title-s')};
+    font-weight: ${({ theme }) => theme.typography.fontWeight.bold};
+    margin: ${({ theme }) => `${theme.spacing[4]} 0 ${theme.spacing[2]}`};
+  }
+
+  strong { font-weight: ${({ theme }) => theme.typography.fontWeight.bold}; }
+
+  ul, ol {
+    margin: 0 0 ${({ theme }) => theme.spacing[3]};
+    padding-left: ${({ theme }) => theme.spacing[5]};
+  }
+
+  li { margin-bottom: ${({ theme }) => theme.spacing[1]}; }
+
+  a {
+    color: ${({ theme }) => theme.color.accent};
+    text-decoration: underline;
+  }
+
+  code {
+    /* The theme carries no mono token (sans + display only), and a code span
+       in a generated brief is rare enough not to justify adding one. */
+    font-family: ui-monospace, monospace;
+    ${textRole('body-s')};
+    background: ${({ theme }) => theme.color.muted};
+    border-radius: ${({ theme }) => theme.radii.xs};
+    padding: ${({ theme }) => `0 ${theme.spacing[1]}`};
+  }
+
+  blockquote {
+    margin: 0 0 ${({ theme }) => theme.spacing[3]};
+    padding-left: ${({ theme }) => theme.spacing[3]};
+    border-left: 2px solid ${({ theme }) => theme.color.border};
+    color: ${({ theme }) => theme.color.mutedForeground};
+  }
+`
+
+export function ProseKind({ m }: { m: ProseModule }) {
+  const body = (m.markdown ?? '').trim()
+
+  if (!body) {
+    return (
+      <EmptyBlock>
+        <EmptyHead>{m.emptyTitle ?? 'Nothing here yet'}</EmptyHead>
+        <EmptyBody>{m.emptyLabel ?? 'Check back once there is something to report.'}</EmptyBody>
+      </EmptyBlock>
+    )
+  }
+
+  return (
+    <Prose>
+      {/* No `rehype-raw`: this text comes back from an LLM, and letting it
+          emit live HTML into the dashboard would be an injection surface. */}
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
+    </Prose>
   )
 }

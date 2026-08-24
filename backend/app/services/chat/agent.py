@@ -20,15 +20,28 @@ _RETRYABLE = (anthropic.RateLimitError, anthropic.APIConnectionError)
 _HISTORY_TOKEN_LIMIT = 24_000  # trim history above this estimate
 _CACHE_MARKER = {"type": "ephemeral"}
 
-try:
-    _encoding = tiktoken.get_encoding("cl100k_base")
-except Exception:
-    _encoding = None
+# Resolved on first use, not at import. `get_encoding` downloads the BPE file,
+# so binding it here made `import app.main` require network egress — see the note
+# in services/rag/embedder.py. `False` distinguishes "tried and failed" from
+# "not tried yet", so a host with no egress falls back once instead of retrying
+# a doomed download on every single call.
+_encoding: object | None | bool = False
+
+
+def _get_encoding():
+    global _encoding
+    if _encoding is False:
+        try:
+            _encoding = tiktoken.get_encoding("cl100k_base")
+        except Exception:
+            _encoding = None
+    return _encoding
 
 
 def _count_tokens(text: str) -> int:
-    if _encoding:
-        return len(_encoding.encode(text))
+    encoding = _get_encoding()
+    if encoding:
+        return len(encoding.encode(text))
     return len(text) // 4  # fallback: ~4 chars/token
 
 

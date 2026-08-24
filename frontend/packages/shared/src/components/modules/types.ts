@@ -344,6 +344,51 @@ export interface NotesModule extends Base {
   submitting?: boolean
 }
 
+/**
+ * The Synergy Engine's output — cross-domain correlations the nightly job
+ * found, each with a 👍/👎 control.
+ *
+ * The rating is not decoration. `services/insights/synergy.py::_get_threshold`
+ * raises the required |r| from 0.6 to 0.7 once a user's recent 👎 rate passes
+ * 40%, which is the product's only defence against correlation slop. Between
+ * 2026-08-02 and 2026-08-23 no surface rendered these, so no feedback could be
+ * recorded and that guardrail could never engage. If you are tempted to drop
+ * this module from a page again: the engine keeps computing and metering
+ * either way — removing the surface only hides the result.
+ */
+/**
+ * A block of generated markdown prose — the daily briefing, an agent's last
+ * output. Kept deliberately small: headings, emphasis, lists and links, which
+ * is everything the briefing prompt actually emits.
+ */
+export interface ProseModule extends Base {
+  kind: 'prose'
+  /** Markdown. Rendered with GFM; no raw HTML is allowed through. */
+  markdown?: string
+  /** Shown instead of the body when `markdown` is empty or absent. */
+  emptyTitle?: string
+  emptyLabel?: string
+}
+
+export interface DiscoveriesModule extends Base {
+  kind: 'discoveries'
+  items: Array<{
+    title: string
+    body: string
+    /** e.g. "spend x sleep - last 34 days". Rendered under the body. */
+    attribution?: string
+    /** Already-rated items dim their controls rather than hiding them. */
+    rated?: 1 | -1 | null
+    busy?: boolean
+  }>
+  /** Absent, the controls render inert — what the design gallery wants. */
+  onRate?: (index: number, feedback: 1 | -1) => void
+  onDismiss?: (index: number) => void
+  /** Shown when `items` is empty, in place of the list. */
+  emptyTitle?: string
+  emptyLabel?: string
+}
+
 export interface SpansModule extends Base {
   kind: 'spans'
   /** Tick labels across the fixed axis. */
@@ -434,7 +479,7 @@ export type ModuleSpec =
   | CalendarModule | WeekModule | TimelineModule | TableModule | ControlsModule
   | QueueModule | ChecklistModule | NotesModule | SpansModule
   | TilesModule | KanbanModule | AgentsModule | ChatModule
-  | HeroModule | MetersModule | AgendaModule
+  | HeroModule | MetersModule | AgendaModule | DiscoveriesModule | ProseModule
 
 /**
  * Kinds that render WITHOUT the card shell — they are grids of their own

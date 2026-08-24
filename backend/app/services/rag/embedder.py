@@ -18,7 +18,20 @@ CHUNK_TOKENS = 500
 OVERLAP_TOKENS = 50
 EMBEDDING_MODEL = "text-embedding-3-small"
 
-_encoder = tiktoken.get_encoding("cl100k_base")
+# Lazy, not module-level. `tiktoken.get_encoding` DOWNLOADS the BPE file from
+# openaipublic.blob.core.windows.net on first use, so binding it at import time
+# put a network round-trip inside `import app.main` — the app could not boot (and
+# the whole test suite could not even be COLLECTED) on any host without egress to
+# that CDN, which is the normal shape of a hardened runner. Resolving it on first
+# call keeps the cost identical in production and removes it from the import path.
+_encoder = None
+
+
+def _get_encoder():
+    global _encoder
+    if _encoder is None:
+        _encoder = tiktoken.get_encoding("cl100k_base")
+    return _encoder
 
 _openai_client = None
 
@@ -36,13 +49,14 @@ def _get_openai_client(api_key: str | None = None):
 
 
 def _chunk_text(text: str) -> list[str]:
-    tokens = _encoder.encode(text)
+    encoder = _get_encoder()
+    tokens = encoder.encode(text)
     chunks = []
     start = 0
     while start < len(tokens):
         end = start + CHUNK_TOKENS
         chunk_tokens = tokens[start:end]
-        chunks.append(_encoder.decode(chunk_tokens))
+        chunks.append(encoder.decode(chunk_tokens))
         start += CHUNK_TOKENS - OVERLAP_TOKENS
     return chunks
 
