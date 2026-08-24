@@ -253,43 +253,6 @@ async def test_r5_briefing_preferences_update(client_a):
     assert resp.json()["enabled"] is False
 
 # R6: Interactive Saved Quotes Feature (UNIMPLEMENTED - expected to fail with 201/200/204 assertions)
-@pytest.mark.asyncio
-async def test_r6_create_quote(client_a):
-    # Expect failure since /api/quotes does not exist yet (will raise 404 but assert expects 201)
-    resp = await client_a.post("/api/quotes", json={"text": "Write code that matters", "author": "Unknown"})
-    assert resp.status_code == 201
-
-@pytest.mark.asyncio
-async def test_r6_list_quotes(client_a):
-    resp = await client_a.get("/api/quotes")
-    assert resp.status_code == 200
-
-@pytest.mark.asyncio
-async def test_r6_delete_quote(client_a):
-    # First create a quote to delete
-    post_resp = await client_a.post("/api/quotes", json={"text": "To delete", "author": "DeleteMe"})
-    assert post_resp.status_code == 201
-    quote_id = post_resp.json()["id"]
-    # Then delete it
-    resp = await client_a.delete(f"/api/quotes/{quote_id}")
-    assert resp.status_code == 204
-
-@pytest.mark.asyncio
-async def test_r6_random_quote(client_a):
-    resp = await client_a.get("/api/quotes/random")
-    assert resp.status_code == 200
-
-@pytest.mark.asyncio
-async def test_r6_patch_quote(client_a):
-    # First create a quote to patch
-    post_resp = await client_a.post("/api/quotes", json={"text": "To patch", "author": "PatchMe"})
-    assert post_resp.status_code == 201
-    quote_id = post_resp.json()["id"]
-    # Then patch it
-    resp = await client_a.patch(f"/api/quotes/{quote_id}", json={"favorite": True})
-    assert resp.status_code == 200
-    assert resp.json()["favorite"] is True
-
 # R7: Contextual Quick Capture Button
 @pytest.mark.asyncio
 async def test_r7_create_plain_capture(client_a):
@@ -474,31 +437,6 @@ async def test_t2_r5_update_briefing_prefs_invalid(client_a):
     assert resp.status_code == 422
 
 # R6 Boundaries
-@pytest.mark.asyncio
-async def test_t2_r6_create_quote_invalid(client_a):
-    resp = await client_a.post("/api/quotes", json={"invalid": "field"})
-    assert resp.status_code == 422
-
-@pytest.mark.asyncio
-async def test_t2_r6_get_quote_nonexistent(client_a):
-    resp = await client_a.get(f"/api/quotes/{uuid.uuid4()}")
-    assert resp.status_code == 404
-
-@pytest.mark.asyncio
-async def test_t2_r6_patch_quote_nonexistent(client_a):
-    resp = await client_a.patch(f"/api/quotes/{uuid.uuid4()}", json={"text": "edit"})
-    assert resp.status_code == 404
-
-@pytest.mark.asyncio
-async def test_t2_r6_delete_quote_nonexistent(client_a):
-    resp = await client_a.delete(f"/api/quotes/{uuid.uuid4()}")
-    assert resp.status_code == 404
-
-@pytest.mark.asyncio
-async def test_t2_r6_quotes_isolation(client_a):
-    resp = await client_a.get("/api/quotes")
-    assert resp.status_code == 200
-
 # R7 Boundaries
 @pytest.mark.asyncio
 async def test_t2_r7_create_capture_empty(client_a):
@@ -582,11 +520,6 @@ async def test_t3_workspace_and_goal_deletion_cascades(client_a, db_session_fact
         result = await s.execute(select(GoalProgress).where(GoalProgress.goal_id == goal.id))
         assert len(result.scalars().all()) == 0
 
-@pytest.mark.asyncio
-async def test_t3_saved_quotes_interaction_with_dashboard(client_a):
-    quote_resp = await client_a.post("/api/quotes", json={"text": "Inspirational Quote", "author": "Plato"})
-    assert quote_resp.status_code == 201
-
 # ── Tier 4: Real-World Application Scenarios (Tests 78-82) ────────────────────
 
 
@@ -623,15 +556,6 @@ async def test_t4_flow_multi_tenant_complete_isolation(client_a, client_b):
     assert pa_id not in [p["id"] for p in list_b.json()]
     patch_b = await client_b.patch(f"/api/workspace/projects/{pa_id}", json={"name": "Hacked"})
     assert patch_b.status_code == 404
-
-@pytest.mark.asyncio
-async def test_t4_flow_saved_quotes_management(client_a):
-    post_q = await client_a.post("/api/quotes", json={"text": "Stay hungry, stay foolish", "author": "Steve Jobs"})
-    assert post_q.status_code == 201
-    qid = post_q.json()["id"]
-    list_q = await client_a.get("/api/quotes")
-    assert list_q.status_code == 200
-    assert qid in [q["id"] for q in list_q.json()]
 
 @pytest.mark.asyncio
 async def test_t4_flow_quick_capture_triage(client_a):

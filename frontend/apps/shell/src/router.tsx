@@ -236,7 +236,14 @@ export const router = createBrowserRouter([
       { path: 'career', element: <Page><RequireModule module="career"><CareerPage /></RequireModule></Page> },
       /* Career Settings held only the skills inventory, which is now its own
          destination (2026-08-03). Redirect rather than 404 an old bookmark. */
-      { path: 'career/settings', element: <Navigate to="/app/career/skills" replace /> },
+      /* Career collapsed 5 destinations -> 2 on 2026-08-23; the old section
+         paths still resolve. Skills, Learning and Opportunities merged into
+         Growth; Experience joined the Journal at the area root. */
+      { path: 'career/settings', element: <Navigate to="/app/career/growth" replace /> },
+      { path: 'career/skills', element: <Navigate to="/app/career/growth" replace /> },
+      { path: 'career/learning', element: <Navigate to="/app/career/growth" replace /> },
+      { path: 'career/opportunities', element: <Navigate to="/app/career/growth" replace /> },
+      { path: 'career/experience', element: <Navigate to="/app/career" replace /> },
       { path: 'career/:section', element: <Page><RequireModule module="career"><CareerPage /></RequireModule></Page> },
 
       // Workspace — the four planning entities, promoted out of /app/plan's

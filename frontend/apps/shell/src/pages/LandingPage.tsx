@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@ct/shared/stores/authStore'
 import { usePricingCurrency } from '@ct/shared/hooks/usePricingCurrency'
-import { MODULE_PRICE, BUNDLE_PRICE, TOTAL_MODULES, FREE_BASE_BLURB } from '@ct/shared/lib/pricing'
+import { BUNDLE_PRICE, TOTAL_MODULES, FREE_BASE_BLURB } from '@ct/shared/lib/pricing'
 import { DOMAINS, AI_FEATURES, COMPARE_ROWS, STATS, fade } from './landing/landing.data'
 import {
   PageWrapper, Header, Logo, HeaderNav,
@@ -161,54 +161,42 @@ export function LandingPage() {
       {/* ── Pricing preview ── */}
       <PricingWrap>
         <SectionLabel>Pricing</SectionLabel>
-        <SectionTitle>Pay only for what you use.</SectionTitle>
+        <SectionTitle>Two plans. That&apos;s the whole menu.</SectionTitle>
         <PriceCards>
           <PriceCard>
             <PriceName>Free</PriceName>
             <PriceAmount>{loading ? '$0' : format(0)}</PriceAmount>
             <PricePer>forever · no card required</PricePer>
             <PriceFeats>
-              {[FREE_BASE_BLURB, 'Core tracking & logging', 'Upgrade a module anytime'].map(f => (
+              {[FREE_BASE_BLURB, 'Core tracking & logging', 'Upgrade anytime'].map(f => (
                 <PriceFeat key={f}><Check size={13} style={{ color: 'var(--accent)' }} />{f}</PriceFeat>
               ))}
             </PriceFeats>
             <Button variant="outline" fullWidth onClick={() => navigate('/signup')}>Get started</Button>
           </PriceCard>
-          <PriceCard>
-            <PriceName>Per module</PriceName>
-            <PriceAmount>{loading ? `$${MODULE_PRICE}` : format(MODULE_PRICE)}</PriceAmount>
-            {!isUSD && !loading
-              ? <PriceUsdNote>≈ ${MODULE_PRICE} USD · per module / mo</PriceUsdNote>
-              : <PricePer>per module · per month</PricePer>}
-            <PriceFeats>
-              {['Enable any of 8 modules', 'Areas + AI Chat, Agents, Integrations', 'Switch anytime — prorated', 'Metered AI on top of usage'].map(f => (
-                <PriceFeat key={f}><Check size={13} style={{ color: 'var(--accent)' }} />{f}</PriceFeat>
-              ))}
-            </PriceFeats>
-            <Button variant="secondary" fullWidth onClick={() => navigate('/pricing')}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Build your plan <ArrowRight size={14} /></span>
-            </Button>
-          </PriceCard>
+          {/* The middle "Per module" card is gone (2026-08-23). It advertised
+              "any of 8 modules" — stale since the catalog dropped to 6 — and
+              priced a choice the maths made irrational; see lib/pricing.ts. */}
           <PriceCard $featured>
-            <PriceBadge>Best value</PriceBadge>
+            <PriceBadge>Everything</PriceBadge>
             <PriceName style={{ color: `${theme.color.primaryForeground}B3` }}>Everything</PriceName>
             <PriceAmount>{loading ? `$${BUNDLE_PRICE}` : format(BUNDLE_PRICE)}</PriceAmount>
             {!isUSD && !loading
               ? <PriceUsdNote>≈ ${BUNDLE_PRICE} USD · per month</PriceUsdNote>
               : <PricePer>per month</PricePer>}
             <PriceFeats>
-              {[`All ${TOTAL_MODULES} modules unlocked`, 'Every life area + AI services', 'Cheaper than 6 modules à la carte', 'Free monthly AI usage cap included'].map(f => (
+              {[`All ${TOTAL_MODULES} modules unlocked`, 'Every life area + AI Chat and Agents', 'Cross-domain discoveries', 'Free monthly AI usage cap included'].map(f => (
                 <PriceFeat key={f}><Check size={13} style={{ color: 'var(--accent)' }} />{f}</PriceFeat>
               ))}
             </PriceFeats>
             <Button variant="secondary" fullWidth onClick={() => navigate('/signup')}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Start free trial <ArrowRight size={14} /></span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Start free <ArrowRight size={14} /></span>
             </Button>
           </PriceCard>
         </PriceCards>
         <div style={{ marginTop: '1.5rem', fontSize: 13, color: 'var(--muted-foreground)' }}>
           <Link to="/pricing" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>
-            Build your plan & see all modules →
+            See what Everything includes →
           </Link>
         </div>
       </PricingWrap>

@@ -10,22 +10,6 @@ import type {
 } from '@ct/shared/types'
 
 // Finance
-export interface SimulationResult {
-  labels: string[]
-  deterministic: number[]
-  p10: number[]
-  p50: number[]
-  p90: number[]
-  zero_month: number | null
-  assumptions: {
-    start_balance: number
-    monthly_income: number
-    monthly_spend_mean: number
-    monthly_spend_std: number
-    data_months: number
-  }
-}
-
 export interface FinancePendingTransaction {
   id: string
   amount: number
@@ -199,8 +183,6 @@ export interface LoanPayments {
 
 export const financeApi = {
   netWorth: () => api.get<NetWorth>('/areas/finance/net-worth').then(r => r.data),
-  simulate: (params: SimulationParams) =>
-    api.post<SimulationResult>('/areas/finance/simulate', params).then(r => r.data),
   importCheck: (items: { logged_at: string; amount: number; kind: string; category?: string; description?: string }[]) =>
     api.post<{ duplicates: number[] }>('/areas/finance/import/check', { items }).then(r => r.data),
   importCommit: (items: { logged_at: string; amount: number; kind: string; category?: string; description?: string }[], account_id?: string) =>

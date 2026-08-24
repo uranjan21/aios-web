@@ -1,7 +1,7 @@
 """Multi-tenant isolation tests for the 7 newer routers not covered by test_isolation.py.
 
 Routers covered: goals, forecasts, actions, insights, automations, workspace
-(projects / sprints / tasks), quotes.
+(projects / sprints / tasks).
 
 User A must never read, modify, or delete user B's data.
 """
@@ -74,16 +74,6 @@ async def _seed_task(factory, user_id, project_id, title="B secret task"):
     from app.models.workspace import Task
     async with factory() as s:
         row = Task(user_id=user_id, project_id=project_id, title=title, domain="finance")
-        s.add(row)
-        await s.commit()
-        await s.refresh(row)
-        return row.id
-
-
-async def _seed_quote(factory, user_id, text="B private quote"):
-    from app.models.quote import SavedQuote
-    async with factory() as s:
-        row = SavedQuote(user_id=user_id, text=text)
         s.add(row)
         await s.commit()
         await s.refresh(row)
@@ -228,40 +218,3 @@ async def test_task_delete_other_users_task_is_404(client_a, user_b, db_session_
     assert resp.status_code == 404
 
 
-# ── quotes ────────────────────────────────────────────────────────────────────
-
-@pytest.mark.asyncio
-async def test_quotes_list_excludes_other_users(client_a, user_b, db_session_factory):
-    await _seed_quote(db_session_factory, user_b.id)
-    resp = await client_a.get("/api/quotes")
-    assert resp.status_code == 200
-    texts = [q["text"] for q in resp.json()]
-    assert "B private quote" not in texts
-
-
-@pytest.mark.asyncio
-async def test_quote_get_other_users_quote_is_404(client_a, user_b, db_session_factory):
-    qid = await _seed_quote(db_session_factory, user_b.id)
-    resp = await client_a.get(f"/api/quotes/{qid}")
-    assert resp.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_quote_patch_other_users_quote_is_404(client_a, user_b, db_session_factory):
-    qid = await _seed_quote(db_session_factory, user_b.id)
-    resp = await client_a.patch(f"/api/quotes/{qid}", json={"text": "hacked"})
-    assert resp.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_quote_delete_other_users_quote_is_404_and_preserved(
-    client_a, user_b, db_session_factory
-):
-    qid = await _seed_quote(db_session_factory, user_b.id)
-    resp = await client_a.delete(f"/api/quotes/{qid}")
-    assert resp.status_code == 404
-    from app.models.quote import SavedQuote
-    from sqlmodel import select
-    async with db_session_factory() as s:
-        still = (await s.execute(select(SavedQuote).where(SavedQuote.id == qid))).scalar_one_or_none()
-    assert still is not None

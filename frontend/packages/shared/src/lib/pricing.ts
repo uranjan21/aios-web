@@ -5,27 +5,36 @@ import {
 } from 'lucide-react'
 
 /**
- * Single source of truth for the modular pricing model.
- * Both the LandingPage preview and the PricingPage configurator read from here,
- * so the two surfaces can never drift apart.
+ * Single source of truth for pricing. The LandingPage and the PricingPage both
+ * read from here so the two surfaces cannot drift apart.
  *
- * Model: pay only for the modules you enable. Flat USD/mo per module, with a
- * discounted "Everything" bundle that grants all of them. AI Chat + Agents add
- * metered AI usage on top of their flat module price (free monthly cap, then
- * billed per use).
+ * ── TWO TIERS, NOT SIX (2026-08-23) ──────────────────────────────────────────
+ * This used to present six independently purchasable $5 modules. The arithmetic
+ * never supported that story: `computeMonthly` capped the a-la-carte total at
+ * the bundle price, so the 5th module cost $2, the 6th was free, and nobody
+ * could rationally buy five. It was a two-tier product wearing a six-option
+ * configurator, and the configurator's main effect was to make a visitor do
+ * combinatorics before they understood what the product did.
+ *
+ * So the PRICE is now Free or Everything. Module granularity survives
+ * underneath as the ENTITLEMENT mechanism — `Subscription.modules`,
+ * `require_module`, and the free tier's single chosen area all still work
+ * exactly as before, and `billingApi.setModules` is still how a plan is set.
+ * What changed is only what we ask a visitor to decide.
  */
 
-export const MODULE_PRICE = 5 // USD / month, per enabled module
+/**
+ * USD/month for a single module, retained because the free tier grants exactly
+ * one and the entitlement model is still per-module. NOT shown as a price a
+ * visitor can pick — see the note above.
+ */
+export const MODULE_PRICE = 5
 
 /**
- * USD / month for the "Everything" bundle.
+ * USD/month for Everything — now the only paid price.
  *
- * NEEDS PRODUCT SIGN-OFF. Retiring the Business and Content modules on
- * 2026-07-21 took the catalog from 8 modules to 6, so à-la-carte fell from $40
- * to $30 and the old $29 bundle would have saved a customer exactly $1 —
- * making the bundle pointless. This preserves the original discount ratio
- * (~27% off buying everything individually): 6 x $5 = $30 -> $22.
- * Billing is currently disabled, so nothing charges against this value.
+ * Signed off 2026-08-23 along with the collapse to two tiers. Billing is still
+ * disabled, so nothing has ever charged against this value.
  */
 export const BUNDLE_PRICE = 22
 
@@ -51,25 +60,12 @@ export const PRICING_MODULES: PricingModule[] = [
 ]
 
 export const TOTAL_MODULES = PRICING_MODULES.length // 6
-export const FULL_PRICE = TOTAL_MODULES * MODULE_PRICE // 30 — sum of every module à la carte
-
-/** Discount (USD/mo) of the bundle vs buying every module individually. */
-export const BUNDLE_SAVINGS = FULL_PRICE - BUNDLE_PRICE // 8
 
 /** Free base: Dashboard + one area of the user's choice, forever. */
 export const FREE_BASE_BLURB = 'Dashboard + any 1 area of your choice'
 
-/**
- * Effective monthly USD total for a set of selected module keys.
- * Once enough modules are picked that à-la-carte would cost more than the
- * bundle, the price is capped at the bundle — so the last few modules are free.
- */
-export function computeMonthly(selectedCount: number): number {
-  if (selectedCount <= 0) return 0
-  return Math.min(selectedCount * MODULE_PRICE, BUNDLE_PRICE)
-}
+/** Every module key — what the paid tier grants. */
+export const ALL_MODULE_KEYS = PRICING_MODULES.map(m => m.key)
 
-/** True once the selection is priced at (or above) the bundle — i.e. take all. */
-export function isBundlePriced(selectedCount: number): boolean {
-  return selectedCount > 0 && selectedCount * MODULE_PRICE >= BUNDLE_PRICE
-}
+/** Modules that add metered AI on top of the flat price. */
+export const METERED_MODULES = PRICING_MODULES.filter(m => m.metered)

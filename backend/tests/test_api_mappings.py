@@ -339,21 +339,8 @@ def test_api_mappings():
         ("POST", "/api/auth/change-password"),
         # Stripe calls this server-to-server; never a frontend caller.
         ("POST", "/api/billing/webhook"),
-        # ORPHANED, PENDING A PRODUCT DECISION (2026-08-17). The quotes feature's
-        # only frontend consumers were GreetingHero and SavedQuotesCard, both of
-        # which stopped being rendered in an earlier redesign; the 2026-08-16
-        # audit found them unimported and they were deleted, which is what made
-        # these routes scan as unmapped. The router, the `saved_quotes` table and
-        # its user data are all still live and untouched.
-        # Decide one way or the other — rebuild a surface, or retire the router
-        # plus the table with a migration. Do not leave this entry here forever.
-        ("GET", "/api/quotes"),
-        ("POST", "/api/quotes"),
-        ("GET", "/api/quotes/random"),
-        ("POST", "/api/quotes/save"),
-        ("GET", "/api/quotes/{}"),
-        ("PATCH", "/api/quotes/{}"),
-        ("DELETE", "/api/quotes/{}"),
+        # (The quotes router and its table were retired on 2026-08-23 — the
+        # decision this list used to be waiting on. Nothing to ignore now.)
     }
     for key, route in backend_routes.items():
         method, path = key
@@ -437,9 +424,6 @@ ALLOWED_UNREACHABLE: dict[str, str] = {
 # test on the day it was written (2026-08-23) and is recorded in
 # docs/FEATURE_AUDIT_2026_08_23.md Part 3.
 ALLOWED_UNREACHABLE_MEMBERS: dict[str, str] = {
-    # What-If Simulator: backing route + 400-run Monte-Carlo service survive, but
-    # SimulatorTab was deleted in the 2026-08-02 redesign. Retire or re-site.
-    "areas.ts:simulate": "R6 - simulator UI deleted, backend never retired",
     # Credit-card bill CRUD. The payables checklist reads bills through
     # `payables`, so these four are a second, unused path to the same data.
     "areas.ts:ccBills": "CC-1 - superseded by the payables checklist",

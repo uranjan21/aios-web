@@ -172,7 +172,6 @@ def _isolation_tables():
     from app.models.career import LearningResource, EmploymentRole, SkillInventory, CareerEvent, JobOpportunity, CareerJournalEntry
     from app.models.business import BusinessEvent
     from app.models.insights import BriefingPreference, Briefing, Insight
-    from app.models.quote import SavedQuote
     from app.models.vault import VaultFile, VaultConflict
     from app.models.oauth_state import OAuthState
     return [m.__table__ for m in (
@@ -183,7 +182,7 @@ def _isolation_tables():
         HealthLog, HealthGoal, Habit, HabitCheck, WorkoutSession, WorkoutSet, FoodItem,
         WorkoutRoutine, RoutineExercise, RoutineDay,
         FinanceExpense, FinanceIncome, FinanceTransfer, Account, Category, FinancePendingTransaction, FinanceSettings, GmailMessage, CareerEvent, JobOpportunity, CareerJournalEntry, LearningResource, EmploymentRole, SkillInventory, BusinessEvent,
-        BriefingPreference, Briefing, Insight, SavedQuote, VaultFile, VaultConflict
+        BriefingPreference, Briefing, Insight, VaultFile, VaultConflict
     )]
 
 

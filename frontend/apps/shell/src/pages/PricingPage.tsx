@@ -8,8 +8,8 @@ import { useAuthStore } from '@ct/shared/stores/authStore'
 import { usePricingCurrency } from '@ct/shared/hooks/usePricingCurrency'
 import { billingApi } from '@ct/shared/api/billing'
 import {
-  PRICING_MODULES, MODULE_PRICE, BUNDLE_PRICE, TOTAL_MODULES,
-  BUNDLE_SAVINGS, FREE_BASE_BLURB, computeMonthly, isBundlePriced,
+  PRICING_MODULES, BUNDLE_PRICE, TOTAL_MODULES,
+  FREE_BASE_BLURB, ALL_MODULE_KEYS, METERED_MODULES,
 } from '@ct/shared/lib/pricing'
 
 // ── Styled components ─────────────────────────────────────────────────────────
@@ -225,23 +225,6 @@ const SaveHint = styled.div`
   margin-bottom: 1rem;
 `
 
-const BundleButton = styled.button<{ $active: boolean }>`
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
-  border-radius: ${({ theme }) => theme.radii.md};
-  font-size: ${({ theme }) => theme.typography.fontSize.sm};
-  font-weight: 600;
-  cursor: pointer;
-  background: ${({ theme, $active }) => ($active ? theme.color.primary : theme.color.muted)};
-  color: ${({ theme, $active }) => ($active ? theme.color.primaryForeground : theme.color.foreground)};
-  border: 1px solid ${({ theme, $active }) => ($active ? 'transparent' : theme.color.border)};
-  &:hover { border-color: ${({ theme }) => theme.color.primary}; }
-`
 
 const MeteredNote = styled.div`
   display: flex;
@@ -264,43 +247,25 @@ const FootNote = styled.p`
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
-const AREAS = PRICING_MODULES.filter(m => m.group === 'area')
-const SERVICES = PRICING_MODULES.filter(m => m.group === 'service')
 
 export function PricingPage() {
   const navigate = useNavigate()
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
   const { currency, loading, format } = usePricingCurrency()
   const isUSD = currency.code === 'USD'
-
-  // Selected module keys — the single piece of page state everything derives from.
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(['finance']))
-
-  const count = selected.size
-  const bundled = isBundlePriced(count)
-  const monthly = computeMonthly(count)
-  const allSelected = count === TOTAL_MODULES
-  const meteredSelected = PRICING_MODULES.some(m => m.metered && selected.has(m.key))
-
-  const toggle = (key: string) =>
-    setSelected(prev => {
-      const next = new Set(prev)
-      next.has(key) ? next.delete(key) : next.add(key)
-      return next
-    })
-
-  const toggleEverything = () =>
-    setSelected(allSelected ? new Set() : new Set(PRICING_MODULES.map(m => m.key)))
-
   const [submitting, setSubmitting] = useState(false)
 
-  // Set the chosen modules. When the selection is "bundle-priced" (≥ the bundle
-  // cost), buy the bundle so the displayed price matches what Stripe charges.
-  const handleCta = async () => {
+  /*
+   * Everything grants every module. The per-module entitlement model is
+   * untouched underneath — this just stops asking a visitor to assemble their
+   * own plan out of six checkboxes whose arithmetic made five of them
+   * irrational (see the note in lib/pricing.ts).
+   */
+  const handleUpgrade = async () => {
     if (!isAuthenticated) { navigate('/signup'); return }
     setSubmitting(true)
     try {
-      const { checkout_url } = await billingApi.setModules([...selected], bundled)
+      const { checkout_url } = await billingApi.setModules([...ALL_MODULE_KEYS], true)
       if (checkout_url) { window.location.href = checkout_url; return }
       navigate('/app/settings?billing=success')
     } catch {
@@ -308,25 +273,6 @@ export function PricingPage() {
     } finally {
       setSubmitting(false)
     }
-  }
-
-  const renderTile = (m: typeof PRICING_MODULES[number]) => {
-    const on = selected.has(m.key)
-    const Icon = m.icon
-    return (
-      <ModuleTile key={m.key} type="button" $selected={on} onClick={() => toggle(m.key)} aria-pressed={on}>
-        <span className="ico"><Icon size={18} /></span>
-        <span className="body">
-          <span className="row">
-            <span className="name">{m.label}</span>
-            <span className="price">· {loading ? `$${MODULE_PRICE}` : format(MODULE_PRICE)}/mo</span>
-          </span>
-          <span className="desc">{m.desc}</span>
-          {m.metered && <span className="meter">+ metered AI</span>}
-        </span>
-        <Check size={16} className="tick" />
-      </ModuleTile>
-    )
   }
 
   return (
@@ -347,8 +293,8 @@ export function PricingPage() {
       <Content>
         <TitleSection>
           <BetaBadge><Sparkles size={13} /> Free during beta — everything below is a preview of pricing</BetaBadge>
-          <h1>Pay only for what you use</h1>
-          <p>Control Tower is in free beta right now — every module is on us while we build. The prices below are the planned model so you can see how it'll work.</p>
+          <h1>Two plans. That's the whole menu.</h1>
+          <p>Control Tower is in free beta right now — everything is on us while we build. The prices below are the planned model so you can see how it&apos;ll work.</p>
           {!loading && !isUSD && currency.country && (
             <CurrencyBadge>
               <Globe size={13} />
@@ -357,62 +303,70 @@ export function PricingPage() {
           )}
         </TitleSection>
 
-        <FreeBanner>
-          <div className="lead">
-            <Check size={18} style={{ color: 'var(--accent)' }} />
-            <div>
-              <strong>Free forever</strong> &nbsp;<span>{FREE_BASE_BLURB} · no card required</span>
-            </div>
-          </div>
-          <Button variant="outline" onClick={() => navigate('/signup')}>Start free</Button>
-        </FreeBanner>
-
         <Layout>
           <Panel>
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-              <GroupLabel>Life areas</GroupLabel>
-              <ModuleGrid>{AREAS.map(renderTile)}</ModuleGrid>
-              <GroupLabel>AI &amp; services</GroupLabel>
-              <ModuleGrid>{SERVICES.map(renderTile)}</ModuleGrid>
+              <GroupLabel>Everything includes</GroupLabel>
+              <ModuleGrid>
+                {PRICING_MODULES.map(m => {
+                  const Icon = m.icon
+                  return (
+                    /* $selected is fixed true: these are no longer choices, they
+                       are the contents of the paid tier. */
+                    <ModuleTile key={m.key} as="div" $selected>
+                      <span className="ico"><Icon size={18} /></span>
+                      <span className="body">
+                        <span className="row"><span className="name">{m.label}</span></span>
+                        <span className="desc">{m.desc}</span>
+                        {m.metered && <span className="meter">+ metered AI</span>}
+                      </span>
+                      <Check size={16} className="tick" />
+                    </ModuleTile>
+                  )
+                })}
+              </ModuleGrid>
             </motion.div>
           </Panel>
 
           <Summary>
-            <SummaryMeta>{count === 0 ? 'No modules selected' : `${count} of ${TOTAL_MODULES} module${TOTAL_MODULES === 1 ? '' : 's'}`}</SummaryMeta>
+            <SummaryMeta>Free</SummaryMeta>
             <TotalRow>
-              <span className="amount">{loading ? `$${monthly}` : format(monthly)}</span>
+              <span className="amount">{loading ? '$0' : format(0)}</span>
               <span className="per">/mo</span>
             </TotalRow>
-            {!isUSD && !loading && <UsdNote>≈ ${monthly} USD · billed in USD</UsdNote>}
-
-            {bundled && !allSelected && (
-              <SaveHint><Sparkles size={13} /> You're at the Everything price — add the rest free</SaveHint>
-            )}
-            {!bundled && count > 0 && count >= TOTAL_MODULES - 2 && (
-              <SaveHint><Sparkles size={13} /> Everything saves {loading ? `$${BUNDLE_SAVINGS}` : format(BUNDLE_SAVINGS)}/mo</SaveHint>
-            )}
-
-            <BundleButton type="button" $active={allSelected} onClick={toggleEverything}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Zap size={14} /> Everything — all {TOTAL_MODULES} modules
-              </span>
-              <span>{loading ? `$${BUNDLE_PRICE}` : format(BUNDLE_PRICE)}/mo</span>
-            </BundleButton>
-
-            <Button variant="primary" size="lg" fullWidth onClick={handleCta} loading={submitting} disabled={count === 0 || submitting}>
-              {isAuthenticated ? 'Choose these modules' : 'Start free · add modules anytime'}
+            <FreeBanner>
+              <div className="lead">
+                <Check size={18} style={{ color: 'var(--accent)' }} />
+                <div><span>{FREE_BASE_BLURB} · no card required</span></div>
+              </div>
+            </FreeBanner>
+            <Button variant="outline" size="lg" fullWidth onClick={() => navigate('/signup')}>
+              Start free
             </Button>
 
-            {meteredSelected && (
-              <MeteredNote>
-                <Info size={14} />
-                <span>AI Chat &amp; Agents include a free monthly usage cap. Heavy AI use is billed per token on top of the module price.</span>
-              </MeteredNote>
-            )}
+            <SummaryMeta style={{ marginTop: '2rem' }}>Everything</SummaryMeta>
+            <TotalRow>
+              <span className="amount">{loading ? `$${BUNDLE_PRICE}` : format(BUNDLE_PRICE)}</span>
+              <span className="per">/mo</span>
+            </TotalRow>
+            {!isUSD && !loading && <UsdNote>≈ ${BUNDLE_PRICE} USD · billed in USD</UsdNote>}
+            <SaveHint><Zap size={13} /> All {TOTAL_MODULES} modules, every area, both AI services</SaveHint>
+
+            <Button variant="primary" size="lg" fullWidth onClick={handleUpgrade} loading={submitting} disabled={submitting}>
+              {isAuthenticated ? 'Get Everything' : 'Start free · upgrade anytime'}
+            </Button>
+
+            <MeteredNote>
+              <Info size={14} />
+              <span>
+                {METERED_MODULES.map(m => m.label).join(' & ')} include a free monthly usage
+                cap. Heavy AI use is billed per token on top.
+              </span>
+            </MeteredNote>
           </Summary>
         </Layout>
 
-        <FootNote>Switch modules anytime — changes are prorated. Cancel whenever you like.</FootNote>
+        <FootNote>Upgrade or cancel anytime — changes are prorated.</FootNote>
       </Content>
     </PageWrapper>
   )

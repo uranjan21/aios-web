@@ -70,42 +70,56 @@ export function CareerPage() {
             unreferenced; mount it again behind a card that actually shows career
             events if that surface comes back. */}
 
-        {section === 'journal' ? (
-          <JournalSection />
-        ) : section === 'skills' ? (
-          <SkillsSection />
-        ) : section === 'learning' ? (
-          <LearningSection />
-        ) : section === 'experience' ? (
-          <ExperienceSection />
-        ) : (
-        <>
-        {/* The KPI strip alone reports the failure — OpportunitiesSection owns
-            its own request and stays mounted, so one dead endpoint does not
-            take the pipeline down with it. */}
-        {kpisFailed ? (
-          <ErrorState
-            title="We couldn't load your pipeline summary"
-            description="Nothing has been lost — the request behind these figures failed."
-            onRetry={() => { void skillsQ.refetch(); void opportunitiesQ.refetch() }}
-          />
-        ) : kpisLoading ? (
-          <SkeletonKpiRow count={3} />
-        ) : (
-          <KpiGrid>
-            <KpiCard label="Active pipeline" value={String(activeOpps.length)} color="primary" icon={Briefcase} />
-            <KpiCard
-              label="In play"
-              value={String(inPlay)}
-              color={inPlay > 0 ? 'emerald' : undefined}
-              icon={Activity}
-            />
-            <KpiCard label="Skills tracked" value={String(skills?.length ?? 0)} icon={BookOpen} />
-          </KpiGrid>
-        )}
+        {/*
+          TWO DESTINATIONS, NOT FIVE (2026-08-23).
 
-        <OpportunitiesSection />
-        </>
+          Career carried journal / skills / learning / experience /
+          opportunities — five nav rows for what is entirely manual text entry,
+          making it the thinnest area holding the most navigation weight while
+          19 of the app's 31 destinations were already per-domain CRUD. The
+          content is unchanged; it is grouped by the question being asked
+          rather than by table:
+
+            Journal  — the record: what happened, and where you worked.
+            Growth   — the gap and how it closes: skills, learning, pipeline.
+
+          The old paths redirect (see router.tsx), so bookmarks survive.
+        */}
+        {section === 'growth' ? (
+          <>
+            {/* The KPI strip alone reports the failure — OpportunitiesSection
+                owns its own request and stays mounted, so one dead endpoint
+                does not take the pipeline down with it. */}
+            {kpisFailed ? (
+              <ErrorState
+                title="We couldn't load your pipeline summary"
+                description="Nothing has been lost — the request behind these figures failed."
+                onRetry={() => { void skillsQ.refetch(); void opportunitiesQ.refetch() }}
+              />
+            ) : kpisLoading ? (
+              <SkeletonKpiRow count={3} />
+            ) : (
+              <KpiGrid>
+                <KpiCard label="Active pipeline" value={String(activeOpps.length)} color="primary" icon={Briefcase} />
+                <KpiCard
+                  label="In play"
+                  value={String(inPlay)}
+                  color={inPlay > 0 ? 'emerald' : undefined}
+                  icon={Activity}
+                />
+                <KpiCard label="Skills tracked" value={String(skills?.length ?? 0)} icon={BookOpen} />
+              </KpiGrid>
+            )}
+
+            <SkillsSection />
+            <LearningSection />
+            <OpportunitiesSection />
+          </>
+        ) : (
+          <>
+            <JournalSection />
+            <ExperienceSection />
+          </>
         )}
       </PageContent>
     </PageContainer>

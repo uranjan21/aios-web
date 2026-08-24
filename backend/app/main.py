@@ -38,7 +38,6 @@ from app.api.forecasts import router as forecasts_router
 from app.api.insights import router as insights_router
 from app.api.automations import router as automations_router
 from app.api.workspace import router as workspace_router
-from app.api.quotes import router as quotes_router
 from app.api.knowledge import router as knowledge_router
 def _configure_logging() -> None:
     """JSON structured logging for production; plain text for local dev."""
@@ -336,7 +335,6 @@ def create_app() -> FastAPI:
     app.include_router(insights_router, dependencies=[_verified])
     app.include_router(automations_router, dependencies=[_verified])
     app.include_router(workspace_router, dependencies=[_verified])
-    app.include_router(quotes_router, dependencies=[_verified])
     return app
 
 
