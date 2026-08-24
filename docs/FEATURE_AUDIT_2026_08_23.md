@@ -1,5 +1,17 @@
 # Feature Audit & Product Pressure-Test — 2026-08-23
 
+> **STATUS 2026-08-23 (later): most of this is now fixed.** See
+> `SHIPMENT_READINESS_2026_08_23.md` § Remediation for what shipped, the gate
+> results, and **three corrections to findings in this file**. In short: the
+> moat now renders on `/app`; a reachability guard makes this class of rot fail
+> CI; quotes and the simulator are retired; pricing is two tiers; Career is two
+> destinations. The findings below are kept unedited as the evidence trail.
+>
+> **Two claims here were wrong and are corrected in the companion doc:** the
+> automation-template count (all six were in `RULE_LABELS`; the real fault was a
+> `template_key`/`key` mismatch that hid *every* rule from *every* user), and
+> the scale of the orphan problem (18 unreferenced api members, not three).
+
 **Scope:** every user-facing feature, judged as a *product decision* rather than as code.
 Which ideas are good, which are bad, which need work, which should be deleted.
 **Companion doc:** `SHIPMENT_READINESS_2026_08_23.md` (go/no-go and blockers).

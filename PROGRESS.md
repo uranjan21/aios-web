@@ -1,5 +1,86 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
+## 2026-08-23 — claude-code (remediation: shipped the audit, corrected it twice)
+
+**Ask.** Fix everything the feature audit found, one by one.
+
+Five commits on `claude/app-features-shipment-audit-rxh3oc`. Trackers updated in
+place: `docs/FEATURE_AUDIT_2026_08_23.md` (status banner) and
+`docs/SHIPMENT_READINESS_2026_08_23.md` (§ Remediation).
+
+**The moat renders now.** Two new module kinds — `discoveries` (built on
+`@ledgr/ui`'s InsightCard) and `prose` (react-markdown + GFM, no `rehype-raw`
+since the text is LLM output). `/app` shows the daily brief, the correlations
+with 👍/👎 wired to `insightsApi.feedback`, and a cross-domain heat grid. That
+last one is a real upgrade, not a re-mount: the page derived its heat from habit
+checks client-side, so anyone who logged spending daily but kept no habits saw
+nothing, and `/insights/heatmap` (which counts every domain and returns the
+streak) had no caller.
+
+**The guard that would have caught it.** `test_api_members_are_reachable` fails
+CI when an exported `*Api` member has no consumer outside its own module.
+`test_api_mappings` only ever proved a path STRING existed somewhere in the tree.
+
+It found **18 orphans on first run — six times what the audit did**, including:
+
+- `createRule`/`deleteRule`: merchant rules could be listed and toggled but never
+  created or deleted. A user could read "No rules yet" with no way to add one,
+  while FEATURES.md advertised auto-categorisation. New `MerchantRulesDialog`.
+- `financeApi.deleteAccount`: **a bank account can be created and edited but not
+  deleted from any screen.** Still open, tracked as FIN-4.
+
+The remaining 17 are in `ALLOWED_UNREACHABLE_MEMBERS`, each with a reason and an
+id — visible debt instead of silent rot.
+
+**I was wrong twice, and fixing things is what showed it.**
+
+1. The audit said 4 of 5 automation templates were unreachable. `RULE_LABELS` has
+   all six. The real fault was worse: the API returns `template_key` and BOTH
+   frontend surfaces declared `key`, so **no automation rule had ever been shown
+   to any user**, and the Payables bill-reminder toggle always rendered off
+   however it was set. Nothing errored. Same class as the `/api/api/admin/*` bug.
+2. I carried B1–B4 forward from the 08-16 audit as open without re-checking HEAD.
+   **Three were already fixed** — `app_secret_key` is a fixed literal inside
+   `_INSECURE_DEFAULTS` with two tests, `backup-db.sh` takes `BACKUP_REMOTE`, and
+   usage records only flip after Stripe accepts. Only B2 (observability) stands.
+
+**Also shipped:** Schedule moved off localStorage onto plan blocks + gcal, with a
+one-shot migration that clears local state only after every upload resolves;
+`GET /areas/health/synced` so Google Fit finally reaches the Health UI (read-only
+— the next sync would overwrite an edit); `GET /auth/me/export`, the missing half
+of the trust posture, credentials excluded by column name; real onboarding on
+`users.onboarded_at` so activation is measurable; `skip_tests` gone from
+deploy.yml.
+
+**Two correctness details worth remembering.** The export selects through Core
+`select()` on the table's own Column objects — a raw `WHERE user_id = :uid` with
+a string parameter silently matches NOTHING on a dialect storing UUIDs as bare
+hex, which would have shipped an empty export that looked successful (the test
+harness is exactly such a dialect). And `tiktoken.get_encoding` was called at
+module import in `rag/embedder.py`: that put a CDN download inside
+`import app.main`, so the app could not boot and the suite could not be
+**collected** without egress. Lazy at both sites now.
+
+**Owner decisions, executed:** quotes retired including the table (migration
+`u002` — this drops user data); What-If Simulator deleted; pricing collapsed to
+Free + Everything (the configurator capped à-la-carte at the bundle, so the 6th
+module was free and nobody could rationally buy five); Career 5 destinations → 2.
+
+- Shipped: R1–R5, R7, R8, S18, the rules and automations repairs, and four
+  product cuts. Gates: backend **298 passed** (suite now runs offline), tsc,
+  build, vitest, eslint 0/290, token-lint re-locked 5 lower, single alembic head
+  `u002_drop_saved_quotes`.
+- Blockers: **B2 — nothing tells you production broke.** Set `SENTRY_DSN` /
+  `VITE_SENTRY_DSN`, add the ingest host to `CSP_CONNECT_EXTRA`, point an uptime
+  check at `/health`. Config, not code.
+- Next: **none of this was walked in a browser** — every frontend change is
+  typecheck + build + lint only, because `/app/*` is auth-gated. Seed an account
+  (`docker compose exec backend python seed_dummy_data.py`) and walk Today,
+  Health → Body, Settings → Security and Career at 1280px and 375px before
+  trusting it. Then B2, then restore-test a backup (B3), then sign off R9's three
+  behaviour changes — proportional chat metering is a pricing change and is still
+  untested.
+
 ## 2026-08-23 — claude-code (feature audit + shipment readiness: pressure-testing the product)
 
 **Ask.** Audit the app's features and shipment readiness; pressure-test which ideas are

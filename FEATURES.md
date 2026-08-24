@@ -40,17 +40,19 @@
 
 * **Workouts, nutrition, body metrics, sleep.** Manual logging with per-metric targets.
 * **Habit tracker.** Daily checklist for recurring habits.
-* ⚠️ **Google Fit sync is connect-only.** The 30-minute `google_sync` job writes
-  `google_fit_metrics`, but the Health area does not read that table — synced steps and
-  weight do **not** appear on any Health screen. The data is currently visible only to the
-  Health Coach agent. Tracked as R5 in `SHIPMENT_READINESS_2026_08_23.md`.
+* **Google Fit sync.** `google_sync` writes `google_fit_metrics` every 30 minutes and
+  Body metrics renders them as a read-only "Synced from Google Fit" card; the Steps tile
+  falls back to Fit when nothing was hand-logged (a manual entry still wins). Read-only by
+  construction — the next sync would overwrite an edit.
 
 ## 3. Career 💼
 
-* **Journal.** Milestones, daily notes and reflections, with a logging streak.
-* **Skills inventory.** Levels including `day_0`, which drives the learning queue.
-* **Learning.** Resources linked to the `day_0` skills they close.
-* **Experience** and **Opportunities.** Roles held; pipeline for applications and prospects.
+Two destinations since 2026-08-23 (was five; old paths redirect):
+
+* **Journal.** Milestones, daily notes and reflections with a logging streak, plus the
+  roles you have held.
+* **Growth.** Skills inventory (levels including `day_0`), the learning resources that
+  close those gaps, and the opportunity pipeline.
 * All Career data is manual entry — nothing feeds it automatically.
 
 ## 4. Workspace 🗂️
@@ -63,13 +65,14 @@
 
 ## 5. Daily 📅
 
-* **Today.** Greeting, four KPI tiles, Today's Focus, and a 12-week activity heat grid.
+* **Today.** Greeting, four KPI tiles, the daily brief, Today's Focus beside Schedule,
+  **Discoveries** (the cross-domain correlations, with 👍/👎 that tunes the engine), and a
+  12-week cross-domain activity heat with your logging streak.
 * **This week.** Week planner over server-backed plan blocks, joined with Google Calendar.
 * **Weekly review.** A guided flow that *writes* — records goal progress and creates focus
   captures. Currently the only screen that surfaces the daily briefing.
-* ⚠️ **The dashboard "Schedule" is browser-local.** It is backed by a `localStorage`
-  store; entries never reach the server, never sync across devices, and are lost when the
-  browser cache is cleared. Tracked as R4.
+* **Schedule.** Server-backed plan blocks — the same rows `/app/week` writes — merged
+  with today's Google Calendar events when Calendar is linked.
 
 ## 6. AI 🧠
 
@@ -81,7 +84,10 @@
   when Gmail is connected. Timezone-aware crons, small-model tier by default, and Morning
   Brief skips dormant days rather than burning a credit.
 * **Daily briefing.** Generated per user at their local delivery time, idempotent per day.
-  Reachable only via Weekly Review (see R1).
+  Rendered on Today and inside Weekly Review.
+* **Cross-domain discoveries.** A nightly job correlates spend, sleep, workouts and
+  captures over 45 days (minimum 21 samples, lag-0 and lag-1). Rating an insight tunes the
+  engine: the required correlation tightens when a user's thumbs-down rate climbs.
 * **Quick capture (⌘L)** and the **⌘K command palette** with navigate / log / ask modes.
 * **Per-user LLM configuration (BYOK).** Override the system provider and supply a personal
   key to bypass metering.
@@ -93,38 +99,46 @@
   cross-tenant attack.
 * **Auth.** JWT in an httpOnly `SameSite=Strict` cookie (`aios_token`), Google OAuth, email
   verification, password reset, token-version revocation.
-* **Modular billing.** Pay-per-module Stripe integration with a free base tier and metered
-  AI. **Currently disabled** — never exercised against live Stripe keys.
-* **Account deletion.** One-click, cascades from live ORM metadata.
+* **Onboarding.** Three steps that connect Gmail and teach ⌘L. Completion is recorded on
+  the account (`users.onboarded_at`), so it follows the user rather than the browser.
+* **Billing.** Two tiers — Free (Dashboard + one area) and Everything. Module granularity
+  remains the entitlement mechanism underneath. **Currently disabled** — never exercised
+  against live Stripe keys.
+* **Data export and deletion.** Both one-click, both derived from live ORM metadata so they
+  stay in step as tables are added. The export excludes credentials by column name.
 * **PWA + push notifications**, **design system** (@ledgr/ui, light/dark), **admin panel**.
 
 ---
 
 ## Built but NOT reachable by any user
 
-Each of these computes on the server and has no screen. They are features on paper only.
-Full evidence in `docs/FEATURE_AUDIT_2026_08_23.md`.
+Most of this table is now empty — the 2026-08-23 remediation shipped the
+surfaces or retired the code. What remains is tracked in
+`backend/tests/test_api_mappings.py::ALLOWED_UNREACHABLE_MEMBERS`, where every
+entry carries a reason and an id, and **a new member with no consumer fails CI**
+(`test_api_members_are_reachable`).
 
-| Capability | State | Disposition |
-|---|---|---|
-| **Cross-domain Synergy Engine** | Nightly job, correlations, adaptive threshold, metered LLM phrasing. `insightsApi.discoveries` has **0 call sites**. | 🔴 **Surface it — this is the product's differentiator** |
-| **Insight 👍/👎 feedback** | Endpoint live; `insightsApi.feedback` has **0 call sites**, so the anti-slop threshold can never adapt | 🔴 Ship with the feed |
-| **Activity heatmap** | `insightsApi.heatmap` has **0 call sites** | 🔴 Re-mount on Today |
-| **Forecast engine** | Nightly 02:30 job writes rows; `forecastsApi` has **0 importers** | ⚫ Surface or retire |
-| **What-if simulator** | Route + Monte-Carlo service + api method, **0 callers** | ⚫ Retire or re-site |
-| **4 of 5 automation templates** | `streak_save_evening`, `weekly_review_sunday`, `payday_snapshot`, `idle_goal_nudge_7d` cannot be enabled from any screen | 🟡 Rules screen, or delete |
-| **Saved quotes** | 7 routes + table, **0 consumers** since an earlier redesign | ⚫ Retire router + table |
-| **Data export** | **Does not exist.** Deletion ships without its counterpart | 🔴 Build |
-| **Onboarding** | `WelcomeWizard` is a 4-slide carousel; completion is never persisted server-side | 🔴 Build real onboarding |
+| Capability | State |
+|---|---|
+| **Forecast engine** | Routes and service live; `POST /forecasts/generate` works on demand. The nightly job is **unregistered** — it wrote rows nothing read. Surface on Goals, or retire. `R6` |
+| **Credit-card bill CRUD** | Four endpoints superseded by the payables checklist. `CC-1` |
+| **Nutrition food library CRUD** | No surface for curating the food list. `NUT-1` |
+| **Career generic events** | Superseded by the journal entry path. `CAR-1` |
+| **Skill-gap analysis** | Lost its home when Career's Roadmap tab went. `CAR-2` |
+| **Workout PRs · workspace stats** | Analyses with no card. `HLT-1`, `WS-1` |
+| **Delete a bank account** | 🔴 **Real gap.** `financeApi.deleteAccount` has no caller — an account can be created and edited but never removed. `FIN-4` |
 
----
+**Retired 2026-08-23:** saved quotes (router, model and table dropped — migration
+`u002`) and the What-If Simulator (route, Monte Carlo service, api method).
 
 ## Planned
 
-1. **Make the moat visible** — Discoveries feed with feedback, heatmap and briefing on Today.
-2. **Real onboarding** — pick area → connect Gmail/Google → log first entry, persisted as the activation event.
-3. **Data export** — the missing half of the trust posture.
-4. **Google Fit → Health screens** — close the loop on an advertised integration.
+1. **Give the user a reason to come back daily** — the Discoveries feed exists now;
+   the open question is delivery (push/email) and whether the correlations are good
+   enough to trust. The 👍/👎 rate is the instrument for answering that.
+2. **Observability before public signup** — nothing currently tells you production broke.
+3. **Restore-test a backup** — the off-box mechanism exists and has never been exercised.
+4. **Delete a bank account** — an account can be created and edited but not removed.
 5. **Frictionless bank sync** — beyond email parsing.
 6. **Voice-first capture** — push-to-talk, transcribed and NLP-routed.
 7. **Household / multiplayer** — shared finance and tasks; health and career stay private.

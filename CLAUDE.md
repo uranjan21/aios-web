@@ -118,7 +118,57 @@ docker compose exec backend pytest
 
 ---
 
-## Recent Updates (2026-08-10, latest — final pre-ship audit)
+## Recent Updates (2026-08-23, latest — feature audit + remediation)
+
+Product-level audit of every feature, then fixed. Trackers:
+`docs/FEATURE_AUDIT_2026_08_23.md` + `docs/SHIPMENT_READINESS_2026_08_23.md`.
+Full entry in `PROGRESS.md`.
+
+- **The moat had no UI.** The Synergy Engine — which `PRODUCT_ROADMAP.md` calls
+  "the reason to pay" — ran nightly, metered AI credits and wrote `Insight` rows
+  that **no screen read**, because the 2026-08-02 canvas redesign dropped the
+  components (`DashboardPage.tsx` documents this in its own header). Feedback
+  could not be recorded either, so the engine's adaptive anti-slop threshold
+  could never engage. Now on `/app` via two new module kinds, `discoveries` and
+  `prose`.
+- **`test_api_mappings` could not catch that class of rot** — it matches a path
+  STRING in any `.ts`/`.tsx`, so an api module with zero importers still scanned
+  as mapped. New **`test_api_members_are_reachable`** fails CI on an exported
+  `*Api` member with no consumer outside its own module. It found **18 orphans**
+  on first run; survivors live in `ALLOWED_UNREACHABLE_MEMBERS` with a reason and
+  an id each. **Notable open one: `financeApi.deleteAccount` — a bank account can
+  be created and edited but not deleted from any screen (FIN-4).**
+- **Automation rules had never been visible to anyone.** The API returns
+  `template_key`; both frontend surfaces declared `key`. So Settings → Alert
+  rules filtered every rule out, and the Payables bill-reminder toggle always
+  read off. Nothing errored. **Same class as the `/api/api/admin/*` bug — when a
+  list is inexplicably empty, diff the field names against the response model.**
+- **`tiktoken.get_encoding` was called at module import** in
+  `services/rag/embedder.py`, putting a CDN download inside `import app.main`:
+  the app could not boot and the suite could not be **collected** without egress
+  to `openaipublic.blob.core.windows.net`. Lazy at both sites now.
+- **Raw SQL + a string UUID silently matches nothing** on a dialect storing UUIDs
+  as bare hex (SQLite — the test harness). The new export selects through Core
+  `select()` on the table's own Column objects. `delete_account` still uses raw
+  `text()`; it is correct on Postgres, but do not copy that pattern.
+- **Shipped:** dashboard Schedule moved off localStorage onto plan blocks + gcal
+  (with a one-shot migration); `GET /areas/health/synced` so Google Fit reaches
+  the Health UI; `GET /auth/me/export`; real onboarding on `users.onboarded_at`;
+  merchant-rule create/delete; `skip_tests` removed from `deploy.yml`;
+  `forecasts_nightly` unregistered.
+- **Owner-approved cuts:** saved quotes retired **including the table**
+  (migration `u002` — drops user data), What-If Simulator deleted, pricing
+  collapsed to **Free + Everything** (module granularity survives as the
+  entitlement mechanism), Career 5 destinations → 2.
+- **Corrections:** three of the four blockers this session carried forward from
+  the 08-16 audit (B1 secret key, B3 backups, B4 usage records) were **already
+  fixed in HEAD** — they were listed as open without re-checking. Only **B2
+  (observability) stands**, and it is operator config.
+- **Verified:** backend **298 passing**, single head `u002_drop_saved_quotes`;
+  tsc, build, vitest clean; eslint 0 errors/290 warnings; token-lint re-locked 5
+  lower. **NOT walked in a browser** — `/app/*` is auth-gated.
+
+## Recent Updates (2026-08-10 — final pre-ship audit)
 
 Full audit before the first deploy. Detail in `PROGRESS.md`.
 

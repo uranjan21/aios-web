@@ -1,5 +1,91 @@
 # Shipment Readiness — 2026-08-23
 
+> **UPDATED 2026-08-23 (later, post-remediation).** Everything below the
+> "Remediation" section is the ORIGINAL assessment, kept so the evidence stays
+> readable. The section immediately following supersedes it, and **corrects three
+> blockers this document got wrong**.
+
+---
+
+## Remediation — what actually shipped
+
+Branch `claude/app-features-shipment-audit-rxh3oc`, five commits.
+
+### Corrections to THIS document
+
+I carried B1–B4 forward from `AUDIT_2026_08_16.md` and listed them as open
+without re-checking HEAD. Three of the four were already fixed:
+
+| ID | Claimed | Actually |
+|---|---|---|
+| **B1** | 🔴 open — random `APP_SECRET_KEY` per worker | ✅ **already fixed.** `config.py` uses a fixed `_DEV_SECRET` literal that is itself in `_INSECURE_DEFAULTS`, so an unset var is a hard production failure. Covered by `test_production_refuses_unset_secret_key` **and** `test_default_secret_key_is_stable_across_instances`. |
+| **B3** | 🔴 open — backups on the DB's own disk | ✅ **mechanism exists.** `deploy/backup-db.sh` takes `BACKUP_REMOTE` (rclone or s3). Still needs the operator to set it, and a restore has still never been tested. |
+| **B4** | 🔴 open — usage destroyed on Stripe failure | ✅ **already fixed.** A record flips to `reported_to_stripe` only after Stripe accepts it. |
+| **B2** | 🔴 open — nothing tells you it broke | 🔴 **still open.** Operator config (set the DSNs, point an uptime check at `/health`). |
+
+Two feature-level claims were also wrong, both found by fixing the thing:
+
+- **"4 of 5 automation templates are unreachable."** `RULE_LABELS` has all six.
+  The real fault was worse: the API returns `template_key` and both frontend
+  surfaces read `.key`, so **no rule had ever been displayed to anyone** and the
+  Payables bill-reminder toggle always rendered off. Nothing errored.
+- **The orphan problem was bigger than three endpoints.** The new reachability
+  guard found **18** unreferenced api members on its first run.
+
+### Shipped
+
+| ID | Status | What |
+|---|---|---|
+| **R1** | ✅ | Discoveries feed with 👍/👎 wired to `insightsApi.feedback`, the daily brief, and a cross-domain heatmap all render on `/app`. Two new module kinds (`discoveries`, `prose`). The engine's adaptive anti-slop threshold can now actually engage. |
+| **R7** | ✅ | `test_api_members_are_reachable` — an exported api member with no consumer outside its own module fails CI. Found 18 orphans; each is now fixed or allowlisted with a reason and a tracking id. |
+| **R8** | ✅ | `tiktoken.get_encoding` moved off the import path at both sites. The suite could not previously be **collected** without egress to a CDN. |
+| **R4** | ✅ | Dashboard Schedule reads server plan blocks merged with Google Calendar. `useMigrateDayEvents` rescues existing localStorage entries once, clearing only after every upload resolves. |
+| **R5** | ✅ | `GET /areas/health/synced` — Google Fit metrics finally reach the Health UI, read-only and provenance-marked. Steps tile falls back to Fit when nothing was hand-logged. |
+| **R3** | ✅ | `GET /auth/me/export` + a row in Settings → Security. Metadata-derived like deletion; credentials excluded by column name; 6 tests. |
+| **R2** | ✅ | `users.onboarded_at` (migration u001) + `POST /auth/me/onboarded`, idempotent. Three-step flow that connects Gmail and teaches ⌘L instead of showing four slides. Activation is now measurable. |
+| **R6** | ✅ | `forecasts_nightly` unregistered (ran for every user, wrote rows nothing read). Quotes and the What-If Simulator retired at the owner's call — quotes including a table drop. |
+| **S18** | ✅ | `skip_tests` removed from `deploy.yml`; `needs: [test]` is a hard gate. |
+| **—** | ✅ | Merchant rules can be created and deleted (they could only be listed and toggled). Automation rules display at all. Pricing collapsed to Free + Everything. Career 5 destinations → 2. |
+
+### Gates after remediation
+
+| Gate | Result |
+|---|---|
+| Backend tests | ✅ **298 passed** (and the suite now runs without network) |
+| tsc · build · vitest | ✅ clean |
+| ESLint | ✅ 0 errors / 290 warnings, at ratchet |
+| token-lint | ✅ no regressions, baseline re-locked 5 lower |
+| Alembic | ✅ single head `u002_drop_saved_quotes` |
+
+### Revised verdict
+
+| Audience | Was | Now |
+|---|---|---|
+| Self-host | ✅ GO | ✅ GO |
+| Private beta | 🟡 3 fixes | ✅ **GO** — B1 was already fixed, R4 is done; only B2 (set the DSNs) remains, and it is config, not code |
+| Public free signup | 🔴 NO-GO | 🟡 **close** — R1, R2, R5 all shipped. Wants B2 + a restore-tested backup (B3) |
+| Paying customers | 🔴 NO-GO | 🔴 **NO-GO** — unchanged. Billing has still never run against live Stripe, and R9's three behaviour changes are still unsigned-off |
+
+### Still open
+
+- **B2** — set `SENTRY_DSN` / `VITE_SENTRY_DSN`, add the ingest host to
+  `CSP_CONNECT_EXTRA`, point an uptime check at `/health`. Operator task.
+- **B3** — set `BACKUP_REMOTE` and **restore-test once**. A backup that has
+  never been restored is not a backup.
+- **R9** — proportional chat metering (a pricing change) is still untested and
+  unsigned-off; `_resolve_category` 404 contract change; push cap at 20/user
+  with no pruning UI.
+- **17 allowlisted api orphans** in `ALLOWED_UNREACHABLE_MEMBERS`, each with a
+  tracking id. The notable one is `FIN-4`: **a bank account can be created and
+  edited but not deleted from any screen.**
+- **Nothing here was walked in a browser.** Every frontend change is verified by
+  typecheck + build + lint only; `/app/*` is auth-gated. Walk it at 1280px and
+  375px with a seeded account before shipping.
+
+---
+
+## ORIGINAL ASSESSMENT (2026-08-23, pre-remediation)
+
 **Companion to:** `FEATURE_AUDIT_2026_08_23.md` (what to build, cut and fix).
 This file answers one question only: **can this ship, and to whom?**
 Carries forward the open blockers from `AUDIT_2026_08_16.md` rather than restating its findings.
