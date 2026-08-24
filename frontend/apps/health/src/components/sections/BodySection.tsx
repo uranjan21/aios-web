@@ -20,7 +20,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
-import { Scale, TrendingUp, Trash2, User } from 'lucide-react'
+import { Activity, Scale, Trash2, TrendingUp, User } from 'lucide-react'
 import { Button, Card, Dialog, EmptyState, Input, Select, SkeletonPage } from '@ledgr/ui'
 import { healthApi } from '@ct/shared/api/areas'
 import type { HealthLog } from '@ct/shared/types'
@@ -87,6 +87,17 @@ export function BodySection() {
     queryFn: healthApi.healthGoals,
     staleTime: 5 * 60_000,
   })
+  /*
+   * Body metrics synced from Google Fit. `google_sync` has written these every
+   * 30 minutes since the integration shipped, and until 2026-08-23 nothing in
+   * Health read them — a user could link Fit and never see a step count here.
+   */
+  const { data: synced } = useQuery({
+    queryKey: ['health', 'synced', 30],
+    queryFn: () => healthApi.syncedMetrics(30),
+    staleTime: 300_000,
+  })
+
 
   const create = useMutation({
     mutationFn: () => healthApi.createLog({
@@ -165,9 +176,18 @@ export function BodySection() {
     const fats = [...(fatLogs ?? [])].sort((a, b) => b.logged_at.localeCompare(a.logged_at))
     const latestFat = fats[0] ? Number(fats[0].value ?? 0) : null
 
-    const stepsToday = (stepLogs ?? [])
+    const todayKey = dayjs().format('YYYY-MM-DD')
+    const syncedRows = synced?.connected ? synced.metrics : []
+    const syncedToday = syncedRows.find(r => r.date === todayKey)
+
+    const loggedStepsToday = (stepLogs ?? [])
       .filter(l => dayjs(l.logged_at).isSame(dayjs(), 'day'))
       .reduce((s, l) => s + Number(l.value ?? 0), 0)
+    /* A hand-logged count wins: the user typed it deliberately, and Fit's
+       figure for the current day is still climbing. Fit fills in only when
+       nothing was logged, which is the common case for a connected account. */
+    const stepsToday = loggedStepsToday || Number(syncedToday?.steps ?? 0)
+    const stepsFromFit = !loggedStepsToday && !!syncedToday?.steps
     const stepTarget = goals?.steps_target ?? 10000
 
     // Change over the window the bars cover, so the tile and chart agree.
@@ -241,7 +261,9 @@ export function BodySection() {
           {
             label: 'Steps today',
             value: stepsToday ? Math.round(stepsToday).toLocaleString('en-IN') : '—',
-            sub: `Target ${stepTarget.toLocaleString('en-IN')}`,
+            sub: stepsFromFit
+              ? `Google Fit · target ${stepTarget.toLocaleString('en-IN')}`
+              : `Target ${stepTarget.toLocaleString('en-IN')}`,
             bar: stepTarget > 0 ? Math.min(100, Math.round((stepsToday / stepTarget) * 100)) : 0,
             barKey: stepsToday >= stepTarget ? 'success' : 'health',
           },
@@ -282,6 +304,27 @@ export function BodySection() {
       })
     }
 
+    /* Read-only by construction: the next sync would overwrite an edit, so
+       these rows carry no click affordance, unlike the measurement log below. */
+    if (syncedRows.length) {
+      specs.push({
+        kind: 'rows',
+        span: 12,
+        title: 'Synced from Google Fit',
+        subtitle: 'Read-only · updates every 30 minutes',
+        icon: Activity,
+        rows: syncedRows.slice(0, 7).map(r => ({
+          title: dayjs(r.date).format('ddd D MMM'),
+          meta: [
+            r.steps ? `${Math.round(r.steps).toLocaleString('en-IN')} steps` : null,
+            r.distance_m ? `${(r.distance_m / 1000).toFixed(1)} km` : null,
+            r.heart_rate_bpm ? `${Math.round(r.heart_rate_bpm)} bpm` : null,
+          ].filter(Boolean).join(' · ') || 'No activity recorded',
+          ...(r.weight_kg ? { value: `${Number(r.weight_kg).toFixed(1)} kg` } : {}),
+        })),
+      })
+    }
+
     specs.push({
       kind: 'table',
       span: 12,
@@ -309,7 +352,7 @@ export function BodySection() {
     })
 
     return specs
-  }, [weights, fatLogs, stepLogs, goals])
+  }, [weights, fatLogs, stepLogs, goals, synced])
 
   if (isLoading) return <SkeletonPage kpis={4} modules={[7, 5, 12]} />
 

@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Annotated
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, AfterValidator
@@ -116,6 +116,40 @@ async def delete_log(log_id: str, current_user=Depends(get_current_user), db=Dep
     await db.delete(log)
     await db.commit()
     return {"status": "deleted"}
+
+
+@router.get("/synced")
+async def list_synced_metrics(
+    days: int = Query(default=30, ge=1, le=365),
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """Body metrics synced from Google Fit.
+
+    Deliberately its OWN endpoint rather than folded into `/logs`. Between the
+    Google Fit integration shipping and 2026-08-23, `google_sync` wrote
+    `google_fit_metrics` every 30 minutes and **no route in this router ever read
+    that table** — the only readers were the agent context builder and
+    `/integrations/{provider}/test`. A user could connect Google Fit, see
+    "connected", and never find their steps or weight anywhere in Health, while
+    FEATURES.md advertised the integration as shipped.
+
+    Keeping it separate preserves provenance: these rows are read-only (the
+    upstream is Google, and the next sync would overwrite an edit), so they must
+    not arrive mixed into a list whose rows carry edit and delete affordances.
+    `connected` distinguishes "not linked" from "linked with nothing to show",
+    which are different messages to put in front of a user.
+    """
+    from app.services.integrations.google_fit import get_stored_metrics
+    from app.services.integrations.google_oauth import list_provider_credentials
+
+    creds = await list_provider_credentials(current_user.id, db, "gfit")
+    if not creds:
+        return {"connected": False, "metrics": []}
+
+    date_from = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+    metrics = await get_stored_metrics(current_user.id, db, date_from=date_from)
+    return {"connected": True, "metrics": metrics}
 
 
 @router.get("/streak")

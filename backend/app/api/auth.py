@@ -1,5 +1,7 @@
 import hashlib
 import secrets
+import datetime as dt
+import decimal
 import uuid
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
@@ -8,6 +10,7 @@ import re
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlmodel import select
 
@@ -461,6 +464,126 @@ async def delete_account(
 
     response.delete_cookie("aios_token")
     return {"status": "deleted"}
+
+
+# ── Data export ─────────────────────────────────────────────────────────
+
+# Columns that must never leave the server, matched by NAME across every table.
+# These are credentials and secrets, not user data: exporting them would hand a
+# downloadable file the ability to act as the user against Google or a push
+# service. `access_token_encrypted` is ciphertext, but it is ciphertext under a
+# key the operator holds — it is still a credential and still excluded.
+_EXPORT_DENY_COLUMNS = {
+    "password_hash",
+    "access_token_encrypted",
+    "refresh_token_encrypted",
+    "p256dh",
+    "auth",
+    "token_version",
+}
+
+# Tables that are transient server-side machinery, not the user's data.
+_EXPORT_DENY_TABLES = {"oauth_states"}
+
+
+def _jsonable(value):
+    """Coerce a DB value into something `json` can serialise."""
+    if isinstance(value, (dt.datetime, dt.date, dt.time)):
+        return value.isoformat()
+    if isinstance(value, decimal.Decimal):
+        # str, not float: these are money columns and float() would round them.
+        return str(value)
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    if isinstance(value, (bytes, memoryview)):
+        return None
+    return value
+
+
+@router.get("/me/export")
+@limiter.limit("6/hour")
+async def export_account(
+    request: Request,
+    current_user=Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """Download everything this account holds, as one JSON document.
+
+    The counterpart to `DELETE /me`. Until 2026-08-23 deletion shipped without
+    it: a product holding a user's finances AND their health data offered no way
+    to get any of it back out, while PRODUCT_ROADMAP.md named "export or delete
+    everything in one click" as the trust posture. Half of that was built.
+
+    Table set is derived from live ORM metadata exactly as deletion derives it,
+    so the two stay in step — a new user-data table is exported and erased
+    without anyone remembering to update a list. Credentials are excluded by
+    column name (see `_EXPORT_DENY_COLUMNS`); a downloadable file must never
+    carry something that can act as the user.
+    """
+    from sqlalchemy import inspect as sa_inspect, select as sa_select
+    from sqlmodel import SQLModel
+    import app.models  # noqa: F401 — register every model in metadata
+
+    user_id = str(current_user.id)
+
+    # SQLAlchemy's inspector, not a `pg_tables` query: this has to work on
+    # whatever dialect it is pointed at (the test harness runs SQLite), and
+    # migrations can legitimately lag the models, so tables are intersected
+    # against what the database actually has rather than assumed.
+    existing = set(
+        await db.run_sync(lambda sync_session: sa_inspect(sync_session.connection()).get_table_names())
+    )
+
+    # Bind as a real UUID, and build the query from the table's own Column
+    # objects rather than interpolating a string into SQL. Both matter: a raw
+    # `WHERE user_id = :uid` with a str parameter silently matches NOTHING on a
+    # dialect that stores UUIDs as bare hex (SQLite does), so the endpoint would
+    # return an empty export and look like it worked. Core `select()` binds each
+    # value through the column's declared type on every dialect.
+    uid = current_user.id if isinstance(current_user.id, uuid.UUID) else uuid.UUID(str(current_user.id))
+
+    data: dict[str, list[dict]] = {}
+    for table in SQLModel.metadata.sorted_tables:
+        if table.name in _EXPORT_DENY_TABLES or table.name not in existing:
+            continue
+
+        if table.name == "users":
+            key_col = table.columns["id"]
+        elif "user_id" in table.columns:
+            key_col = table.columns["user_id"]
+        else:
+            # Reference data shared across tenants — not this user's to export.
+            continue
+
+        cols = [c for c in table.columns if c.name not in _EXPORT_DENY_COLUMNS]
+        if not cols:
+            continue
+
+        rows = (
+            await db.execute(sa_select(*cols).where(key_col == uid))
+        ).mappings().all()
+        if rows:
+            data[table.name] = [
+                {k: _jsonable(v) for k, v in row.items()} for row in rows
+            ]
+
+    payload = {
+        "exported_at": dt.datetime.utcnow().isoformat() + "Z",
+        # Just the id: `data["users"][0]` already carries the email and every
+        # other profile field, and duplicating it here would be a second place
+        # to keep in step.
+        "account": {"id": user_id},
+        "row_counts": {name: len(rows) for name, rows in data.items()},
+        "data": data,
+    }
+
+    stamp = dt.datetime.utcnow().strftime("%Y%m%d")
+    return JSONResponse(
+        content=payload,
+        headers={
+            "Content-Disposition": f'attachment; filename="control-tower-export-{stamp}.json"',
+        },
+    )
 
 
 # ── Google OAuth login ──────────────────────────────────────────────────

@@ -88,6 +88,31 @@ export function SecurityModules() {
     onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed to change password'),
   })
 
+  /*
+   * The counterpart to Delete. Deletion shipped without an export for months,
+   * which for a product holding both finances and health data is a trust gap,
+   * not a missing nicety.
+   *
+   * The response is fetched as a blob and saved client-side rather than linked
+   * to directly: the endpoint is cookie-authenticated, and a plain <a href>
+   * would also work but gives no way to surface a failure to the user.
+   */
+  const exportData = useMutation({
+    mutationFn: async () => {
+      const res = await api.get('/auth/me/export', { responseType: 'blob' })
+      const url = URL.createObjectURL(res.data as Blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `control-tower-export-${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    },
+    onSuccess: () => toast.success('Export downloaded'),
+    onError: () => toast.error('Could not build your export'),
+  })
+
   const deleteAccount = useMutation({
     mutationFn: () => api.delete('/auth/me'),
     onSuccess: () => {
@@ -152,9 +177,15 @@ export function SecurityModules() {
       kind: 'rows',
       span: 5,
       title: 'Your data',
-      subtitle: 'Both of these act immediately · click a row',
+      subtitle: 'Each of these acts immediately · click a row',
       icon: ShieldAlert,
       rows: [
+        {
+          title: 'Download your data',
+          meta: 'Every row this account holds, as one JSON file. Excludes connected-account credentials.',
+          value: exportData.isPending ? 'Preparing…' : 'Export',
+          busy: exportData.isPending,
+        },
         {
           title: 'Sign out',
           meta: 'Invalidates this session across every device you are signed in on',
@@ -172,11 +203,12 @@ export function SecurityModules() {
       // Both rows act, so every row here is legitimately a button. Sign out is
       // no longer ALSO the header button — one control, one place.
       onRowClick: (i: number) => {
-        if (i === 0) logoutAndRedirect(navigate)
+        if (i === 0) exportData.mutate()
+        else if (i === 1) logoutAndRedirect(navigate)
         else setDeleteOpen(true)
       },
     },
-  ], [user, isEmailAuth, deleteAccount.isPending, navigate])
+  ], [user, isEmailAuth, deleteAccount.isPending, exportData, navigate])
 
   return (
     <>

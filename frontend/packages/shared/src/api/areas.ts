@@ -436,7 +436,24 @@ export interface MealPlanToday {
   }) | null
 }
 
+/** A day of body metrics synced from Google Fit. Read-only — see `/health/synced`. */
+export interface SyncedFitMetric {
+  id: string
+  date: string
+  steps: number | null
+  calories: number | null
+  distance_m: number | null
+  weight_kg: number | null
+  heart_rate_bpm: number | null
+}
+
 export const healthApi = {
+  /* Google Fit body metrics. `connected: false` means the integration was never
+     linked, which is a different message than "linked but nothing synced yet". */
+  syncedMetrics: (days = 30) =>
+    api.get<{ connected: boolean; metrics: SyncedFitMetric[] }>(
+      '/areas/health/synced', { params: { days } },
+    ).then(r => r.data),
   logs: (entry_type?: string) =>
     api.get<{ items: HealthLog[]; next_cursor: string | null; has_more: boolean }>('/areas/health/logs', { params: { entry_type } }).then(r => r.data.items),
   /* `entry_type` is not patchable — it decides which surface a row belongs to
