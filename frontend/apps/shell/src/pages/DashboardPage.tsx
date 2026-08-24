@@ -26,9 +26,9 @@ import { ErrorState, SkeletonPage, textRole } from '@ledgr/ui'
 import { financeApi, healthApi, careerApi } from '@ct/shared/api/areas'
 import { insightsApi } from '@ct/shared/api/insights'
 import { workspaceApi, type Task } from '@ct/shared/api/workspace'
-import { useDayEventsStore, fmtDateKey } from '@ct/shared/stores/dayEventsStore'
+import { fmtDateKey } from '@ct/shared/stores/dayEventsStore'
+import { useMigrateDayEvents } from '@ct/shared/hooks/useMigrateDayEvents'
 import { useAuthStore } from '@ct/shared/stores/authStore'
-import { categoryColor } from '@ct/shared/theme/domains'
 import { ACTIVE_DOMAIN_KEYS, domainLabel } from '@ct/shared/config/domains'
 import { useMotion } from '@ct/shared/hooks/useMotion'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
@@ -91,8 +91,10 @@ export function DashboardPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
-  const events = useDayEventsStore((s) => s.events)
   const { stagger, child } = useMotion()
+  /* Rescues anything left in the old localStorage Schedule into real plan
+     blocks. No-ops after the first successful run. */
+  useMigrateDayEvents()
 
   const [startY, setStartY] = useState(0)
   const [pullDist, setPullDist] = useState(0)
@@ -148,6 +150,25 @@ export function DashboardPage() {
    * server also returns the current streak, which the client could not compute
    * because it never had the other domains' data.
    */
+  /*
+   * Today's schedule. This read `dayEventsStore` — a localStorage-only zustand
+   * store — until 2026-08-23, so what a user typed here never reached the
+   * server, never appeared on another device, and vanished with the browser
+   * cache. Plan blocks are the same rows /app/week writes, and the calendar
+   * endpoint folds in Google Calendar when it is connected, so the two surfaces
+   * finally agree about what is on the day.
+   */
+  const blocksQ = useQuery({
+    queryKey: ['workspace', 'plan-blocks', todayKey],
+    queryFn: () => workspaceApi.getPlanBlocks({ start: todayKey, end: todayKey }),
+    ...q,
+  })
+  const dayCalendarQ = useQuery({
+    queryKey: ['workspace', 'plan-blocks', 'calendar', todayKey],
+    queryFn: () => workspaceApi.getPlanWeekCalendar({ start: todayKey, end: todayKey }),
+    staleTime: 300_000,
+    ...q,
+  })
   const heatmapQ = useQuery({
     queryKey: ['insights', 'heatmap', WEEKS * 7],
     queryFn: () => insightsApi.heatmap(WEEKS * 7),
@@ -168,6 +189,8 @@ export function DashboardPage() {
   const briefing = briefingQ.data
   const discoveries = useMemo(() => discoveriesQ.data ?? [], [discoveriesQ.data])
   const heatmap = heatmapQ.data
+  const blocks = blocksQ.data
+  const dayCalendar = dayCalendarQ.data
 
   const toggleTask = useMutation({
     mutationFn: (t: Task) => workspaceApi.updateTask(t.id, { status: t.status === 'done' ? 'todo' : 'done' }),
@@ -232,12 +255,24 @@ export function DashboardPage() {
 
   const overdueCount = focusTasks.filter((t) => (t.due_date ?? '') < todayKey).length
 
-  const todaysEvents = useMemo(
-    () => events
-      .filter((e) => e.date === todayKey)
-      .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? '')),
-    [events, todayKey],
-  )
+  /* Plan blocks plus, when Calendar is linked, today's Google events — merged
+     into one time-ordered list so the card answers "what is on today" rather
+     than "what is on today, in this browser". */
+  const todaysEvents = useMemo(() => {
+    const fromBlocks = (blocks ?? []).map((b) => ({
+      time: b.start_time.slice(0, 5),
+      title: b.title,
+      colorKey: (b.domain && (ACTIVE_DOMAIN_KEYS as readonly string[]).includes(b.domain)
+        ? b.domain
+        : b.is_priority ? 'destructive' : 'accent') as string,
+    }))
+
+    const fromCalendar = (dayCalendar?.connected ? dayCalendar.events : [])
+      .filter((e) => e.start_time.slice(0, 10) === todayKey)
+      .map((e) => ({ time: e.start_time.slice(11, 16), title: e.title, colorKey: 'mutedFg' }))
+
+    return [...fromBlocks, ...fromCalendar].sort((a, b) => a.time.localeCompare(b.time))
+  }, [blocks, dayCalendar, todayKey])
 
   const attention = focusTasks.length + todaysEvents.length
 
@@ -367,9 +402,9 @@ export function DashboardPage() {
         icon: Calendar,
         emptyLabel: 'Nothing on the calendar today.',
         entries: todaysEvents.map((e) => ({
-          time: e.time ?? 'All day',
+          time: e.time,
           title: e.title,
-          colorKey: categoryColor(e.category, theme),
+          colorKey: e.colorKey as never,
         })),
       },
       /*

@@ -6,12 +6,13 @@ name: Deploy
 on:
   push:
     branches: [main]
+  # No `skip_tests` input (removed 2026-08-23, audit S18). It let a one-click
+  # dispatch ship a red build straight to production, which is exactly the
+  # moment a test gate is worth having. A genuine emergency is served by
+  # reverting the offending commit and letting CI pass on the revert, or by
+  # `deploy.sh` rollback on the VPS, which restores the previous image tags
+  # without a build at all.
   workflow_dispatch:
-    inputs:
-      skip_tests:
-        description: "Deploy without waiting for CI (emergency only)"
-        type: boolean
-        default: false
 
 concurrency:
   # Never let two deploys race for the same server.
@@ -26,13 +27,12 @@ env:
 jobs:
   # Gate the deploy on the existing CI workflow's checks.
   test:
-    if: ${{ !inputs.skip_tests }}
     uses: ./.github/workflows/ci.yml
 
   build:
+    # A hard gate: `needs` alone fails the job when CI fails. Do not reintroduce
+    # `always()` here — it makes the dependency advisory rather than blocking.
     needs: [test]
-    # `always()` + explicit result check so skip_tests can bypass the gate.
-    if: ${{ always() && (needs.test.result == 'success' || inputs.skip_tests) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

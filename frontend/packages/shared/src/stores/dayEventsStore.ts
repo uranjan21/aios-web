@@ -1,3 +1,12 @@
+/**
+ * DEPRECATED (2026-08-23) — do not add callers.
+ *
+ * This persisted the dashboard's Schedule to localStorage and nothing ever sent
+ * it to the server, so entries did not sync across devices and were lost with
+ * the browser cache. The Schedule now reads server-backed plan blocks; this
+ * store survives only so `useMigrateDayEvents` can rescue whatever a user
+ * already typed, and should be deleted once that has shipped for a release.
+ */
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
@@ -27,6 +36,8 @@ interface DayEventsState {
   forDate: (date: string) => DayEvent[]
   /** Map of YYYY-MM-DD → count, for the calendar dot indicator. */
   countsByDate: () => Record<string, number>
+  /** Drop everything. Used once, after `useMigrateDayEvents` uploads it. */
+  clear: () => void
 }
 
 const newId = () =>
@@ -46,6 +57,7 @@ export const useDayEventsStore = create<DayEventsState>()(
       updateEvent: (id, patch) =>
         set((s) => ({ events: s.events.map((e) => (e.id === id ? { ...e, ...patch } : e)) })),
       removeEvent: (id) => set((s) => ({ events: s.events.filter((e) => e.id !== id) })),
+      clear: () => set({ events: [] }),
       toggleDone: (id) =>
         set((s) => ({ events: s.events.map((e) => (e.id === id ? { ...e, done: !e.done } : e)) })),
       forDate: (date) =>
