@@ -147,6 +147,7 @@ async def _run_synergy_job() -> None:
     await run_synergy_job()
 
 async def _run_forecast_job() -> None:
+    """Kept but NOT scheduled — see the note where the job would be registered."""
     from app.services.ai.forecasting import run_forecast_job
     await run_forecast_job()
 
@@ -311,13 +312,17 @@ async def start_scheduler() -> None:
             misfire_grace_time=3600,
         )
 
-        _safe_add_job(
-            "forecasts_nightly",
-            func=_run_forecast_job,
-            trigger=CronTrigger(hour=2, minute=30, timezone="UTC"),
-            replace_existing=True,
-            misfire_grace_time=3600,
-        )
+        # `forecasts_nightly` is NOT registered (2026-08-23, audit R6).
+        #
+        # It ran at 02:30 for every user and wrote forecast rows that no screen
+        # in the application reads: `forecastsApi` is defined in
+        # packages/shared/src/api/forecasts.ts and has zero importers. That is
+        # per-user compute and DB writes every night for output nobody can see.
+        #
+        # The ROUTES and the service are deliberately left in place —
+        # `POST /forecasts/generate` still works on demand, so surfacing this on
+        # Goals later is a UI change and not a rebuild. Re-register this job at
+        # the same moment a surface starts reading the rows, not before.
 
         _safe_add_job(
             "automation_tick",

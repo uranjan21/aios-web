@@ -15,6 +15,8 @@ export interface UserProfile {
   claude_model?: string | null
   has_openai_key?: boolean
   has_anthropic_key?: boolean
+  /** ISO timestamp, or null when the welcome flow was never finished. */
+  onboarded_at?: string | null
 }
 
 interface AuthState {

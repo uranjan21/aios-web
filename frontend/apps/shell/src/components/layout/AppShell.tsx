@@ -116,9 +116,17 @@ export function AppShell() {
 
   const { pushRecentPage, sidebarOpen, setSidebarOpen } = useUIStore();
 
-  const [showWizard, setShowWizard] = useState(
-    () => localStorage.getItem("ct_onboarded") !== "true",
-  );
+  /*
+   * Gated on the ACCOUNT, not the browser. This read `localStorage.ct_onboarded`
+   * until 2026-08-23, so the flow reappeared on every new device and incognito
+   * window and completion was never recorded anywhere the server could see.
+   * `undefined` (an older cached profile with no such field) is treated as
+   * onboarded so nobody gets the modal thrown at them mid-session; the next
+   * `/auth/me` supplies the real value.
+   */
+  const onboardedAt = useAuthStore((s) => s.user?.onboarded_at);
+  const [dismissed, setDismissed] = useState(false);
+  const showWizard = !dismissed && onboardedAt === null;
 
   useEffect(() => {
     pushRecentPage(location.pathname);
@@ -143,9 +151,10 @@ export function AppShell() {
   }, [location.pathname]);
 
   const handleCompleteWizard = () => {
-    localStorage.setItem("ct_onboarded", "true");
+    // The wizard itself POSTs /auth/me/onboarded and refreshes the stored user;
+    // this only closes it, so a failed write legitimately shows it again later.
+    setDismissed(true);
     trackOnce("onboarding_completed");
-    setShowWizard(false);
   };
 
   return (

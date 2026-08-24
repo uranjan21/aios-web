@@ -78,6 +78,10 @@ def _user_dict(user: User) -> dict:
         "claude_model": user.claude_model,
         "has_openai_key": bool(user.openai_api_key_encrypted),
         "has_anthropic_key": bool(user.anthropic_api_key_encrypted),
+        # NULL until the welcome flow is finished. The client shows the flow on
+        # this, not on a localStorage key, so it follows the account rather than
+        # the browser.
+        "onboarded_at": user.onboarded_at.isoformat() if user.onboarded_at else None,
     }
 
 
@@ -292,6 +296,34 @@ async def me(request: Request, current_user=Depends(get_current_user), db=Depend
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    return _user_dict(user)
+
+
+@router.post("/me/onboarded")
+@limiter.limit("10/minute")
+async def mark_onboarded(request: Request, current_user=Depends(get_current_user), db=Depends(get_db)):
+    """Record that the user finished the welcome flow.
+
+    This is the activation event. Until 2026-08-23 the wizard's completion
+    handler contained a COMMENTED-OUT call to an endpoint that did not exist and
+    wrote `localStorage.ct_onboarded` instead — so the flow reappeared on every
+    new device and incognito window, and activation, which the roadmap names as
+    the Phase 1 exit criterion, could not be measured at all.
+
+    Idempotent: the first completion timestamp is kept, so re-posting cannot
+    move a user's activation date.
+    """
+    result = await db.execute(select(User).where(User.id == current_user.id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    if user.onboarded_at is None:
+        user.onboarded_at = datetime.utcnow()
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
     return _user_dict(user)
 
 

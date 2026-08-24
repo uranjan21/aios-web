@@ -365,3 +365,41 @@ async def test_reset_password_invalid_token_is_400(client):
 async def test_reset_password_weak_password_is_422(client):
     resp = await client.post("/api/auth/reset-password", json={"token": "anything", "password": "short"})
     assert resp.status_code == 422
+
+
+# ── Onboarding activation ────────────────────────────────────────────────────
+# Completion used to live in `localStorage.ct_onboarded`, so it followed the
+# BROWSER rather than the account: a new device replayed the flow, and the
+# activation event the product funnel is defined on was never recorded at all.
+
+@pytest.mark.asyncio
+async def test_new_user_is_not_onboarded(client_a):
+    res = await client_a.get("/api/auth/me")
+    assert res.status_code == 200
+    assert res.json()["onboarded_at"] is None
+
+
+@pytest.mark.asyncio
+async def test_marking_onboarded_persists_on_the_account(client_a):
+    res = await client_a.post("/api/auth/me/onboarded")
+    assert res.status_code == 200
+    stamped = res.json()["onboarded_at"]
+    assert stamped is not None
+
+    # Survives a fresh read — i.e. it is on the row, not in the response only.
+    again = await client_a.get("/api/auth/me")
+    assert again.json()["onboarded_at"] == stamped
+
+
+@pytest.mark.asyncio
+async def test_marking_onboarded_is_idempotent(client_a):
+    """Re-posting must not move an existing activation date."""
+    first = (await client_a.post("/api/auth/me/onboarded")).json()["onboarded_at"]
+    second = (await client_a.post("/api/auth/me/onboarded")).json()["onboarded_at"]
+    assert first == second
+
+
+@pytest.mark.asyncio
+async def test_onboarding_is_per_account(client_a, client_b):
+    await client_a.post("/api/auth/me/onboarded")
+    assert (await client_b.get("/api/auth/me")).json()["onboarded_at"] is None

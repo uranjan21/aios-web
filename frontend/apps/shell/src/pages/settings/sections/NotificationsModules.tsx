@@ -23,7 +23,12 @@ import { insightsApi } from '@ct/shared/api/insights'
 import { useWebPush } from '@ct/shared/hooks/useWebPush'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 
-interface AutomationRule { key: string; enabled: boolean }
+/* `template_key`, NOT `key`. The API has always returned `template_key`
+   (AutomationResponse in api/automations.py); this interface said `key`, so
+   `RULE_LABELS[r.key]` was a lookup on `undefined` and the filter below dropped
+   every rule. The Alert rules card read "No automation rules configured yet"
+   for every user regardless of what they had enabled. Fixed 2026-08-23. */
+interface AutomationRule { template_key: string; enabled: boolean }
 
 /** The automation rules that are really notification preferences. */
 const RULE_LABELS: Record<string, { title: string; meta: string }> = {
@@ -100,7 +105,15 @@ export function NotificationsModules() {
   }
 
   const modules = useMemo<ModuleSpec[]>(() => {
-    const ruleRows = (rules ?? []).filter(r => RULE_LABELS[r.key])
+    /* Render EVERY template, not just the ones with a row already. A rule row
+       is created on first toggle (the PUT upserts), so filtering to existing
+       rows meant a user with none could never enable their first one — the card
+       offered nothing to click. `enabled` defaults false for a template the
+       user has never touched. */
+    const ruleRows = Object.keys(RULE_LABELS).map(key => ({
+      template_key: key,
+      enabled: (rules ?? []).find(r => r.template_key === key)?.enabled ?? false,
+    }))
     const channels = prefs?.channels ?? {}
     // deliver_at may come back as HH:MM or HH:MM:SS.
     const deliverAt = (prefs?.deliver_at ?? '07:00').slice(0, 5)
@@ -151,18 +164,17 @@ export function NotificationsModules() {
         kind: 'controls',
         span: 6,
         title: 'Alert rules',
-        subtitle: ruleRows.length
-          ? 'What is worth interrupting you for'
-          : 'No automation rules configured yet',
+        subtitle: 'What is worth interrupting you for',
         icon: Zap,
         rows: ruleRows.map(r => ({
-          title: RULE_LABELS[r.key].title,
-          meta: RULE_LABELS[r.key].meta,
+          title: RULE_LABELS[r.template_key].title,
+          meta: RULE_LABELS[r.template_key].meta,
           control: 'toggle' as const,
           on: r.enabled,
-          busy: saveRule.isPending && saveRule.variables?.key === r.key,
+          busy: saveRule.isPending && saveRule.variables?.key === r.template_key,
         })),
-        onToggle: (i: number, next: boolean) => saveRule.mutate({ key: ruleRows[i].key, enabled: next }),
+        onToggle: (i: number, next: boolean) =>
+          saveRule.mutate({ key: ruleRows[i].template_key, enabled: next }),
       },
       {
         kind: 'controls',

@@ -42,5 +42,13 @@ class User(SQLModel, table=True):
     password_reset_token: Optional[str] = Field(default=None, index=True)
     password_reset_sent_at: Optional[datetime] = Field(default=None)
 
+    # Onboarding. NULL = never finished it. Server-side because this is the
+    # activation event the roadmap's funnel is measured on — it was previously
+    # a `ct_onboarded` key in localStorage, which meant the wizard reappeared on
+    # every new device and incognito window, and activation could not be
+    # measured at all. Defaults NULL so existing accounts are offered the (now
+    # useful) flow once rather than being silently marked done.
+    onboarded_at: Optional[datetime] = Field(default=None)
+
     created_at: datetime = Field(default_factory=_utcnow, nullable=False)
     updated_at: datetime = Field(default_factory=_utcnow, nullable=False)

@@ -31,7 +31,10 @@ const Root = styled.div`
 /** The automation rule that sends the pre-due-date nudge. */
 const REMINDER_RULE = 'bill_reminder_3d'
 
-interface AutomationRule { key: string; enabled: boolean }
+/* `template_key`, not `key` — the API's AutomationResponse field. Reading `key`
+   made `reminderOn` below always false, so this toggle showed OFF even for a
+   user who had enabled it. Fixed 2026-08-23. */
+interface AutomationRule { template_key: string; enabled: boolean }
 
 function ordinal(n: number) {
   const s = ['th', 'st', 'nd', 'rd']
@@ -121,7 +124,7 @@ export function PayablesTab() {
 
   const items = useMemo(() => data?.items ?? [], [data])
   const billRows = useMemo(() => items.filter(i => i.type === 'bill'), [items])
-  const reminderOn = rules?.find(r => r.key === REMINDER_RULE)?.enabled ?? false
+  const reminderOn = rules?.find(r => r.template_key === REMINDER_RULE)?.enabled ?? false
 
   const modules = useMemo<ModuleSpec[]>(() => {
     const start = dayjs(month + '-01')
