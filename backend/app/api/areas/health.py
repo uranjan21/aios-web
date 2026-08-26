@@ -1031,7 +1031,12 @@ async def workout_adherence(days: int = 28, current_user=Depends(get_current_use
     from datetime import date, timedelta
 
     days = max(7, min(120, days))
-    today = date.today()
+    # UTC, not date.today(). Every timestamp this compares against is naive UTC
+    # (the convention n002_timestamp_normalisation made universal), so deriving
+    # "today" from the server's LOCAL clock puts the window a day out for the
+    # whole UTC-offset window — 5.5h/day on an IST host. That made a routine
+    # created yesterday look like it had existed for three days.
+    today = datetime.utcnow().date()
     start = today - timedelta(days=days - 1)
 
     routines = (await db.execute(

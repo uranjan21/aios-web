@@ -248,3 +248,43 @@ user is concerned, so it must not suppress re-ingesting the same transaction.
 tables derived from live ORM metadata with raw `DELETE FROM <t> WHERE user_id`,
 which knows nothing about `deleted_at`. Soft delete must never become data
 retention. Pinned by `tests/test_soft_delete.py`.
+
+## "Today" is derived from the server's LOCAL clock in ~20 places (open, 2026-08-27)
+
+Every timestamp in this schema is **naive UTC** (see the S12 section above), but
+around twenty call sites still compute the current day with `date.today()`,
+which is the *server's local* date. On a UTC host the two agree, which is why
+this is latent in production — the Postgres image and most VPS hosts default to
+UTC. On any non-UTC host they disagree for the length of the offset: on an IST
+box (UTC+5:30) `date.today()` is a day ahead of `datetime.utcnow().date()` from
+05:30 IST until midnight.
+
+This was found, not theorised: `workout_adherence` built its window from
+`date.today()` and compared it against `WorkoutRoutine.created_at` (naive UTC),
+so a routine created yesterday looked like it had existed for three days and
+`test_days_before_the_routine_existed_do_not_count` failed on an IST dev box.
+Fixed there (`api/areas/health.py`, `workout_adherence`) by using
+`datetime.utcnow().date()`.
+
+**The remaining sites are deliberately NOT changed**, because the correct answer
+is not obviously UTC:
+
+    api/finance_payables.py:38,40   api/workspace.py:561,675
+    api/areas/health.py:149,1313,1315   api/areas/career.py:321,383,506,583
+    services/agents/runners.py:149,150,163,164   services/chat/memory.py:52,81
+    services/chat/context_builder.py:110   services/finance/backup.py:73
+
+For anything a **human** experiences as a day — "did I train today", "what did I
+eat today", the date the assistant is told it is — the right boundary is the
+**user's** timezone, not UTC and not the server's. That data already exists:
+`BriefingPreference.tz` (IANA), which the agent scheduler already uses to fire
+crons at the user's local 06:00, and which propagates to every one of a user's
+agents.
+
+So the real fix is a `user_today(user)` helper resolving through that tz, applied
+to the human-facing sites, with UTC kept only where the comparison is against
+stored UTC instants. Doing it half-way — mechanically swapping all twenty to
+`utcnow()` — would silently move every user's "today" to UTC midnight, which for
+an IST user means their day rolls over at 05:30. That is a worse bug than the one
+being fixed, so it is left as a single coherent piece of work rather than a
+sweep. This is the same item as the long-standing HLT-2 backlog entry.

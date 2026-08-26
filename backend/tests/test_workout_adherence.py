@@ -71,7 +71,7 @@ async def test_days_before_the_routine_existed_do_not_count(db_session_factory, 
 
 @pytest.mark.asyncio
 async def test_today_is_not_yet_missed(db_session_factory, user_a):
-    today = date.today()
+    today = datetime.utcnow().date()
     async with db_session_factory() as s:
         await _clear(s, user_a)
         await _routine(s, user_a, "Everyday", [today.weekday()])
@@ -83,7 +83,7 @@ async def test_today_is_not_yet_missed(db_session_factory, user_a):
 
 @pytest.mark.asyncio
 async def test_hit_and_miss_are_counted_separately(db_session_factory, user_a):
-    today = date.today()
+    today = datetime.utcnow().date()
     # Two past occurrences of the same weekday: train one, skip the other.
     last_week = today - timedelta(days=7)
     two_weeks = today - timedelta(days=14)
@@ -103,7 +103,7 @@ async def test_hit_and_miss_are_counted_separately(db_session_factory, user_a):
 
 @pytest.mark.asyncio
 async def test_off_schedule_is_not_the_same_as_unplanned(db_session_factory, user_a):
-    today = date.today()
+    today = datetime.utcnow().date()
     wrong_day = (today.weekday() + 3) % 7  # a weekday that is NOT today
     async with db_session_factory() as s:
         await _clear(s, user_a)
