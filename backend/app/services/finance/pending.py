@@ -35,6 +35,9 @@ async def ledger_duplicate(session, user_id: uuid.UUID, kind: str, logged_at: da
             model.logged_at >= lo,
             model.logged_at < hi,
             model.amount == Decimal(str(amount)),
+            # A soft-deleted ledger row is gone as far as the user is concerned,
+            # so it must not suppress re-ingesting the same transaction.
+            model.deleted_at.is_(None),
         ).limit(1)
     )).scalar_one_or_none()
     return row is not None

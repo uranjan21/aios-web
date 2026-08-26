@@ -29,6 +29,7 @@ import { financeApi } from '@ct/shared/api/areas'
 import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import type { FinanceLoan } from '@ct/shared/types'
+import { toastDeletedWithUndo } from '@ct/shared/lib/undoToast'
 import { LoanPaymentsPanel } from './LoanPaymentsPanel'
 import { PayoffPlanner } from './PayoffPlanner'
 import styled from 'styled-components'
@@ -251,9 +252,9 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => financeApi.deleteLoan(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       invalidate()
-      toast.success('Loan removed')
+      toastDeletedWithUndo('Loan removed', () => financeApi.restoreLoan(id), invalidate)
       setUpdatingLoan(null)
       setLoanForm(EMPTY_LOAN_FORM)
     },

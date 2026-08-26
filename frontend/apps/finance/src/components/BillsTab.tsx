@@ -7,6 +7,7 @@ import { Trash2, Zap, Receipt, Plus } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
 import type { FinanceBill } from '@ct/shared/types'
 import { Table } from '@ct/shared/components/ui/Table'
+import { toastDeletedWithUndo } from '@ct/shared/lib/undoToast'
 import styled from 'styled-components'
 
 const NameText = styled.div`
@@ -102,9 +103,10 @@ export function BillsTab({ onAdd }: { onAdd?: () => void } = {}) {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => financeApi.deleteBill(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'bills'] })
-      toast.success('Bill removed')
+      toastDeletedWithUndo('Bill removed', () => financeApi.restoreBill(id),
+        () => queryClient.invalidateQueries({ queryKey: ['finance', 'bills'] }))
     },
     onError: () => toast.error('Failed to delete bill'),
   })

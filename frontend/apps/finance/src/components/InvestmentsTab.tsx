@@ -33,6 +33,7 @@ import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import { formatCurrency } from '@ct/shared/lib/utils'
 import type { FinanceInvestment } from '@ct/shared/types'
+import { toastDeletedWithUndo } from '@ct/shared/lib/undoToast'
 import { InvestmentTxnDialog } from './InvestmentTxnDialog'
 
 /** Cashflow kind → how it reads in the table. Colour is paired with the label,
@@ -170,9 +171,9 @@ export function InvestmentsTab({ onAddClick }: { onAddClick?: () => void } = {})
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => financeApi.deleteInvestment(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       invalidate()
-      toast.success('Holding removed')
+      toastDeletedWithUndo('Holding removed', () => financeApi.restoreInvestment(id), invalidate)
       setUpdatingHolding(null)
       setHoldingForm(EMPTY_HOLDING_FORM)
     },

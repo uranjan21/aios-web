@@ -35,12 +35,14 @@ async def gather_baseline(session, user_id: uuid.UUID) -> dict:
     start = dt.datetime.utcnow() - dt.timedelta(days=LOOKBACK_DAYS)
     expenses = (await session.execute(
         select(FinanceExpense).where(
-            FinanceExpense.user_id == user_id, FinanceExpense.logged_at >= start
+            FinanceExpense.user_id == user_id, FinanceExpense.logged_at >= start,
+            FinanceExpense.deleted_at.is_(None),
         )
     )).scalars().all()
     incomes = (await session.execute(
         select(FinanceIncome).where(
-            FinanceIncome.user_id == user_id, FinanceIncome.logged_at >= start
+            FinanceIncome.user_id == user_id, FinanceIncome.logged_at >= start,
+            FinanceIncome.deleted_at.is_(None),
         )
     )).scalars().all()
 

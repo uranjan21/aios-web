@@ -45,10 +45,10 @@ async def post_due_recurring(user_id: uuid.UUID) -> int:
 
     async with AsyncSessionLocal() as session:
         bills = (await session.execute(
-            select(FinanceBill).where(FinanceBill.user_id == user_id, FinanceBill.is_active == True)
+            select(FinanceBill).where(FinanceBill.user_id == user_id, FinanceBill.is_active == True, FinanceBill.deleted_at.is_(None))
         )).scalars().all()
         loans = (await session.execute(
-            select(FinanceLoan).where(FinanceLoan.user_id == user_id, FinanceLoan.is_active == True)
+            select(FinanceLoan).where(FinanceLoan.user_id == user_id, FinanceLoan.is_active == True, FinanceLoan.deleted_at.is_(None))
         )).scalars().all()
 
         events = []
@@ -113,10 +113,10 @@ async def notify_due_tomorrow(user_id: uuid.UUID) -> int:
 
     async with AsyncSessionLocal() as session:
         bills = (await session.execute(
-            select(FinanceBill).where(FinanceBill.user_id == user_id, FinanceBill.is_active == True, FinanceBill.due_day == tomorrow.day)
+            select(FinanceBill).where(FinanceBill.user_id == user_id, FinanceBill.is_active == True, FinanceBill.deleted_at.is_(None), FinanceBill.due_day == tomorrow.day)
         )).scalars().all()
         loans = (await session.execute(
-            select(FinanceLoan).where(FinanceLoan.user_id == user_id, FinanceLoan.is_active == True, FinanceLoan.emi_day == tomorrow.day)
+            select(FinanceLoan).where(FinanceLoan.user_id == user_id, FinanceLoan.is_active == True, FinanceLoan.deleted_at.is_(None), FinanceLoan.emi_day == tomorrow.day)
         )).scalars().all()
 
     for bill in bills:

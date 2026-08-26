@@ -8,6 +8,7 @@ import dayjs from 'dayjs'
 import { PencilLine, Trash2, Check, X, Tag as TagIcon, FolderInput, MoreHorizontal, Split } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
 import { formatAmount, formatCurrency } from '@ct/shared/lib/utils'
+import { toastDeletedWithUndo } from '@ct/shared/lib/undoToast'
 import styled from 'styled-components'
 
 import type { Txn, SortBy, SortDir } from './types'
@@ -278,7 +279,14 @@ export function TransactionRow({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finance'] })
-      toast.success('Transaction deleted')
+      // Deletes are soft, so this is genuinely reversible — offer it.
+      toastDeletedWithUndo(
+        'Transaction deleted',
+        () => txn.type === 'expense' ? financeApi.restoreExpense(txn.id)
+          : txn.type === 'income' ? financeApi.restoreIncome(txn.id)
+            : financeApi.restoreTransfer(txn.id),
+        () => queryClient.invalidateQueries({ queryKey: ['finance'] }),
+      )
     },
     onError: () => toast.error('Failed to delete transaction'),
   })

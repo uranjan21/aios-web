@@ -97,6 +97,7 @@ async def _ledger_amount_dates(session, user_id: uuid.UUID, lo: datetime, hi: da
             FinanceExpense.user_id == user_id,
             FinanceExpense.logged_at >= lo,
             FinanceExpense.logged_at < hi,
+            FinanceExpense.deleted_at.is_(None),
         )
     )).scalars().all()
     for e in expenses:
@@ -106,6 +107,7 @@ async def _ledger_amount_dates(session, user_id: uuid.UUID, lo: datetime, hi: da
             FinanceIncome.user_id == user_id,
             FinanceIncome.logged_at >= lo,
             FinanceIncome.logged_at < hi,
+            FinanceIncome.deleted_at.is_(None),
         )
     )).scalars().all()
     for i in income:
