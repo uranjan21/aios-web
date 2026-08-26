@@ -136,8 +136,8 @@ Full entry in `PROGRESS.md`.
   as mapped. New **`test_api_members_are_reachable`** fails CI on an exported
   `*Api` member with no consumer outside its own module. It found **18 orphans**
   on first run; survivors live in `ALLOWED_UNREACHABLE_MEMBERS` with a reason and
-  an id each. **Notable open one: `financeApi.deleteAccount` — a bank account can
-  be created and edited but not deleted from any screen (FIN-4).**
+  an id each. The worst of them — `financeApi.deleteAccount`, meaning a bank
+  account could be created and edited but never deleted — is now fixed.
 - **Automation rules had never been visible to anyone.** The API returns
   `template_key`; both frontend surfaces declared `key`. So Settings → Alert
   rules filtered every rule out, and the Payables bill-reminder toggle always
@@ -164,9 +164,17 @@ Full entry in `PROGRESS.md`.
   the 08-16 audit (B1 secret key, B3 backups, B4 usage records) were **already
   fixed in HEAD** — they were listed as open without re-checking. Only **B2
   (observability) stands**, and it is operator config.
-- **Verified:** backend **298 passing**, single head `u002_drop_saved_quotes`;
-  tsc, build, vitest clean; eslint 0 errors/290 warnings; token-lint re-locked 5
-  lower. **NOT walked in a browser** — `/app/*` is auth-gated.
+- **The chat credit rule is a named, tested function now**
+  (`usage.credits_for_input_tokens`), not a ceil-division inline in the chat WS
+  handler. It changed from a flat 1 credit/response on 2026-08-17, which is a
+  **pricing change and still needs sign-off** — the tests only stop it drifting.
+- **`globals: false` in `vitest.config.ts` stops Testing Library registering its
+  cleanup**, so the jsdom document accumulates between tests and assertions go
+  order-dependent. Registered once in `vitest.setup.ts` — do not remove it.
+- **Verified:** backend **312 passing**, frontend **15** (was 2), single head
+  `u002_drop_saved_quotes`; tsc, build clean; eslint 0 errors/290 warnings;
+  token-lint re-locked 5 lower. **NOT walked in a browser** — `/app/*` is
+  auth-gated and no live DB was reachable this session.
 
 ## Recent Updates (2026-08-10 — final pre-ship audit)
 

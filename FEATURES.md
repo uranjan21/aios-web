@@ -126,7 +126,6 @@ entry carries a reason and an id, and **a new member with no consumer fails CI**
 | **Career generic events** | Superseded by the journal entry path. `CAR-1` |
 | **Skill-gap analysis** | Lost its home when Career's Roadmap tab went. `CAR-2` |
 | **Workout PRs · workspace stats** | Analyses with no card. `HLT-1`, `WS-1` |
-| **Delete a bank account** | 🔴 **Real gap.** `financeApi.deleteAccount` has no caller — an account can be created and edited but never removed. `FIN-4` |
 
 **Retired 2026-08-23:** saved quotes (router, model and table dropped — migration
 `u002`) and the What-If Simulator (route, Monte Carlo service, api method).
@@ -138,7 +137,8 @@ entry carries a reason and an id, and **a new member with no consumer fails CI**
    enough to trust. The 👍/👎 rate is the instrument for answering that.
 2. **Observability before public signup** — nothing currently tells you production broke.
 3. **Restore-test a backup** — the off-box mechanism exists and has never been exercised.
-4. **Delete a bank account** — an account can be created and edited but not removed.
+4. **Sign off the chat pricing change** — long prompts now cost more than one credit.
+   The rule is tested and named; whether it is the right rule is a product call.
 5. **Frictionless bank sync** — beyond email parsing.
 6. **Voice-first capture** — push-to-talk, transcribed and NLP-routed.
 7. **Household / multiplayer** — shared finance and tasks; health and career stay private.

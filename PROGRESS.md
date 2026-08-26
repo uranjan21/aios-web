@@ -1,5 +1,55 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
+## 2026-08-23 — claude-code (finishing the tail)
+
+**Ask.** Finish anything still pending.
+
+Three things were genuinely still mine to do; the rest needs a live box.
+
+- **FIN-4 closed.** A bank account could be created and edited but never
+  deleted — `financeApi.deleteAccount` shipped with the endpoint and had no
+  caller. The backend was already complete, including the case that matters:
+  child rows detach via `ON DELETE SET NULL` but transfers are RESTRICT, so it
+  409s with the count. That message is shown verbatim rather than replaced with
+  a generic failure, because it names exactly what the user has to fix.
+- **R9 pinned, not signed off.** The chat credit rule was an inline
+  ceil-division inside the chat WS handler, which is precisely why the
+  2026-08-17 switch from a flat 1 credit/response to `input_tokens / 8000`
+  shipped untested. It is now `usage.credits_for_input_tokens` beside the rest
+  of the quota model, with 12 tests: the floor of 1, the boundary at exactly 8k,
+  rounding up one token over, monotonicity, and never returning 0 even when the
+  provider reports no usage. **A rule that decides what a customer is charged
+  should be a named function with tests, not an idiom in a stream loop.** Still
+  a product decision: long-prompt users pay more than they did.
+- **Frontend tests 2 → 15.** The two new module kinds and the localStorage
+  migration had no coverage and were never walked in a browser. The migration
+  tests pin the failure mode that actually matters — a failed upload must KEEP
+  the local copy, since clearing early destroys the entries the migration exists
+  to rescue. The `prose` tests assert LLM-supplied HTML is not executed.
+
+**Repo-wide trap found while writing those:** `vitest.config.ts` sets
+`globals: false`, which stops Testing Library auto-registering its `afterEach`
+cleanup — it looks for a global `afterEach` and *silently does nothing*. The
+jsdom document then accumulates across tests in a file, so
+`queryBy(...).toBeNull()` passes or fails depending on what an earlier test
+rendered. Nasty because each test looks correct in isolation. Registered once in
+`vitest.setup.ts`.
+
+- Shipped: FIN-4, the metering extraction + tests, 13 new frontend tests, the
+  vitest cleanup fix. Gates: backend **312 passed**, frontend **15 passed**,
+  tsc/build/token-lint clean, eslint 0/290 at ratchet, single head
+  `u002_drop_saved_quotes`.
+- Blockers: **B2 (observability) is the only launch blocker left** and it is
+  operator config — set `SENTRY_DSN` / `VITE_SENTRY_DSN`, add the ingest host to
+  `CSP_CONNECT_EXTRA`, point an uptime check at `/health`.
+- Next: **the browser walk is still not done and could not be done here** — the
+  Docker daemon is not running in this environment and there is no local
+  Postgres, so there was no stack to walk. Seed an account and walk Today,
+  Health → Body, Finance → Setup (the new delete), Settings → Security and
+  Career at 1280px and 375px. Then restore-test a backup (B3), then sign off the
+  three 08-17 behaviour changes — the chat pricing one is tested but the
+  decision is still open.
+
 ## 2026-08-23 — claude-code (remediation: shipped the audit, corrected it twice)
 
 **Ask.** Fix everything the feature audit found, one by one.

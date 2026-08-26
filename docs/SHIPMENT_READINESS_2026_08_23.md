@@ -47,12 +47,21 @@ Two feature-level claims were also wrong, both found by fixing the thing:
 | **S18** | ✅ | `skip_tests` removed from `deploy.yml`; `needs: [test]` is a hard gate. |
 | **—** | ✅ | Merchant rules can be created and deleted (they could only be listed and toggled). Automation rules display at all. Pricing collapsed to Free + Everything. Career 5 destinations → 2. |
 
+### Second pass — the tail
+
+| ID | Status | What |
+|---|---|---|
+| **FIN-4** | ✅ | A bank account can be deleted. The endpoint existed with no caller; the backend already handled the RESTRICT-on-transfers case with a 409, which is now shown verbatim. |
+| **R9** | ✅ **partly** | The chat pricing rule is extracted to `usage.credits_for_input_tokens` and pinned by 12 tests (floor of 1, the 8k boundary, monotonicity, never free). **It is tested, not signed off** — whether long-prompt users should pay more is still your call, but the behaviour can no longer drift unnoticed. The other two 08-17 changes (`_resolve_category` 404, push cap at 20) remain unsigned-off. |
+| **Frontend tests** | ✅ | 2 → 15. Covers the two new module kinds and the localStorage migration, whose failure mode (clearing local data before uploads succeed) would destroy the entries it exists to rescue. Also fixed a repo-wide trap: `globals: false` meant Testing Library never registered cleanup, so tests were order-dependent. |
+
 ### Gates after remediation
 
 | Gate | Result |
 |---|---|
-| Backend tests | ✅ **298 passed** (and the suite now runs without network) |
-| tsc · build · vitest | ✅ clean |
+| Backend tests | ✅ **312 passed** (and the suite now runs without network) |
+| tsc · build | ✅ clean |
+| Frontend tests | ✅ **15 passed** (was 2) |
 | ESLint | ✅ 0 errors / 290 warnings, at ratchet |
 | token-lint | ✅ no regressions, baseline re-locked 5 lower |
 | Alembic | ✅ single head `u002_drop_saved_quotes` |
@@ -72,12 +81,14 @@ Two feature-level claims were also wrong, both found by fixing the thing:
   `CSP_CONNECT_EXTRA`, point an uptime check at `/health`. Operator task.
 - **B3** — set `BACKUP_REMOTE` and **restore-test once**. A backup that has
   never been restored is not a backup.
-- **R9** — proportional chat metering (a pricing change) is still untested and
-  unsigned-off; `_resolve_category` 404 contract change; push cap at 20/user
-  with no pruning UI.
-- **17 allowlisted api orphans** in `ALLOWED_UNREACHABLE_MEMBERS`, each with a
-  tracking id. The notable one is `FIN-4`: **a bank account can be created and
-  edited but not deleted from any screen.**
+- **R9** — proportional chat metering is now **tested** but still **unsigned-off**:
+  decide whether long-prompt users should pay more. `_resolve_category`'s 404
+  contract change and the 20/user push cap with no pruning UI are also still
+  unsigned-off.
+- **16 allowlisted api orphans** in `ALLOWED_UNREACHABLE_MEMBERS`, each with a
+  tracking id (FIN-4 is now closed). None is user-facing: they are superseded
+  paths (CC-1, CAR-1), un-surfaced analyses (CAR-2, HLT-1, WS-1), an
+  un-curatable food library (NUT-1) and the forecast engine (R6).
 - **Nothing here was walked in a browser.** Every frontend change is verified by
   typecheck + build + lint only; `/app/*` is auth-gated. Walk it at 1280px and
   375px with a seeded account before shipping.
