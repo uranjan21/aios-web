@@ -7,7 +7,7 @@
  * editor, and Delete moved into the dialog footer because a table row has no
  * action column to hang it off.
  */
-import { useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Zap, Trash2 } from 'lucide-react'
 import { Button, Card, EmptyState, Input, Dialog, DialogFooter, Select, Label } from '@ledgr/ui'
@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { workspaceApi, Sprint, SprintPayload } from '@ct/shared/api/workspace'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { domainLabel } from '@ct/shared/config/domains'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 
 const FormGrid = styled.div`
   display: flex;
@@ -67,6 +68,7 @@ export function SprintsSection({
   const [status, setStatus] = useState('planned')
   const [capacity, setCapacity] = useState('')
   const [editingSprint, setEditingSprint] = useState<Sprint | null>(null)
+  const f = useFieldErrors<'project_id' | 'name' | 'end_date' | 'capacity'>('sprint')
 
   const { data: projects = [] } = useQuery({
     queryKey: ['workspace', 'projects'],
@@ -80,12 +82,14 @@ export function SprintsSection({
     staleTime: 60_000,
   })
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setName(''); setProjectId(''); setGoals('')
     setStartDate(''); setEndDate(''); setStatus('planned'); setCapacity('')
-  }
+    f.reset()
+  }, [f])
 
-  const openEdit = (s: Sprint) => {
+  const openEdit = useCallback((s: Sprint) => {
+    f.reset()
     setEditingSprint(s)
     setName(s.name)
     setProjectId(s.project_id)
@@ -94,7 +98,7 @@ export function SprintsSection({
     setEndDate(s.end_date || '')
     setStatus(s.status || 'planned')
     setCapacity(s.capacity ? String(s.capacity) : '')
-  }
+  }, [f])
 
   const createMutation = useMutation({
     mutationFn: workspaceApi.createSprint,
@@ -127,7 +131,33 @@ export function SprintsSection({
     onError: () => toast.error('Could not delete sprint'),
   })
 
-  const handleSave = () => {
+  /*
+   * Three real rules, none of which the server holds:
+   *  - `SprintCreate.project_id` is a required UUID, so a blank select is a 422;
+   *  - `capacity` is a bare `Optional[int]`, so **a negative capacity is
+   *    accepted server-side**. `min="0"` on the input is not a check once the
+   *    form is `noValidate`, so it is asserted here;
+   *  - nothing anywhere rejects an end date before the start date. It is a
+   *    sprint that finishes before it begins, so it is refused on the field.
+   */
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault()
+    const pts = capacity.trim() === '' ? null : Number(capacity)
+    const ok = f.submit({
+      project_id: projectId ? undefined : 'Pick the project this sprint belongs to.',
+      name: name.trim() ? undefined : 'Give the sprint a name.',
+      end_date: startDate && endDate && endDate < startDate
+        ? 'The end date cannot be before the start date.'
+        : undefined,
+      capacity: pts === null
+        ? undefined
+        : !Number.isInteger(pts)
+          ? 'Enter a whole number of points, or leave this blank.'
+          : pts < 0
+            ? 'Capacity cannot be negative.'
+            : undefined,
+    })
+    if (!ok) return
     if (editingSprint) {
       updateMutation.mutate({
         name,
@@ -208,8 +238,7 @@ export function SprintsSection({
       { t: s.status || 'planned', tag: true, colorKey: STATUS_KEY[s.status || 'planned'] ?? 'info' },
     ]),
     onRowClick: (i: number) => openEdit(rows[i]),
-     
-  }], [rows, projects, domainFilter, statusFilter, filterNode])
+  }], [rows, projects, domainFilter, statusFilter, filterNode, openEdit])
 
   return (
     <>
@@ -253,14 +282,16 @@ export function SprintsSection({
         description="Define the scope and timeline for this iteration."
         size="md"
       >
-        <FormGrid>
+        <FormGrid as="form" noValidate onSubmit={handleSave}>
           <div>
             <Label>Project</Label>
-            <Select value={projectId} onChange={v => setProjectId(v as string)} options={projectOptions} />
+            <Select value={projectId} onChange={v => { f.clearField('project_id'); setProjectId(v as string) }} options={projectOptions} />
+            <FieldError id={f.errorId('project_id')}>{f.errors.project_id}</FieldError>
           </div>
           <div>
             <Label htmlFor="sprint-name">Sprint name</Label>
-            <Input id="sprint-name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Sprint 12 — Launch" />
+            <Input id="sprint-name" value={name} {...f.fieldProps('name')} onChange={e => { f.clearField('name'); setName(e.target.value) }} placeholder="e.g. Sprint 12 — Launch" />
+            <FieldError id={f.errorId('name')}>{f.errors.name}</FieldError>
           </div>
           <div>
             <Label htmlFor="sprint-goals">Sprint goal</Label>
@@ -273,13 +304,15 @@ export function SprintsSection({
             </div>
             <div>
               <Label htmlFor="sprint-end">End date</Label>
-              <Input id="sprint-end" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+              <Input id="sprint-end" type="date" value={endDate} {...f.fieldProps('end_date')} onChange={e => { f.clearField('end_date'); setEndDate(e.target.value) }} />
+              <FieldError id={f.errorId('end_date')}>{f.errors.end_date}</FieldError>
             </div>
           </TwoCol>
           <TwoCol>
             <div>
               <Label htmlFor="sprint-cap">Capacity (story pts)</Label>
-              <Input id="sprint-cap" type="number" min="0" step="1" value={capacity} onChange={e => setCapacity(e.target.value)} placeholder="e.g. 40" />
+              <Input id="sprint-cap" type="number" min="0" step="1" value={capacity} {...f.fieldProps('capacity')} onChange={e => { f.clearField('capacity'); setCapacity(e.target.value) }} placeholder="e.g. 40" />
+              <FieldError id={f.errorId('capacity')}>{f.errors.capacity}</FieldError>
             </div>
             {editingSprint && (
               <div>
@@ -291,6 +324,7 @@ export function SprintsSection({
           <DialogFooter>
             {editingSprint && (
               <Button
+                type="button"
                 variant="destructive"
                 size="sm"
                 loading={deleteMutation.isPending}
@@ -303,12 +337,11 @@ export function SprintsSection({
                 <Trash2 size={14} style={{ marginRight: 4 }} /> Delete
               </Button>
             )}
-            <Button variant="outline" onClick={() => handleDialogClose(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => handleDialogClose(false)}>Cancel</Button>
             <Button
+              type="submit"
               variant="primary"
-              disabled={!projectId || !name.trim()}
               loading={createMutation.isPending || updateMutation.isPending}
-              onClick={handleSave}
             >
               {editingSprint ? 'Save changes' : 'Create sprint'}
             </Button>

@@ -17,6 +17,7 @@ import { ViewToggle, FormGrid, TwoCol } from './tasks/TasksPage.styles'
 import { TaskCard } from './tasks/TaskCard'
 import { TaskRowItem } from './tasks/TaskRowItem'
 import { TaskGroup } from './tasks/TaskGroup'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 
 /* ── Main page ─────────────────────────────────────────────────────── */
 
@@ -41,6 +42,7 @@ export function TasksSection({
   const [domain, setDomain] = useState('general')
   const [labels, setLabels] = useState('')
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const f = useFieldErrors<'title'>('task')
   const [statusFilter, setStatusFilter] = useState('all')
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
 
@@ -100,11 +102,13 @@ export function TasksSection({
   }
 
   const resetForm = () => {
+    f.reset()
     setTitle(''); setDescription(''); setProjectId(''); setSprintId('')
     setGoalId(''); setPriority('medium'); setStatus('todo'); setDueDate(''); setDomain('general'); setLabels('')
   }
 
   const openEdit = (t: Task) => {
+    f.reset()
     setEditingTask(t)
     setTitle(t.title); setDescription(t.description || '')
     setProjectId(t.project_id || ''); setSprintId(t.sprint_id || '')
@@ -153,7 +157,11 @@ export function TasksSection({
     onError: () => toast.error('Could not delete task'),
   })
 
-  const handleSave = () => {
+  /* `TaskCreate.title` is a bare required `str` — it has no `min_length`, so an
+     empty title would be stored. This is the only thing that stops it. */
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!f.submit({ title: title.trim() ? undefined : 'Say what needs to be done.' })) return
     if (editingTask) {
       updateMutation.mutate({
         title, description: description || null,
@@ -334,10 +342,11 @@ const StyledCard = styled(Card)`
           description="Assign to a project, sprint, and life area so it shows up in the right views."
           size="md"
         >
-          <FormGrid>
+          <FormGrid as="form" noValidate onSubmit={handleSave}>
             <div>
               <Label htmlFor="task-title">Task title</Label>
-              <Input id="task-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="What needs to be done?" autoFocus />
+              <Input id="task-title" value={title} {...f.fieldProps('title')} onChange={e => { f.clearField('title'); setTitle(e.target.value) }} placeholder="What needs to be done?" autoFocus />
+              <FieldError id={f.errorId('title')}>{f.errors.title}</FieldError>
             </div>
             <div>
               <Label htmlFor="task-desc">Description (optional)</Label>
@@ -387,12 +396,11 @@ const StyledCard = styled(Card)`
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => handleDialogClose(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => handleDialogClose(false)}>Cancel</Button>
               <Button
+                type="submit"
                 variant="primary"
-                disabled={!title.trim()}
                 loading={createMutation.isPending || updateMutation.isPending}
-                onClick={handleSave}
               >
                 {editingTask ? 'Save Changes' : 'Create Task'}
               </Button>

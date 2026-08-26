@@ -4,6 +4,7 @@ import { Input, Select, Button } from '@ledgr/ui'
 import { toast } from 'sonner'
 import { careerApi } from '@ct/shared/api/areas'
 import type { SkillInventory } from '@ct/shared/types'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import styled from 'styled-components'
 
 export const LEVEL_LABELS: Record<SkillInventory['level'], string> = {
@@ -44,6 +45,7 @@ export function SkillForm({ onClose }: { onClose: () => void }) {
   const [category, setCategory] = useState('')
   const [level, setLevel] = useState<SkillInventory['level']>('beginner')
   const [notes, setNotes] = useState('')
+  const f = useFieldErrors<'skill_name' | 'category'>('skill')
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => careerApi.upsertSkill({
@@ -57,16 +59,36 @@ export function SkillForm({ onClose }: { onClose: () => void }) {
       queryClient.invalidateQueries({ queryKey: ['career', 'skills'] })
       queryClient.invalidateQueries({ queryKey: ['career', 'summary'] })
       setSkillName(''); setCategory(''); setLevel('beginner'); setNotes('')
+      f.reset()
       onClose()
     },
     onError: () => toast.error('Failed to save skill'),
   })
 
+  /* `SkillUpsert` requires both `skill_name` and `category` — and `skill_name`
+     is the key the upsert matches on, so a blank one would collide with every
+     other blank-named skill rather than create a new row. `required` used to
+     be the only guard, which surfaced as the browser's own bubble. */
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const ok = f.submit({
+      skill_name: skillName.trim() ? undefined : 'Name the skill.',
+      category: category.trim() ? undefined : 'Give it a category, e.g. technical.',
+    })
+    if (ok) mutate()
+  }
+
   return (
-    <form onSubmit={e => { e.preventDefault(); mutate() }}>
+    <form noValidate onSubmit={handleSubmit}>
       <HalfGrid>
-        <Input placeholder="Skill name" value={skillName} onChange={(e: any) => setSkillName(e.target.value)} required aria-label="Skill name" />
-        <Input placeholder="Category (e.g. technical, soft skill)" value={category} onChange={(e: any) => setCategory(e.target.value)} required aria-label="Skill category" />
+        <div>
+          <Input placeholder="Skill name" value={skillName} {...f.fieldProps('skill_name')} onChange={(e: any) => { f.clearField('skill_name'); setSkillName(e.target.value) }} aria-label="Skill name" />
+          <FieldError id={f.errorId('skill_name')}>{f.errors.skill_name}</FieldError>
+        </div>
+        <div>
+          <Input placeholder="Category (e.g. technical, soft skill)" value={category} {...f.fieldProps('category')} onChange={(e: any) => { f.clearField('category'); setCategory(e.target.value) }} aria-label="Skill category" />
+          <FieldError id={f.errorId('category')}>{f.errors.category}</FieldError>
+        </div>
       </HalfGrid>
       <TwoColGrid>
         <Select

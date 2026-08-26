@@ -15,6 +15,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Flag, Plus, Target, Trash2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { FieldError, useFieldErrors } from "@ct/shared/components/forms/fieldErrors";
 import { toast } from "sonner";
 import styled from "styled-components";
 
@@ -102,6 +103,7 @@ export function GoalsSection({
   const [status, setStatus] = useState("active");
   /** Non-null puts the shared dialog into edit mode. */
   const [editing, setEditing] = useState<MacroGoal | null>(null);
+  const f = useFieldErrors<"title">("macro-goal");
 
   const { data: goals = [], isLoading } = useQuery({
     queryKey: ["goals"],
@@ -111,6 +113,7 @@ export function GoalsSection({
 
   // Opens the cross-domain Add Goal dialog, pre-selecting the correct category.
   const handleOpenAddGoal = (cat = "general") => {
+    f.reset();
     setEditing(null);
     setTitle("");
     setCategory(cat);
@@ -124,6 +127,7 @@ export function GoalsSection({
   /** Same dialog, prefilled — a table row has no action column, so the row
       click opens the editor and Delete lives in its footer. */
   const handleOpenEditGoal = (g: MacroGoal) => {
+    f.reset();
     setEditing(g);
     setTitle(g.title);
     setCategory(g.category);
@@ -174,8 +178,12 @@ export function GoalsSection({
     onError: () => toast.error("Could not delete goal"),
   });
 
-  const handleSave = () => {
-    if (!title.trim()) return;
+  /* `GoalCreate.title` is `Field(min_length=1)` — an empty title is a real 422,
+     so it is reported on the field instead of silently doing nothing, which is
+     what the bare `if (!title.trim()) return` above it used to do. */
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!f.submit({ title: title.trim() ? undefined : "Name the goal." })) return;
     if (editing) {
       // Explicit `null` clears a field — `undefined` would leave it as it was.
       updateMutation.mutate({
@@ -340,16 +348,18 @@ export function GoalsSection({
           description="Set a high-level goal and track progress across life areas."
           size="md"
         >
-          <FormGrid>
+          <FormGrid as="form" noValidate onSubmit={handleSave}>
             <div>
               <Label htmlFor="goal-title">Title</Label>
               <Input
                 id="goal-title"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                {...f.fieldProps("title")}
+                onChange={(e) => { f.clearField("title"); setTitle(e.target.value); }}
                 placeholder="e.g. Reach ₹10L net worth"
                 autoFocus
               />
+              <FieldError id={f.errorId("title")}>{f.errors.title}</FieldError>
             </div>
             <div>
               <Label>Category</Label>
@@ -408,6 +418,7 @@ export function GoalsSection({
             <DialogFooter>
               {editing && (
                 <Button
+                  type="button"
                   variant="destructive"
                   size="sm"
                   style={{ marginRight: "auto" }}
@@ -419,13 +430,12 @@ export function GoalsSection({
                   <Trash2 size={14} style={{ marginRight: 4 }} /> Delete
                 </Button>
               )}
-              <Button variant="outline" onClick={closeDialog}>
+              <Button type="button" variant="outline" onClick={closeDialog}>
                 Cancel
               </Button>
               <Button
+                type="submit"
                 variant="primary"
-                onClick={handleSave}
-                disabled={!title.trim()}
                 loading={createMutation.isPending || updateMutation.isPending}
               >
                 {editing ? "Save changes" : "Add Goal"}

@@ -15,7 +15,7 @@
  * The model pickers stay in their own dialog — they are per-provider and only
  * meaningful beside the key that authorises them.
  */
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
@@ -30,8 +30,9 @@ import {
 } from '@ct/shared/api/keys'
 import { useAuthStore } from '@ct/shared/stores/authStore'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 
-const Form = styled.div`
+const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[3]};
@@ -105,6 +106,12 @@ export function AiModules() {
   const [keyProvider, setKeyProvider] = useState<KeyProvider | null>(null)
   const [keyValue, setKeyValue] = useState('')
 
+  /* The key form and the knowledge form each get their own error map — one
+     shared map would let a stale message from one dialog mark a field in the
+     other. */
+  const keyErrors = useFieldErrors<'api_key'>('byok-key')
+  const kbErrors = useFieldErrors<'path'>('knowledge-source')
+
   const [kbOpen, setKbOpen] = useState(false)
   const [kbType, setKbType] = useState<'obsidian' | 'notion'>('notion')
   const [kbPath, setKbPath] = useState('')
@@ -124,7 +131,7 @@ export function AiModules() {
    * overwrite that choice with the default. Setting state at the call site is
    * both simpler and the only version that can honour `type`.
    */
-  const openKb = (type?: 'obsidian' | 'notion') => {
+  const openKb = useCallback((type?: 'obsidian' | 'notion') => {
     setKbType(
       type
         ?? (knowledge?.source_type as 'obsidian' | 'notion' | undefined)
@@ -132,13 +139,15 @@ export function AiModules() {
     )
     setKbPath(knowledge?.config?.path ?? '')
     setKbInterval(String(knowledge?.sync_interval_minutes ?? 30))
+    kbErrors.reset()
     setKbOpen(true)
-  }
+  }, [knowledge, kbErrors])
 
-  const openKeyDialog = (provider: KeyProvider) => {
+  const openKeyDialog = useCallback((provider: KeyProvider) => {
     setKeyValue('')
+    keyErrors.reset()
     setKeyProvider(provider)
-  }
+  }, [keyErrors])
 
   const saveKey = useMutation({
     mutationFn: ({ provider, value }: { provider: KeyProvider; value: string }) =>
@@ -147,6 +156,7 @@ export function AiModules() {
       qc.invalidateQueries({ queryKey: ['api-keys'] })
       setKeyProvider(null)
       setKeyValue('')
+      keyErrors.reset()
       toast.success(`${KEY_PROVIDER_LABEL[vars.provider]} key saved`)
     },
     // The server answers 422 with a generic message on purpose — the offending
@@ -229,6 +239,39 @@ export function AiModules() {
     },
     onError: () => toast.error('Could not start a sync'),
   })
+
+  /*
+   * `ApiKeyBody` is `Field(min_length=16, max_length=500)` server-side. Those
+   * are the only two rules that exist, so they are the two checked here — and
+   * neither message ever contains, or hints at, the value typed.
+   */
+  const submitKey = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!keyProvider) return
+    const value = keyValue.trim()
+    const ok = keyErrors.submit({
+      api_key: value === ''
+        ? 'Paste your API key.'
+        : value.length < 16
+          ? 'That looks too short to be a key — check you pasted all of it.'
+          : value.length > 500
+            ? 'That is longer than any provider key — check you pasted only the key.'
+            : undefined,
+    })
+    if (ok) saveKey.mutate({ provider: keyProvider, value })
+  }
+
+  /* An Obsidian source without a path is a field problem; a Notion source
+     takes no path at all, so the rule is conditional on the type. */
+  const submitKnowledge = (e: React.FormEvent) => {
+    e.preventDefault()
+    const ok = kbErrors.submit({
+      path: kbType === 'obsidian' && !kbPath.trim()
+        ? 'Enter the folder to index.'
+        : undefined,
+    })
+    if (ok) saveKnowledge.mutate()
+  }
 
   const configuredKeys = keys ?? {}
 
@@ -389,7 +432,7 @@ export function AiModules() {
         description="Your key, your bill. Control Tower charges nothing for AI — the provider bills you directly for what you use. The key is encrypted at rest, never shown again, and never leaves this account."
       >
         {keyProvider && (
-          <Form>
+          <Form noValidate onSubmit={submitKey}>
             {configuredKeys[keyProvider] && (
               <div>
                 <Label>Current key</Label>
@@ -397,14 +440,17 @@ export function AiModules() {
               </div>
             )}
             <div>
-              <Label>{configuredKeys[keyProvider] ? 'Replace with a new key' : `${KEY_PROVIDER_LABEL[keyProvider]} API key`}</Label>
+              <Label htmlFor="byok-key-input">{configuredKeys[keyProvider] ? 'Replace with a new key' : `${KEY_PROVIDER_LABEL[keyProvider]} API key`}</Label>
               <Input
+                id="byok-key-input"
                 type="password"
                 autoComplete="off"
                 value={keyValue}
-                onChange={(e: any) => setKeyValue(e.target.value)}
+                {...keyErrors.fieldProps('api_key')}
+                onChange={(e: any) => { keyErrors.clearField('api_key'); setKeyValue(e.target.value) }}
                 placeholder={keyProvider === 'anthropic' ? 'sk-ant-…' : 'sk-…'}
               />
+              <FieldError id={keyErrors.errorId('api_key')}>{keyErrors.errors.api_key}</FieldError>
               <Hint>
                 <ConsoleLink href={KEY_CONSOLE_URL[keyProvider]} target="_blank" rel="noreferrer noopener">
                   Get a key from {KEY_PROVIDER_LABEL[keyProvider]} <ExternalLink size={12} />
@@ -412,16 +458,17 @@ export function AiModules() {
               </Hint>
             </div>
             <Actions>
-              <Button
-                variant="primary"
-                loading={saveKey.isPending}
-                disabled={keyValue.trim().length < 16}
-                onClick={() => saveKey.mutate({ provider: keyProvider, value: keyValue.trim() })}
-              >
+              {/* The button used to be `disabled` below 16 characters, which is
+                  the server's own `min_length` — but a dead button explains
+                  nothing. It submits now and the length rule reports itself on
+                  the field. The key is never rendered back, logged, or put in
+                  the message. */}
+              <Button type="submit" variant="primary" loading={saveKey.isPending}>
                 Save key
               </Button>
               {configuredKeys[keyProvider] && (
                 <Button
+                  type="button"
                   variant="outline"
                   loading={testKey.isPending}
                   onClick={() => testKey.mutate(keyProvider)}
@@ -429,10 +476,11 @@ export function AiModules() {
                   Test key
                 </Button>
               )}
-              <Button variant="ghost" onClick={() => setKeyProvider(null)}>Cancel</Button>
+              <Button type="button" variant="ghost" onClick={() => setKeyProvider(null)}>Cancel</Button>
               <Spacer />
               {configuredKeys[keyProvider] && (
                 <Button
+                  type="button"
                   variant="destructive"
                   loading={removeKey.isPending}
                   onClick={() => removeKey.mutate(keyProvider)}
@@ -453,7 +501,8 @@ export function AiModules() {
         title="Default models"
         description="Which model each provider uses when nothing else is specified. Both are billed by that provider on your own key."
       >
-        <Form>
+        {/* No submit — each Select writes on change, so this box is not a form. */}
+        <Form as="div">
           <div>
             <Label>Default OpenAI model</Label>
             <Select
@@ -486,7 +535,7 @@ export function AiModules() {
         title={knowledge?.configured ? 'Configure knowledge source' : 'Connect a knowledge source'}
         description="Your own notes, indexed so chat and agents can cite them. Only you can read them."
       >
-        <Form>
+        <Form noValidate onSubmit={submitKnowledge}>
           <div>
             <Label>Source</Label>
             <Select
@@ -504,12 +553,15 @@ export function AiModules() {
 
           {kbType === 'obsidian' ? (
             <div>
-              <Label>Vault folder path</Label>
+              <Label htmlFor="knowledge-path-input">Vault folder path</Label>
               <Input
+                id="knowledge-path-input"
                 value={kbPath}
-                onChange={(e: any) => setKbPath(e.target.value)}
+                {...kbErrors.fieldProps('path')}
+                onChange={(e: any) => { kbErrors.clearField('path'); setKbPath(e.target.value) }}
                 placeholder="/Users/you/Documents/Vault"
               />
+              <FieldError id={kbErrors.errorId('path')}>{kbErrors.errors.path}</FieldError>
               <Hint>Must be a folder that exists on the server running Control Tower.</Hint>
             </div>
           ) : (
@@ -527,18 +579,14 @@ export function AiModules() {
           </div>
 
           <Actions>
-            <Button
-              variant="primary"
-              loading={saveKnowledge.isPending}
-              disabled={kbType === 'obsidian' && !kbPath.trim()}
-              onClick={() => saveKnowledge.mutate()}
-            >
+            <Button type="submit" variant="primary" loading={saveKnowledge.isPending}>
               {knowledge?.configured ? 'Save changes' : 'Connect'}
             </Button>
-            <Button variant="ghost" onClick={() => setKbOpen(false)}>Cancel</Button>
+            <Button type="button" variant="ghost" onClick={() => setKbOpen(false)}>Cancel</Button>
             <Spacer />
             {knowledge?.configured && (
               <Button
+                type="button"
                 variant="destructive"
                 loading={removeKnowledge.isPending}
                 onClick={() => removeKnowledge.mutate()}

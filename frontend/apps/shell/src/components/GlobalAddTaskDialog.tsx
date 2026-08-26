@@ -10,6 +10,7 @@ import { goalsApi } from '@ct/shared/api/goals'
 import { useUIStore } from '@ct/shared/stores/uiStore'
 import styled from 'styled-components'
 import { toast } from 'sonner'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 
 const FormGrid = styled.div`
   display: flex;
@@ -58,6 +59,8 @@ export function GlobalAddTaskDialog() {
   const [domain, setDomain] = useState('general')
   const [labels, setLabels] = useState('')
 
+  const f = useFieldErrors<'title'>('global-add-task')
+
   const { data: projects = [] } = useQuery({
     queryKey: ['workspace', 'projects'],
     queryFn: workspaceApi.getProjects,
@@ -81,6 +84,7 @@ export function GlobalAddTaskDialog() {
 
   useEffect(() => {
     if (addTaskModalOpen) {
+      f.reset()
       setTitle('')
       setDescription('')
       setGoalId('')
@@ -112,7 +116,7 @@ export function GlobalAddTaskDialog() {
         setSprintId('')
       }
     }
-  }, [addTaskModalOpen, addTaskDefaultProjectId, addTaskDefaultSprintId, projects, sprints])
+  }, [addTaskModalOpen, addTaskDefaultProjectId, addTaskDefaultSprintId, projects, sprints, f])
 
   const filteredGoals = useMemo(() => {
     return goals.filter(g => g.category === domain)
@@ -183,7 +187,11 @@ export function GlobalAddTaskDialog() {
     onError: () => toast.error('Could not create task'),
   })
 
-  const handleSave = () => {
+  /* Same rule as the workspace Tasks dialog: `TaskCreate.title` has no
+     `min_length` server-side, so this is the only thing stopping an empty one. */
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!f.submit({ title: title.trim() ? undefined : 'Say what needs to be done.' })) return
     createMutation.mutate({
       title,
       description: description || undefined,
@@ -220,10 +228,11 @@ export function GlobalAddTaskDialog() {
       description="Assign to a project, sprint, and life area so it shows up in the right views."
       size="md"
     >
-      <FormGrid>
+      <FormGrid as="form" noValidate onSubmit={handleSave}>
         <div>
           <Label htmlFor="global-task-title">Task title</Label>
-          <Input id="global-task-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="What needs to be done?" autoFocus />
+          <Input id="global-task-title" value={title} {...f.fieldProps('title')} onChange={e => { f.clearField('title'); setTitle(e.target.value) }} placeholder="What needs to be done?" autoFocus />
+          <FieldError id={f.errorId('title')}>{f.errors.title}</FieldError>
         </div>
         <div>
           <Label htmlFor="global-task-desc">Description (optional)</Label>
@@ -273,12 +282,11 @@ export function GlobalAddTaskDialog() {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setAddTaskModalOpen(false)}>Cancel</Button>
+          <Button type="button" variant="outline" onClick={() => setAddTaskModalOpen(false)}>Cancel</Button>
           <Button
+            type="submit"
             variant="primary"
-            disabled={!title.trim()}
             loading={createMutation.isPending}
-            onClick={handleSave}
           >
             Create Task
           </Button>

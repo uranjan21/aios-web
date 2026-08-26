@@ -12,6 +12,7 @@
 import { useMemo, useState, useCallback} from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { CalendarCheck, BarChart3, Flag, Trash2 } from 'lucide-react'
 import { Button, Dialog, ErrorState, Input, Select, SkeletonPage } from '@ledgr/ui'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
@@ -72,6 +73,7 @@ export function WeekPlanPage() {
   const [draft, setDraft] = useState({
     block_date: '', start_time: '09:00', end_time: '10:00', title: '', domain: '', is_priority: false,
   })
+  const f = useFieldErrors<'title' | 'end_time'>('plan-block')
 
   const weekStart = useMemo(() => {
     const d = mondayOf(new Date())
@@ -112,13 +114,15 @@ export function WeekPlanPage() {
       block_date: iso(weekDays[0]), start_time: '09:00', end_time: '10:00',
       title: '', domain: '', is_priority: false,
     })
+    f.reset()
     setAddOpen(true)
-  }, [weekDays])
+  }, [weekDays, f])
 
   /* A block in the week grid has no action affordance of its own, so clicking
      it opens the editor and Delete lives in the dialog footer. Calendar
      meetings carry no id and stay inert — they are not ours to edit. */
-  const openEdit = (b: PlanBlock) => {
+  const openEdit = useCallback((b: PlanBlock) => {
+    f.reset()
     setEditing(b)
     setDraft({
       block_date: b.block_date,
@@ -129,7 +133,7 @@ export function WeekPlanPage() {
       is_priority: b.is_priority,
     })
     setAddOpen(true)
-  }
+  }, [f])
 
   const closeDialog = () => {
     setAddOpen(false)
@@ -182,6 +186,25 @@ export function WeekPlanPage() {
     },
     onError: () => toast.error('Could not remove that block'),
   })
+
+  /*
+   * `PlanBlockCreate.title` is a bare required `str`, and **nothing anywhere
+   * checks that `end_time` is after `start_time`** — a block that ends before
+   * it starts is accepted by the API and then renders with negative hours in
+   * this page's own domain totals. Both are enforced here.
+   */
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const ok = f.submit({
+      title: draft.title.trim() ? undefined : 'Say what this block is for.',
+      end_time: draft.end_time <= draft.start_time
+        ? 'The end time must be after the start time.'
+        : undefined,
+    })
+    if (!ok) return
+    if (editing) update.mutate()
+    else create.mutate()
+  }
 
   const modules = useMemo<ModuleSpec[]>(() => {
     const blocks = data ?? []
@@ -321,7 +344,7 @@ export function WeekPlanPage() {
     }
 
     return mods
-  }, [data, weekDays, weekStart, todayIso, cal, openAdd])
+  }, [data, weekDays, weekStart, todayIso, cal, openAdd, openEdit])
 
   return (
     <PageContainer>
@@ -342,13 +365,15 @@ export function WeekPlanPage() {
           title={editing ? 'Edit focus block' : 'Add a focus block'}
           description="A time you are committing to one thing."
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <form noValidate onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <Field label="What">
               <Input
                 value={draft.title}
-                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                {...f.fieldProps('title')}
+                onChange={(e) => { f.clearField('title'); setDraft({ ...draft, title: e.target.value }) }}
                 placeholder="Deep work — sync guard"
               />
+              <FieldError id={f.errorId('title')}>{f.errors.title}</FieldError>
             </Field>
             <Field label="Day">
               <Select
@@ -365,7 +390,13 @@ export function WeekPlanPage() {
                 <Input type="time" value={draft.start_time} onChange={(e) => setDraft({ ...draft, start_time: e.target.value })} />
               </Field>
               <Field label="To">
-                <Input type="time" value={draft.end_time} onChange={(e) => setDraft({ ...draft, end_time: e.target.value })} />
+                <Input
+                  type="time"
+                  value={draft.end_time}
+                  {...f.fieldProps('end_time')}
+                  onChange={(e) => { f.clearField('end_time'); setDraft({ ...draft, end_time: e.target.value }) }}
+                />
+                <FieldError id={f.errorId('end_time')}>{f.errors.end_time}</FieldError>
               </Field>
             </div>
             <Field label="Life area">
@@ -387,6 +418,7 @@ export function WeekPlanPage() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               {editing && (
                 <Button
+                  type="button"
                   variant="destructive"
                   size="sm"
                   style={{ marginRight: 'auto' }}
@@ -396,18 +428,18 @@ export function WeekPlanPage() {
                   <Trash2 size={14} style={{ marginRight: 4 }} /> Delete
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={closeDialog}>Cancel</Button>
+              <Button type="button" variant="outline" size="sm" onClick={closeDialog}>Cancel</Button>
               <Button
+                type="submit"
                 size="sm"
-                disabled={!draft.title.trim() || create.isPending || update.isPending}
-                onClick={() => (editing ? update.mutate() : create.mutate())}
+                disabled={create.isPending || update.isPending}
               >
                 {editing
                   ? (update.isPending ? 'Saving…' : 'Save changes')
                   : (create.isPending ? 'Adding…' : 'Add block')}
               </Button>
             </div>
-          </div>
+          </form>
         </Dialog>
       </PageContent>
     </PageContainer>

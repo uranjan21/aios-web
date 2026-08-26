@@ -8,7 +8,7 @@
  * `timeline` and `table` render, so the page is a data transform plus
  * `ModuleGrid`, with no layout code of its own.
  */
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Milestone as MilestoneIcon, Flag, Trash2 } from 'lucide-react'
 import { Button, Card, Dialog, EmptyState, ErrorState, Input, Select, SkeletonPage } from '@ledgr/ui'
@@ -17,6 +17,7 @@ import { workspaceApi, type Milestone } from '@ct/shared/api/workspace'
 import { DOMAIN_OPTIONS } from '@ct/shared/config/domains'
 import { daysUntil, fromCalendarDate } from '@ct/shared/lib/calendarDate'
 import { toast } from 'sonner'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 
 /** ledgr-ui Input/Select take no `label` prop — the caller owns the label. */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -88,17 +89,20 @@ export function MilestonesSection({
   /** Non-null puts the shared dialog into edit mode. */
   const [editing, setEditing] = useState<Milestone | null>(null)
   const [draft, setDraft] = useState({ title: '', domain: '', due_date: '', status: 'upcoming' })
+  const f = useFieldErrors<'title'>('milestone')
 
-  const openAdd = () => {
+  const openAdd = useCallback(() => {
     setEditing(null)
     setDraft({ title: '', domain: '', due_date: '', status: 'upcoming' })
+    f.reset()
     setAddOpen(true)
-  }
+  }, [f])
 
   /* A timeline entry has no action column, so clicking it opens the editor and
      Delete lives in the dialog footer — same contract as the workspace tables. */
-  const openEdit = (m: Milestone) => {
+  const openEdit = useCallback((m: Milestone) => {
     setEditing(m)
+    f.reset()
     setDraft({
       title: m.title,
       domain: m.domain ?? '',
@@ -106,7 +110,7 @@ export function MilestonesSection({
       status: m.status,
     })
     setAddOpen(true)
-  }
+  }, [f])
 
   const closeDialog = () => {
     setAddOpen(false)
@@ -160,6 +164,15 @@ export function MilestonesSection({
     },
     onError: () => toast.error('Could not delete that milestone'),
   })
+
+  /* `MilestoneCreate.title` is a bare required `str` with no `min_length`, so
+     an empty title reaches the DB unless it is stopped here. */
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!f.submit({ title: draft.title.trim() ? undefined : 'Name the checkpoint.' })) return
+    if (editing) update.mutate()
+    else create.mutate()
+  }
 
   const modules = useMemo<ModuleSpec[]>(() => {
     const rows = data ?? []
@@ -230,8 +243,7 @@ export function MilestonesSection({
         })),
       })),
     ]
-     
-  }, [data, filterNode])
+  }, [data, filterNode, openAdd, openEdit])
 
   if (isLoading) return <SkeletonPage kpis={4} modules={[12]} />
   if (isError) return <ErrorState title="Could not load milestones" onRetry={() => refetch()} />
@@ -272,13 +284,15 @@ export function MilestonesSection({
         title={editing ? 'Edit milestone' : 'New milestone'}
         description="A dated checkpoint on the way to a goal."
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form noValidate onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Field label="Title">
             <Input
               value={draft.title}
-              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+              {...f.fieldProps('title')}
+              onChange={(e) => { f.clearField('title'); setDraft({ ...draft, title: e.target.value }) }}
               placeholder="Ship the billing rewrite"
             />
+            <FieldError id={f.errorId('title')}>{f.errors.title}</FieldError>
           </Field>
           <Field label="Life area">
             <Select
@@ -308,6 +322,7 @@ export function MilestonesSection({
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             {editing && (
               <Button
+                type="button"
                 variant="destructive"
                 size="sm"
                 style={{ marginRight: 'auto' }}
@@ -317,18 +332,18 @@ export function MilestonesSection({
                 <Trash2 size={14} style={{ marginRight: 4 }} /> Delete
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={closeDialog}>Cancel</Button>
+            <Button type="button" variant="outline" size="sm" onClick={closeDialog}>Cancel</Button>
             <Button
+              type="submit"
               size="sm"
-              disabled={!draft.title.trim() || create.isPending || update.isPending}
-              onClick={() => (editing ? update.mutate() : create.mutate())}
+              disabled={create.isPending || update.isPending}
             >
               {editing
                 ? (update.isPending ? 'Saving…' : 'Save changes')
                 : (create.isPending ? 'Adding…' : 'Add milestone')}
             </Button>
           </div>
-        </div>
+        </form>
       </Dialog>
     </>
   )

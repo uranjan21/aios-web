@@ -10,7 +10,7 @@
  * server derives the flag so the two cannot disagree, and this page never
  * writes one.
  */
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
@@ -20,6 +20,7 @@ import { Briefcase, Building2, Trash2 } from 'lucide-react'
 import { careerApi, type EmploymentRole } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 
 const Root = styled.div`
   display: flex;
@@ -95,6 +96,7 @@ export function ExperienceSection() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<EmploymentRole | null>(null)
   const [form, setForm] = useState({ ...EMPTY })
+  const f = useFieldErrors<'company' | 'title' | 'start_date' | 'end_date'>('experience')
 
   const { data: roles, isLoading } = useQuery({
     queryKey: ['career', 'roles'],
@@ -104,8 +106,9 @@ export function ExperienceSection() {
 
   const all = useMemo(() => roles ?? [], [roles])
 
-  const openNew = () => { setEditing(null); setForm({ ...EMPTY }); setOpen(true) }
-  const openEdit = (r: EmploymentRole) => {
+  const openNew = useCallback(() => { f.reset(); setEditing(null); setForm({ ...EMPTY }); setOpen(true) }, [f])
+  const openEdit = useCallback((r: EmploymentRole) => {
+    f.reset()
     setEditing(r)
     setForm({
       company: r.company, title: r.title, employment_type: r.employment_type,
@@ -113,7 +116,7 @@ export function ExperienceSection() {
       end_date: r.end_date ?? '', description: r.description ?? '',
     })
     setOpen(true)
-  }
+  }, [f])
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['career', 'roles'] })
 
@@ -134,6 +137,24 @@ export function ExperienceSection() {
     onSuccess: () => { invalidate(); toast.success(editing ? 'Role updated' : 'Role added'); setOpen(false) },
     onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to save role'),
   })
+
+  /*
+   * These three were a chain of toasts — "Company and title are required",
+   * "Pick a start date" — which name the problem but not the field. The end/start
+   * ordering mirrors the server, which 422s when `end_date < start_date`.
+   */
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const ok = f.submit({
+      company: form.company.trim() ? undefined : 'Name the company.',
+      title: form.title.trim() ? undefined : 'Name the role.',
+      start_date: form.start_date ? undefined : 'Pick the date you started.',
+      end_date: form.start_date && form.end_date && form.end_date < form.start_date
+        ? 'The end date cannot be before the start date.'
+        : undefined,
+    })
+    if (ok) save.mutate()
+  }
 
   const remove = useMutation({
     mutationFn: (id: string) => careerApi.deleteRole(id),
@@ -194,8 +215,7 @@ export function ExperienceSection() {
         })),
       },
     ]
-     
-  }, [all])
+  }, [all, openNew, openEdit])
 
   if (isLoading) return <SkeletonPage kpis={4} modules={[12]} />
 
@@ -222,20 +242,17 @@ export function ExperienceSection() {
         onOpenChange={(o) => { if (!o) setOpen(false) }}
         size="md"
       >
-        <Form onSubmit={e => {
-          e.preventDefault()
-          if (!form.company.trim() || !form.title.trim()) { toast.error('Company and title are required'); return }
-          if (!form.start_date) { toast.error('Pick a start date'); return }
-          save.mutate()
-        }}>
+        <Form noValidate onSubmit={handleSubmit}>
           <Pair>
             <div>
               <Label>Company</Label>
-              <Input value={form.company} onChange={(e: any) => setForm(f => ({ ...f, company: e.target.value }))} placeholder="Takeda" autoFocus required />
+              <Input value={form.company} {...f.fieldProps('company')} onChange={(e: any) => { f.clearField('company'); setForm(prev => ({ ...prev, company: e.target.value })) }} placeholder="Takeda" autoFocus />
+              <FieldError id={f.errorId('company')}>{f.errors.company}</FieldError>
             </div>
             <div>
               <Label>Title</Label>
-              <Input value={form.title} onChange={(e: any) => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Full Stack Developer" required />
+              <Input value={form.title} {...f.fieldProps('title')} onChange={(e: any) => { f.clearField('title'); setForm(prev => ({ ...prev, title: e.target.value })) }} placeholder="Full Stack Developer" />
+              <FieldError id={f.errorId('title')}>{f.errors.title}</FieldError>
             </div>
           </Pair>
 
@@ -253,11 +270,13 @@ export function ExperienceSection() {
           <Pair>
             <div>
               <Label>Started</Label>
-              <Input type="date" value={form.start_date} onChange={(e: any) => setForm(f => ({ ...f, start_date: e.target.value }))} required />
+              <Input type="date" value={form.start_date} {...f.fieldProps('start_date')} onChange={(e: any) => { f.clearField('start_date'); setForm(prev => ({ ...prev, start_date: e.target.value })) }} />
+              <FieldError id={f.errorId('start_date')}>{f.errors.start_date}</FieldError>
             </div>
             <div>
               <Label>Ended</Label>
-              <Input type="date" value={form.end_date} onChange={(e: any) => setForm(f => ({ ...f, end_date: e.target.value }))} />
+              <Input type="date" value={form.end_date} {...f.fieldProps('end_date')} onChange={(e: any) => { f.clearField('end_date'); setForm(prev => ({ ...prev, end_date: e.target.value })) }} />
+              <FieldError id={f.errorId('end_date')}>{f.errors.end_date}</FieldError>
               <Hint>Leave blank if this is your current role.</Hint>
             </div>
           </Pair>
