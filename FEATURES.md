@@ -3,7 +3,9 @@
 > **Accuracy contract.** This file states what a user can actually *reach in the running
 > app*, not what exists in the codebase. A capability that computes on the server but has
 > no screen is listed under **Built but not reachable**, never as a shipped feature.
-> Verified against source on **2026-08-23** (`FEATURE_AUDIT_2026_08_23.md`).
+> Verified against source **and walked in a browser** on **2026-08-23** against a
+> real Postgres with a seeded account — see the walk table in
+> `docs/SHIPMENT_READINESS_2026_08_23.md`.
 >
 > **History of drift.** On 2026-07-21 this file advertised a "Premium Animated Loader" and
 > "business-specific dashboards" that existed in no form. Those were removed — but the file

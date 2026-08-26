@@ -55,6 +55,36 @@ Two feature-level claims were also wrong, both found by fixing the thing:
 | **R9** | ✅ **partly** | The chat pricing rule is extracted to `usage.credits_for_input_tokens` and pinned by 12 tests (floor of 1, the 8k boundary, monotonicity, never free). **It is tested, not signed off** — whether long-prompt users should pay more is still your call, but the behaviour can no longer drift unnoticed. The other two 08-17 changes (`_resolve_category` 404, push cap at 20) remain unsigned-off. |
 | **Frontend tests** | ✅ | 2 → 15. Covers the two new module kinds and the localStorage migration, whose failure mode (clearing local data before uploads succeed) would destroy the entries it exists to rescue. Also fixed a repo-wide trap: `globals: false` meant Testing Library never registered cleanup, so tests were order-dependent. |
 
+### Browser walk — DONE (2026-08-23)
+
+The standing caveat in every previous entry ("not walked in a browser") is
+closed. My earlier claim that it was impossible here was **wrong**: `which
+postgres` missed the binaries, which live at `/usr/lib/postgresql/16/bin`.
+A real stack was brought up — Postgres 16 + `postgresql-16-pgvector`, migrations
+to head (**76 tables from empty**), the seeder (**2,507 rows**), uvicorn, and
+the Vite dev server — then driven with Playwright/Chromium.
+
+**10 routes × 2 widths (1280px, 375px): zero horizontal overflow** —
+`scrollWidth == clientWidth` on all 20 combinations. **No 4xx/5xx on any API
+call.** The only console errors were the sandbox proxy blocking Google Fonts.
+
+Interactions exercised end-to-end, against real data:
+
+| Flow | Result |
+|---|---|
+| Discoveries 👍 | click → `POST /insights/discoveries/{id}` **200** → row persisted with `feedback=1`, `status='kept'`. The engine's adaptive threshold can finally receive signal. |
+| Daily brief | renders real generated prose on `/app` |
+| Schedule | shows real plan blocks (09:00, 14:00), no localStorage |
+| Onboarding | "Show me" → "Connect Gmail" → navigates to Connections, `POST /auth/me/onboarded` **200**, `onboarded_at` persisted, wizard gone |
+| Google Fit | card renders 7 days of synced steps/km/bpm/kg once a `gfit` credential exists; correctly absent when not linked |
+| Data export | downloads a real file — **60 tables, 2,574 rows, zero credential leak**, exactly one `users` row |
+| Merchant rules | create **200**, delete **200** |
+| Delete account (FIN-4) | no transfers → **200**, gone from the DB. With 5 transfers → **409** showing *"This account is used by 5 transfers…"* |
+
+**One real bug found by running it:** `seed_dummy_data.py` still imported the
+deleted quotes model and crashed on every run. Nothing else exercises that
+script, and the reachability guard only covers frontend api modules. Fixed.
+
 ### Gates after remediation
 
 | Gate | Result |
@@ -72,7 +102,7 @@ Two feature-level claims were also wrong, both found by fixing the thing:
 |---|---|---|
 | Self-host | ✅ GO | ✅ GO |
 | Private beta | 🟡 3 fixes | ✅ **GO** — B1 was already fixed, R4 is done; only B2 (set the DSNs) remains, and it is config, not code |
-| Public free signup | 🔴 NO-GO | 🟡 **close** — R1, R2, R5 all shipped. Wants B2 + a restore-tested backup (B3) |
+| Public free signup | 🔴 NO-GO | 🟡 **close** — R1, R2, R5 shipped and now walked in a browser. Wants B2 + a restore-tested backup (B3) |
 | Paying customers | 🔴 NO-GO | 🔴 **NO-GO** — unchanged. Billing has still never run against live Stripe, and R9's three behaviour changes are still unsigned-off |
 
 ### Still open
@@ -89,9 +119,9 @@ Two feature-level claims were also wrong, both found by fixing the thing:
   tracking id (FIN-4 is now closed). None is user-facing: they are superseded
   paths (CC-1, CAR-1), un-surfaced analyses (CAR-2, HLT-1, WS-1), an
   un-curatable food library (NUT-1) and the forecast engine (R6).
-- **Nothing here was walked in a browser.** Every frontend change is verified by
-  typecheck + build + lint only; `/app/*` is auth-gated. Walk it at 1280px and
-  375px with a seeded account before shipping.
+- **The walk is done** (see above) — against a local Postgres, not the VPS. It
+  proves the code works; it does not prove the *deployed* stack works. Re-check
+  `/health`, the Caddy edge and the migration run after the first real deploy.
 
 ---
 

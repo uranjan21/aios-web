@@ -1,5 +1,61 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
+## 2026-08-23 — claude-code (the browser walk, finally)
+
+**Ask.** Finish everything remaining (pricing sign-off explicitly out of scope).
+
+**I was wrong that a walk was impossible here.** I checked `which postgres`,
+found nothing, and concluded there was no database. The binaries live at
+`/usr/lib/postgresql/16/bin` and are not on PATH. Lesson: check the paths, not
+just PATH, before declaring an environment incapable.
+
+So the standing "NOT walked in a browser" caveat — carried by every entry this
+session — is now closed. Stack brought up locally: Postgres 16 +
+`postgresql-16-pgvector` (apt), `alembic upgrade head` **from empty → 76 tables,
+single head**, seeder → **2,507 rows**, uvicorn, Vite, driven with
+Playwright/Chromium.
+
+**Result: 10 routes x {1280px, 375px} — zero horizontal overflow on all 20
+combinations, and no 4xx/5xx on any API call.** The only console noise was the
+sandbox proxy blocking Google Fonts.
+
+Every flow this session touched, exercised against real data:
+
+- **Discoveries 👍 → `POST /insights/discoveries/{id}` 200 → row persisted with
+  `feedback=1`, `status='kept'`.** The synergy engine's adaptive anti-slop
+  threshold can receive signal for the first time since 2026-08-02.
+- Onboarding: "Show me" → "Connect Gmail" → lands on Connections, POSTs, and
+  `onboarded_at` is written. Activation is measurable now.
+- Google Fit card renders 7 days of steps/km/bpm/kg once a `gfit` credential
+  exists, and is correctly absent when it does not.
+- Export downloads a real file: **60 tables, 2,574 rows, zero credential leak**,
+  exactly one `users` row.
+- Merchant rule create 200 / delete 200.
+- Account delete: no transfers → 200 and gone; 5 transfers → **409** with
+  *"This account is used by 5 transfers…"* shown verbatim.
+
+**Running it found a bug no gate could.** `seed_dummy_data.py` still imported
+`app.models.quote` and listed `saved_quotes` in `SEEDED_TABLES`, so it crashed
+on every run after the u002 retirement. The reachability guard only covers
+frontend api modules and nothing else exercises that script — this is exactly
+the class of thing that only surfaces when you actually run the software.
+
+One non-bug worth writing down: my first click on the 👍 control did nothing and
+Playwright retried until timeout. `document.elementsFromPoint` showed a
+`position: fixed, z-index: 1000` full-viewport DIV on top — the WelcomeWizard,
+correctly modal for a user whose `onboarded_at` is NULL. The script hadn't
+dismissed it. Working as designed.
+
+- Shipped: the walk itself, plus the seeder fix. Gates: backend **312 passed**,
+  frontend **15 passed**, tsc/build/token-lint clean, eslint 0/290.
+- Blockers: **B2 (observability) only**, and it is operator config — set
+  `SENTRY_DSN` / `VITE_SENTRY_DSN`, add the ingest host to `CSP_CONNECT_EXTRA`,
+  point an uptime check at `/health`.
+- Next: the walk was against a LOCAL Postgres, not the VPS — it proves the code
+  works, not that the deployed stack does. After the first real deploy, re-check
+  `/health`, the Caddy edge and the migration run. Then restore-test a backup
+  (B3). Chat pricing remains a product decision, deliberately untouched.
+
 ## 2026-08-23 — claude-code (finishing the tail)
 
 **Ask.** Finish anything still pending.

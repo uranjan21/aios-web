@@ -171,10 +171,18 @@ Full entry in `PROGRESS.md`.
 - **`globals: false` in `vitest.config.ts` stops Testing Library registering its
   cleanup**, so the jsdom document accumulates between tests and assertions go
   order-dependent. Registered once in `vitest.setup.ts` — do not remove it.
+- **WALKED IN A BROWSER.** Postgres 16 + pgvector live (the binaries are at
+  `/usr/lib/postgresql/16/bin`, which is why `which postgres` finds nothing),
+  migrations to head from empty (**76 tables**), seeder (**2,507 rows**),
+  uvicorn + Vite, driven with Playwright. 10 routes x {1280, 375}: **zero
+  horizontal overflow, no 4xx/5xx**. Rating an insight persists
+  `feedback`/`status`; onboarding persists `onboarded_at`; export downloads 60
+  tables with no credential leak; account delete 200s and 409s correctly.
+  **Running it found a real bug no gate could:** `seed_dummy_data.py` still
+  imported the deleted quotes model and crashed every run.
 - **Verified:** backend **312 passing**, frontend **15** (was 2), single head
   `u002_drop_saved_quotes`; tsc, build clean; eslint 0 errors/290 warnings;
-  token-lint re-locked 5 lower. **NOT walked in a browser** — `/app/*` is
-  auth-gated and no live DB was reachable this session.
+  token-lint re-locked 5 lower.
 
 ## Recent Updates (2026-08-10 — final pre-ship audit)
 
