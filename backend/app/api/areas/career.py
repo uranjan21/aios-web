@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -414,7 +414,7 @@ async def update_journal_entry(
     if "entry_date" in payload and payload["entry_date"]:
         entry.entry_date = payload["entry_date"]
 
-    entry.updated_at = datetime.now(timezone.utc)
+    entry.updated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(entry)
     return entry

@@ -3,7 +3,7 @@ from datetime import datetime, date, time
 from typing import Optional
 from sqlmodel import SQLModel, Field
 from sqlalchemy import CheckConstraint, Column, ForeignKey
-from sqlalchemy.dialects.postgresql import TIMESTAMP, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 
 class Project(SQLModel, table=True):
@@ -21,8 +21,8 @@ class Project(SQLModel, table=True):
     due_date: Optional[date] = None
     labels: Optional[str] = None  # comma-separated labels
 
-    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
-    updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class Sprint(SQLModel, table=True):
@@ -40,8 +40,8 @@ class Sprint(SQLModel, table=True):
     status: str = Field(default="planned")  # planned, active, completed
     capacity: Optional[int] = None  # story points / task capacity target
 
-    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
-    updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class Task(SQLModel, table=True):
@@ -80,8 +80,8 @@ class Task(SQLModel, table=True):
     due_date: Optional[date] = None
     labels: Optional[str] = None  # comma-separated labels
 
-    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
-    updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class Milestone(SQLModel, table=True):
@@ -120,8 +120,8 @@ class Milestone(SQLModel, table=True):
     status: str = Field(default="upcoming")  # upcoming, at_risk, hit, missed
     position: int = Field(default=0)
 
-    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
-    updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class PlanBlock(SQLModel, table=True):
@@ -154,5 +154,5 @@ class PlanBlock(SQLModel, table=True):
     # The single thing that must happen that day. At most one per date.
     is_priority: bool = Field(default=False)
 
-    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
-    updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)

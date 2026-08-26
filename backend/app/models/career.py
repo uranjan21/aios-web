@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from typing import Optional
 from sqlmodel import SQLModel, Field, Column
 from sqlalchemy import CheckConstraint, Text, UniqueConstraint, ForeignKey
@@ -84,15 +84,18 @@ class CareerJournalEntry(SQLModel, table=True):
     title: Optional[str] = Field(default=None)
     tags: Optional[str] = Field(default=None)
     word_count: int = Field(default=0, nullable=False)
-    # Explicit TIMESTAMPTZ — the defaults below are tz-aware, and a naive
-    # column makes asyncpg reject every insert.
+    # Naive UTC, like every other timestamp in this file and in the schema.
+    # This was the codebase's one genuinely tz-aware writer until migration
+    # n002_timestamp_normalisation; the column is now
+    # TIMESTAMP WITHOUT TIME ZONE, so an aware default would make asyncpg
+    # reject every insert.
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column=Column(TIMESTAMP(timezone=True), nullable=False),
+        default_factory=lambda: datetime.utcnow(),
+        sa_column=Column(TIMESTAMP, nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column=Column(TIMESTAMP(timezone=True), nullable=False),
+        default_factory=lambda: datetime.utcnow(),
+        sa_column=Column(TIMESTAMP, nullable=False),
     )
 
 
