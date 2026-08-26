@@ -444,9 +444,6 @@ ALLOWED_UNREACHABLE_MEMBERS: dict[str, str] = {
     "areas.ts:skillGap": "CAR-2 - no surface since Career lost its Roadmap tab",
     "areas.ts:workoutPrs": "HLT-1 - personal-best analysis has no card",
     "workspace.ts:getStats": "WS-1 - workspace stats have no card",
-    # A bank account can be created and edited but NOT deleted from any screen.
-    # This one is a real user-facing gap, not dead code.
-    "areas.ts:deleteAccount": "FIN-4 - no delete affordance in AccountManager",
     # Manual re-run of the ingestion pipeline. InboxTab triggers the agent
     # instead, which is the same work by a different path.
     "areas.ts:ingestRun": "FIN-5 - InboxTab triggers the agent instead",

@@ -202,3 +202,58 @@ async def test_public_free_launch_hard_caps_ai(user_b, db_session_factory, monke
     # Admins are never capped
     async with db_session_factory() as db:
         assert await ai_allowed(db, _principal(user_b, is_admin=True)) is True
+
+
+# ── Chat credit pricing (R9) ─────────────────────────────────────────────────
+# On 2026-08-17 chat metering changed from a flat 1 credit per response to one
+# credit per 8k input tokens. That is a PRICING change — a user who sends long
+# prompts is charged more than they were the day before — and it shipped with no
+# test, flagged in docs/AUDIT_2026_08_16.md as needing sign-off before launch.
+# These pin the behaviour so the rule cannot drift silently.
+
+import pytest
+
+from app.services.billing.usage import (
+    INPUT_TOKENS_PER_CREDIT,
+    credits_for_input_tokens,
+)
+
+
+@pytest.mark.parametrize("tokens", [0, 1, 500, 4_000, 7_999, 8_000])
+def test_an_ordinary_turn_still_costs_exactly_one_credit(tokens):
+    """The whole point of the floor: normal use is unchanged by the new model."""
+    assert credits_for_input_tokens(tokens) == 1
+
+
+def test_a_response_is_never_free():
+    """Including when the provider reports no usage at all — a missing usage
+    field must not silently hand out free inference."""
+    assert credits_for_input_tokens(0) == 1
+    assert credits_for_input_tokens(-1) == 1
+
+
+@pytest.mark.parametrize(
+    "tokens,expected",
+    [
+        (8_001, 2),      # one token over a boundary rounds UP, never down
+        (16_000, 2),     # exactly two buckets is two, not three
+        (16_001, 3),
+        (80_000, 10),    # a deliberately huge prompt pays for what it consumes
+        (200_000, 25),
+    ],
+)
+def test_large_prompts_are_charged_proportionally(tokens, expected):
+    assert credits_for_input_tokens(tokens) == expected
+
+
+def test_charge_is_monotonic_in_input_size():
+    """A bigger prompt must never cost less than a smaller one."""
+    seen = [credits_for_input_tokens(n) for n in range(0, 40_000, 137)]
+    assert seen == sorted(seen)
+
+
+def test_bucket_size_is_the_documented_one():
+    """Guards the constant itself: changing it changes every customer's bill."""
+    assert INPUT_TOKENS_PER_CREDIT == 8_000
+    assert credits_for_input_tokens(INPUT_TOKENS_PER_CREDIT) == 1
+    assert credits_for_input_tokens(INPUT_TOKENS_PER_CREDIT + 1) == 2

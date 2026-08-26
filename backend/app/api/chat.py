@@ -131,9 +131,6 @@ async def token_budget(current_user=Depends(get_current_user)):
 # context window.
 MAX_MESSAGE_CHARS = 32_000
 MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024
-# 1 credit per this many input tokens, minimum 1 per response — a normal turn
-# still costs 1, a deliberately huge one costs what it consumes.
-INPUT_TOKENS_PER_CREDIT = 8_000
 
 
 def _attachment_bytes(attachments) -> int:
@@ -474,8 +471,10 @@ async def chat_ws_handler(websocket: WebSocket, user_id: str) -> None:
                     # Meter per completed response (Phase 2) — proportional to the
                     # input actually sent, so a huge prompt no longer bills the
                     # same single credit as a one-line question.
-                    from app.services.billing.usage import record_ai_usage
-                    units = max(1, -(-turn_input_tokens // INPUT_TOKENS_PER_CREDIT))
+                    from app.services.billing.usage import (
+                        credits_for_input_tokens, record_ai_usage,
+                    )
+                    units = credits_for_input_tokens(turn_input_tokens)
                     async with AsyncSessionLocal() as session:
                         await record_ai_usage(session, user_id, units=units, source="chat")
 

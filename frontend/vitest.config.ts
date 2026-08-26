@@ -16,6 +16,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: false,
+    // Registers Testing Library's cleanup — see the note in the file. Without
+    // it, `globals: false` leaves the DOM dirty between tests.
+    setupFiles: ['./vitest.setup.ts'],
     include: [
       'apps/*/src/**/*.test.{ts,tsx}',
       'packages/*/src/**/*.test.{ts,tsx}',

@@ -23,6 +23,34 @@ logger = logging.getLogger(__name__)
 
 METERED_MODULES = {"chat", "agents"}
 
+# ── Chat pricing ──────────────────────────────────────────────────────────────
+# 1 credit per this many input tokens, minimum 1 per response.
+#
+# This replaced a FLAT 1 credit per response on 2026-08-17, which is a pricing
+# change and not merely a bug fix: a user who sends very long prompts now burns
+# credits faster than they did before. It exists because a flat rate made an
+# unbounded prompt cost the same as a one-line question, so provider spend was
+# uncoupled from what we metered.
+#
+# It lives here, next to the rest of the quota model, rather than inline in the
+# chat WebSocket handler where it started — a rule that decides what a customer
+# is charged should be a named function with tests, not a ceil-division idiom
+# buried in a stream loop.
+INPUT_TOKENS_PER_CREDIT = 8_000
+
+
+def credits_for_input_tokens(input_tokens: int) -> int:
+    """Credits owed for one chat response, given the input tokens it consumed.
+
+    Ceiling division with a floor of 1: a normal turn still costs exactly 1
+    credit (which is what keeps the change invisible to ordinary use), and a
+    deliberately huge one costs roughly what it consumes. Never returns 0, so a
+    response can never be free — including when the provider reports no usage.
+    """
+    if input_tokens <= 0:
+        return 1
+    return max(1, -(-input_tokens // INPUT_TOKENS_PER_CREDIT))
+
 
 def _month_start(now: datetime | None = None) -> datetime:
     now = now or datetime.utcnow()

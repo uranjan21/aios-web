@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 import {
   Button, Card, EmptyState, ErrorState, Input, Select, Sheet, SkeletonList, SkeletonPage,
+  ConfirmDialog,
 } from '@ledgr/ui'
 import { Trash2, Wallet, PencilLine, ArrowLeftRight, TrendingUp, TrendingDown, Landmark, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
@@ -10,7 +11,7 @@ import styled from 'styled-components'
 import dayjs from 'dayjs'
 import { financeApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
-import { formatCurrency } from '@ct/shared/lib/utils'
+import { errorMessage, formatCurrency } from '@ct/shared/lib/utils'
 import { TransactionModal, type Txn, type Kind } from './TransactionsTab'
 import type { LedgerEntry } from '@ct/shared/types'
 
@@ -250,6 +251,8 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
     }
   }, [account])
 
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+
   const { data: ledger, isLoading: ledgerLoading } = useQuery({
     queryKey: ['finance', 'accounts', account?.id, 'ledger'],
     queryFn: () => financeApi.accountLedger(account!.id, 100),
@@ -265,6 +268,33 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
       toast.success('Account updated')
     },
     onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to update account'),
+  })
+
+  /*
+   * FIN-4. `financeApi.deleteAccount` shipped with the endpoint and had NO
+   * caller anywhere in the app until 2026-08-23 — an account could be created
+   * and edited but never removed. Surfaced by
+   * `test_api_members_are_reachable`.
+   *
+   * The backend already handles the hard case properly: child rows detach via
+   * ON DELETE SET NULL, but transfers are RESTRICT (a transfer with one side
+   * missing is meaningless), so it returns a 409 naming the count. That message
+   * is worth showing verbatim rather than replacing with a generic failure —
+   * it tells the user exactly what to fix.
+   */
+  const deleteAccountMutation = useMutation({
+    mutationFn: (id: string) => financeApi.deleteAccount(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['finance', 'accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['finance', 'net-worth'] })
+      setConfirmDeleteOpen(false)
+      onClose()
+      toast.success('Account deleted')
+    },
+    /* `errorMessage` rather than reading `.detail` inline: the backend returns
+       a STRING detail here (the 409 naming the transfer count) but FastAPI's
+       validation errors come back as an array, and the helper handles both. */
+    onError: (e: unknown) => toast.error(errorMessage(e, 'Failed to delete account')),
   })
 
   const deleteTxnMutation = useMutation({
@@ -372,6 +402,14 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
               >
                 Save changes
               </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setConfirmDeleteOpen(true)}
+                loading={deleteAccountMutation.isPending}
+              >
+                <Trash2 size={14} /> Delete account
+              </Button>
             </SaveRow>
           </Section>
 
@@ -438,6 +476,20 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
             </TxnList>
           </TxnSection>
       </Sheet>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title={`Delete ${account?.name ?? 'this account'}?`}
+        description={
+          'Transactions logged against it are kept and simply lose their account. ' +
+          'Transfers are the exception — if any reference this account the delete is ' +
+          'refused, because a transfer cannot exist with one side missing.'
+        }
+        confirmLabel="Delete account"
+        destructive
+        onConfirm={() => { if (account) deleteAccountMutation.mutate(account.id) }}
+      />
 
       {/* Reuse the full TransactionModal for editing individual transactions */}
       <TransactionModal
