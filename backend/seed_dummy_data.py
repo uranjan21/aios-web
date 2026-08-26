@@ -73,7 +73,7 @@ SEEDED_TABLES = {
     "career_employment_roles", "skill_inventory", "job_opportunities",
     "macro_goals", "goal_progress", "projects", "sprints", "tasks", "workspace_milestones",
     "chat_sessions", "chat_messages", "agent_actions",
-    "insights", "forecasts", "automation_rules", "saved_quotes", "knowledge_sources",
+    "insights", "forecasts", "automation_rules", "knowledge_sources",
 }
 
 
@@ -870,7 +870,6 @@ async def seed_assistant_and_insights(s: AsyncSession, uid):
     from app.models.insights import Insight, Briefing, BriefingPreference
     from app.models.forecast import Forecast
     from app.models.automations import AutomationRule
-    from app.models.quote import SavedQuote
     from app.models.captures import Capture
     from app.models.action import AgentAction
     from app.models.knowledge import KnowledgeSource
@@ -960,16 +959,8 @@ async def seed_assistant_and_insights(s: AsyncSession, uid):
             created_at=NOW - timedelta(days=d),
         ))
 
-    s.add_all([
-        SavedQuote(user_id=uid, text="The best time to plant a tree was 20 years ago. The second best time is now.",
-                   author="Chinese proverb", favorite=True),
-        SavedQuote(user_id=uid, text="What gets measured gets managed.", author="Peter Drucker",
-                   favorite=False),
-        SavedQuote(user_id=uid, text="Slow is smooth and smooth is fast.", author="Unknown",
-                   favorite=True),
-        SavedQuote(user_id=uid, text="You do not rise to the level of your goals. You fall to the level of your systems.",
-                   author="James Clear", favorite=False),
-    ])
+    # (Saved quotes were seeded here until the feature was retired on
+    # 2026-08-23 — router, model and table all dropped in migration u002.)
 
     s.add_all([
         Capture(user_id=uid, raw_text="Call the bank about the Amex limit increase", processed=False),
