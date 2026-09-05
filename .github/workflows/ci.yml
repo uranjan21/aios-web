@@ -158,9 +158,11 @@ jobs:
             pgvector/pgvector:pg15
           docker run -d --name ct-redis --network ct-ci redis:7-alpine
 
+          # `cmd && break` under `set -e` depends on a subtle exemption rule;
+          # spell the condition out instead.
           echo "waiting for postgres"
           for _ in $(seq 1 60); do
-            docker exec ct-db pg_isready -U ct -d ct >/dev/null 2>&1 && break
+            if docker exec ct-db pg_isready -U ct -d ct >/dev/null 2>&1; then break; fi
             sleep 2
           done
 
