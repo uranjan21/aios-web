@@ -4,13 +4,13 @@ import uuid
 from datetime import datetime
 
 import tiktoken
-from openai import AsyncOpenAI
 from sqlalchemy import delete as sa_delete
 from sqlmodel import select
 
-from app.core.config import get_settings
 from app.db.session import AsyncSessionLocal
 from app.models.vault import VaultChunk, VaultFile
+from app.services.ai.keys import get_user_api_key
+from app.services.ai.openai_client import get_openai_client
 
 logger = logging.getLogger(__name__)
 
@@ -19,20 +19,6 @@ OVERLAP_TOKENS = 50
 EMBEDDING_MODEL = "text-embedding-3-small"
 
 _encoder = tiktoken.get_encoding("cl100k_base")
-
-_openai_client = None
-
-
-def _get_openai_client(api_key: str | None = None):
-    # We create a new client if api_key is provided to avoid caching the user's key globally
-    if api_key:
-        return AsyncOpenAI(api_key=api_key)
-    
-    global _openai_client
-    settings = get_settings()
-    if _openai_client is None:
-        _openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
-    return _openai_client
 
 
 def _chunk_text(text: str) -> list[str]:
@@ -47,8 +33,8 @@ def _chunk_text(text: str) -> list[str]:
     return chunks
 
 
-async def _embed_texts(texts: list[str]) -> list[list[float]]:
-    client = _get_openai_client()
+async def _embed_texts(texts: list[str], api_key: str) -> list[list[float]]:
+    client = get_openai_client(api_key)
     response = await client.embeddings.create(model=EMBEDDING_MODEL, input=texts)
     return [item.embedding for item in response.data]
 
@@ -57,9 +43,12 @@ async def embed_vault_file(user_id: uuid.UUID, rel_path: str, content: str) -> N
     if not content.strip():
         return
 
-    settings = get_settings()
-    if not settings.openai_api_key:
-        logger.warning("OPENAI_API_KEY not set — skipping embedding for %s", rel_path)
+    # BYOK: embeddings run on the vault owner's own OpenAI key. No key means no
+    # indexing — a background sweep, so it degrades silently instead of raising.
+    async with AsyncSessionLocal() as session:
+        api_key = await get_user_api_key(session, user_id, "openai")
+    if not api_key:
+        logger.debug("No OpenAI key for user %s — skipping embedding for %s", user_id, rel_path)
         return
 
     chunks = _chunk_text(content)
@@ -67,7 +56,7 @@ async def embed_vault_file(user_id: uuid.UUID, rel_path: str, content: str) -> N
         return
 
     try:
-        embeddings = await _embed_texts(chunks)
+        embeddings = await _embed_texts(chunks, api_key)
     except Exception as e:
         logger.error("Embedding failed for %s: %s", rel_path, e)
         return

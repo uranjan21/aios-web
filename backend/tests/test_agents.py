@@ -97,31 +97,24 @@ async def test_build_context_scoped(user_a, db_session_factory):
 
 
 @pytest.mark.asyncio
-async def test_agent_run_fallback_quota_exceeded(user_a, db_session_factory, monkeypatch):
-    from app.services.billing.usage import record_ai_usage
-    from app.core.config import get_settings
-    
-    s = get_settings()
-    monkeypatch.setattr(s, "environment", "production")
-    monkeypatch.setattr(s, "ai_free_monthly_credits", 2)
+async def test_agent_run_fallback_when_user_has_no_api_key(user_a, db_session_factory):
+    """Replaces the old quota-exceeded test.
 
-    async with db_session_factory() as db:
-        # Exceed quota
-        await record_ai_usage(db, user_a.id, 3, "chat")
-        await db.commit()
-
+    AI credits and quotas were deleted with billing (2026-08-17). The remaining
+    reason a scheduled agent cannot call an LLM is that the user has not
+    supplied their own provider key — and a background job has nobody to
+    prompt, so it must degrade to facts-only rather than raise or retry-storm.
+    `user_a` deliberately has no key installed here.
+    """
     output = await run_agent_task("aios-health-coach", user_a.id)
-    assert output.startswith(FALLBACK_WARNING_PREFIX)
     assert "HEALTH" in output
+    # Degraded, not crashed: either the generic fallback banner or the
+    # BYOK-specific "add your key" hint is acceptable.
+    assert output.startswith(FALLBACK_WARNING_PREFIX) or "API key" in output
 
 
 @pytest.mark.asyncio
-async def test_agent_run_fallback_llm_failure(user_a, db_session_factory, monkeypatch):
-    from app.services.billing.usage import record_ai_usage
-    from app.core.config import get_settings
-    
-    s = get_settings()
-    monkeypatch.setattr(s, "ai_free_monthly_credits", 100) # under quota
+async def test_agent_run_fallback_llm_failure(user_a, db_session_factory, monkeypatch, user_a_has_key):
 
     # Mock generate_text to fail
     async def mock_generate_text(*args, **kwargs):
@@ -135,11 +128,7 @@ async def test_agent_run_fallback_llm_failure(user_a, db_session_factory, monkey
 
 
 @pytest.mark.asyncio
-async def test_agent_run_fallback_no_cross_domain_leak(user_a, db_session_factory, monkeypatch):
-    from app.core.config import get_settings
-    
-    s = get_settings()
-    monkeypatch.setattr(s, "ai_free_monthly_credits", 100) # under quota
+async def test_agent_run_fallback_no_cross_domain_leak(user_a, db_session_factory, monkeypatch, user_a_has_key):
 
     # Mock generate_text to fail so we trigger fallback mode
     async def mock_generate_text(*args, **kwargs):
@@ -173,11 +162,7 @@ async def test_agent_run_fallback_no_cross_domain_leak(user_a, db_session_factor
 
 
 @pytest.mark.asyncio
-async def test_agent_run_fallback_all_domains_no_leak(user_a, db_session_factory, monkeypatch):
-    from app.core.config import get_settings
-    
-    s = get_settings()
-    monkeypatch.setattr(s, "ai_free_monthly_credits", 100) # under quota
+async def test_agent_run_fallback_all_domains_no_leak(user_a, db_session_factory, monkeypatch, user_a_has_key):
 
     # Mock generate_text to fail so we trigger fallback mode
     async def mock_generate_text(*args, **kwargs):
@@ -228,7 +213,7 @@ async def test_agent_run_fallback_all_domains_no_leak(user_a, db_session_factory
 
 
 @pytest.mark.asyncio
-async def test_agent_executes_writeback_actions(user_a, db_session_factory, monkeypatch):
+async def test_agent_executes_writeback_actions(user_a, db_session_factory, monkeypatch, user_a_has_key):
     async def mock_generate_text(*args, **kwargs):
         return (
             "Weekly health check complete.\n\n"
@@ -238,10 +223,6 @@ async def test_agent_executes_writeback_actions(user_a, db_session_factory, monk
         )
 
     monkeypatch.setattr("app.services.agents.runners.generate_text", mock_generate_text)
-    async def mock_ai_allowed(*args, **kwargs):
-        return True
-
-    monkeypatch.setattr("app.services.billing.usage.ai_allowed", mock_ai_allowed)
 
     # Vault mirroring is owner-only; make user_a the owner for this test.
     async def mock_is_vault_owner(user_id):
@@ -288,7 +269,7 @@ async def test_morning_brief_skips_llm_when_no_activity(user_a, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_morning_brief_runs_when_activity_exists(user_a, db_session_factory, monkeypatch):
+async def test_morning_brief_runs_when_activity_exists(user_a, db_session_factory, monkeypatch, user_a_has_key):
     async def mock_generate_text(*args, **kwargs):
         return "Your morning brief."
 
@@ -304,7 +285,7 @@ async def test_morning_brief_runs_when_activity_exists(user_a, db_session_factor
 
 
 @pytest.mark.asyncio
-async def test_generate_text_agent_base_model_precedence(monkeypatch):
+async def test_generate_text_agent_base_model_precedence(monkeypatch, user_a, user_a_has_key):
     """base_openai_model replaces only the settings default; an explicit
     override still wins over it."""
     from app.core.config import get_settings
@@ -312,7 +293,6 @@ async def test_generate_text_agent_base_model_precedence(monkeypatch):
 
     s = get_settings()
     monkeypatch.setattr(s, "llm_provider", "openai")
-    monkeypatch.setattr(s, "openai_api_key", "test-key")
     monkeypatch.setattr(s, "openai_chat_model", "gpt-4o")
 
     seen = {}
@@ -339,12 +319,16 @@ async def test_generate_text_agent_base_model_precedence(monkeypatch):
     monkeypatch.setattr(insights, "get_openai_client", lambda api_key: _FakeClient())
 
     # Base model replaces the settings default (agents pass the cheap tier).
-    out = await insights.generate_text("sys", "user", base_openai_model="gpt-4o-mini")
+    # user_id is required now: generate_text resolves the caller's own key.
+    out = await insights.generate_text(
+        "sys", "user", base_openai_model="gpt-4o-mini", user_id=user_a.id
+    )
     assert out == "ok"
     assert seen["model"] == "gpt-4o-mini"
 
     # A per-agent override still beats the base model.
     await insights.generate_text(
-        "sys", "user", base_openai_model="gpt-4o-mini", override_openai_model="gpt-4o"
+        "sys", "user", base_openai_model="gpt-4o-mini",
+        override_openai_model="gpt-4o", user_id=user_a.id,
     )
     assert seen["model"] == "gpt-4o"

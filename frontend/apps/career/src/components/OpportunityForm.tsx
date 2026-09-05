@@ -4,6 +4,7 @@ import { Input, Select, Button } from '@ledgr/ui'
 import { toast } from 'sonner'
 import { careerApi } from '@ct/shared/api/areas'
 import type { OpportunityStatus } from '@ct/shared/types'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import styled from 'styled-components'
 
 const STATUS_ORDER: OpportunityStatus[] = ['prospect', 'applied', 'screening', 'interview', 'offer', 'rejected', 'closed']
@@ -43,6 +44,7 @@ export function OpportunityForm({ onClose }: { onClose: () => void }) {
   const [status, setStatus] = useState<OpportunityStatus>('prospect')
   const [url, setUrl] = useState('')
   const [notes, setNotes] = useState('')
+  const f = useFieldErrors<'company' | 'role' | 'url'>('opportunity')
   const queryClient = useQueryClient()
 
   const { mutate, isPending } = useMutation({
@@ -56,21 +58,40 @@ export function OpportunityForm({ onClose }: { onClose: () => void }) {
       queryClient.invalidateQueries({ queryKey: ['career', 'opportunities'] })
       toast.success('Opportunity added')
       setCompany(''); setRole(''); setStatus('prospect'); setUrl(''); setNotes('')
+      f.reset()
       onClose()
     },
     onError: () => toast.error('Failed to add opportunity'),
   })
 
+  /* `OpportunityCreate` requires `company` and `role`. `url` is optional and
+     free-form server-side — but `type="url"` stops enforcing anything once the
+     form is `noValidate`, so a typed value is checked here or not at all. */
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const link = url.trim()
+    const ok = f.submit({
+      company: company.trim() ? undefined : 'Name the company.',
+      role: role.trim() ? undefined : 'Name the role.',
+      url: link === '' || /^https?:\/\/\S+$/.test(link)
+        ? undefined
+        : 'Enter a full http:// or https:// link, or leave this blank.',
+    })
+    if (ok) mutate()
+  }
+
   return (
-    <form onSubmit={e => { e.preventDefault(); mutate() }}>
+    <form noValidate onSubmit={handleSubmit}>
       <FormGrid2>
         <FormField>
           <FormLabel htmlFor="opp-company">Company</FormLabel>
-          <Input id="opp-company" placeholder="Stripe, Notion…" value={company} onChange={(e: any) => setCompany(e.target.value)} required />
+          <Input id="opp-company" placeholder="Stripe, Notion…" value={company} {...f.fieldProps('company')} onChange={(e: any) => { f.clearField('company'); setCompany(e.target.value) }} />
+          <FieldError id={f.errorId('company')}>{f.errors.company}</FieldError>
         </FormField>
         <FormField>
           <FormLabel htmlFor="opp-role">Role</FormLabel>
-          <Input id="opp-role" placeholder="Software Engineer" value={role} onChange={(e: any) => setRole(e.target.value)} required />
+          <Input id="opp-role" placeholder="Software Engineer" value={role} {...f.fieldProps('role')} onChange={(e: any) => { f.clearField('role'); setRole(e.target.value) }} />
+          <FieldError id={f.errorId('role')}>{f.errors.role}</FieldError>
         </FormField>
       </FormGrid2>
       <FormGrid2>
@@ -87,7 +108,8 @@ export function OpportunityForm({ onClose }: { onClose: () => void }) {
         </FormField>
         <FormField>
           <FormLabel htmlFor="opp-url">URL</FormLabel>
-          <Input id="opp-url" placeholder="https://…" type="url" value={url} onChange={(e: any) => setUrl(e.target.value)} />
+          <Input id="opp-url" placeholder="https://…" type="url" value={url} {...f.fieldProps('url')} onChange={(e: any) => { f.clearField('url'); setUrl(e.target.value) }} />
+          <FieldError id={f.errorId('url')}>{f.errors.url}</FieldError>
         </FormField>
       </FormGrid2>
       <div style={{ marginBottom: 12 }}>

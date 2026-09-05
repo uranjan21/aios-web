@@ -17,6 +17,7 @@ GOOD = dict(
     redis_url="redis://localhost:6379/0",
     resend_api_key="re_test_key",
     allowed_origin="https://app.example.com",
+    token_encryption_key="dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWxvbmchIQ==",
 )
 
 
@@ -100,9 +101,11 @@ def test_production_refuses_localhost_origin():
         _settings(allowed_origin="http://localhost:5173", allow_insecure_http=True)
 
 
-def test_production_refuses_stripe_test_key():
-    with pytest.raises(ValueError, match="sk_live_"):
-        _settings(stripe_secret_key="sk_test_abc123")
+def test_production_requires_token_encryption_key():
+    """It encrypts every user's own OpenAI/Anthropic key at rest (BYOK), so it is
+    mandatory in production regardless of whether Google OAuth is configured."""
+    with pytest.raises(ValueError, match="TOKEN_ENCRYPTION_KEY"):
+        _settings(token_encryption_key="")
 
 
 def test_token_encryption_key_required_when_google_oauth_configured():

@@ -32,8 +32,8 @@ const LandingPage = lazy(() => import('@/pages/LandingPage').then(m => ({ defaul
 const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmailPage').then(m => ({ default: m.VerifyEmailPage })))
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })))
 const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage })))
-const PricingPage = lazy(() => import('@/pages/PricingPage').then(m => ({ default: m.PricingPage })))
 const AdminPage = lazy(() => import('@/pages/AdminPage').then(m => ({ default: m.AdminPage })))
+const GuidePage = lazy(() => import('@/pages/GuidePage').then(m => ({ default: m.GuidePage })))
 const DesignGalleryPage = lazy(() => import('@/pages/DesignGalleryPage').then(m => ({ default: m.DesignGalleryPage })))
 
 // Legal Pages
@@ -80,12 +80,11 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-import { useSubscription } from '@ct/shared/hooks/useSubscription'
-
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
   const logout = useAuthStore(s => s.logout)
   const setUser = useAuthStore(s => s.setUser)
+  const location = useLocation()
 
   useEffect(() => {
     if (!isAuthenticated) return
@@ -99,27 +98,26 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
       })
   }, [isAuthenticated, logout, setUser])
 
-  if (!isAuthenticated) return <Navigate to="/login" replace />
+  /* Carry the requested path so LoginPage can return the user to it. Without
+     this every bounced deep link landed on /app after signing in. */
+  if (!isAuthenticated) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: `${location.pathname}${location.search}${location.hash}` }}
+      />
+    )
+  }
   return <>{children}</>
 }
 
-/**
- * Module-based route guard (Phase 1). Reads the backend-resolved `entitled` set
- * — the single source of truth that already honours admins and billing-disabled
- * installs (both return all modules). This is UX only; the backend's
- * `require_module` is the real enforcement.
+/*
+ * There is no entitlement guard any more (2026-08-20). Control Tower is free
+ * for everyone and every signed-in user reaches every destination; AI surfaces
+ * ask for the user's own provider key instead of for money. `RequireModule`
+ * and the /pricing route it bounced to are deleted.
  */
-function RequireModule({ children, module }: { children: React.ReactNode, module: string }) {
-  const { data: sub, isLoading } = useSubscription()
-  const user = useAuthStore(s => s.user)
-
-  if (isLoading) return <PageLoader />
-  if (user?.is_admin) return <>{children}</>
-
-  const entitled = sub?.entitled ?? []
-  if (entitled.includes(module)) return <>{children}</>
-  return <Navigate to="/pricing" replace />
-}
 
 /**
  * A redirect that carries the query string across.
@@ -161,7 +159,6 @@ function Page({ children }: { children: React.ReactNode }) {
 
 export const router = createBrowserRouter([
   { path: '/', element: <Page><LandingPage /></Page>, errorElement: <RouteErrorElement /> },
-  { path: '/pricing', element: <Page><PricingPage /></Page>, errorElement: <RouteErrorElement /> },
   { path: '/login', element: <Page><LoginPage /></Page>, errorElement: <RouteErrorElement /> },
 
   { path: '/signup', element: <Page><LoginPage initialMode="signup" /></Page>, errorElement: <RouteErrorElement /> },
@@ -191,8 +188,8 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorElement />,
     children: [
       { index: true, element: <Page><DashboardPage /></Page> },
-      { path: 'chat', element: <Page><RequireModule module="chat"><ChatPage /></RequireModule></Page> },
-      { path: 'agents', element: <Page><RequireModule module="agents"><AgentsPage /></RequireModule></Page> },
+      { path: 'chat', element: <Page><ChatPage /></Page> },
+      { path: 'agents', element: <Page><AgentsPage /></Page> },
       // The week time-blocking planner. Renamed from /app/plan on 2026-08-05
       // because that path had already meant two different pages; `plan` below
       // is now redirect-only and resolves both generations of old link.
@@ -209,12 +206,12 @@ export const router = createBrowserRouter([
        */
 
       // Finance Area
-      { path: 'finance', element: <Page><RequireModule module="finance"><FinancePage /></RequireModule></Page> },
+      { path: 'finance', element: <Page><FinancePage /></Page> },
       /* Renamed from `finance/settings` on 2026-08-05 — the page holds
          accounts, categories and loan/bill defaults, which are setup, not app
          settings. The old path redirects WITH its query string, so
          `?section=accounts` deep links still land on the right rail tab. */
-      { path: 'finance/setup', element: <Page><RequireModule module="finance"><FinanceSettingsPage /></RequireModule></Page> },
+      { path: 'finance/setup', element: <Page><FinanceSettingsPage /></Page> },
       { path: 'finance/settings', element: <LegacyRedirect to="/app/finance/setup" /> },
       /* Accounts and Loans left the sidebar on 2026-08-03 — Finance Setup's rail
          renders the very same components, so they were two paths to one page.
@@ -222,22 +219,22 @@ export const router = createBrowserRouter([
          them and renders the old standalone page. */
       { path: 'finance/accounts', element: <Navigate to="/app/finance/setup?section=accounts" replace /> },
       { path: 'finance/loans', element: <Navigate to="/app/finance/setup?section=loans" replace /> },
-      { path: 'finance/:section', element: <Page><RequireModule module="finance"><FinancePage /></RequireModule></Page> },
+      { path: 'finance/:section', element: <Page><FinancePage /></Page> },
 
       // Health Area
-      { path: 'health', element: <Page><RequireModule module="health"><HealthPage /></RequireModule></Page> },
+      { path: 'health', element: <Page><HealthPage /></Page> },
       /* Renamed from `health/settings` on 2026-08-05: the page is one group of
          numeric targets (body, fitness, nutrition), not preferences. */
-      { path: 'health/targets', element: <Page><RequireModule module="health"><HealthSettingsPage /></RequireModule></Page> },
+      { path: 'health/targets', element: <Page><HealthSettingsPage /></Page> },
       { path: 'health/settings', element: <LegacyRedirect to="/app/health/targets" /> },
-      { path: 'health/:section', element: <Page><RequireModule module="health"><HealthPage /></RequireModule></Page> },
+      { path: 'health/:section', element: <Page><HealthPage /></Page> },
 
       // Career Area
-      { path: 'career', element: <Page><RequireModule module="career"><CareerPage /></RequireModule></Page> },
+      { path: 'career', element: <Page><CareerPage /></Page> },
       /* Career Settings held only the skills inventory, which is now its own
          destination (2026-08-03). Redirect rather than 404 an old bookmark. */
       { path: 'career/settings', element: <Navigate to="/app/career/skills" replace /> },
-      { path: 'career/:section', element: <Page><RequireModule module="career"><CareerPage /></RequireModule></Page> },
+      { path: 'career/:section', element: <Page><CareerPage /></Page> },
 
       // Workspace — the four planning entities, promoted out of /app/plan's
       // `?view=` param into their own routes, plus Milestones (Phase 5).
@@ -245,6 +242,7 @@ export const router = createBrowserRouter([
       { path: 'workspace/:section', element: <Page><PlanPage /></Page> },
 
       // System
+      { path: 'guide', element: <Page><GuidePage /></Page> },
       { path: 'settings', element: <Page><SettingsPage /></Page> },
       { path: 'settings/:section', element: <Page><SettingsPage /></Page> },
       { path: 'admin', element: <Page><RequireAdmin><AdminPage /></RequireAdmin></Page> },

@@ -214,6 +214,14 @@ def get_frontend_endpoints():
     for base_dir in src_dirs:
         for root, _, files in os.walk(base_dir):
             for file in files:
+                # Test files are NOT product callers. A spec asserting that
+                # keysApi.set() hits PUT /keys/{provider} — or mocking a
+                # rejection with the message "network down" — is not evidence
+                # that a route is used, and the mocks parse as garbage routes
+                # ("PUT /api", "POST /api/network down"). Skip them; the real
+                # caller lives in the module under test.
+                if file.endswith(('.test.ts', '.test.tsx', '.spec.ts', '.spec.tsx')):
+                    continue
                 if file.endswith(('.ts', '.tsx')):
                     file_path = Path(root) / file
                     with open(file_path, 'r', encoding='utf-8') as f:
@@ -337,8 +345,6 @@ def test_api_mappings():
         ("POST", "/api/auth/signup"),
         ("PATCH", "/api/auth/profile"),
         ("POST", "/api/auth/change-password"),
-        # Stripe calls this server-to-server; never a frontend caller.
-        ("POST", "/api/billing/webhook"),
         # ORPHANED, PENDING A PRODUCT DECISION (2026-08-17). The quotes feature's
         # only frontend consumers were GreetingHero and SavedQuotesCard, both of
         # which stopped being rendered in an earlier redesign; the 2026-08-16

@@ -59,11 +59,11 @@ async def build_summary(session, user_id: uuid.UUID) -> str:
     try:
         income = await _scalar(
             select(func.coalesce(func.sum(FinanceIncome.amount), 0))
-            .where(FinanceIncome.user_id == user_id, FinanceIncome.logged_at >= start, FinanceIncome.logged_at < end)
+            .where(FinanceIncome.user_id == user_id, FinanceIncome.logged_at >= start, FinanceIncome.logged_at < end, FinanceIncome.deleted_at.is_(None))
         )
         expense = await _scalar(
             select(func.coalesce(func.sum(FinanceExpense.amount), 0))
-            .where(FinanceExpense.user_id == user_id, FinanceExpense.logged_at >= start, FinanceExpense.logged_at < end)
+            .where(FinanceExpense.user_id == user_id, FinanceExpense.logged_at >= start, FinanceExpense.logged_at < end, FinanceExpense.deleted_at.is_(None))
         )
         saved = income - expense
         rate = f"{(saved / income * 100):.0f}%" if income > 0 else "—"
@@ -82,7 +82,7 @@ async def build_summary(session, user_id: uuid.UUID) -> str:
         rows = (
             await session.execute(
                 select(FinanceExpense.category, func.sum(FinanceExpense.amount))
-                .where(FinanceExpense.user_id == user_id, FinanceExpense.logged_at >= start, FinanceExpense.logged_at < end)
+                .where(FinanceExpense.user_id == user_id, FinanceExpense.logged_at >= start, FinanceExpense.logged_at < end, FinanceExpense.deleted_at.is_(None))
                 .group_by(FinanceExpense.category)
                 .order_by(func.sum(FinanceExpense.amount).desc())
                 .limit(6)
@@ -116,7 +116,7 @@ async def build_summary(session, user_id: uuid.UUID) -> str:
                 )
             ).scalars().all()
         }
-        bills = (await session.execute(select(FinanceLoan).where(FinanceLoan.user_id == user_id, FinanceLoan.is_active == True))).scalars().all()  # noqa: E712
+        bills = (await session.execute(select(FinanceLoan).where(FinanceLoan.user_id == user_id, FinanceLoan.is_active == True, FinanceLoan.deleted_at.is_(None)))).scalars().all()  # noqa: E712
         cc = (await session.execute(select(CCBill).where(CCBill.user_id == user_id).where(CCBill.due_date >= start.date()).where(CCBill.due_date < end.date()))).scalars().all()
         pay_lines = []
         for l in bills:
@@ -134,7 +134,7 @@ async def build_summary(session, user_id: uuid.UUID) -> str:
 
     # EMIs / loans
     try:
-        loans = (await session.execute(select(FinanceLoan).where(FinanceLoan.user_id == user_id, FinanceLoan.is_active == True))).scalars().all()  # noqa: E712
+        loans = (await session.execute(select(FinanceLoan).where(FinanceLoan.user_id == user_id, FinanceLoan.is_active == True, FinanceLoan.deleted_at.is_(None)))).scalars().all()  # noqa: E712
         if loans:
             outstanding = sum(float(l.outstanding_amount) for l in loans)
             emi = sum(float(l.emi_amount) for l in loans)
@@ -144,7 +144,7 @@ async def build_summary(session, user_id: uuid.UUID) -> str:
 
     # Investments committed vs actual
     try:
-        inv = (await session.execute(select(FinanceInvestment).where(FinanceInvestment.user_id == user_id))).scalars().all()
+        inv = (await session.execute(select(FinanceInvestment).where(FinanceInvestment.user_id == user_id, FinanceInvestment.deleted_at.is_(None)))).scalars().all()
         if inv:
             invested = sum(float(i.invested_amount) for i in inv)
             current = sum(float(i.current_value) for i in inv)

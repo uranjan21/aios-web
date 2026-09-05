@@ -37,6 +37,10 @@ from app.services.vault_sync.owner import is_vault_owner
 logger = logging.getLogger(__name__)
 
 # (filename, model) — every finance table worth preserving.
+# Deliberately NOT filtered on `deleted_at`: this is an archival dump, not a
+# report. Soft-deleted rows are exported WITH their `deleted_at` column, so the
+# CSV is a faithful copy — filtering here would make the backup the one place a
+# recoverable row silently stops existing.
 _TABLES = [
     ("expenses", FinanceExpense),
     ("income", FinanceIncome),

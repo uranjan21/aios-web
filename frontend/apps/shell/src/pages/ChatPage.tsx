@@ -15,6 +15,8 @@ import { Spinner } from '@ledgr/ui'
 import { PageContainer, PageContent } from '@ct/shared/components/layout/PageLayout'
 import { useChat } from '@ct/shared/hooks/useChat'
 import { chatApi } from '@ct/shared/api/chat'
+import { keysApi } from '@ct/shared/api/keys'
+import { NeedsApiKey } from '@ct/shared/components/NeedsApiKey'
 import { AssistantChatInput, AttachedFile } from '@/components/assistant/AssistantChatInput'
 import { buildHiddenContext } from '@/components/assistant/chatUtils'
 import { Message } from '@/components/assistant/messages'
@@ -106,11 +108,8 @@ const Composer = styled.div`
   position: relative;
 `
 
-const QuotaLine = styled.div`
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  color: ${({ theme }) => theme.color.mutedForeground};
-  text-align: right;
-  padding: ${({ theme }) => `0 ${theme.spacing[1]} ${theme.spacing[1]}`};
+const KeyPrompt = styled.div`
+  padding-bottom: ${({ theme }) => theme.spacing[3]};
 `
 
 const EmptyState = styled.div`
@@ -128,7 +127,7 @@ export function ChatPage() {
   const theme = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
-  const { messages, sessionId, isStreaming, tokenInfo, sendMessage, retryLast, canRetry, connected, newSession, loadSession, loadingMessages, confirmTool, cancelTool } = useChat()
+  const { messages, sessionId, isStreaming, sendMessage, retryLast, canRetry, connected, newSession, loadSession, loadingMessages, confirmTool, cancelTool } = useChat()
 
   const [input, setInput] = useState('')
   const [model, setModel] = useState('system')
@@ -143,11 +142,15 @@ export function ChatPage() {
     queryFn: chatApi.models,
     staleTime: Infinity,
   })
-  const { data: budget } = useQuery({
-    queryKey: ['chat', 'token-budget'],
-    queryFn: chatApi.tokenBudget,
+  /* Chat runs on the user's own provider key — with none installed the socket
+     can only ever answer with a 428, so say that here instead of letting them
+     type into a composer that cannot reply. */
+  const { data: keys } = useQuery({
+    queryKey: ['api-keys'],
+    queryFn: keysApi.list,
     staleTime: 60_000,
   })
+  const needsKey = !!keys && Object.keys(keys).length === 0
 
   // Capture the ⌘K question from router state — must also fire when already
   // on /app/chat (navigation only swaps state, no remount) — then clear it
@@ -210,8 +213,6 @@ export function ChatPage() {
     sendMessage(finalMessage, buildHiddenContext(finalMessage, location.pathname), data.files.map(f => f.file), overrides)
   }
 
-  const remaining = tokenInfo?.daily_remaining ?? (budget ? budget.daily_limit - budget.used_today : null)
-
   return (
     <PageContainer>
       <PageContent>
@@ -263,10 +264,8 @@ export function ChatPage() {
             </MessagesScroll>
 
             <Composer>
-              {remaining !== null && remaining !== undefined && (
-                <QuotaLine title="Daily AI token budget remaining">
-                  {remaining.toLocaleString()} tokens left today
-                </QuotaLine>
+              {needsKey && (
+                <KeyPrompt><NeedsApiKey feature="Chat" /></KeyPrompt>
               )}
               <AssistantChatInput
                 onSendMessage={handleSend}

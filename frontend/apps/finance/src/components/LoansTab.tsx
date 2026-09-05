@@ -17,7 +17,7 @@
  * stated balance, rate and EMI. Same question, answered with data that exists.
  * (Principal *cleared* needs no history and is shown as-is on tile 1.)
  */
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback} from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
@@ -26,8 +26,10 @@ import {
 } from '@ledgr/ui'
 import { Landmark, FileText, PieChart, Trash2 } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import type { FinanceLoan } from '@ct/shared/types'
+import { toastDeletedWithUndo } from '@ct/shared/lib/undoToast'
 import { LoanPaymentsPanel } from './LoanPaymentsPanel'
 import { PayoffPlanner } from './PayoffPlanner'
 import styled from 'styled-components'
@@ -196,6 +198,9 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
   const [updatingLoan, setUpdatingLoan] = useState<FinanceLoan | null>(null)
   const [loanForm, setLoanForm] = useState<LoanForm>(EMPTY_LOAN_FORM)
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paid'>('all')
+  const f = useFieldErrors<
+    'name' | 'principal_amount' | 'outstanding_amount' | 'interest_rate' | 'emi_amount' | 'emi_day' | 'tenure_months'
+  >('edit-loan')
 
   /* Handled in place below rather than thrown to the route (F1) — see App.tsx. */
   const loansQ = useQuery({
@@ -247,16 +252,17 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => financeApi.deleteLoan(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       invalidate()
-      toast.success('Loan removed')
+      toastDeletedWithUndo('Loan removed', () => financeApi.restoreLoan(id), invalidate)
       setUpdatingLoan(null)
       setLoanForm(EMPTY_LOAN_FORM)
     },
     onError: () => toast.error('Failed to delete loan'),
   })
 
-  const openUpdate = (loan: FinanceLoan) => {
+  const openUpdate = useCallback((loan: FinanceLoan) => {
+    f.reset()
     setUpdatingLoan(loan)
     setLoanForm({
       name: loan.name ?? '',
@@ -271,26 +277,51 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
       notes: loan.notes ?? '',
       is_active: loan.is_active,
     })
-  }
+  }, [f])
 
   const closeEdit = () => {
     setUpdatingLoan(null)
     setLoanForm(EMPTY_LOAN_FORM)
+    f.reset()
   }
 
+  /** A non-negative number, or a reason it is not one. */
+  const nonNegative = (raw: string, missing: string) => {
+    if (raw.trim() === '') return missing
+    const n = Number(raw)
+    if (!Number.isFinite(n)) return 'Enter a number.'
+    return n < 0 ? 'Cannot be negative.' : undefined
+  }
+
+  /* These were three toasts covering seven fields between them — "All numeric
+     fields must be valid numbers" tells the user nothing about which one. Each
+     bound is checked here because `noValidate` turns the input's own min/max
+     off, and `emi_day` in particular is a bare `int` on the server. */
   const handleSave = () => {
     const name = loanForm.name.trim()
-    if (!name) { toast.error('Name is required'); return }
     const principal = parseFloat(loanForm.principal_amount)
     const outstanding = parseFloat(loanForm.outstanding_amount)
     const rate = parseFloat(loanForm.interest_rate)
     const emi = parseFloat(loanForm.emi_amount)
     const emiDay = parseInt(loanForm.emi_day, 10)
-    const tenure = loanForm.tenure_months ? parseInt(loanForm.tenure_months, 10) : undefined
-    if ([principal, outstanding, rate, emi, emiDay].some(Number.isNaN)) {
-      toast.error('All numeric fields must be valid numbers'); return
-    }
-    if (emiDay < 1 || emiDay > 31) { toast.error('EMI day must be between 1 and 31'); return }
+    const hasTenure = loanForm.tenure_months.trim() !== ''
+    const tenure = hasTenure ? parseInt(loanForm.tenure_months, 10) : undefined
+    const ok = f.submit({
+      name: name ? undefined : 'Give the loan a name.',
+      principal_amount: nonNegative(loanForm.principal_amount, 'Enter the amount borrowed.'),
+      outstanding_amount: nonNegative(loanForm.outstanding_amount, 'Enter what is still owed.'),
+      interest_rate: nonNegative(loanForm.interest_rate, 'Enter the interest rate.'),
+      emi_amount: nonNegative(loanForm.emi_amount, 'Enter the monthly EMI.'),
+      emi_day: loanForm.emi_day.trim() === '' || !Number.isInteger(emiDay)
+        ? 'Enter the day the EMI is taken.'
+        : emiDay < 1 || emiDay > 31
+          ? 'Pick a day between 1 and 31.'
+          : undefined,
+      tenure_months: hasTenure && (!Number.isInteger(tenure!) || tenure! < 1)
+        ? 'Tenure must be a whole number of months, or blank.'
+        : undefined,
+    })
+    if (!ok) return
     updateMutation.mutate({
       name,
       loan_type: loanForm.loan_type,
@@ -494,7 +525,7 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
 
     return specs
      
-  }, [all, active, listed, statusFilter, onAdd, loanSummary])
+  }, [all, active, listed, statusFilter, onAdd, loanSummary, openUpdate])
 
   if (isError) {
     return (
@@ -535,15 +566,16 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
         onOpenChange={(open) => { if (!open) closeEdit() }}
         size="md"
       >
-        <UpdateForm onSubmit={e => { e.preventDefault(); handleSave() }}>
+        <UpdateForm noValidate onSubmit={e => { e.preventDefault(); handleSave() }}>
           <div>
             <FieldLabel>Loan name</FieldLabel>
-            <Input value={loanForm.name} onChange={(e: any) => setLoanForm(f => ({ ...f, name: e.target.value }))} placeholder="Home Loan — SBI" autoFocus required />
+            <Input value={loanForm.name} {...f.fieldProps('name')} onChange={(e: any) => { f.clearField('name'); setLoanForm(prev => ({ ...prev, name: e.target.value })) }} placeholder="Home Loan — SBI" autoFocus />
+            <FieldError id={f.errorId('name')}>{f.errors.name}</FieldError>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <FieldLabel>Type</FieldLabel>
-              <Select fullWidth value={loanForm.loan_type} onChange={(v: any) => setLoanForm(f => ({ ...f, loan_type: String(v) }))} options={[
+              <Select fullWidth value={loanForm.loan_type} onChange={(v: any) => setLoanForm(prev => ({ ...prev, loan_type: String(v) }))} options={[
                 { value: 'home', label: 'Home loan' },
                 { value: 'personal', label: 'Personal loan' },
                 { value: 'car', label: 'Car loan' },
@@ -554,47 +586,53 @@ export function LoansTab({ onAdd }: { onAdd?: () => void } = {}) {
             </div>
             <div>
               <FieldLabel>Lender</FieldLabel>
-              <Input value={loanForm.lender} onChange={(e: any) => setLoanForm(f => ({ ...f, lender: e.target.value }))} placeholder="SBI" />
+              <Input value={loanForm.lender} onChange={(e: any) => setLoanForm(prev => ({ ...prev, lender: e.target.value }))} placeholder="SBI" />
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <FieldLabel>Principal amount</FieldLabel>
-              <Input type="number" startAdornment="₹" min="0" value={loanForm.principal_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, principal_amount: e.target.value }))} required />
+              <Input type="number" startAdornment="₹" min="0" step="0.01" value={loanForm.principal_amount} {...f.fieldProps('principal_amount')} onChange={(e: any) => { f.clearField('principal_amount'); setLoanForm(prev => ({ ...prev, principal_amount: e.target.value })) }} />
+              <FieldError id={f.errorId('principal_amount')}>{f.errors.principal_amount}</FieldError>
             </div>
             <div>
               <FieldLabel>Outstanding amount</FieldLabel>
-              <Input type="number" startAdornment="₹" min="0" value={loanForm.outstanding_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, outstanding_amount: e.target.value }))} required />
+              <Input type="number" startAdornment="₹" min="0" step="0.01" value={loanForm.outstanding_amount} {...f.fieldProps('outstanding_amount')} onChange={(e: any) => { f.clearField('outstanding_amount'); setLoanForm(prev => ({ ...prev, outstanding_amount: e.target.value })) }} />
+              <FieldError id={f.errorId('outstanding_amount')}>{f.errors.outstanding_amount}</FieldError>
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
             <div>
               <FieldLabel>Interest rate (%)</FieldLabel>
-              <Input type="number" min="0" step="0.01" value={loanForm.interest_rate} onChange={(e: any) => setLoanForm(f => ({ ...f, interest_rate: e.target.value }))} required />
+              <Input type="number" min="0" step="0.01" value={loanForm.interest_rate} {...f.fieldProps('interest_rate')} onChange={(e: any) => { f.clearField('interest_rate'); setLoanForm(prev => ({ ...prev, interest_rate: e.target.value })) }} />
+              <FieldError id={f.errorId('interest_rate')}>{f.errors.interest_rate}</FieldError>
             </div>
             <div>
               <FieldLabel>EMI amount</FieldLabel>
-              <Input type="number" startAdornment="₹" min="0" value={loanForm.emi_amount} onChange={(e: any) => setLoanForm(f => ({ ...f, emi_amount: e.target.value }))} required />
+              <Input type="number" startAdornment="₹" min="0" step="0.01" value={loanForm.emi_amount} {...f.fieldProps('emi_amount')} onChange={(e: any) => { f.clearField('emi_amount'); setLoanForm(prev => ({ ...prev, emi_amount: e.target.value })) }} />
+              <FieldError id={f.errorId('emi_amount')}>{f.errors.emi_amount}</FieldError>
             </div>
             <div>
               <FieldLabel>EMI day</FieldLabel>
-              <Input type="number" min="1" max="31" value={loanForm.emi_day} onChange={(e: any) => setLoanForm(f => ({ ...f, emi_day: e.target.value }))} required />
+              <Input type="number" min="1" max="31" step="1" value={loanForm.emi_day} {...f.fieldProps('emi_day')} onChange={(e: any) => { f.clearField('emi_day'); setLoanForm(prev => ({ ...prev, emi_day: e.target.value })) }} />
+              <FieldError id={f.errorId('emi_day')}>{f.errors.emi_day}</FieldError>
             </div>
           </div>
           <div>
             <FieldLabel>Tenure (months, optional)</FieldLabel>
-            <Input type="number" min="1" value={loanForm.tenure_months} onChange={(e: any) => setLoanForm(f => ({ ...f, tenure_months: e.target.value }))} placeholder="e.g. 240" />
+            <Input type="number" min="1" step="1" value={loanForm.tenure_months} {...f.fieldProps('tenure_months')} onChange={(e: any) => { f.clearField('tenure_months'); setLoanForm(prev => ({ ...prev, tenure_months: e.target.value })) }} placeholder="e.g. 240" />
+            <FieldError id={f.errorId('tenure_months')}>{f.errors.tenure_months}</FieldError>
           </div>
           <div>
             <FieldLabel>Notes</FieldLabel>
-            <Input value={loanForm.notes} onChange={(e: any) => setLoanForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional" />
+            <Input value={loanForm.notes} onChange={(e: any) => setLoanForm(prev => ({ ...prev, notes: e.target.value }))} placeholder="Optional" />
           </div>
           <ToggleRow>
             <FieldLabel style={{ margin: 0 }}>Still active (off = paid off)</FieldLabel>
             <Switch
               size="sm"
               checked={loanForm.is_active}
-              onChange={e => setLoanForm(f => ({ ...f, is_active: e.target.checked }))}
+              onChange={e => setLoanForm(prev => ({ ...prev, is_active: e.target.checked }))}
             />
           </ToggleRow>
           <FormActions>

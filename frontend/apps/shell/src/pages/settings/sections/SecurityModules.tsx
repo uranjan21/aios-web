@@ -29,8 +29,9 @@ import { api } from '@ct/shared/api/client'
 import { useAuthStore } from '@ct/shared/stores/authStore'
 import { logoutAndRedirect } from '@ct/shared/lib/logout'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 
-const Form = styled.div`
+const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[3]};
@@ -64,8 +65,11 @@ export function SecurityModules() {
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
 
+  const pwErrors = useFieldErrors<'current' | 'next'>('change-password')
+
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [confirmText, setConfirmText] = useState('')
+  const delErrors = useFieldErrors<'confirm'>('delete-account')
 
   /*
    * Negated from the Google check rather than tested as `=== 'email'`, so every
@@ -82,10 +86,24 @@ export function SecurityModules() {
       setPwOpen(false)
       setCurrent('')
       setNext('')
+      pwErrors.reset()
       // The backend re-issues the cookie, but signing out is the safer UX.
       setTimeout(() => { logout(); navigate('/login') }, 1500)
     },
-    onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed to change password'),
+    /*
+     * One of the server's two failures IS a field problem: a 400 "Current
+     * password is incorrect" names the field that is wrong, so it lands on it
+     * rather than in a toast that the field cannot be found from. Anything
+     * else is transport and stays a toast.
+     */
+    onError: (e: any) => {
+      const detail = e?.response?.data?.detail
+      if (e?.response?.status === 400 && typeof detail === 'string' && /current password/i.test(detail)) {
+        pwErrors.submit({ current: 'That is not your current password.' })
+        return
+      }
+      toast.error(detail ?? 'Failed to change password')
+    },
   })
 
   const deleteAccount = useMutation({
@@ -97,6 +115,31 @@ export function SecurityModules() {
     },
     onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed to delete account'),
   })
+
+  /* `ChangePasswordRequest.new` is rejected under 8 characters server-side and
+     the current password is required to verify — both are field rules. */
+  const submitPassword = (e: React.FormEvent) => {
+    e.preventDefault()
+    const ok = pwErrors.submit({
+      current: current ? undefined : 'Enter your current password.',
+      next: next.length === 0
+        ? 'Choose a new password.'
+        : next.length < 8
+          ? 'Use at least 8 characters.'
+          : next === current
+            ? 'The new password must differ from the current one.'
+            : undefined,
+    })
+    if (ok) changePassword.mutate()
+  }
+
+  const submitDelete = (e: React.FormEvent) => {
+    e.preventDefault()
+    const ok = delErrors.submit({
+      confirm: confirmText === 'DELETE' ? undefined : 'Type DELETE exactly, in capitals, to confirm.',
+    })
+    if (ok) deleteAccount.mutate()
+  }
 
   /*
    * TWO cards, and every row on both is a button.
@@ -190,25 +233,37 @@ export function SecurityModules() {
         title="Change password"
         description="You will be signed out and asked to log in again."
       >
-        <Form>
+        <Form noValidate onSubmit={submitPassword}>
           <div>
-            <Label>Current password</Label>
-            <Input type="password" value={current} onChange={(e: any) => setCurrent(e.target.value)} autoFocus />
+            <Label htmlFor="pw-current-input">Current password</Label>
+            <Input
+              id="pw-current-input"
+              type="password"
+              autoComplete="current-password"
+              value={current}
+              {...pwErrors.fieldProps('current')}
+              onChange={(e: any) => { pwErrors.clearField('current'); setCurrent(e.target.value) }}
+              autoFocus
+            />
+            <FieldError id={pwErrors.errorId('current')}>{pwErrors.errors.current}</FieldError>
           </div>
           <div>
-            <Label>New password (at least 8 characters)</Label>
-            <Input type="password" value={next} onChange={(e: any) => setNext(e.target.value)} />
+            <Label htmlFor="pw-next-input">New password (at least 8 characters)</Label>
+            <Input
+              id="pw-next-input"
+              type="password"
+              autoComplete="new-password"
+              value={next}
+              {...pwErrors.fieldProps('next')}
+              onChange={(e: any) => { pwErrors.clearField('next'); setNext(e.target.value) }}
+            />
+            <FieldError id={pwErrors.errorId('next')}>{pwErrors.errors.next}</FieldError>
           </div>
           <Actions>
-            <Button
-              variant="primary"
-              loading={changePassword.isPending}
-              disabled={!current || next.length < 8}
-              onClick={() => changePassword.mutate()}
-            >
+            <Button type="submit" variant="primary" loading={changePassword.isPending}>
               Change password
             </Button>
-            <Button variant="ghost" onClick={() => setPwOpen(false)}>Cancel</Button>
+            <Button type="button" variant="ghost" onClick={() => setPwOpen(false)}>Cancel</Button>
           </Actions>
         </Form>
       </Dialog>
@@ -221,28 +276,29 @@ export function SecurityModules() {
         title="Delete your account"
         description="Every account, transaction, log, goal and conversation is erased. This cannot be undone."
       >
-        <Form>
+        <Form noValidate onSubmit={submitDelete}>
           <Warning>There is no export and no recovery. Download anything you need first.</Warning>
           <div>
-            <Label>Type DELETE to confirm</Label>
+            <Label htmlFor="delete-confirm-input">Type DELETE to confirm</Label>
             <Input
+              id="delete-confirm-input"
               value={confirmText}
-              onChange={(e: any) => setConfirmText(e.target.value)}
+              {...delErrors.fieldProps('confirm')}
+              onChange={(e: any) => { delErrors.clearField('confirm'); setConfirmText(e.target.value) }}
               placeholder="DELETE"
               aria-label="Type DELETE to confirm account deletion"
               autoFocus
             />
+            <FieldError id={delErrors.errorId('confirm')}>{delErrors.errors.confirm}</FieldError>
           </div>
           <Actions>
-            <Button
-              variant="destructive"
-              loading={deleteAccount.isPending}
-              disabled={confirmText !== 'DELETE'}
-              onClick={() => deleteAccount.mutate()}
-            >
+            {/* The confirmation is a typed phrase, so it is a field: a dead
+                button gives the user nothing to correct. It stays destructive
+                and still cannot fire until the word matches exactly. */}
+            <Button type="submit" variant="destructive" loading={deleteAccount.isPending}>
               Delete my account
             </Button>
-            <Button variant="ghost" onClick={() => { setDeleteOpen(false); setConfirmText('') }}>
+            <Button type="button" variant="ghost" onClick={() => { setDeleteOpen(false); setConfirmText(''); delErrors.reset() }}>
               Cancel
             </Button>
           </Actions>

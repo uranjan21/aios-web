@@ -52,15 +52,6 @@ async def test_non_admin_cannot_list_users(client_a):
 
 
 @pytest.mark.asyncio
-async def test_non_admin_cannot_override_plan(client_a, user_a):
-    resp = await client_a.patch(
-        f"/api/admin/users/{user_a.id}/plan",
-        json={"plan": "pro", "status": "active"},
-    )
-    assert resp.status_code == 403
-
-
-@pytest.mark.asyncio
 async def test_non_admin_cannot_toggle_admin(client_a, user_b):
     resp = await client_a.patch(
         f"/api/admin/users/{user_b.id}/admin",
@@ -78,12 +69,12 @@ async def test_non_admin_cannot_delete_user(client_a, user_b):
 # ── admin succeeds + audit log correctness ────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_admin_can_override_plan_and_audit_log_has_correct_admin_id(
+async def test_admin_action_audit_log_has_correct_admin_id(
     admin_client, admin_user, user_b, db_session_factory
 ):
     resp = await admin_client.patch(
-        f"/api/admin/users/{user_b.id}/plan",
-        json={"plan": "pro", "status": "active"},
+        f"/api/admin/users/{user_b.id}/admin",
+        json={"is_admin": True},
     )
     assert resp.status_code == 200
 
@@ -93,7 +84,7 @@ async def test_admin_can_override_plan_and_audit_log_has_correct_admin_id(
     async with db_session_factory() as s:
         result = await s.execute(
             select(AdminAuditLog)
-            .where(AdminAuditLog.action == "override_plan")
+            .where(AdminAuditLog.action == "toggle_admin")
             .where(AdminAuditLog.target_user_id == user_b.id)
             .order_by(AdminAuditLog.created_at.desc())
         )
@@ -120,52 +111,3 @@ async def test_toggle_admin_on_self_is_400(admin_client, admin_user):
         json={"is_admin": False},
     )
     assert resp.status_code == 400
-
-
-# ── invalid plan name is 400 ──────────────────────────────────────────────────
-
-@pytest.mark.asyncio
-async def test_override_plan_with_invalid_plan_is_400(admin_client, user_b):
-    resp = await admin_client.patch(
-        f"/api/admin/users/{user_b.id}/plan",
-        json={"plan": "enterprise", "status": "active"},
-    )
-    assert resp.status_code == 400
-
-
-# ── B8: an override must actually change entitlement ──────────────────────────
-
-@pytest.mark.asyncio
-async def test_override_plan_changes_entitled_modules(
-    admin_client, user_b, db_session_factory, monkeypatch
-):
-    """`modules` is the entitlement source of truth, so a user who has touched the
-    modules UI (non-None `modules`) used to keep their old access after an admin
-    granted them a bigger plan — the override wrote `plan` only."""
-    from types import SimpleNamespace
-    from sqlmodel import select
-    from app.core.config import get_settings
-    from app.core.entitlements import ALL_MODULES, get_entitled_modules
-    from app.models.billing import Subscription
-
-    s = get_settings()
-    monkeypatch.setattr(s, "stripe_secret_key", "sk_test_admin")
-    monkeypatch.setattr(s, "stripe_price_pro", "price_admin")
-    principal = SimpleNamespace(id=user_b.id, is_admin=False)
-
-    async with db_session_factory() as db:
-        db.add(Subscription(user_id=user_b.id, plan="free", status="active", modules=["finance"]))
-        await db.commit()
-    async with db_session_factory() as db:
-        assert await get_entitled_modules(db, principal) == {"finance"}
-
-    resp = await admin_client.patch(
-        f"/api/admin/users/{user_b.id}/plan",
-        json={"plan": "household", "status": "active"},
-    )
-    assert resp.status_code == 200
-
-    async with db_session_factory() as db:
-        sub = (await db.execute(select(Subscription).where(Subscription.user_id == user_b.id))).scalar_one()
-        assert sub.bundle is True
-        assert await get_entitled_modules(db, principal) == set(ALL_MODULES)

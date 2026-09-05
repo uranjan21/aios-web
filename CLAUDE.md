@@ -26,6 +26,16 @@ duplicate its rules back into this file; add them where they belong.
 
 ## What this is
 
+> **PRICING MODEL (2026-08-17): FREE FOR EVERYONE, BRING YOUR OWN API KEY.**
+> There is no charging, subscription, Stripe, module entitlement, plan gating or
+> AI usage metering anywhere in this product, and every table backing them was
+> dropped. Users paste their own OpenAI/Anthropic key in Settings; the server
+> never calls an LLM on its own account. Many "Recent Updates" entries below
+> describe the old paid model — they are a build log, **not** a current spec.
+> There is deliberately **no instance-level LLM API key fallback**: adding one
+> restores the uncapped-spend liability that required all the deleted quota
+> machinery in the first place.
+
 A full-stack personal life-management OS — Finance, Health, Career, Business, Content — with AI agents, vault sync, and multi-LLM integration. **Transitioning from single-user to multi-tenant SaaS (decided 2026-06-21).** All new DB/backend work must be multi-user aware: `users` table, `user_id` FK on every user-data table, row-level isolation.
 
 The frontend is a pnpm-workspace **monorepo** (converted 2026-07-20) rooted at `frontend/`; the backend is a FastAPI service in `backend/`. Details in each sub-file.
@@ -61,7 +71,7 @@ directories, `run.sh`, `backend/tests/test_api_mappings.py` — now goes through
 
 **Shipped (durable state):**
 - Security: 3 rounds of multi-tenancy/IDOR audits + full 9-domain backend audit (2026-06-30, Opus-verified 07-01) + workspace audit (07-07) — all CRITICAL/HIGH fixed; isolation verified by live cross-tenant attack. Open backlog lives in memory `project_backend_audit.md`.
-- Billing: modular pay-per-module ($5/module, $29 bundle, metered AI) code-complete; OFF until live-Stripe test-mode verification.
+- Billing: **REMOVED 2026-08-17.** The app is free for everyone, bring-your-own-API-key. No Stripe, no subscriptions, no entitlements, no AI metering. See `docs/DYNAMIC_PRICING_PLAN.md` (retired) before re-adding anything money-shaped.
 - Design: "Premium Black + Gold" @ledgr/ui system app-wide; Dialog has icon/eyebrow/stepper/DialogFooter; PageHeader subtitle below title.
 - Areas: Content = 6-tab CMS; Business = Portfolio Hub; Dashboard 2.0 = BriefingCard + PulseRow + DiscoveriesFeed + LifeHeatmap (left column) + calendar (right column); GreetingHero quote refresh/save + "Quick Log" ⌘L.
 - **Workspace (Projects/Sprints/Tasks/Goals):** alembic head `w004_add_quote_favorite`. All 3 pages have domain AreaTabs + shared `CollapsibleSection`; server enforces goal↔domain match, task inherits project domain/sprint project, delete_goal unlinks children; edit dialogs send explicit `null` to clear fields (Payload types in api/workspace.ts).
@@ -118,7 +128,46 @@ docker compose exec backend pytest
 
 ---
 
-## Recent Updates (2026-08-10, latest — final pre-ship audit)
+## Recent Updates (2026-08-22, latest — login audit + the Guide page)
+
+Full entry in `PROGRESS.md`.
+
+- **"Remember me" was a checkbox wired to nothing** for as long as the sign-in
+  page has existed: `POST /auth/login` had no such field and `_issue_cookie`
+  hardcoded 7 days. Now `LoginRequest.remember` → `_issue_cookie(days=)`, 30 days
+  when ticked. **Unchecked is still exactly 7 days** — the flag extends the
+  session, it never shortens the default one, so nobody's existing login changes.
+- **`RequireAuth` discarded the requested path.** It redirected to `/login` with
+  no state, so every bounced deep link landed on `/app` after signing in. It now
+  passes `from`, and LoginPage honours it **only when it starts with `/app`** —
+  an absolute URL arriving in router state would turn the sign-in form into an
+  open redirect. A signed-in user hitting `/login` now redirects instead of
+  being shown the form.
+- **Password managers could not fill or save the form** — no `autoComplete`
+  anywhere. Now `username`/`current-password` on sign-in and
+  `email`/`new-password` on signup. The error box gained `role="alert"`; the
+  ticker's "8 agents on schedule" is **7**, matching both the seed roster and the
+  tick count the page's own HUD ring draws.
+- **Deliberately NOT changed:** the ambient HUD still draws `business` and
+  `content` nodes (areas deleted 2026-07-21) — `aria-hidden` decoration, and
+  re-siting the composition is a design call, not a bug fix. The hero also sells
+  "Vault Synced" while `VAULT_SYNC_ENABLED` is false in hosted prod; that is
+  marketing copy and Utsav's call.
+- **New `/app/guide`** — the product manual, in the System nav group, `g u`.
+  Ten module-kit modules; every row naming a destination navigates to it, and
+  rows describing something with no destination (the key caps) carry no handler
+  and stay inert. **Not module-gated** — gating the page that explains the
+  modules hides it from the people who need it. Static, no API calls.
+  Note it was written while a parallel session removed billing, so it depends on
+  no pricing, no free area and no Plan tab; "What costs what" became "Where each
+  setting lives" when `@ct/shared/lib/pricing` was deleted underneath it.
+- **Verified:** backend **289 passing**; tsc, `pnpm build`, vitest **32** clean.
+  Login walked at 1280px and 375px (no overflow, no console errors); Guide walked
+  at 1440px — rows are real `<button>`s, clicking Goals lands on
+  `/app/workspace/goals`, Keyboard's rows are correctly not buttons. Cookie
+  max-age asserted directly at 604800 / 2592000.
+
+## Recent Updates (2026-08-10 — final pre-ship audit)
 
 Full audit before the first deploy. Detail in `PROGRESS.md`.
 
@@ -762,5 +811,5 @@ The Business area was completely refactored from a monolithic single-business da
 
 ---
 
-**Last Updated**: 2026-07-01 | **Version**: 0.4.0 | Pricing: pivoting to dynamic/modular hybrid (planned — see `docs/DYNAMIC_PRICING_PLAN.md`)
+**Last Updated**: 2026-08-22 | **Version**: 0.5.0 | **Free for all, bring-your-own-API-key.** No billing of any kind — see `docs/DYNAMIC_PRICING_PLAN.md` for what was removed and why the instance-key fallback must never come back.
 

@@ -1,10 +1,11 @@
 /**
- * Field-level validation feedback (F2, 2026-08-16).
+ * Field-level validation feedback (F2, 2026-08-16; promoted to `@ct/shared`
+ * 2026-08-20).
  *
- * Before this, every health form reported failure with a toast — "Give the
- * routine a name" — which says THAT something went wrong and never WHICH
- * field. On a four-field dialog the user is guessing, and `required` alone only
- * gets you the browser's native bubble on the first empty field.
+ * Before this, every form reported failure with a toast — "Failed to create
+ * account" — which says THAT something went wrong and never WHICH field. On a
+ * four-field dialog the user is guessing, and `required` alone only gets you
+ * the browser's native bubble on the first empty field.
  *
  * The split this enforces:
  *   - a FIELD problem (missing, malformed, out of range) is shown on the field,
@@ -14,11 +15,13 @@
  *   - a TRANSPORT/SERVER problem stays a toast, because it belongs to no field.
  *
  * `@ledgr/ui`'s `Input` already supports `invalid`; it has no message slot, so
- * `FieldError` supplies one. Kept in `apps/health` deliberately — `packages/`
- * is owned elsewhere. `apps/finance` carries its own copy; promote both into
- * `@ct/shared` when a third app needs it.
+ * `FieldError` supplies one. This lived twice (`apps/finance` + `apps/health`)
+ * because apps may not import each other; `@ct/shared` is the single copy.
+ *
+ * Usage: mark the form `noValidate`, do explicit checks on submit, and call
+ * `clearField` from each `onChange` so a message goes as soon as it is fixed.
  */
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import styled from 'styled-components'
 
 /** Message per field name. A field is valid when its key is absent. */
@@ -85,5 +88,12 @@ export function useFieldErrors<K extends string>(formId: string): UseFieldErrors
 
   const reset = useCallback(() => setErrors({}), [])
 
-  return { errors, fieldProps, errorId, clearField, submit, reset }
+  // Memoised: callers put this object (or its members) in useMemo/useCallback
+  // dependency arrays, and a fresh object literal every render would silently
+  // defeat every one of those memos. Identity now changes only when `errors`
+  // actually changes.
+  return useMemo(
+    () => ({ errors, fieldProps, errorId, clearField, submit, reset }),
+    [errors, fieldProps, errorId, clearField, submit, reset],
+  )
 }

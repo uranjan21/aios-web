@@ -123,3 +123,168 @@ docker compose restart backend        # After any Python edit
 docker compose exec backend alembic upgrade head
 docker compose exec backend pytest
 ```
+
+---
+
+## Timestamps are naive UTC — all of them (S12, 2026-08-23)
+
+**The rule: every `datetime` column in this schema is `TIMESTAMP WITHOUT TIME
+ZONE` holding UTC, and every writer passes a naive `datetime.utcnow()`.** There
+is no tz-aware column left. `datetime.now(timezone.utc)` heading for a column is
+a bug — asyncpg rejects an aware value against a naive column outright.
+
+Until migration `n002_timestamp_normalisation` seven tables disagreed:
+`projects`, `sprints`, `tasks`, `workspace_milestones`, `plan_blocks`,
+`career_journal_entries`, `saved_quotes` — 13 columns that were TIMESTAMPTZ
+while the other ~200 were naive, so one application compared aware against
+naive across domains.
+
+**Ground truth that made the conversion safe** (measured on the dev database
+before anything was written, not assumed):
+
+- `TimeZone` is `Etc/UTC`, `source = configuration file` — the postgres image
+  default, not a session override.
+- Only `career_journal_entries` actually wrote aware values. The other six
+  tables were already fed naive `datetime.utcnow()`; asyncpg encodes a naive
+  value for a TIMESTAMPTZ column as UTC, so the stored instants were correct.
+- One seeding run wrote `finance_expenses.created_at` (naive) at
+  `2026-08-10 16:33:20.34` and `projects.created_at` (aware) at
+  `2026-08-10 16:33:20.76+00` — the same wall clock on both sides of the split.
+  That is the evidence that neither side was a mislabelled local time.
+
+Verified on a `TEMPLATE control_tower` clone: 82 rows across the seven tables
+came out byte-identical through the upgrade, identical again through the
+downgrade, and identical a third time with the upgrade re-run under
+`SET TimeZone='Asia/Kolkata'` — which is the point of the explicit `USING …
+AT TIME ZONE 'UTC'` on every statement. The probe was dropped; `control_tower`
+itself was never migrated.
+
+`saved_quotes.saved_at` also changed its server default from `now()` to
+`timezone('utc', now())`. A bare `now()` is TIMESTAMPTZ and would be cast into
+the naive column using whatever the session's `TimeZone` happened to be. In
+`models/quote.py` it is written parenthesised — `(timezone('utc', now()))` —
+because the test harness builds SQLite from that metadata and SQLite's DDL
+parser rejects an unparenthesised function call as a DEFAULT.
+
+### STILL OPEN: the original conversions cannot be audited
+
+`6e3b68412e0d` and `71fb288f8d09` converted the original schema TIMESTAMPTZ →
+TIMESTAMP **with no `USING` clause**. Postgres then converts implicitly using
+`current_setting('TimeZone')`, so if either ever ran under a non-UTC session
+those values are shifted by that offset and nothing in the row records it.
+On this deployment they are almost certainly fine — `TimeZone` is `Etc/UTC`
+from the config file, and the cross-check above shows the naive and aware
+sides agreeing — but "almost certainly" is not an audit, and **there is no way
+to detect the shift from the data alone.** It was deliberately left alone:
+a repair would have to assume an offset, and assuming an offset is how a
+suspicion becomes corruption.
+
+If it ever needs settling: correlate a naive row against an external record of
+the same event (a Gmail `internalDate`, a Google Calendar event, a Stripe-era
+webhook payload) on a database restored from before the conversion. Anything
+short of that is guessing.
+
+**Never write `ALTER COLUMN … TYPE timestamp` without an explicit `USING …`.**
+`tests/test_timestamps.py` pins the rule from both ends: a metadata sweep that
+fails on any `DateTime(timezone=True)`, and a source guard on
+`api/workspace.py`, `api/quotes.py` and `api/areas/career.py` for aware writes.
+The source guard exists because **SQLite launders the mistake** — its DATETIME
+ignores `timezone=`, so an aware write comes back naive and every API-level
+assertion stays green while production would 500. Both guards were proven to
+fail by reintroducing the regression.
+
+---
+
+## Soft delete on the six financial tables (S17, 2026-08-23)
+
+**Only these six tables carry `deleted_at`** (migration `n001_soft_delete`):
+`finance_expenses`, `finance_income`, `finance_transfers`, `finance_bills`,
+`finance_loans`, `finance_investments`. `NULL` = live.
+
+**Deliberately excluded, do not "complete" the set:**
+- `finance_accounts` — the balance is a cached denormalisation of the ledger, so
+  a soft-deleted account holding money has no defined balance. Its children
+  already detach correctly via `ON DELETE SET NULL` (`f002`), and transfers are
+  `RESTRICT` with an explicit 409.
+- `finance_categories` — same `f002` treatment; deleting one uncategorises its
+  transactions by design.
+- `finance_pending_transactions` — rows already leave the queue via `status ∈
+  {approved, dismissed}`. A second deletion axis on the same lifecycle would be
+  two sources of truth.
+
+### The two rules that make it correct
+
+1. **A soft delete still reverses the account balance.** `delete_expense`,
+   `delete_income` and `delete_transfer` call `_adjust_balance` exactly as they
+   did when they hard-deleted; only the row disposal changed. A hidden expense
+   that left the balance reduced is a correctness bug, not a feature.
+   `POST /{id}/restore` re-applies the same delta with the sign flipped. Bills,
+   loans and investments have no balance effect either way.
+2. **Every read filters `deleted_at IS NULL` — including the write paths.**
+   `update_*` and `delete_*` filter too, so a hidden row cannot be edited or
+   double-deleted (a second delete would reverse the balance twice, which is the
+   exact bug this feature exists to prevent).
+
+### Three places that deliberately do NOT filter — leave them alone
+
+- **`delete_account`'s transfer count.** A soft-deleted transfer is still a
+  physical row and the `RESTRICT` FK still refuses. Filtering here turns a clear
+  409 into a 500.
+- **`delete_category`'s uncategorise sweep.** Hidden rows must be uncategorised
+  too, or a later restore resurrects a `category_id` pointing at nothing.
+- **`services/finance/backup.py`.** An archival dump, not a report: soft-deleted
+  rows are exported *with* their `deleted_at`. Filtering would make the backup
+  the one place a recoverable row silently stops existing.
+
+**No uniqueness interaction.** None of the six tables carries a unique
+constraint (checked against the live schema), so a hidden row cannot block
+re-creating its replacement. The dedupe keys that exist —
+`uq_pending_user_email`, `uq_cc_bill_email` — are on tables this does not touch.
+The two *behavioural* dedupe checks (`services/finance/pending.ledger_duplicate`
+and `_existing_import_keys`) DO filter: a soft-deleted row is gone as far as the
+user is concerned, so it must not suppress re-ingesting the same transaction.
+
+**GDPR erasure is unaffected and must stay that way.** `api/auth.py` sweeps
+tables derived from live ORM metadata with raw `DELETE FROM <t> WHERE user_id`,
+which knows nothing about `deleted_at`. Soft delete must never become data
+retention. Pinned by `tests/test_soft_delete.py`.
+
+## "Today" is derived from the server's LOCAL clock in ~20 places (open, 2026-08-27)
+
+Every timestamp in this schema is **naive UTC** (see the S12 section above), but
+around twenty call sites still compute the current day with `date.today()`,
+which is the *server's local* date. On a UTC host the two agree, which is why
+this is latent in production — the Postgres image and most VPS hosts default to
+UTC. On any non-UTC host they disagree for the length of the offset: on an IST
+box (UTC+5:30) `date.today()` is a day ahead of `datetime.utcnow().date()` from
+05:30 IST until midnight.
+
+This was found, not theorised: `workout_adherence` built its window from
+`date.today()` and compared it against `WorkoutRoutine.created_at` (naive UTC),
+so a routine created yesterday looked like it had existed for three days and
+`test_days_before_the_routine_existed_do_not_count` failed on an IST dev box.
+Fixed there (`api/areas/health.py`, `workout_adherence`) by using
+`datetime.utcnow().date()`.
+
+**The remaining sites are deliberately NOT changed**, because the correct answer
+is not obviously UTC:
+
+    api/finance_payables.py:38,40   api/workspace.py:561,675
+    api/areas/health.py:149,1313,1315   api/areas/career.py:321,383,506,583
+    services/agents/runners.py:149,150,163,164   services/chat/memory.py:52,81
+    services/chat/context_builder.py:110   services/finance/backup.py:73
+
+For anything a **human** experiences as a day — "did I train today", "what did I
+eat today", the date the assistant is told it is — the right boundary is the
+**user's** timezone, not UTC and not the server's. That data already exists:
+`BriefingPreference.tz` (IANA), which the agent scheduler already uses to fire
+crons at the user's local 06:00, and which propagates to every one of a user's
+agents.
+
+So the real fix is a `user_today(user)` helper resolving through that tz, applied
+to the human-facing sites, with UTC kept only where the comparison is against
+stored UTC instants. Doing it half-way — mechanically swapping all twenty to
+`utcnow()` — would silently move every user's "today" to UTC midnight, which for
+an IST user means their day rolls over at 05:30. That is a worse bug than the one
+being fixed, so it is left as a single coherent piece of work rather than a
+sweep. This is the same item as the long-standing HLT-2 backlog entry.

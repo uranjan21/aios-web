@@ -61,8 +61,9 @@ This document provides a categorized list of all features currently implemented 
 
 ## 7. SaaS & Infrastructure ⚙️
 *   **Multi-Tenancy:** Row-level isolation across all tables ensuring absolute privacy.
-*   **Modular Pricing / Billing:** Pay-per-module Stripe integration with a free base tier and metered AI usage caps.
-*   **Authentication:** JWT-based strict authentication with Google OAuth integration support.
+*   **Free, bring-your-own-API-key:** No billing, subscriptions or usage caps. Each user supplies their own OpenAI/Anthropic key (encrypted at rest) and their provider bills them directly.
+*   **Authentication:** JWT-based strict authentication with Google OAuth integration support. "Remember me" extends the session to 30 days; a deep link hit while signed out returns the user to it after sign-in.
+*   **In-App Guide (`/app/guide`):** The product manual — getting started, what each area and workspace entity is for, the agent roster and its schedules, keyboard shortcuts, where each setting lives, and troubleshooting. Every row that names a destination navigates to it, so reading it and using the app are the same act.
 *   **Theme Engine:** "Premium Black + Gold" design system utilizing @ledgr/ui.
 
 

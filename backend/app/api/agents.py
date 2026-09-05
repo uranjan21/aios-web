@@ -10,7 +10,6 @@ from pydantic import BaseModel
 from sqlmodel import select
 
 from app.core.deps import get_current_user, get_db
-from app.core.entitlements import require_module
 from app.core.rate_limit import limiter
 from app.db.session import AsyncSessionLocal
 from app.models.agent import Agent
@@ -155,13 +154,36 @@ async def patch_agent(agent_id: str, body: AgentPatch, current_user=Depends(get_
     return agent
 
 
-@router.post("/{agent_id}/trigger", dependencies=[Depends(require_module("agents"))])
+# The one agent that is a pure DB sweep, not an LLM call — it must stay
+# triggerable by a user who has configured no provider key.
+_NON_LLM_TASKS = {"aios-vault-extractor"}
+
+
+@router.post("/{agent_id}/trigger")
 @limiter.limit("5/minute")
 async def trigger_agent(request: Request, agent_id: str, current_user=Depends(get_current_user), db=Depends(get_db)):
     result = await db.execute(select(Agent).where(Agent.task_id == agent_id, Agent.user_id == current_user.id))
     agent = result.scalar_one_or_none()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
+
+    # A manual trigger is interactive, so a missing key is worth saying out loud
+    # here — the run itself happens in a background task that can only degrade
+    # to facts-only silently.
+    if agent_id not in _NON_LLM_TASKS:
+        from app.services.ai.keys import list_user_providers
+        if not await list_user_providers(db, current_user.id):
+            raise HTTPException(
+                status_code=428,
+                detail={
+                    "error": "no_api_key",
+                    "provider": "openai",
+                    "message": (
+                        "No API key configured. Add your own provider key in "
+                        "Settings → AI & knowledge to run agents."
+                    ),
+                },
+            )
 
     run_id = str(uuid.uuid4())
     agent.last_run_status = "running"

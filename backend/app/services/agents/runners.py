@@ -382,10 +382,8 @@ async def run_agent_task(task_id: str, user_id: uuid.UUID) -> str:
     """Execute one agent and return its text output. Raises only on unexpected errors."""
     system, push_title = _SPECS.get(task_id, _DEFAULT_SPEC)
 
-    # Vault extractor is a pure DB sweep, not an LLM call — it must run regardless
-    # of AI quota and must NOT burn an AI credit. (Previously it was gated behind
-    # ai_allowed, so over-quota users silently stopped syncing, and it metered a
-    # credit every day for no LLM use.)
+    # Vault extractor is a pure DB sweep, not an LLM call — it runs for every
+    # user regardless of whether they have configured a provider key.
     if task_id == "aios-vault-extractor":
         from app.services.vault_sync.extractor import run_daily_vault_extraction
         try:
@@ -397,7 +395,7 @@ async def run_agent_task(task_id: str, user_id: uuid.UUID) -> str:
 
     # Transaction Tracker + Statement Reconciler have a dedicated engine:
     # unprocessed financial emails → LLM extraction → dedupe → pending review
-    # queue. It gates/meters AI usage itself and skips the LLM entirely when
+    # queue. It resolves the user's key itself and skips the LLM entirely when
     # there is nothing new to parse.
     from app.services.finance.email_extraction import EMAIL_EXTRACTION_TASKS, run_email_extraction_agent
     if task_id in EMAIL_EXTRACTION_TASKS:
@@ -405,27 +403,28 @@ async def run_agent_task(task_id: str, user_id: uuid.UUID) -> str:
 
     facts, has_signal = await _build_context(task_id, user_id)
 
-    # Nothing to brief (morning brief only): skip the LLM, the metering AND the
-    # push — a dormant user must not burn ~30 credits/month on briefs about
-    # nothing. Data resumes → briefs resume, no state to manage.
+    # Nothing to brief (morning brief only): skip the LLM AND the push — a
+    # dormant user must not pay their provider for briefs about nothing.
+    # Data resumes → briefs resume, no state to manage.
     if not has_signal:
         logger.info("Agent %s skipped for user %s — no activity to brief", task_id, user_id)
-        return "No activity yesterday and nothing on the calendar — brief skipped (no AI credit used)."
+        return "No activity yesterday and nothing on the calendar — brief skipped."
 
-    # Respect the AI quota — same hard-cap rule as chat: a user over the free
-    # monthly cap who doesn't own a metered module gets facts-only (no LLM spend),
-    # matching services/billing/usage's stated quota model.
+    # BYOK: a scheduled run has nobody to prompt, so a user with no provider key
+    # degrades to the same facts-only output an LLM failure produces. One INFO
+    # line per run, no raise, no retry — this fires on every schedule for as long
+    # as the key is unset.
     from sqlmodel import select
     from app.models.user import User
     from app.models.agent import Agent
-    from app.services.billing.usage import ai_allowed, record_ai_usage
+    from app.services.ai.keys import list_user_providers
     async with AsyncSessionLocal() as session:
         user = (await session.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
         agent = (await session.execute(select(Agent).where(Agent.user_id == user_id, Agent.task_id == task_id))).scalar_one_or_none()
-        allowed = user is not None and await ai_allowed(session, user)
+        has_key = user is not None and bool(await list_user_providers(session, user_id))
 
-    if not allowed:
-        logger.info("Agent %s skipped LLM for user %s — AI quota exceeded; returning facts only", task_id, user_id)
+    if not has_key:
+        logger.info("Agent %s skipped LLM for user %s — no API key configured; returning facts only", task_id, user_id)
         text = f"{FALLBACK_WARNING_PREFIX}{facts}"
     else:
         try:
@@ -451,10 +450,6 @@ async def run_agent_task(task_id: str, user_id: uuid.UUID) -> str:
                 text += "\n\nActions executed:\n" + "\n".join(f"- {summary}" for summary in action_summaries)
             if affected_paths:
                 text += "\n\nVault files updated:\n" + "\n".join(f"- {path}" for path in affected_paths)
-
-            # Meter the agent run (owners get overage billing; see services/billing/usage).
-            async with AsyncSessionLocal() as session:
-                await record_ai_usage(session, user_id, units=1, source="agents")
         except Exception as e:
             logger.warning("Agent %s LLM call failed, returning facts only: %s", task_id, e)
             text = f"{FALLBACK_WARNING_PREFIX}{facts}"

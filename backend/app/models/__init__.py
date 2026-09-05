@@ -6,6 +6,7 @@ from app.models.health import (
     WorkoutRoutine, RoutineExercise, RoutineDay, MealPlan, MealPlanEntry,
 )
 from app.models.integration import IntegrationCredential
+from app.models.api_keys import UserApiKey
 from app.models.captures import Capture
 from app.models.chat import ChatSession, ChatMessage, DailyTokenUsage
 from app.models.content import ContentItem, ContentCampaign
@@ -17,9 +18,7 @@ from app.models.career import (
     LearningResource, EmploymentRole,
 )
 from app.models.push import PushSubscription
-from app.models.billing import Subscription
 from app.models.oauth_state import OAuthState
-from app.models.billing_event import StripeEventIdempotency
 from app.models.admin_audit import AdminAuditLog
 from app.models.goal import MacroGoal, GoalProgress
 from app.models.forecast import Forecast

@@ -105,7 +105,7 @@ async def test_approve_sets_category_fields_and_balance(app, user_a, db_session_
 
 
 @pytest.mark.asyncio
-async def test_statement_reconciler_drops_ledger_matched_lines(app, user_a, db_session_factory):
+async def test_statement_reconciler_drops_ledger_matched_lines(app, user_a, db_session_factory, user_a_has_key):
     """Statement lines matching an existing ledger entry (±3d, same amount) are
     dropped — they were already captured via alerts — only new lines queue."""
     from app.services.agents.runners import run_agent_task
@@ -132,8 +132,7 @@ async def test_statement_reconciler_drops_ledger_matched_lines(app, user_a, db_s
     """
 
     with patch("app.services.finance.email_extraction.generate_text", return_value=mock_json):
-        with patch("app.services.billing.usage.ai_allowed", return_value=True):
-            result = await run_agent_task("aios-statement-reconciler", user_a.id)
+        result = await run_agent_task("aios-statement-reconciler", user_a.id)
 
     assert "queued 1 transaction" in result
     assert "Skipped 1" in result

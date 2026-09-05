@@ -1,37 +1,38 @@
 /**
  * Settings → AI & knowledge.
  *
- * REBUILT 2026-08-03. What was here duplicated two other tabs and faked a
- * control:
- *  - a "Credits used" tile repeating a number Plan & usage already shows twice;
- *  - a "Data access" table re-rendering `sub.entitled`, which Plan & usage
- *    lists as the modules you own;
- *  - two `control: 'select'` rows for the models. That control renders a chip
- *    with a chevron and NO handler (`ShellKinds.ControlsKind`), so it looked
- *    like a dropdown and did nothing — the real model pickers were hidden in
- *    the API-keys dialog.
+ * This is where AI cost lives now. Control Tower became free and
+ * bring-your-own-key on 2026-08-20, so there is no plan, no credit balance and
+ * no metered usage anywhere in the product: every LLM call runs on the key the
+ * user installs here, billed by their provider, to them.
  *
- * It also could not do the one thing this tab is for: `knowledgeApi.save` and
- * `.remove` existed with no caller, so a knowledge source could be SYNCED but
- * never set up or removed. That is now the "Knowledge source" module.
+ * Key handling rules, enforced by `@ct/shared/api/keys`:
+ *  - the plaintext key goes out in a request BODY only, never a path or query
+ *    param, and is never logged or echoed back;
+ *  - the server returns a 4-character hint, so a configured key renders as
+ *    `sk-…4f2a` and the full value is never in the DOM.
  *
- * The model pickers are in the dialog on purpose — they are per-provider and
- * only meaningful beside the key that authorises them.
+ * The model pickers stay in their own dialog — they are per-provider and only
+ * meaningful beside the key that authorises them.
  */
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
-import { BookOpen, Cpu } from 'lucide-react'
+import { BookOpen, Cpu, ExternalLink, KeyRound } from 'lucide-react'
 import { Button, Dialog, Input, Select } from '@ledgr/ui'
 import { api } from '@ct/shared/api/client'
 import { knowledgeApi } from '@ct/shared/api/knowledge'
 import { chatApi } from '@ct/shared/api/chat'
+import {
+  KEY_CONSOLE_URL, KEY_PROVIDER_LABEL, keysApi, maskedKey, type KeyProvider,
+} from '@ct/shared/api/keys'
 import { useAuthStore } from '@ct/shared/stores/authStore'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 
-const Form = styled.div`
+const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[3]};
@@ -61,9 +62,31 @@ const Spacer = styled.div`
   flex: 1;
 `
 
-const PROVIDERS = ['System', 'OpenAI', 'Anthropic']
-const PROVIDER_VALUE: Record<string, string> = { System: 'system', OpenAI: 'openai', Anthropic: 'anthropic' }
-const PROVIDER_LABEL: Record<string, string> = { system: 'System', openai: 'OpenAI', anthropic: 'Anthropic' }
+const ConsoleLink = styled.a`
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
+  color: ${({ theme }) => theme.color.accent};
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing[1]};
+  &:hover { text-decoration: underline; }
+`
+
+const CurrentKey = styled.div`
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
+  color: ${({ theme }) => theme.color.foreground};
+  background: ${({ theme }) => theme.color.muted};
+  border-radius: ${({ theme }) => theme.radii.sm};
+  padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[3]}`};
+`
+
+/* 'Auto' writes the same `system` value it always did — it means "use whichever
+   key is installed", which is the only honest reading of it now that no server
+   key exists to fall back on. */
+const PROVIDERS = ['Auto', 'OpenAI', 'Anthropic']
+const PROVIDER_VALUE: Record<string, string> = { Auto: 'system', OpenAI: 'openai', Anthropic: 'anthropic' }
+const PROVIDER_LABEL: Record<string, string> = { system: 'Auto', openai: 'OpenAI', anthropic: 'Anthropic' }
+const KEY_PROVIDERS: KeyProvider[] = ['openai', 'anthropic']
 
 const SYNC_INTERVALS = [
   { value: '15', label: 'Every 15 minutes' },
@@ -78,9 +101,16 @@ const title = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 export function AiModules() {
   const qc = useQueryClient()
   const { user, setUser } = useAuthStore()
-  const [keysOpen, setKeysOpen] = useState(false)
-  const [openaiKey, setOpenaiKey] = useState('')
-  const [anthropicKey, setAnthropicKey] = useState('')
+  const [modelsOpen, setModelsOpen] = useState(false)
+  /** Which provider's key dialog is open. `null` = closed. */
+  const [keyProvider, setKeyProvider] = useState<KeyProvider | null>(null)
+  const [keyValue, setKeyValue] = useState('')
+
+  /* The key form and the knowledge form each get their own error map — one
+     shared map would let a stale message from one dialog mark a field in the
+     other. */
+  const keyErrors = useFieldErrors<'api_key'>('byok-key')
+  const kbErrors = useFieldErrors<'path'>('knowledge-source')
 
   const [kbOpen, setKbOpen] = useState(false)
   const [kbType, setKbType] = useState<'obsidian' | 'notion'>('notion')
@@ -88,6 +118,7 @@ export function AiModules() {
   const [kbInterval, setKbInterval] = useState('30')
 
   const { data: knowledge } = useQuery({ queryKey: ['knowledge', 'source'], queryFn: knowledgeApi.get })
+  const { data: keys } = useQuery({ queryKey: ['api-keys'], queryFn: keysApi.list })
   const { data: models } = useQuery({ queryKey: ['chat', 'models'], queryFn: chatApi.models, staleTime: 10 * 60_000 })
 
   /**
@@ -100,7 +131,7 @@ export function AiModules() {
    * overwrite that choice with the default. Setting state at the call site is
    * both simpler and the only version that can honour `type`.
    */
-  const openKb = (type?: 'obsidian' | 'notion') => {
+  const openKb = useCallback((type?: 'obsidian' | 'notion') => {
     setKbType(
       type
         ?? (knowledge?.source_type as 'obsidian' | 'notion' | undefined)
@@ -108,15 +139,54 @@ export function AiModules() {
     )
     setKbPath(knowledge?.config?.path ?? '')
     setKbInterval(String(knowledge?.sync_interval_minutes ?? 30))
+    kbErrors.reset()
     setKbOpen(true)
-  }
+  }, [knowledge, kbErrors])
+
+  const openKeyDialog = useCallback((provider: KeyProvider) => {
+    setKeyValue('')
+    keyErrors.reset()
+    setKeyProvider(provider)
+  }, [keyErrors])
+
+  const saveKey = useMutation({
+    mutationFn: ({ provider, value }: { provider: KeyProvider; value: string }) =>
+      keysApi.save(provider, value),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['api-keys'] })
+      setKeyProvider(null)
+      setKeyValue('')
+      keyErrors.reset()
+      toast.success(`${KEY_PROVIDER_LABEL[vars.provider]} key saved`)
+    },
+    // The server answers 422 with a generic message on purpose — the offending
+    // value must never come back to the client.
+    onError: () => toast.error('That key was rejected — check you pasted all of it'),
+  })
+
+  const removeKey = useMutation({
+    mutationFn: (provider: KeyProvider) => keysApi.remove(provider),
+    onSuccess: (_data, provider) => {
+      qc.invalidateQueries({ queryKey: ['api-keys'] })
+      setKeyProvider(null)
+      toast.success(`${KEY_PROVIDER_LABEL[provider]} key removed`)
+    },
+    onError: () => toast.error('Could not remove the key'),
+  })
+
+  const testKey = useMutation({
+    mutationFn: (provider: KeyProvider) => keysApi.test(provider),
+    onSuccess: (res) => {
+      if (res.ok) toast.success('Key works — the provider accepted it')
+      else toast.error('The provider rejected that key')
+    },
+    onError: () => toast.error('Could not reach the provider to test the key'),
+  })
 
   const saveProfile = useMutation({
     mutationFn: (payload: Record<string, unknown>) => api.patch('/auth/profile', payload).then(r => r.data),
     onSuccess: (data) => {
       setUser(data)
-      setOpenaiKey('')
-      setAnthropicKey('')
       toast.success('AI configuration updated')
     },
     onError: () => toast.error('Failed to update AI configuration'),
@@ -170,45 +240,95 @@ export function AiModules() {
     onError: () => toast.error('Could not start a sync'),
   })
 
+  /*
+   * `ApiKeyBody` is `Field(min_length=16, max_length=500)` server-side. Those
+   * are the only two rules that exist, so they are the two checked here — and
+   * neither message ever contains, or hints at, the value typed.
+   */
+  const submitKey = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!keyProvider) return
+    const value = keyValue.trim()
+    const ok = keyErrors.submit({
+      api_key: value === ''
+        ? 'Paste your API key.'
+        : value.length < 16
+          ? 'That looks too short to be a key — check you pasted all of it.'
+          : value.length > 500
+            ? 'That is longer than any provider key — check you pasted only the key.'
+            : undefined,
+    })
+    if (ok) saveKey.mutate({ provider: keyProvider, value })
+  }
+
+  /* An Obsidian source without a path is a field problem; a Notion source
+     takes no path at all, so the rule is conditional on the type. */
+  const submitKnowledge = (e: React.FormEvent) => {
+    e.preventDefault()
+    const ok = kbErrors.submit({
+      path: kbType === 'obsidian' && !kbPath.trim()
+        ? 'Enter the folder to index.'
+        : undefined,
+    })
+    if (ok) saveKnowledge.mutate()
+  }
+
+  const configuredKeys = keys ?? {}
+
   const modules = useMemo<ModuleSpec[]>(() => {
     const provider = user?.llm_provider || 'system'
     const openaiModels = models?.providers?.openai ?? []
     const claudeModels = models?.providers?.anthropic ?? []
     const activeModel = provider === 'anthropic'
-      ? (user?.claude_model || claudeModels[0] || 'Server default')
-      : (user?.openai_chat_model || openaiModels[0] || 'Server default')
-    const ownKey = !!user?.has_openai_key || !!user?.has_anthropic_key
+      ? (user?.claude_model || claudeModels[0] || 'Provider default')
+      : (user?.openai_chat_model || openaiModels[0] || 'Provider default')
+    const configured = configuredKeys
 
     /*
      * NO `tiles` row (removed 2026-08-03). It restated provider, model, key
-     * state and knowledge source — all four of which the two modules below
-     * state, and none of which a tile can change. The active model and key
-     * state moved onto the Model card's own rows, where the button that edits
-     * them already sits.
+     * state and knowledge source — none of which a tile can change.
      */
     return [
       {
-        kind: 'controls',
+        kind: 'rows',
         span: 7,
+        title: 'Your API keys',
+        subtitle: 'Control Tower is free. AI runs on your own key, so your provider bills you directly — nothing is charged here.',
+        icon: KeyRound,
+        /* A row per provider, each one the button that installs, tests or
+           removes that key. The stored key shows as its last 4 characters —
+           the full value never leaves the provider and the server. */
+        rows: KEY_PROVIDERS.map((k) => {
+          const hint = configured[k]
+          return {
+            title: KEY_PROVIDER_LABEL[k],
+            meta: hint
+              ? 'Encrypted at rest. Click to replace, test or remove it.'
+              : `Click to add a key — ${KEY_CONSOLE_URL[k].replace('https://', '')}`,
+            value: hint ? maskedKey(k, hint) : 'Add key',
+            valueKey: hint ? undefined : 'accent',
+            tagLabel: hint ? 'Connected' : 'Not set',
+            tagColorKey: hint ? 'success' : 'mutedFg',
+            busy: saveKey.isPending || removeKey.isPending,
+          }
+        }),
+        onRowClick: (i: number) => openKeyDialog(KEY_PROVIDERS[i]),
+      },
+      {
+        kind: 'controls',
+        span: 5,
         title: 'Model',
-        /*
-         * The active model and key state ride in the subtitle rather than as
-         * their own rows. A `controls` row must declare a control, and the only
-         * one that fits read-only text is `select` — which has no handler, so
-         * it would render two more chevron chips that cannot be opened. The
-         * button above edits both.
-         */
-        subtitle: `Currently ${activeModel}${ownKey ? ' · using your own API key' : ''}`,
+        subtitle: `Currently ${activeModel}`,
         icon: Cpu,
-        action: 'API keys and models',
-        onAction: () => setKeysOpen(true),
+        action: 'Default models',
+        onAction: () => setModelsOpen(true),
         rows: [
           {
             title: 'Provider',
-            meta: 'System uses whichever key the server holds — pick one to override it',
+            meta: 'Auto uses whichever key you have added — pick one to force it',
             control: 'segment',
             options: PROVIDERS,
-            value: PROVIDER_LABEL[provider] ?? 'System',
+            value: PROVIDER_LABEL[provider] ?? 'Auto',
             busy: saveProfile.isPending,
           },
         ],
@@ -219,7 +339,7 @@ export function AiModules() {
       knowledge?.configured
         ? {
             kind: 'controls',
-            span: 5,
+            span: 12,
             title: 'Knowledge source',
             subtitle: 'External notes pulled in so the assistant knows your context',
             icon: BookOpen,
@@ -240,7 +360,7 @@ export function AiModules() {
           }
         : {
             kind: 'rows',
-            span: 5,
+            span: 12,
             title: 'Knowledge source',
             subtitle: 'Nothing connected — click a source to set it up',
             icon: BookOpen,
@@ -294,36 +414,102 @@ export function AiModules() {
         : []),
     ]
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, knowledge, models, saveProfile.isPending, toggleKnowledge.isPending, syncKnowledge.isPending])
+  }, [user, keys, knowledge, models, saveProfile.isPending, saveKey.isPending, removeKey.isPending, toggleKnowledge.isPending, syncKnowledge.isPending])
 
   return (
     <>
       <ModuleGrid modules={modules} />
 
+      {/* Per-provider key dialog. One provider at a time: a single form for
+          both would make "remove" and "test" ambiguous, and the two keys are
+          issued by two different companies with two different consoles. */}
       <Dialog
-        open={keysOpen}
-        onOpenChange={(o) => !o && setKeysOpen(false)}
+        open={keyProvider !== null}
+        onOpenChange={(o) => !o && setKeyProvider(null)}
+        icon={<KeyRound size={18} />}
+        eyebrow="AI"
+        title={keyProvider && configuredKeys[keyProvider] ? `Update your ${KEY_PROVIDER_LABEL[keyProvider]} key` : `Add your ${keyProvider ? KEY_PROVIDER_LABEL[keyProvider] : ''} key`}
+        description="Your key, your bill. Control Tower charges nothing for AI — the provider bills you directly for what you use. The key is encrypted at rest, never shown again, and never leaves this account."
+      >
+        {keyProvider && (
+          <Form noValidate onSubmit={submitKey}>
+            {configuredKeys[keyProvider] && (
+              <div>
+                <Label>Current key</Label>
+                <CurrentKey>{maskedKey(keyProvider, configuredKeys[keyProvider] as string)}</CurrentKey>
+              </div>
+            )}
+            <div>
+              <Label htmlFor="byok-key-input">{configuredKeys[keyProvider] ? 'Replace with a new key' : `${KEY_PROVIDER_LABEL[keyProvider]} API key`}</Label>
+              <Input
+                id="byok-key-input"
+                type="password"
+                autoComplete="off"
+                value={keyValue}
+                {...keyErrors.fieldProps('api_key')}
+                onChange={(e: any) => { keyErrors.clearField('api_key'); setKeyValue(e.target.value) }}
+                placeholder={keyProvider === 'anthropic' ? 'sk-ant-…' : 'sk-…'}
+              />
+              <FieldError id={keyErrors.errorId('api_key')}>{keyErrors.errors.api_key}</FieldError>
+              <Hint>
+                <ConsoleLink href={KEY_CONSOLE_URL[keyProvider]} target="_blank" rel="noreferrer noopener">
+                  Get a key from {KEY_PROVIDER_LABEL[keyProvider]} <ExternalLink size={12} />
+                </ConsoleLink>
+              </Hint>
+            </div>
+            <Actions>
+              {/* The button used to be `disabled` below 16 characters, which is
+                  the server's own `min_length` — but a dead button explains
+                  nothing. It submits now and the length rule reports itself on
+                  the field. The key is never rendered back, logged, or put in
+                  the message. */}
+              <Button type="submit" variant="primary" loading={saveKey.isPending}>
+                Save key
+              </Button>
+              {configuredKeys[keyProvider] && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  loading={testKey.isPending}
+                  onClick={() => testKey.mutate(keyProvider)}
+                >
+                  Test key
+                </Button>
+              )}
+              <Button type="button" variant="ghost" onClick={() => setKeyProvider(null)}>Cancel</Button>
+              <Spacer />
+              {configuredKeys[keyProvider] && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  loading={removeKey.isPending}
+                  onClick={() => removeKey.mutate(keyProvider)}
+                >
+                  Remove
+                </Button>
+              )}
+            </Actions>
+          </Form>
+        )}
+      </Dialog>
+
+      <Dialog
+        open={modelsOpen}
+        onOpenChange={(o) => !o && setModelsOpen(false)}
         icon={<Cpu size={18} />}
         eyebrow="AI"
-        title="API keys and models"
-        description="Bring your own keys to bypass the shared usage quota. Keys are encrypted at rest and never shown again."
+        title="Default models"
+        description="Which model each provider uses when nothing else is specified. Both are billed by that provider on your own key."
       >
-        <Form>
-          <div>
-            <Label>OpenAI key {user?.has_openai_key ? '(one is already set)' : ''}</Label>
-            <Input type="password" value={openaiKey} onChange={(e: any) => setOpenaiKey(e.target.value)} placeholder="sk-…" />
-          </div>
-          <div>
-            <Label>Anthropic key {user?.has_anthropic_key ? '(one is already set)' : ''}</Label>
-            <Input type="password" value={anthropicKey} onChange={(e: any) => setAnthropicKey(e.target.value)} placeholder="sk-ant-…" />
-          </div>
+        {/* No submit — each Select writes on change, so this box is not a form. */}
+        <Form as="div">
           <div>
             <Label>Default OpenAI model</Label>
             <Select
               fullWidth
               value={user?.openai_chat_model || ''}
               onChange={(v: any) => saveProfile.mutate({ openai_chat_model: String(v) })}
-              options={[{ value: '', label: 'Server default' }, ...(models?.providers?.openai ?? []).map(m => ({ value: m, label: m }))]}
+              options={[{ value: '', label: 'Provider default' }, ...(models?.providers?.openai ?? []).map(m => ({ value: m, label: m }))]}
             />
           </div>
           <div>
@@ -332,25 +518,11 @@ export function AiModules() {
               fullWidth
               value={user?.claude_model || ''}
               onChange={(v: any) => saveProfile.mutate({ claude_model: String(v) })}
-              options={[{ value: '', label: 'Server default' }, ...(models?.providers?.anthropic ?? []).map(m => ({ value: m, label: m }))]}
+              options={[{ value: '', label: 'Provider default' }, ...(models?.providers?.anthropic ?? []).map(m => ({ value: m, label: m }))]}
             />
           </div>
           <Actions>
-            <Button
-              variant="primary"
-              loading={saveProfile.isPending}
-              disabled={!openaiKey && !anthropicKey}
-              onClick={() => {
-                saveProfile.mutate({
-                  ...(openaiKey ? { openai_api_key: openaiKey } : {}),
-                  ...(anthropicKey ? { anthropic_api_key: anthropicKey } : {}),
-                })
-                setKeysOpen(false)
-              }}
-            >
-              Save keys
-            </Button>
-            <Button variant="ghost" onClick={() => setKeysOpen(false)}>Close</Button>
+            <Button variant="ghost" onClick={() => setModelsOpen(false)}>Close</Button>
           </Actions>
         </Form>
       </Dialog>
@@ -363,7 +535,7 @@ export function AiModules() {
         title={knowledge?.configured ? 'Configure knowledge source' : 'Connect a knowledge source'}
         description="Your own notes, indexed so chat and agents can cite them. Only you can read them."
       >
-        <Form>
+        <Form noValidate onSubmit={submitKnowledge}>
           <div>
             <Label>Source</Label>
             <Select
@@ -381,12 +553,15 @@ export function AiModules() {
 
           {kbType === 'obsidian' ? (
             <div>
-              <Label>Vault folder path</Label>
+              <Label htmlFor="knowledge-path-input">Vault folder path</Label>
               <Input
+                id="knowledge-path-input"
                 value={kbPath}
-                onChange={(e: any) => setKbPath(e.target.value)}
+                {...kbErrors.fieldProps('path')}
+                onChange={(e: any) => { kbErrors.clearField('path'); setKbPath(e.target.value) }}
                 placeholder="/Users/you/Documents/Vault"
               />
+              <FieldError id={kbErrors.errorId('path')}>{kbErrors.errors.path}</FieldError>
               <Hint>Must be a folder that exists on the server running Control Tower.</Hint>
             </div>
           ) : (
@@ -404,18 +579,14 @@ export function AiModules() {
           </div>
 
           <Actions>
-            <Button
-              variant="primary"
-              loading={saveKnowledge.isPending}
-              disabled={kbType === 'obsidian' && !kbPath.trim()}
-              onClick={() => saveKnowledge.mutate()}
-            >
+            <Button type="submit" variant="primary" loading={saveKnowledge.isPending}>
               {knowledge?.configured ? 'Save changes' : 'Connect'}
             </Button>
-            <Button variant="ghost" onClick={() => setKbOpen(false)}>Cancel</Button>
+            <Button type="button" variant="ghost" onClick={() => setKbOpen(false)}>Cancel</Button>
             <Spacer />
             {knowledge?.configured && (
               <Button
+                type="button"
                 variant="destructive"
                 loading={removeKnowledge.isPending}
                 onClick={() => removeKnowledge.mutate()}

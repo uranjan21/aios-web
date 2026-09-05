@@ -18,7 +18,6 @@ import { useKeyboardShortcuts } from "@ct/shared/hooks/useKeyboardShortcuts";
 import { GOTO_SHORTCUTS, PAGE_NAMES, resolvePath } from "@/config/navigation";
 import { PageIdentityProvider } from "@ct/shared/components/layout/PageLayout";
 import { useNotifications } from "@ct/shared/hooks/useNotifications";
-import { useSubscription } from "@ct/shared/hooks/useSubscription";
 import { useUIStore } from "@ct/shared/stores/uiStore";
 import { useAuthStore } from "@ct/shared/stores/authStore";
 import { EmailVerificationBanner } from "@/components/EmailVerificationBanner";
@@ -109,7 +108,6 @@ const SkipLink = styled.a`
 export function AppShell() {
   useKeyboardShortcuts(GOTO_SHORTCUTS);
   useNotifications();
-  useSubscription();
 
   const location = useLocation();
   const user = useAuthStore(s => s.user);

@@ -1,19 +1,15 @@
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@ct/shared/stores/authStore'
 import { useUIStore } from '@ct/shared/stores/uiStore'
 import { logoutAndRedirect } from '@ct/shared/lib/logout'
 import { accountLabel } from '@ct/shared/lib/account'
-import { billingApi } from '@ct/shared/api/billing'
 import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  Badge,
 } from '@ledgr/ui'
 import {
   User,
-  CreditCard,
   Settings,
   Shield,
   Sun,
@@ -115,11 +111,6 @@ const MenuItemContent = styled.div`
     align-items: center;
   }
 
-  .badge-wrapper {
-    display: flex;
-    align-items: center;
-    transform: translateY(-1px);
-  }
 `
 
 const StyledMenuItem = styled(DropdownMenuItem)`
@@ -216,13 +207,6 @@ export function AccountMenuBody({ side = 'bottom', align = 'end' }: { side?: 'to
   const user = useAuthStore(s => s.user)
   const { theme, setTheme } = useUIStore()
 
-  const { data: subscription } = useQuery({
-    queryKey: ['billing', 'subscription'],
-    queryFn: billingApi.subscription,
-    staleTime: 5 * 60 * 1000,
-    retry: false
-  })
-
   return (
     <StyledContent side={side} align={align}>
       <IdentityHeader>
@@ -249,20 +233,6 @@ export function AccountMenuBody({ side = 'bottom', align = 'end' }: { side?: 'to
         <MenuItemContent>
           <User />
           <span className="label">Profile</span>
-        </MenuItemContent>
-      </StyledMenuItem>
-      
-      <StyledMenuItem onSelect={() => navigate('/app/settings?section=billing')}>
-        <MenuItemContent>
-          <CreditCard />
-          <span className="label">Subscription</span>
-          {subscription && subscription.plan && (
-            <div className="badge-wrapper">
-              <Badge tone="accent" style={{ textTransform: 'capitalize' }}>
-                {subscription.plan.replace('_', ' ')}
-              </Badge>
-            </div>
-          )}
         </MenuItemContent>
       </StyledMenuItem>
       

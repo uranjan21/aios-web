@@ -8,6 +8,7 @@ import { Trash2, Wallet, PencilLine, ArrowLeftRight, TrendingUp, TrendingDown, L
 import { toast } from 'sonner'
 import styled from 'styled-components'
 import dayjs from 'dayjs'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { financeApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { formatCurrency } from '@ct/shared/lib/utils'
@@ -235,12 +236,14 @@ interface AccountSidePanelProps {
 function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
   const queryClient = useQueryClient()
   const [form, setForm] = useState<EditState>(EMPTY_EDIT)
+  const f = useFieldErrors<'name' | 'balance'>('edit-account')
   const [editingTxn, setEditingTxn] = useState<Txn | null>(null)
   const [txnModalOpen, setTxnModalOpen] = useState(false)
 
   // Hydrate form when account changes
   useEffect(() => {
     if (account) {
+      f.reset()
       setForm({
         name: account.name ?? '',
         type: account.type ?? 'checking',
@@ -248,6 +251,7 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
         currency: account.currency ?? 'INR',
       })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- f is stable; adding it re-runs the prefill on every error change
   }, [account])
 
   const { data: ledger, isLoading: ledgerLoading } = useQuery({
@@ -280,12 +284,18 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
     onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to delete transaction'),
   })
 
+  /* Two toasts that named no field, on a panel with two editable fields. */
   const handleSave = () => {
     if (!account) return
     const name = form.name.trim()
-    if (!name) { toast.error('Name is required'); return }
     const bal = parseFloat(form.balance)
-    if (Number.isNaN(bal)) { toast.error('Balance must be a number'); return }
+    const ok = f.submit({
+      name: name ? undefined : 'Give the account a name.',
+      balance: form.balance.trim() === '' || !Number.isFinite(bal)
+        ? 'Enter a number — a negative balance is allowed for a credit card.'
+        : undefined,
+    })
+    if (!ok) return
     updateMutation.mutate({
       id: account.id,
       patch: { name, type: form.type, balance: bal, currency: form.currency.trim().toUpperCase() },
@@ -320,9 +330,11 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
                   <Input
                     id="sp-account-name"
                     value={form.name}
-                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    {...f.fieldProps('name')}
+                    onChange={e => { f.clearField('name'); setForm(prev => ({ ...prev, name: e.target.value })) }}
                     placeholder="e.g. HDFC Savings"
                   />
+                  <FieldError id={f.errorId('name')}>{f.errors.name}</FieldError>
                 </FieldLabel>
               </FullWidth>
               <FieldLabel htmlFor="sp-account-type">
@@ -332,7 +344,7 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
                   fullWidth
                   size="md"
                   value={form.type}
-                  onChange={v => setForm(f => ({ ...f, type: String(v) }))}
+                  onChange={v => setForm(prev => ({ ...prev, type: String(v) }))}
                   options={ACCOUNT_TYPE_OPTIONS}
                   aria-label="Account type"
                 />
@@ -344,7 +356,7 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
                   fullWidth
                   size="md"
                   value={form.currency}
-                  onChange={v => setForm(f => ({ ...f, currency: String(v) }))}
+                  onChange={v => setForm(prev => ({ ...prev, currency: String(v) }))}
                   options={CURRENCY_OPTIONS}
                   aria-label="Currency"
                 />
@@ -357,9 +369,11 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
                     type="number"
                     step="0.01"
                     value={form.balance}
-                    onChange={e => setForm(f => ({ ...f, balance: e.target.value }))}
+                    {...f.fieldProps('balance')}
+                    onChange={e => { f.clearField('balance'); setForm(prev => ({ ...prev, balance: e.target.value })) }}
                     startAdornment={form.currency || '₹'}
                   />
+                  <FieldError id={f.errorId('balance')}>{f.errors.balance}</FieldError>
                 </FieldLabel>
               </FullWidth>
             </FormGrid>

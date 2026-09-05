@@ -256,6 +256,7 @@ export const financeApi = {
   patchExpense: (id: string, d: Partial<{ amount: number; category_id: string | null; category: string | null; description: string | null; logged_at: string; account_id: string | null; tags: string | null }>) =>
     api.patch<FinanceExpense>(`/areas/finance/expenses/${id}`, d).then(r => r.data),
   deleteExpense: (id: string) => api.delete(`/areas/finance/expenses/${id}`).then(r => r.data),
+  restoreExpense: (id: string) => api.post(`/areas/finance/expenses/${id}/restore`).then(r => r.data),
   // Goals (Savings Pots)
   goals: () => api.get<FinancialGoal[]>('/areas/finance/goals').then(r => r.data),
   createGoal: (d: {name:string; icon?:string; target_amount:number; current_amount?:number; deadline?:string|null; category?:string; color?:string}) => api.post<FinancialGoal>('/areas/finance/goals', d).then(r=>r.data),
@@ -274,17 +275,20 @@ export const financeApi = {
   createBill: (d: {name:string; amount:number; due_day:number; category?:string; is_auto_debit?:boolean; notes?:string; account_id?:string}) => api.post<FinanceBill>('/areas/finance/bills', d).then(r=>r.data),
   patchBill: (id:string, d: Partial<FinanceBill>) => api.patch<FinanceBill>(`/areas/finance/bills/${id}`, d).then(r=>r.data),
   deleteBill: (id:string) => api.delete(`/areas/finance/bills/${id}`).then(r=>r.data),
+  restoreBill: (id: string) => api.post(`/areas/finance/bills/${id}/restore`).then(r => r.data),
   // Income
   income: (month?: string) => api.get<FinanceIncome[]>('/areas/finance/income', { params: { month } }).then(r => r.data),
   createIncome: (d: {amount:number; category_id?:string|null; source?:string; description?:string; logged_at?:string; account_id?:string; tags?:string}) => api.post<FinanceIncome>('/areas/finance/income', d).then(r=>r.data),
   patchIncome: (id: string, d: Partial<{ amount: number; category_id: string | null; source: string; description: string | null; logged_at: string; account_id: string | null; tags: string | null }>) =>
     api.patch<FinanceIncome>(`/areas/finance/income/${id}`, d).then(r => r.data),
   deleteIncome: (id: string) => api.delete(`/areas/finance/income/${id}`).then(r => r.data),
+  restoreIncome: (id: string) => api.post(`/areas/finance/income/${id}/restore`).then(r => r.data),
   // Transfers
   transfers: (month?: string) => api.get<FinanceTransfer[]>('/areas/finance/transfers', { params: { month } }).then(r => r.data),
   createTransfer: (d: { amount: number; from_account_id: string; to_account_id: string; description?: string; logged_at?: string }) =>
     api.post<FinanceTransfer>('/areas/finance/transfers', d).then(r => r.data),
   deleteTransfer: (id: string) => api.delete(`/areas/finance/transfers/${id}`).then(r => r.data),
+  restoreTransfer: (id: string) => api.post(`/areas/finance/transfers/${id}/restore`).then(r => r.data),
   // Cashflow
   cashflow: (month?: string) => api.get<CashFlowData>('/areas/finance/cashflow', { params: { month } }).then(r => r.data),
   // Budget limits
@@ -318,6 +322,7 @@ export const financeApi = {
   patchInvestment: (id: string, d: Partial<{ name: string; type: string; invested_amount: number; current_value: number; units: number | null; purchase_date: string | null; notes: string | null }>) =>
     api.patch<FinanceInvestment>(`/areas/finance/investments/${id}`, d).then(r => r.data),
   deleteInvestment: (id: string) => api.delete(`/areas/finance/investments/${id}`).then(r => r.data),
+  restoreInvestment: (id: string) => api.post(`/areas/finance/investments/${id}/restore`).then(r => r.data),
   investmentsPerformance: (days = 180) =>
     api.get<InvestmentPerformance>('/areas/finance/investments/performance', { params: { days } }).then(r => r.data),
   investmentTransactions: (p?: { investment_id?: string; limit?: number }) =>
@@ -334,6 +339,7 @@ export const financeApi = {
   patchLoan: (id: string, d: Partial<{ name: string; loan_type: string; lender: string | null; principal_amount: number; outstanding_amount: number; interest_rate: number; emi_amount: number; emi_day: number; tenure_months: number | null; is_active: boolean; notes: string | null; account_id: string | null }>) =>
     api.patch<FinanceLoan>(`/areas/finance/loans/${id}`, d).then(r => r.data),
   deleteLoan: (id: string) => api.delete(`/areas/finance/loans/${id}`).then(r => r.data),
+  restoreLoan: (id: string) => api.post(`/areas/finance/loans/${id}/restore`).then(r => r.data),
   loanPayments: (loanId: string) =>
     api.get<LoanPayments>(`/areas/finance/loans/${loanId}/payments`).then(r => r.data),
 }

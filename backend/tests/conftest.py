@@ -23,11 +23,12 @@ os.environ.setdefault("APP_SECRET_KEY", "test-secret-key-minimum-32-chars!!")
 os.environ.setdefault("APP_EMAIL", "admin@example.com")
 os.environ.setdefault("APP_PASSWORD", "testpass")
 os.environ.setdefault("LLM_PROVIDER", "openai")
-os.environ.setdefault("OPENAI_API_KEY", "sk-placeholder")
-os.environ.setdefault("ANTHROPIC_API_KEY", "sk-placeholder")
 os.environ.setdefault("ALLOWED_ORIGIN", "http://localhost:5173")
 os.environ.setdefault("VAULT_PATH", "/tmp/vault-test")
-os.environ.setdefault("TOKEN_ENCRYPTION_KEY", "dGVzdC1rZXktZm9yLWNpLW9ubHktZG8tbm90LXVzZQ==")
+# Must be a REAL Fernet key, not just base64 text: since BYOK landed, users'
+# own provider keys are encrypted with it, so an invalid value now fails at
+# Fernet construction rather than lying dormant. Test-only value.
+os.environ.setdefault("TOKEN_ENCRYPTION_KEY", "Tpv33bmyZUkKvGE4bByURzTpEDF58V_gt661bnTg04A=")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -157,8 +158,7 @@ def _isolation_tables():
     from app.models.integration import IntegrationCredential
     from app.models.agent import Agent
     from app.models.push import PushSubscription
-    from app.models.billing import Subscription, AIUsageRecord, FailedWebhook
-    from app.models.billing_event import StripeEventIdempotency
+    from app.models.api_keys import UserApiKey
     from app.models.action import AgentAction
     from app.models.forecast import Forecast
     from app.models.automations import AutomationRule
@@ -177,8 +177,8 @@ def _isolation_tables():
     from app.models.oauth_state import OAuthState
     return [m.__table__ for m in (
         OAuthState,
-        User, ChatSession, ChatMessage, Capture, IntegrationCredential, Agent, PushSubscription, Subscription, AIUsageRecord,
-        FailedWebhook, StripeEventIdempotency, AgentAction, Forecast, AutomationRule, AdminAuditLog,
+        User, ChatSession, ChatMessage, Capture, IntegrationCredential, Agent, PushSubscription, UserApiKey,
+        AgentAction, Forecast, AutomationRule, AdminAuditLog,
         Project, Sprint, Task, Milestone, PlanBlock, MacroGoal, GoalProgress, ContentItem, ContentCampaign,
         HealthLog, HealthGoal, Habit, HabitCheck, WorkoutSession, WorkoutSet, FoodItem,
         WorkoutRoutine, RoutineExercise, RoutineDay,
@@ -285,6 +285,23 @@ async def client_a(app, user_a):
 async def client_b(app, user_b):
     async with _client_for(app, user_b) as ac:
         yield ac
+
+
+@pytest_asyncio.fixture
+async def user_a_has_key(app, user_a):
+    """Give user_a an OpenAI key so AI paths actually run.
+
+    Since BYOK landed (2026-08-17) the server has no key of its own: a user
+    without one is *correctly* refused, and every agent/LLM test degrades to a
+    "add your own key" message instead of calling a provider. Any test that
+    means to exercise the real path has to install a key first.
+    """
+    from app.db.session import AsyncSessionLocal
+    from app.services.ai.keys import set_user_api_key
+
+    async with AsyncSessionLocal() as session:
+        await set_user_api_key(session, user_a.id, "openai", "sk-test-fixture-key")
+    return "sk-test-fixture-key"
 
 
 @pytest.fixture

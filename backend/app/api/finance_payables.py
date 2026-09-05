@@ -59,14 +59,16 @@ async def payables(
     bills = (
         await db.execute(
             select(FinanceBill).where(
-                FinanceBill.user_id == user.id, FinanceBill.is_active == True  # noqa: E712
+                FinanceBill.user_id == user.id, FinanceBill.is_active == True,  # noqa: E712
+                FinanceBill.deleted_at.is_(None),
             )
         )
     ).scalars().all()
     loans = (
         await db.execute(
             select(FinanceLoan).where(
-                FinanceLoan.user_id == user.id, FinanceLoan.is_active == True  # noqa: E712
+                FinanceLoan.user_id == user.id, FinanceLoan.is_active == True,  # noqa: E712
+                FinanceLoan.deleted_at.is_(None),
             )
         )
     ).scalars().all()
@@ -151,6 +153,9 @@ class PayToggle(BaseModel):
 async def _owns_obligation(db, user_id, kind: str, oid: uuid.UUID) -> bool:
     model = {"bill": FinanceBill, "loan": FinanceLoan, "cc_bill": CCBill}[kind]
     row = await db.get(model, oid)
+    # CCBill has no deleted_at; the two that do must not be payable once hidden.
+    if row is not None and getattr(row, "deleted_at", None) is not None:
+        return False
     return bool(row and row.user_id == user_id)
 
 

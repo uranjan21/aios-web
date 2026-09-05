@@ -72,6 +72,24 @@ async def _adjust_balance(db, account_id: Optional[uuid.UUID], delta: float, use
     db.add(account)
 
 
+async def _soft_deleted(db, model, row_id: uuid.UUID, user_id: uuid.UUID, label: str):
+    """Fetch one already-soft-deleted row of `model`, or 404.
+
+    The restore endpoints are the only place that deliberately looks past the
+    `deleted_at IS NULL` filter every other read applies.
+    """
+    row = (await db.execute(
+        select(model).where(
+            model.id == row_id,
+            model.user_id == user_id,
+            model.deleted_at.is_not(None),
+        )
+    )).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"{label} not found")
+    return row
+
+
 def _month_range(month: Optional[str]) -> tuple[datetime, datetime]:
     """Parse YYYY-MM into [start, end) datetimes; defaults to current month."""
     if month:
@@ -96,8 +114,8 @@ async def net_worth(current_user=Depends(get_current_user), db=Depends(get_db)):
     negative), so a plain sum is correct for the accounts component.
     """
     accounts = (await db.execute(select(Account).where(Account.user_id == current_user.id))).scalars().all()
-    investments = (await db.execute(select(FinanceInvestment).where(FinanceInvestment.user_id == current_user.id))).scalars().all()
-    loans = (await db.execute(select(FinanceLoan).where(FinanceLoan.user_id == current_user.id, FinanceLoan.is_active == True))).scalars().all()
+    investments = (await db.execute(select(FinanceInvestment).where(FinanceInvestment.user_id == current_user.id, FinanceInvestment.deleted_at.is_(None)))).scalars().all()
+    loans = (await db.execute(select(FinanceLoan).where(FinanceLoan.user_id == current_user.id, FinanceLoan.is_active == True, FinanceLoan.deleted_at.is_(None)))).scalars().all()
 
     accounts_total = sum(float(a.balance) for a in accounts)
     investments_total = sum(float(i.current_value) for i in investments)
@@ -183,12 +201,12 @@ async def _existing_import_keys(db, items: list[ImportItem], user_id: uuid.UUID)
 
     keys = set()
     expenses = (await db.execute(
-        select(FinanceExpense).where(FinanceExpense.user_id == user_id, FinanceExpense.logged_at >= lo, FinanceExpense.logged_at < hi)
+        select(FinanceExpense).where(FinanceExpense.user_id == user_id, FinanceExpense.logged_at >= lo, FinanceExpense.logged_at < hi, FinanceExpense.deleted_at.is_(None))
     )).scalars().all()
     for e in expenses:
         keys.add(("expense",) + _import_key(e.logged_at, float(e.amount), e.description))
     income = (await db.execute(
-        select(FinanceIncome).where(FinanceIncome.user_id == user_id, FinanceIncome.logged_at >= lo, FinanceIncome.logged_at < hi)
+        select(FinanceIncome).where(FinanceIncome.user_id == user_id, FinanceIncome.logged_at >= lo, FinanceIncome.logged_at < hi, FinanceIncome.deleted_at.is_(None))
     )).scalars().all()
     for i in income:
         keys.add(("income",) + _import_key(i.logged_at, float(i.amount), i.description))
@@ -342,7 +360,12 @@ async def search_transactions(
         # It must be CAST(:uid AS uuid), NOT :uid::uuid — text()'s bind-param
         # regex requires the character after a name to not be ':', so the
         # postfix form makes SQLAlchemy stop seeing `uid` as a parameter at all.
-        clauses = [f"{table_alias}.user_id = CAST(:uid AS uuid)"]
+        clauses = [
+            f"{table_alias}.user_id = CAST(:uid AS uuid)",
+            # Soft delete (n001): all three ledger tables carry deleted_at, so
+            # one clause here covers every branch of the UNION.
+            f"{table_alias}.deleted_at IS NULL",
+        ]
         if min_amount is not None:
             params[f"min_a{p}"] = min_amount
             clauses.append(f"{table_alias}.amount >= :min_a{p}"); p += 1
@@ -458,7 +481,7 @@ async def list_expenses(
     db=Depends(get_db),
 ):
     limit = min(limit, 200)
-    query = select(FinanceExpense).where(FinanceExpense.user_id == current_user.id).order_by(desc(FinanceExpense.logged_at))
+    query = select(FinanceExpense).where(FinanceExpense.user_id == current_user.id, FinanceExpense.deleted_at.is_(None)).order_by(desc(FinanceExpense.logged_at))
 
     if q:
         from sqlalchemy import or_
@@ -602,7 +625,7 @@ class ExpenseUpdate(BaseModel):
 
 @router.patch("/expenses/{expense_id}")
 async def update_expense(expense_id: uuid.UUID, body: ExpenseUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceExpense).where(FinanceExpense.id == expense_id, FinanceExpense.user_id == current_user.id))
+    result = await db.execute(select(FinanceExpense).where(FinanceExpense.id == expense_id, FinanceExpense.user_id == current_user.id, FinanceExpense.deleted_at.is_(None)))
     expense = result.scalar_one_or_none()
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
@@ -639,14 +662,29 @@ async def update_expense(expense_id: uuid.UUID, body: ExpenseUpdate, current_use
 
 @router.delete("/expenses/{expense_id}")
 async def delete_expense(expense_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceExpense).where(FinanceExpense.id == expense_id, FinanceExpense.user_id == current_user.id))
+    result = await db.execute(select(FinanceExpense).where(FinanceExpense.id == expense_id, FinanceExpense.user_id == current_user.id, FinanceExpense.deleted_at.is_(None)))
     expense = result.scalar_one_or_none()
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
+    # Soft delete (n001). The balance effect is still reversed here — a hidden
+    # expense that left the balance reduced would be a correctness bug, not a
+    # feature. `restore` re-applies exactly this delta with the sign flipped.
     await _adjust_balance(db, expense.account_id, float(expense.amount), current_user.id)
-    await db.delete(expense)
+    expense.deleted_at = datetime.utcnow()
+    db.add(expense)
     await db.commit()
-    return {"status": "deleted"}
+    return {"status": "deleted", "id": str(expense.id)}
+
+
+@router.post("/expenses/{expense_id}/restore")
+async def restore_expense(expense_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    expense = await _soft_deleted(db, FinanceExpense, expense_id, current_user.id, "Expense")
+    await _adjust_balance(db, expense.account_id, -float(expense.amount), current_user.id)
+    expense.deleted_at = None
+    db.add(expense)
+    await db.commit()
+    await db.refresh(expense)
+    return expense
 
 
 # ── Financial Goals ────────────────────────────────────────────
@@ -902,7 +940,7 @@ async def delete_goal_contribution(
 
 @router.get("/bills")
 async def list_bills(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceBill).where(FinanceBill.user_id == current_user.id).order_by(FinanceBill.due_day))
+    result = await db.execute(select(FinanceBill).where(FinanceBill.user_id == current_user.id, FinanceBill.deleted_at.is_(None)).order_by(FinanceBill.due_day))
     return result.scalars().all()
 
 
@@ -949,7 +987,7 @@ class BillUpdate(BaseModel):
 
 @router.patch("/bills/{bill_id}")
 async def update_bill(bill_id: uuid.UUID, body: BillUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceBill).where(FinanceBill.id == bill_id, FinanceBill.user_id == current_user.id))
+    result = await db.execute(select(FinanceBill).where(FinanceBill.id == bill_id, FinanceBill.user_id == current_user.id, FinanceBill.deleted_at.is_(None)))
     bill = result.scalar_one_or_none()
     if not bill:
         raise HTTPException(status_code=404, detail="Bill not found")
@@ -963,20 +1001,32 @@ async def update_bill(bill_id: uuid.UUID, body: BillUpdate, current_user=Depends
 
 @router.delete("/bills/{bill_id}")
 async def delete_bill(bill_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceBill).where(FinanceBill.id == bill_id, FinanceBill.user_id == current_user.id))
+    result = await db.execute(select(FinanceBill).where(FinanceBill.id == bill_id, FinanceBill.user_id == current_user.id, FinanceBill.deleted_at.is_(None)))
     bill = result.scalar_one_or_none()
     if not bill:
         raise HTTPException(status_code=404, detail="Bill not found")
-    await db.delete(bill)
+    # A bill is a schedule, not a ledger line — nothing to reverse on the balance.
+    bill.deleted_at = datetime.utcnow()
+    db.add(bill)
     await db.commit()
-    return {"status": "deleted"}
+    return {"status": "deleted", "id": str(bill.id)}
+
+
+@router.post("/bills/{bill_id}/restore")
+async def restore_bill(bill_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    bill = await _soft_deleted(db, FinanceBill, bill_id, current_user.id, "Bill")
+    bill.deleted_at = None
+    db.add(bill)
+    await db.commit()
+    await db.refresh(bill)
+    return bill
 
 
 # ── Income ────────────────────────────────────────────
 
 @router.get("/income")
 async def list_income(month: Optional[str] = None, current_user=Depends(get_current_user), db=Depends(get_db)):
-    query = select(FinanceIncome).where(FinanceIncome.user_id == current_user.id).order_by(desc(FinanceIncome.logged_at))
+    query = select(FinanceIncome).where(FinanceIncome.user_id == current_user.id, FinanceIncome.deleted_at.is_(None)).order_by(desc(FinanceIncome.logged_at))
 
     if month:
         try:
@@ -1039,7 +1089,7 @@ class IncomeUpdate(BaseModel):
 
 @router.patch("/income/{income_id}")
 async def update_income(income_id: uuid.UUID, body: IncomeUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceIncome).where(FinanceIncome.id == income_id, FinanceIncome.user_id == current_user.id))
+    result = await db.execute(select(FinanceIncome).where(FinanceIncome.id == income_id, FinanceIncome.user_id == current_user.id, FinanceIncome.deleted_at.is_(None)))
     income = result.scalar_one_or_none()
     if not income:
         raise HTTPException(status_code=404, detail="Income not found")
@@ -1074,21 +1124,33 @@ async def update_income(income_id: uuid.UUID, body: IncomeUpdate, current_user=D
 
 @router.delete("/income/{income_id}")
 async def delete_income(income_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceIncome).where(FinanceIncome.id == income_id, FinanceIncome.user_id == current_user.id))
+    result = await db.execute(select(FinanceIncome).where(FinanceIncome.id == income_id, FinanceIncome.user_id == current_user.id, FinanceIncome.deleted_at.is_(None)))
     income = result.scalar_one_or_none()
     if not income:
         raise HTTPException(status_code=404, detail="Income not found")
     await _adjust_balance(db, income.account_id, -float(income.amount), current_user.id)
-    await db.delete(income)
+    income.deleted_at = datetime.utcnow()
+    db.add(income)
     await db.commit()
-    return {"status": "deleted"}
+    return {"status": "deleted", "id": str(income.id)}
+
+
+@router.post("/income/{income_id}/restore")
+async def restore_income(income_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    income = await _soft_deleted(db, FinanceIncome, income_id, current_user.id, "Income")
+    await _adjust_balance(db, income.account_id, float(income.amount), current_user.id)
+    income.deleted_at = None
+    db.add(income)
+    await db.commit()
+    await db.refresh(income)
+    return income
 
 
 # ── Transfers ────────────────────────────────────────────
 
 @router.get("/transfers")
 async def list_transfers(month: Optional[str] = None, current_user=Depends(get_current_user), db=Depends(get_db)):
-    query = select(FinanceTransfer).where(FinanceTransfer.user_id == current_user.id).order_by(desc(FinanceTransfer.logged_at))
+    query = select(FinanceTransfer).where(FinanceTransfer.user_id == current_user.id, FinanceTransfer.deleted_at.is_(None)).order_by(desc(FinanceTransfer.logged_at))
     if month:
         start, end = _month_range(month)
         query = query.where(FinanceTransfer.logged_at >= start).where(FinanceTransfer.logged_at < end)
@@ -1130,15 +1192,28 @@ async def create_transfer(body: TransferCreate, current_user=Depends(get_current
 
 @router.delete("/transfers/{transfer_id}")
 async def delete_transfer(transfer_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceTransfer).where(FinanceTransfer.id == transfer_id, FinanceTransfer.user_id == current_user.id))
+    result = await db.execute(select(FinanceTransfer).where(FinanceTransfer.id == transfer_id, FinanceTransfer.user_id == current_user.id, FinanceTransfer.deleted_at.is_(None)))
     transfer = result.scalar_one_or_none()
     if not transfer:
         raise HTTPException(status_code=404, detail="Transfer not found")
     await _adjust_balance(db, transfer.from_account_id, float(transfer.amount), current_user.id)
     await _adjust_balance(db, transfer.to_account_id, -float(transfer.amount), current_user.id)
-    await db.delete(transfer)
+    transfer.deleted_at = datetime.utcnow()
+    db.add(transfer)
     await db.commit()
-    return {"status": "deleted"}
+    return {"status": "deleted", "id": str(transfer.id)}
+
+
+@router.post("/transfers/{transfer_id}/restore")
+async def restore_transfer(transfer_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    transfer = await _soft_deleted(db, FinanceTransfer, transfer_id, current_user.id, "Transfer")
+    await _adjust_balance(db, transfer.from_account_id, -float(transfer.amount), current_user.id)
+    await _adjust_balance(db, transfer.to_account_id, float(transfer.amount), current_user.id)
+    transfer.deleted_at = None
+    db.add(transfer)
+    await db.commit()
+    await db.refresh(transfer)
+    return transfer
 
 
 # ── Cashflow ────────────────────────────────────────────
@@ -1163,6 +1238,7 @@ async def cashflow(month: Optional[str] = None, current_user=Depends(get_current
     income_result = await db.execute(
         select(func.coalesce(func.sum(FinanceIncome.amount), 0))
         .where(FinanceIncome.user_id == current_user.id)
+        .where(FinanceIncome.deleted_at.is_(None))
         .where(FinanceIncome.logged_at >= month_start)
         .where(FinanceIncome.logged_at < month_end)
     )
@@ -1171,6 +1247,7 @@ async def cashflow(month: Optional[str] = None, current_user=Depends(get_current
     expense_result = await db.execute(
         select(func.coalesce(func.sum(FinanceExpense.amount), 0))
         .where(FinanceExpense.user_id == current_user.id)
+        .where(FinanceExpense.deleted_at.is_(None))
         .where(FinanceExpense.logged_at >= month_start)
         .where(FinanceExpense.logged_at < month_end)
     )
@@ -1182,12 +1259,14 @@ async def cashflow(month: Optional[str] = None, current_user=Depends(get_current
     income_rows = await db.execute(
         select(FinanceIncome.logged_at, FinanceIncome.amount)
         .where(FinanceIncome.user_id == current_user.id)
+        .where(FinanceIncome.deleted_at.is_(None))
         .where(FinanceIncome.logged_at >= month_start)
         .where(FinanceIncome.logged_at < month_end)
     )
     expense_rows = await db.execute(
         select(FinanceExpense.logged_at, FinanceExpense.amount)
         .where(FinanceExpense.user_id == current_user.id)
+        .where(FinanceExpense.deleted_at.is_(None))
         .where(FinanceExpense.logged_at >= month_start)
         .where(FinanceExpense.logged_at < month_end)
     )
@@ -1237,6 +1316,7 @@ async def budget_status(month: Optional[str] = None, current_user=Depends(get_cu
     spent_result = await db.execute(
         select(FinanceExpense.category, func.coalesce(func.sum(FinanceExpense.amount), 0))
         .where(FinanceExpense.user_id == current_user.id)
+        .where(FinanceExpense.deleted_at.is_(None))
         .where(FinanceExpense.logged_at >= start)
         .where(FinanceExpense.logged_at < end)
         .group_by(FinanceExpense.category)
@@ -1331,17 +1411,17 @@ async def account_ledger(account_id: uuid.UUID, limit: int = 50, current_user=De
         raise HTTPException(status_code=404, detail="Account not found")
 
     expenses = (await db.execute(
-        select(FinanceExpense).where(FinanceExpense.account_id == account_id, FinanceExpense.user_id == current_user.id)
+        select(FinanceExpense).where(FinanceExpense.account_id == account_id, FinanceExpense.user_id == current_user.id, FinanceExpense.deleted_at.is_(None))
         .order_by(desc(FinanceExpense.logged_at)).limit(limit)
     )).scalars().all()
     income = (await db.execute(
-        select(FinanceIncome).where(FinanceIncome.account_id == account_id, FinanceIncome.user_id == current_user.id)
+        select(FinanceIncome).where(FinanceIncome.account_id == account_id, FinanceIncome.user_id == current_user.id, FinanceIncome.deleted_at.is_(None))
         .order_by(desc(FinanceIncome.logged_at)).limit(limit)
     )).scalars().all()
     transfers = (await db.execute(
         select(FinanceTransfer)
         .where((FinanceTransfer.from_account_id == account_id) | (FinanceTransfer.to_account_id == account_id))
-        .where(FinanceTransfer.user_id == current_user.id)
+        .where(FinanceTransfer.user_id == current_user.id, FinanceTransfer.deleted_at.is_(None))
         .order_by(desc(FinanceTransfer.logged_at)).limit(limit)
     )).scalars().all()
 
@@ -1441,6 +1521,9 @@ async def delete_account(account_id: uuid.UUID, current_user=Depends(get_current
     # f002_account_fk_ondelete). Transfers cannot: both sides are NOT NULL and a
     # transfer with one end missing is meaningless, so the constraint is
     # RESTRICT and this is the message the user gets instead of a 500.
+    # Deliberately NOT filtered on deleted_at: a soft-deleted transfer is still
+    # a physical row, and the RESTRICT constraint will still refuse the account
+    # delete. Hiding it here would turn this 409 into a 500.
     from sqlalchemy import func as sa_func, or_ as sa_or
     transfer_count = (await db.execute(
         select(sa_func.count()).select_from(FinanceTransfer).where(
@@ -1618,6 +1701,9 @@ async def delete_category(category_id: uuid.UUID, current_user=Depends(get_curre
     # the deleted category (or its subs) becomes "Uncategorized".
     victim_ids = [category.id] + [c.id for c in cats if c.parent_id == category.id]
     moved = 0
+    # Deliberately NOT filtered on deleted_at: a soft-deleted row must be
+    # uncategorized too, or restoring it later would resurrect a category_id
+    # pointing at a category that no longer exists.
     exps = (await db.execute(select(FinanceExpense).where(
         FinanceExpense.user_id == current_user.id, FinanceExpense.category_id.in_(victim_ids)))).scalars().all()
     for e in exps:
@@ -1649,13 +1735,13 @@ async def delete_category(category_id: uuid.UUID, current_user=Depends(get_curre
 
 @router.get("/investments")
 async def list_investments(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceInvestment).where(FinanceInvestment.user_id == current_user.id).order_by(desc(FinanceInvestment.current_value)))
+    result = await db.execute(select(FinanceInvestment).where(FinanceInvestment.user_id == current_user.id, FinanceInvestment.deleted_at.is_(None)).order_by(desc(FinanceInvestment.current_value)))
     return result.scalars().all()
 
 
 @router.get("/investments/summary")
 async def investments_summary(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceInvestment).where(FinanceInvestment.user_id == current_user.id))
+    result = await db.execute(select(FinanceInvestment).where(FinanceInvestment.user_id == current_user.id, FinanceInvestment.deleted_at.is_(None)))
     investments = result.scalars().all()
 
     total_invested = sum(float(i.invested_amount) for i in investments)
@@ -1699,7 +1785,7 @@ async def investments_performance(
     since = today - timedelta(days=days)
 
     holdings = (await db.execute(
-        select(FinanceInvestment).where(FinanceInvestment.user_id == current_user.id)
+        select(FinanceInvestment).where(FinanceInvestment.user_id == current_user.id, FinanceInvestment.deleted_at.is_(None))
     )).scalars().all()
 
     txns = (await db.execute(
@@ -1824,6 +1910,7 @@ async def create_investment_transaction(
         select(FinanceInvestment).where(
             FinanceInvestment.id == body.investment_id,
             FinanceInvestment.user_id == current_user.id,
+            FinanceInvestment.deleted_at.is_(None),
         )
     )).scalar_one_or_none()
     if not holding:
@@ -1950,7 +2037,7 @@ class InvestmentUpdate(BaseModel):
 
 @router.patch("/investments/{investment_id}")
 async def update_investment(investment_id: uuid.UUID, body: InvestmentUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceInvestment).where(FinanceInvestment.id == investment_id, FinanceInvestment.user_id == current_user.id))
+    result = await db.execute(select(FinanceInvestment).where(FinanceInvestment.id == investment_id, FinanceInvestment.user_id == current_user.id, FinanceInvestment.deleted_at.is_(None)))
     investment = result.scalar_one_or_none()
     if not investment:
         raise HTTPException(status_code=404, detail="Investment not found")
@@ -1969,26 +2056,40 @@ async def update_investment(investment_id: uuid.UUID, body: InvestmentUpdate, cu
 
 @router.delete("/investments/{investment_id}")
 async def delete_investment(investment_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceInvestment).where(FinanceInvestment.id == investment_id, FinanceInvestment.user_id == current_user.id))
+    result = await db.execute(select(FinanceInvestment).where(FinanceInvestment.id == investment_id, FinanceInvestment.user_id == current_user.id, FinanceInvestment.deleted_at.is_(None)))
     investment = result.scalar_one_or_none()
     if not investment:
         raise HTTPException(status_code=404, detail="Investment not found")
-    await db.delete(investment)
+    # A holding is not an account balance — nothing to reverse. Its
+    # investment_transactions rows stay attached (the CASCADE never fires now),
+    # so a restore brings the whole history back intact.
+    investment.deleted_at = datetime.utcnow()
+    db.add(investment)
     await db.commit()
-    return {"status": "deleted"}
+    return {"status": "deleted", "id": str(investment.id)}
+
+
+@router.post("/investments/{investment_id}/restore")
+async def restore_investment(investment_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    investment = await _soft_deleted(db, FinanceInvestment, investment_id, current_user.id, "Investment")
+    investment.deleted_at = None
+    db.add(investment)
+    await db.commit()
+    await db.refresh(investment)
+    return investment
 
 
 # ── Loans / EMI tracker ────────────────────────────────────────────
 
 @router.get("/loans")
 async def list_loans(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceLoan).where(FinanceLoan.user_id == current_user.id).order_by(desc(FinanceLoan.is_active), FinanceLoan.emi_day))
+    result = await db.execute(select(FinanceLoan).where(FinanceLoan.user_id == current_user.id, FinanceLoan.deleted_at.is_(None)).order_by(desc(FinanceLoan.is_active), FinanceLoan.emi_day))
     return result.scalars().all()
 
 
 @router.get("/loans/summary")
 async def loans_summary(current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceLoan).where(FinanceLoan.user_id == current_user.id, FinanceLoan.is_active == True))
+    result = await db.execute(select(FinanceLoan).where(FinanceLoan.user_id == current_user.id, FinanceLoan.is_active == True, FinanceLoan.deleted_at.is_(None)))
     loans = result.scalars().all()
     total_outstanding = sum(float(l.outstanding_amount) for l in loans)
     total_emi = sum(float(l.emi_amount) for l in loans)
@@ -2024,7 +2125,8 @@ async def loan_payments(
     """Payment history for one loan, with the principal/interest split per EMI."""
     loan = (await db.execute(
         select(FinanceLoan).where(
-            FinanceLoan.id == loan_id, FinanceLoan.user_id == current_user.id
+            FinanceLoan.id == loan_id, FinanceLoan.user_id == current_user.id,
+            FinanceLoan.deleted_at.is_(None),
         )
     )).scalar_one_or_none()
     if not loan:
@@ -2112,7 +2214,7 @@ class LoanUpdate(BaseModel):
 
 @router.patch("/loans/{loan_id}")
 async def update_loan(loan_id: uuid.UUID, body: LoanUpdate, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceLoan).where(FinanceLoan.id == loan_id, FinanceLoan.user_id == current_user.id))
+    result = await db.execute(select(FinanceLoan).where(FinanceLoan.id == loan_id, FinanceLoan.user_id == current_user.id, FinanceLoan.deleted_at.is_(None)))
     loan = result.scalar_one_or_none()
     if not loan:
         raise HTTPException(status_code=404, detail="Loan not found")
@@ -2127,13 +2229,24 @@ async def update_loan(loan_id: uuid.UUID, body: LoanUpdate, current_user=Depends
 
 @router.delete("/loans/{loan_id}")
 async def delete_loan(loan_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
-    result = await db.execute(select(FinanceLoan).where(FinanceLoan.id == loan_id, FinanceLoan.user_id == current_user.id))
+    result = await db.execute(select(FinanceLoan).where(FinanceLoan.id == loan_id, FinanceLoan.user_id == current_user.id, FinanceLoan.deleted_at.is_(None)))
     loan = result.scalar_one_or_none()
     if not loan:
         raise HTTPException(status_code=404, detail="Loan not found")
-    await db.delete(loan)
+    loan.deleted_at = datetime.utcnow()
+    db.add(loan)
     await db.commit()
-    return {"status": "deleted"}
+    return {"status": "deleted", "id": str(loan.id)}
+
+
+@router.post("/loans/{loan_id}/restore")
+async def restore_loan(loan_id: uuid.UUID, current_user=Depends(get_current_user), db=Depends(get_db)):
+    loan = await _soft_deleted(db, FinanceLoan, loan_id, current_user.id, "Loan")
+    loan.deleted_at = None
+    db.add(loan)
+    await db.commit()
+    await db.refresh(loan)
+    return loan
 
 
 # ── What-If Simulator (Monte Carlo balance projection) ───────────────────────

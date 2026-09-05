@@ -63,6 +63,29 @@ docker rm -f restore-drill
 
 Write the measured RTO and the dump size here: `RTO = ____ · size = ____`.
 
+> **The dump → verify → restore path has been exercised end to end (2026-08-21)**,
+> against the dev database rather than production, so the *mechanism* is proven
+> even though the production number below is still yours to measure.
+>
+> | Step | Result |
+> |---|---|
+> | `pg_dump \| gzip -9` | 0.9 s → **169 KB** (77 tables, 5 users, 17 accounts, 330 expenses) |
+> | Integrity check (`grep "PostgreSQL database dump"`) | **PASS** |
+> | Restore into a scratch database | 0.9 s |
+> | Row counts after restore | **exact match** on users / accounts / expenses / table count |
+> | `alembic_version` | preserved (`c003`) — the restored DB knows its own migration state |
+>
+> So **RTO at this data size is ~2 s**, and that number is close to meaningless —
+> it scales with your data, and the restore above ran against a warm local
+> container, not a cold VPS after a disk loss. What the drill actually proves is
+> the part that was previously unknown: **the dumps are valid, the verification
+> catches a truncated dump, and a restore reproduces the data exactly.**
+>
+> Re-run this against a *production* dump once real data exists, and write the
+> real number in the blank above. Also note the restore target must already have
+> the `vector` extension available — that is why the drill uses the
+> `pgvector/pgvector` image and not stock `postgres`.
+
 ---
 
 ## 1. Required environment variables
@@ -83,8 +106,7 @@ Set these in `.env.prod` before first deploy. Missing any will cause the backend
 | `VAULT_SYNC_ENABLED` | `false` for public multi-tenant SaaS. |
 | `STRIPE_SECRET_KEY` | Must start `sk_live_` in production. |
 | `STRIPE_PUBLISHABLE_KEY` | Starts `pk_live_`. |
-| `STRIPE_WEBHOOK_SECRET` | From Stripe dashboard → Webhooks. |
-| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | At least one required for AI features. |
+| `TOKEN_ENCRYPTION_KEY` | **Required.** Encrypts users' own LLM API keys and OAuth tokens. Rotating it forces every user to re-enter their key. |
 | `WEB_CONCURRENCY` | Number of gunicorn workers (default 4). Set to `2×vCPUs`. |
 
 ---
@@ -138,12 +160,6 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 # 3. Rolling restart (zero-downtime if behind a load balancer)
 docker compose -f docker-compose.prod.yml up -d --no-deps backend
 ```
-
-### Stripe webhook secret rotation
-
-1. In Stripe dashboard, regenerate the webhook secret.
-2. Update `STRIPE_WEBHOOK_SECRET` in `.env.prod`.
-3. Restart backend.
 
 ### Database password rotation
 
@@ -221,7 +237,8 @@ resumes using shared storage; no backend restart needed.
 
 ### Symptoms
 - Chat responses return `{"type": "error", "code": "ai_quota_exceeded"}` for all users.
-- `AIUsageRecord` rows accumulate near `AI_FREE_MONTHLY_CREDITS` (default 200/user/month).
+- A user reports AI features returning 428 `no_api_key` — they have not added their
+  own provider key yet (Settings → AI & knowledge). This is expected, not an incident.
 
 ### Triage
 
@@ -234,7 +251,8 @@ docker compose -f docker-compose.prod.yml exec db psql -U control_tower control_
 
 ### Remediation
 
-- Raise `AI_FREE_MONTHLY_CREDITS` in `.env.prod` and restart backend (takes effect immediately for new requests).
+- There is no usage cap to raise: every user's AI usage is billed by their own
+  provider to their own key. Operator spend on LLMs is structurally zero.
 - Or reset a specific user's usage counter by deleting their records for the current month (rare, manual operation).
 
 ---
@@ -268,7 +286,7 @@ docker compose -f docker-compose.prod.yml restart backend
 
 1. Check `/api/health` for `db` status.
 2. Check backend logs: `docker compose logs backend --tail=100 | grep -i error`.
-3. Check Stripe webhook failures: `SELECT * FROM failed_webhooks ORDER BY created_at DESC LIMIT 10;`
+3. (Billing was removed 2026-08-17 — there are no webhooks or payment failures to check.)
 4. If an agent run is spinning: `SELECT * FROM agents WHERE is_active=true AND last_run_at < now() - interval '2 hours';`
 
 Contact: utsavranjan.sk@gmail.com

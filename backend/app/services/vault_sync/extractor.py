@@ -10,7 +10,7 @@ from app.db.session import AsyncSessionLocal
 from app.models.user import User
 from app.models.finance import FinancePendingTransaction
 from app.models.action import AgentAction
-from app.services.billing.usage import ai_allowed, record_ai_usage
+from app.services.ai.keys import list_user_providers
 from app.services.ai.insights import generate_text
 
 logger = logging.getLogger(__name__)
@@ -47,8 +47,9 @@ async def run_daily_vault_extraction(user_id: uuid.UUID) -> None:
     """Cron job: Extract structured events from all vault files modified since last extraction."""
     async with AsyncSessionLocal() as session:
         user = (await session.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
-        if not user or not await ai_allowed(session, user):
-            logger.info("Skipping vault extraction for user %s: AI quota exceeded.", user_id)
+        # BYOK: no key, no extraction. Scheduled sweep — one INFO line, no raise.
+        if not user or not await list_user_providers(session, user_id):
+            logger.info("Skipping vault extraction for user %s: no API key configured.", user_id)
             return
 
         # Find files that need extraction
@@ -166,7 +167,6 @@ async def run_daily_vault_extraction(user_id: uuid.UUID) -> None:
                 session.add(vf)
 
             await session.commit()
-            await record_ai_usage(session, user_id, units=1, source="vault_daily_extraction")
 
         except Exception as e:
             logger.error("Daily vault extraction failed for user %s: %s", user_id, e)

@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field
 from sqlmodel import select, desc
 
 from app.core.deps import get_current_user, get_db
-from app.core.entitlements import AREA_MODULES
 from app.models.goal import MacroGoal, GoalProgress
 from app.models.user import User
 
@@ -16,7 +15,7 @@ router = APIRouter(prefix="/api/goals", tags=["goals"])
 # matches a project/task `domain` against it, so an arbitrary string produces a
 # goal no project can ever link to. Retired areas stay accepted because their
 # rows still exist (frontend `config/domains.ts` RETIRED_DOMAINS).
-GOAL_CATEGORIES = set(AREA_MODULES) | {"general", "business", "content"}
+GOAL_CATEGORIES = {"finance", "health", "career", "general", "business", "content"}
 GOAL_PRIORITIES = {"low", "medium", "high", "urgent"}
 GOAL_STATUSES = {"active", "completed", "archived"}
 

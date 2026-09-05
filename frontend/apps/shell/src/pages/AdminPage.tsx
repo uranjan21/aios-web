@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { BarChart3, Cpu, Shield, Users, Search, ChevronLeft, ChevronRight, Trash2, Crown, RefreshCw } from 'lucide-react'
+import { BarChart3, Cpu, Shield, Users, Search, ChevronLeft, ChevronRight, Trash2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
-import { Card as GlassCard, Select, Button, Skeleton } from '@ledgr/ui'
+import { Card as GlassCard, Button, Skeleton } from '@ledgr/ui'
 import { adminApi, AdminUser } from '@ct/shared/api/admin'
 import { useAuthStore } from '@ct/shared/stores/authStore'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
@@ -39,7 +39,7 @@ const SearchInput = styled.input`
  * The floor is the same idiom `TableKind` uses (`ShellKinds.tsx`) — 110px per
  * column — so the row overflows and the container can actually scroll it.
  */
-const USER_TABLE_COLS = 5
+const USER_TABLE_COLS = 4
 
 const Table = styled.div`
   width: 100%;
@@ -50,7 +50,7 @@ const Table = styled.div`
 
 const THead = styled.div`
   display: grid;
-  grid-template-columns: 1fr 120px 110px 110px 80px;
+  grid-template-columns: 1fr 110px 110px 80px;
   padding: ${({ theme }) => `${theme.spacing[2]} ${theme.spacing[4]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border};
   gap: ${({ theme }) => `${theme.spacing[2]}`};
@@ -66,7 +66,7 @@ const TH = styled.div`
 
 const TRow = styled.div`
   display: grid;
-  grid-template-columns: 1fr 120px 110px 110px 80px;
+  grid-template-columns: 1fr 110px 110px 80px;
   padding: ${({ theme }) => `${theme.spacing[3]} ${theme.spacing[4]}`};
   border-bottom: 1px solid ${({ theme }) => theme.color.border}40;
   gap: ${({ theme }) => `${theme.spacing[2]}`};
@@ -99,21 +99,6 @@ const UserEmail = styled.div`
   text-overflow: ellipsis;
 `
 
-const PlanBadge = styled.span<{ $plan: string }>`
-  display: inline-flex;
-  align-items: center;
-  gap: ${({ theme }) => `${theme.spacing[1]}`};
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  font-weight: 600;
-  padding: ${({ theme }) => `${theme.spacing[0.5]} ${theme.spacing[2]}`};
-  border-radius: ${({ theme }) => theme.radii.lg};
-  ${({ theme, $plan }) => {
-    if ($plan === 'pro') return `background: color-mix(in srgb, ${theme.color.accent} 15%, transparent); color: ${theme.color.accent};`
-    if ($plan === 'household') return `background: color-mix(in srgb, ${theme.color.primary} 15%, transparent); color: ${theme.color.primary};`
-    return `background: ${theme.color.muted}; color: ${theme.color.mutedForeground};`
-  }}
-`
-
 const AdminBadge = styled.span`
   display: inline-flex;
   align-items: center;
@@ -126,60 +111,6 @@ const AdminBadge = styled.span`
   border-radius: ${({ theme }) => theme.radii.lg};
   letter-spacing: 0.05em;
 `
-
-const PLANS = ['free', 'pro', 'household'] as const
-
-function PlanSelect({ user, onDone }: { user: AdminUser; onDone: () => void }) {
-  const qc = useQueryClient()
-  const [plan, setPlan] = useState(user.plan)
-  const [status, setStatus] = useState(user.plan_status)
-  const [open, setOpen] = useState(false)
-
-  const mut = useMutation({
-    mutationFn: () => adminApi.overridePlan(user.id, plan, status),
-    onSuccess: () => {
-      toast.success(`${user.email} → ${plan} (${status})`)
-      qc.invalidateQueries({ queryKey: ['admin'] })
-      setOpen(false)
-      onDone()
-    },
-    onError: () => toast.error('Failed to update plan'),
-  })
-
-  if (!open) {
-    return (
-      <PlanBadge $plan={user.plan} onClick={() => setOpen(true)} style={{ cursor: 'pointer' }} title="Click to change plan">
-        {user.plan === 'pro' && <Crown size={10} />}
-        {user.plan}
-      </PlanBadge>
-    )
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 160 }}>
-      <div style={{ display: 'flex', gap: 4 }}>
-        <Select
-          value={plan}
-          onChange={(val) => setPlan(String(val))}
-          options={PLANS.map(p => ({ value: p, label: p }))}
-          placeholder="Plan"
-        />
-        <Select
-          value={status}
-          onChange={(val) => setStatus(String(val))}
-          options={['active', 'trialing', 'past_due', 'canceled'].map(s => ({ value: s, label: s }))}
-          placeholder="Status"
-        />
-      </div>
-      <div style={{ display: 'flex', gap: 4 }}>
-        <Button size="sm" variant="primary" onClick={() => mut.mutate()} disabled={mut.isPending} style={{ flex: 1 }}>
-          {mut.isPending ? '…' : 'Save'}
-        </Button>
-        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>✕</Button>
-      </div>
-    </div>
-  )
-}
 
 function UserRow({ user, currentAdminId }: { user: AdminUser; currentAdminId: string }) {
   const qc = useQueryClient()
@@ -214,7 +145,6 @@ function UserRow({ user, currentAdminId }: { user: AdminUser; currentAdminId: st
         <UserEmail>{user.email}</UserEmail>
       </UserInfo>
 
-      <PlanSelect user={user} onDone={() => {}} />
 
       <div style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>
         {user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}
@@ -303,19 +233,17 @@ function UsersTable({ currentAdminId }: { currentAdminId: string }) {
       <Table>
         <THead>
           <TH>User</TH>
-          <TH>Plan</TH>
           <TH>Joined</TH>
           <TH>Admin</TH>
           <TH>Delete</TH>
         </THead>
 
         {isLoading ? (
-          /* Load into the row's own 5-column geometry, not a single bar in the
+          /* Load into the row's own 4-column geometry, not a single bar in the
              first column — otherwise the table visibly re-lays out on arrival. */
           [...Array(5)].map((_, i) => (
             <TRow key={i}>
               <Skeleton height={14} width="62%" />
-              <Skeleton height={14} width="70%" />
               <Skeleton height={14} width="80%" />
               <Skeleton height={14} width={32} />
               <Skeleton height={14} width={24} />
@@ -359,16 +287,14 @@ function UsersTable({ currentAdminId }: { currentAdminId: string }) {
  * Phase 4 conversion to the canvas's `admin:overview` composition —
  * tiles(12) · bars(7) · progress(5) · table(12) — from the admin stats and
  * user endpoints. The interactive users table stays below it: that is where
- * plan overrides, the admin flag and deletion live, and none of it fits a
- * read-only module.
+ * the admin flag and deletion live, and neither fits a read-only module.
  *
  * THREE DEPARTURES. The canvas draws an instance-health console — requests per
  * hour, CPU and memory, background job runs — and none of that is exposed. The
- * backend publishes user and subscription state, so the modules answer the
+ * backend publishes user state, so the modules answer the
  * question this page can actually answer, "who is on this instance and what are
  * they on":
  *  - bars     → signups per month, from user `created_at`.
- *  - progress → the plan mix as shares of the user base.
  *  - table    → the most recent signups.
  *
  * BACKEND FOLLOW-UP: a metrics endpoint (request counts, worker runs, resource
@@ -447,30 +373,17 @@ function AdminModules() {
         }),
       },
       {
-        kind: 'progress',
-        span: 5,
-        title: 'Plan mix',
-        subtitle: 'Share of the user base',
-        icon: Cpu,
-        rows: [
-          { title: 'Free', meta: `${stats.free_users} user(s)`, pct: share(stats.free_users), value: `${share(stats.free_users)}%`, colorKey: 'mutedFg' },
-          { title: 'Pro', meta: `${stats.pro_users} user(s)`, pct: share(stats.pro_users), value: `${share(stats.pro_users)}%`, colorKey: 'accent' },
-          { title: 'Household', meta: `${stats.household_users} user(s)`, pct: share(stats.household_users), value: `${share(stats.household_users)}%`, colorKey: 'success' },
-        ],
-      },
-      {
         kind: 'table',
         span: 12,
         title: 'Recent signups',
         subtitle: 'Newest first',
         icon: Cpu,
-        gridCols: '1.6fr 1.2fr 1fr 0.9fr',
-        cols: [{ l: 'User' }, { l: 'Joined' }, { l: 'Provider' }, { l: 'Plan', a: 'right' }],
+        gridCols: '1.8fr 1.2fr 1fr',
+        cols: [{ l: 'User' }, { l: 'Joined' }, { l: 'Provider', a: 'right' }],
         rows: byRecency.map(u => [
           { t: u.name || u.email, bold: true },
           dayjs(u.created_at!).format('D MMM YYYY'),
-          u.auth_provider,
-          { t: u.plan, tag: true, colorKey: u.plan === 'free' ? 'mutedFg' : 'success' },
+          { t: u.auth_provider, a: 'right' },
         ]),
       },
     ]

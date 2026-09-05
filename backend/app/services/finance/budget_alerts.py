@@ -47,6 +47,7 @@ async def check_budget_alerts(user_id: uuid.UUID, category: Optional[str] = None
                 spent = (await session.execute(
                     select(func.coalesce(func.sum(FinanceExpense.amount), 0))
                     .where(FinanceExpense.user_id == user_id)
+                    .where(FinanceExpense.deleted_at.is_(None))
                     .where(FinanceExpense.category == limit.category)
                     .where(FinanceExpense.logged_at >= month_start)
                     .where(FinanceExpense.logged_at < month_end)

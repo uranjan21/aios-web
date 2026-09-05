@@ -2,6 +2,59 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import type { ChatEvent } from '@ct/shared/types'
 import { chatApi } from '@ct/shared/api/chat'
 
+/* ---------------------------------------------------------------------------
+ * WebSocket reconnect policy (S16, 2026-08-20)
+ *
+ * Both WS hooks used to do `onclose = () => setTimeout(connect, 3000)` — no
+ * backoff, no cap, and no look at WHY the socket closed. Two consequences:
+ * a logged-out or unverified tab (the backend closes those with 1008) hammered
+ * `/ws/chat` at 20 requests/minute forever, and a backend outage guaranteed a
+ * self-inflicted thundering herd the moment it came back.
+ *
+ * Exported from here rather than a `lib/` module so both hooks share one copy;
+ * `useVaultSync` imports it.
+ * ------------------------------------------------------------------------- */
+
+/** Normal closure — the peer is done; there is nothing to come back to. */
+export const WS_CLOSE_NORMAL = 1000
+/** Policy violation — the backend's "you are not allowed here". Retrying it
+ *  cannot succeed until the user signs in again, which reloads the socket. */
+export const WS_CLOSE_POLICY = 1008
+
+/** Whether a close code is worth retrying at all. */
+export function shouldReconnect(code: number): boolean {
+  return code !== WS_CLOSE_NORMAL && code !== WS_CLOSE_POLICY
+}
+
+export interface BackoffOptions {
+  /** Delay for the first retry, in ms. */
+  base: number
+  /** Ceiling the exponential growth is clamped to, in ms. */
+  cap: number
+  /** Injected for tests; defaults to Math.random. */
+  random?: () => number
+}
+
+/**
+ * Full-jitter exponential backoff: a uniform pick from `[base, min(cap, base*2^n)]`.
+ *
+ * The lower bound stays at `base` so a one-off blip still reconnects promptly,
+ * while the jitter is what stops every open tab retrying on the same tick.
+ *
+ * @param attempt 0 for the first retry after a successful connection.
+ */
+export function reconnectDelay(attempt: number, { base, cap, random = Math.random }: BackoffOptions): number {
+  const ceiling = Math.min(cap, base * 2 ** Math.max(0, attempt))
+  return Math.round(base + random() * (ceiling - base))
+}
+
+/** Longest a socket will ever wait between retries. */
+export const WS_RECONNECT_CAP_MS = 30_000
+
+/** Chat connection as the UI should describe it. */
+export type WsConnectionState = 'connecting' | 'open' | 'reconnecting' | 'closed'
+
+
 export interface LocalMessage {
   id: string
   role: 'user' | 'assistant'
@@ -32,6 +85,9 @@ interface UseChatResult {
   newSession: () => void
   loadSession: (id: string) => void
   connected: boolean
+  /** Finer-grained than `connected`: `closed` is terminal (auth rejected or a
+   *  clean shutdown) and will not come back on its own. */
+  connectionState: WsConnectionState
   loadingMessages: boolean
   confirmTool: (tool_call_id: string) => void
   cancelTool: (tool_call_id: string) => void
@@ -48,8 +104,11 @@ export function useChat(initialSessionId?: string): UseChatResult {
   const [tokenInfo, setTokenInfo] = useState<UseChatResult['tokenInfo']>(null)
   const [affectedPaths, setAffectedPaths] = useState<string[]>([])
   const [connected, setConnected] = useState(false)
+  const [connectionState, setConnectionState] = useState<WsConnectionState>('connecting')
   const [canRetry, setCanRetry] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
+  const retryRef = useRef(0)
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const currentAssistantId = useRef<string | null>(null)
   const lastSentRef = useRef<{ content: string; hiddenContext?: string; overrides?: SendOverrides } | null>(null)
 
@@ -60,11 +119,24 @@ export function useChat(initialSessionId?: string): UseChatResult {
     const ws = new WebSocket(`${protocol}://${location.host}/ws/chat`)
     wsRef.current = ws
 
-    ws.onopen = () => setConnected(true)
-    ws.onclose = () => {
+    ws.onopen = () => {
+      retryRef.current = 0
+      setConnected(true)
+      setConnectionState('open')
+    }
+    ws.onclose = (evt) => {
       if (!isMounted.current) return
       setConnected(false)
-      setTimeout(connect, 3000)
+      if (!shouldReconnect(evt.code)) {
+        // 1008 = unauthenticated/unverified. Retrying is guaranteed to fail and
+        // is what turned a logged-out tab into 20 requests a minute, forever.
+        setConnectionState('closed')
+        return
+      }
+      setConnectionState('reconnecting')
+      const delay = reconnectDelay(retryRef.current, { base: 3000, cap: WS_RECONNECT_CAP_MS })
+      retryRef.current += 1
+      retryTimerRef.current = setTimeout(connect, delay)
     }
 
     ws.onmessage = (evt) => {
@@ -177,6 +249,7 @@ export function useChat(initialSessionId?: string): UseChatResult {
     connect()
     return () => {
       isMounted.current = false
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
       wsRef.current?.close()
     }
   }, [connect])
@@ -310,5 +383,5 @@ export function useChat(initialSessionId?: string): UseChatResult {
       .finally(() => setLoadingMessages(false))
   }, [])
 
-  return { messages, sessionId, isStreaming, tokenInfo, affectedPaths, sendMessage, retryLast, canRetry, newSession, loadSession, connected, loadingMessages, confirmTool, cancelTool }
+  return { messages, sessionId, isStreaming, tokenInfo, affectedPaths, sendMessage, retryLast, canRetry, newSession, loadSession, connected, connectionState, loadingMessages, confirmTool, cancelTool }
 }

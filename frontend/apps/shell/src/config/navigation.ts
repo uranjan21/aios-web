@@ -328,6 +328,9 @@ export const NAV_SECTIONS: NavSection[] = [
         group: 'System',
         shortcut: 's',
       },
+      /* The product manual. No `module` — it describes the modules, so gating it
+         would hide the explanation from exactly the people who need it. */
+      { key: 'guide', label: 'Guide', to: '/app/guide', icon: BookOpen, group: 'System', shortcut: 'u' },
       { key: 'admin', label: 'Admin', to: '/app/admin', icon: Shield, group: 'System', adminOnly: true },
     ],
   },

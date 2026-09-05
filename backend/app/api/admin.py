@@ -1,31 +1,24 @@
-"""Admin-only endpoints — user management, plan overrides, system overview."""
+"""Admin-only endpoints — user management, system overview."""
 import logging
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlmodel import select, func
 
 from app.core.deps import get_db, require_admin
-from app.core.entitlements import ALL_MODULES, _modules_for
 from app.core.rate_limit import limiter
 from app.models.user import User
-from app.models.billing import Subscription
 from app.models.admin_audit import AdminAuditLog
 import json
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
-VALID_PLANS = {"free", "pro", "pro_plus", "household"}
-VALID_STATUSES = {"active", "trialing", "past_due", "canceled"}
-
-
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def _user_row(user: User, sub: Optional[Subscription]) -> dict:
+def _user_row(user: User) -> dict:
     return {
         "id": str(user.id),
         "email": user.email,
@@ -34,11 +27,6 @@ def _user_row(user: User, sub: Optional[Subscription]) -> dict:
         "auth_provider": user.auth_provider,
         "is_admin": bool(user.is_admin),
         "created_at": user.created_at.isoformat() if user.created_at else None,
-        "plan": sub.plan if sub else "free",
-        "plan_status": sub.status if sub else "active",
-        "addons": sub.addons if sub else [],
-        "stripe_customer_id": sub.stripe_customer_id if sub else None,
-        "current_period_end": sub.current_period_end.isoformat() if sub and sub.current_period_end else None,
     }
 
 
@@ -54,7 +42,7 @@ async def list_users(
     limit: int = 50,
     offset: int = 0,
 ):
-    """List all users with their subscription info. Admin only."""
+    """List all users. Admin only."""
     query = select(User)
     if search:
         term = f"%{search.lower()}%"
@@ -70,81 +58,12 @@ async def list_users(
 
     total = (await db.execute(select(func.count()).select_from(User))).scalar_one()
 
-    user_ids = [u.id for u in users]
-    subs_result = await db.execute(
-        select(Subscription).where(Subscription.user_id.in_(user_ids))
-    )
-    subs_by_uid = {s.user_id: s for s in subs_result.scalars().all()}
-
     return {
-        "users": [_user_row(u, subs_by_uid.get(u.id)) for u in users],
+        "users": [_user_row(u) for u in users],
         "total": total,
         "limit": limit,
         "offset": offset,
     }
-
-
-class PlanOverride(BaseModel):
-    plan: str
-    status: str = "active"
-    addons: Optional[list[str]] = []
-
-
-@router.patch("/users/{user_id}/plan")
-@limiter.limit("20/minute")
-async def override_plan(
-    request: Request,
-    user_id: uuid.UUID,
-    body: PlanOverride,
-    current_admin=Depends(require_admin),
-    db=Depends(get_db),
-):
-    """Manually set a user's plan (bypass Stripe). Admin only."""
-    if body.plan not in VALID_PLANS:
-        raise HTTPException(400, f"Invalid plan. Choose from: {', '.join(VALID_PLANS)}")
-    if body.status not in VALID_STATUSES:
-        raise HTTPException(400, f"Invalid status. Choose from: {', '.join(VALID_STATUSES)}")
-
-    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
-    if not user:
-        raise HTTPException(404, "User not found")
-
-    # `modules`/`bundle` are the entitlement source of truth (`modules_for_subscription`
-    # only falls back to `plan` when `modules is None`, and `set_modules` writes
-    # `modules` as soon as the user touches the modules UI). Writing `plan` alone made
-    # this override a no-op for those users, so derive the module set from the granted
-    # plan using the canonical mapping in core/entitlements.
-    granted_modules = sorted(_modules_for(body.plan, body.addons, body.status))
-    granted_bundle = set(granted_modules) == set(ALL_MODULES)
-
-    sub = (await db.execute(select(Subscription).where(Subscription.user_id == user_id))).scalar_one_or_none()
-    if sub is None:
-        sub = Subscription(
-            user_id=user_id, plan=body.plan, status=body.status, addons=body.addons,
-            modules=granted_modules, bundle=granted_bundle,
-        )
-        db.add(sub)
-    else:
-        sub.plan = body.plan
-        sub.status = body.status
-        sub.addons = body.addons
-        sub.modules = granted_modules
-        sub.bundle = granted_bundle
-        sub.updated_at = datetime.utcnow()
-        db.add(sub)
-
-    audit = AdminAuditLog(
-        admin_id=current_admin.id,
-        action="override_plan",
-        target_user_id=user_id,
-        details=json.dumps({"plan": body.plan, "status": body.status, "modules": granted_modules})
-    )
-    db.add(audit)
-
-    await db.commit()
-    await db.refresh(sub)
-    logger.info("Admin override: user %s → plan=%s status=%s", user_id, body.plan, body.status)
-    return _user_row(user, sub)
 
 
 class AdminToggle(BaseModel):
@@ -182,8 +101,7 @@ async def toggle_admin(
 
     await db.commit()
     await db.refresh(user)
-    sub = (await db.execute(select(Subscription).where(Subscription.user_id == user_id))).scalar_one_or_none()
-    return _user_row(user, sub)
+    return _user_row(user)
 
 
 @router.delete("/users/{user_id}")
@@ -239,28 +157,4 @@ async def system_stats(request: Request, _=Depends(require_admin), db=Depends(ge
     """Quick system overview for the admin dashboard."""
     total_users = (await db.execute(select(func.count()).select_from(User))).scalar_one()
 
-    pro_count = (await db.execute(
-        select(func.count()).select_from(Subscription).where(
-            Subscription.plan == "pro", Subscription.status.in_(["active", "trialing"])
-        )
-    )).scalar_one()
-
-    pro_plus_count = (await db.execute(
-        select(func.count()).select_from(Subscription).where(
-            Subscription.plan == "pro_plus", Subscription.status.in_(["active", "trialing"])
-        )
-    )).scalar_one()
-
-    household_count = (await db.execute(
-        select(func.count()).select_from(Subscription).where(
-            Subscription.plan == "household", Subscription.status.in_(["active", "trialing"])
-        )
-    )).scalar_one()
-
-    return {
-        "total_users": total_users,
-        "free_users": total_users - pro_count - pro_plus_count - household_count,
-        "pro_users": pro_count,
-        "pro_plus_users": pro_plus_count,
-        "household_users": household_count,
-    }
+    return {"total_users": total_users}

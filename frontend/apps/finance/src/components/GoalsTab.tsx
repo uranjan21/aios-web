@@ -20,7 +20,7 @@
  * goals against the rate every deadline collectively demands — the same
  * question. Per-goal detail lives in the timeline and in each goal's ledger.
  */
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback} from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import styled from 'styled-components'
@@ -31,6 +31,7 @@ import { Target, TrendingUp, Flag, Trash2 } from 'lucide-react'
 import { financeApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { formatCurrency } from '@ct/shared/lib/utils'
 import { fromCalendarDate } from '@ct/shared/lib/calendarDate'
 import type { FinancialGoal } from '@ct/shared/types'
@@ -123,6 +124,7 @@ export function GoalsTab({
   const [updatingGoal, setUpdatingGoal] = useState<FinancialGoal | null>(null)
   const [editForm, setEditForm] = useState<EditForm>(EMPTY_FORM)
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'overdue'>('all')
+  const f = useFieldErrors<'name' | 'target_amount' | 'current_amount' | 'color'>('goal-edit')
 
   /* Handled in place below rather than thrown to the route (F1) — see App.tsx. */
   const goalsQ = useQuery({
@@ -169,8 +171,9 @@ export function GoalsTab({
     onError: () => toast.error('Failed to delete goal'),
   })
 
-  const openUpdate = (goal: FinancialGoal) => {
+  const openUpdate = useCallback((goal: FinancialGoal) => {
     setUpdatingGoal(goal)
+    f.reset()
     setEditForm({
       name: goal.name ?? '',
       icon: goal.icon ?? '',
@@ -179,27 +182,44 @@ export function GoalsTab({
       deadline: goal.deadline ? String(goal.deadline).slice(0, 10) : '',
       color: goal.color ?? '',
     })
-  }
+  }, [f])
 
   const closeEdit = () => {
     setUpdatingGoal(null)
     setEditForm(EMPTY_FORM)
+    f.reset()
+  }
+
+  /** Non-negative money, or the message for why it isn't. */
+  const money = (raw: string) => {
+    const n = parseFloat(raw)
+    if (raw.trim() === '' || Number.isNaN(n)) return 'Enter an amount.'
+    return n < 0 ? 'Cannot be negative.' : undefined
   }
 
   const handleSave = () => {
     const name = editForm.name.trim()
-    if (!name) { toast.error('Name is required'); return }
     const target = parseFloat(editForm.target_amount)
     const current = parseFloat(editForm.current_amount)
-    if (Number.isNaN(target) || target < 0) { toast.error('Target must be a non-negative number'); return }
-    if (Number.isNaN(current) || current < 0) { toast.error('Current must be a non-negative number'); return }
+    // These three were toasts, which name the problem but not the field — on a
+    // six-field dialog "Target must be a non-negative number" still leaves the
+    // user scanning. `color` was never checked at all and is free text.
+    const ok = f.submit({
+      name: name ? undefined : 'Name the goal.',
+      target_amount: money(editForm.target_amount),
+      current_amount: money(editForm.current_amount),
+      color: !editForm.color.trim() || /^#[0-9a-fA-F]{6}$/.test(editForm.color.trim())
+        ? undefined
+        : 'Use a 6-digit hex colour, e.g. #0D9488.',
+    })
+    if (!ok) return
     updateMutation.mutate({
       name,
       icon: editForm.icon || undefined,
       target_amount: target,
       current_amount: current,
       deadline: editForm.deadline ? editForm.deadline : null,
-      color: editForm.color || undefined,
+      color: editForm.color.trim() || undefined,
     })
   }
 
@@ -413,7 +433,7 @@ export function GoalsTab({
 
     return specs
      
-  }, [visible, savingsSeries, avgSaved, ratePerGoal, statusFilterNode, onAdd, contribMonthly])
+  }, [visible, savingsSeries, avgSaved, ratePerGoal, statusFilterNode, onAdd, contribMonthly, openUpdate])
 
   if (isError) {
     return (
@@ -455,10 +475,11 @@ export function GoalsTab({
         onOpenChange={(open) => { if (!open) closeEdit() }}
         size="md"
       >
-        <FormContainer onSubmit={e => { e.preventDefault(); handleSave() }}>
+        <FormContainer noValidate onSubmit={e => { e.preventDefault(); handleSave() }}>
           <FormGroup>
             <Label>Name</Label>
-            <Input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Emergency Fund" autoFocus required />
+            <Input value={editForm.name} {...f.fieldProps('name')} onChange={e => { f.clearField('name'); setEditForm(prev => ({ ...prev, name: e.target.value })) }} placeholder="e.g. Emergency Fund" autoFocus />
+            <FieldError id={f.errorId('name')}>{f.errors.name}</FieldError>
           </FormGroup>
           <FormGroup>
             <Label>Icon (emoji)</Label>
@@ -466,14 +487,16 @@ export function GoalsTab({
           </FormGroup>
           <FormGroup>
             <Label>Target amount (₹)</Label>
-            <Input type="number" startAdornment="₹" min="0" step="100" value={editForm.target_amount} onChange={e => setEditForm(f => ({ ...f, target_amount: e.target.value }))} required />
+            <Input type="number" startAdornment="₹" min="0" step="100" value={editForm.target_amount} {...f.fieldProps('target_amount')} onChange={e => { f.clearField('target_amount'); setEditForm(prev => ({ ...prev, target_amount: e.target.value })) }} />
+            <FieldError id={f.errorId('target_amount')}>{f.errors.target_amount}</FieldError>
           </FormGroup>
           <FormGroup>
             {/* Correction path only. Adding money should go through the
                 Contributions panel below, which writes a ledger row AND moves
                 this total server-side; setting it here moves the total alone. */}
             <Label>Current amount (₹) — correction only</Label>
-            <Input type="number" startAdornment="₹" min="0" step="100" value={editForm.current_amount} onChange={e => setEditForm(f => ({ ...f, current_amount: e.target.value }))} required />
+            <Input type="number" startAdornment="₹" min="0" step="100" value={editForm.current_amount} {...f.fieldProps('current_amount')} onChange={e => { f.clearField('current_amount'); setEditForm(prev => ({ ...prev, current_amount: e.target.value })) }} />
+            <FieldError id={f.errorId('current_amount')}>{f.errors.current_amount}</FieldError>
           </FormGroup>
           <FormGroup>
             <Label>Deadline</Label>
@@ -481,7 +504,8 @@ export function GoalsTab({
           </FormGroup>
           <FormGroup>
             <Label>Color (hex)</Label>
-            <Input value={editForm.color} onChange={e => setEditForm(f => ({ ...f, color: e.target.value }))} placeholder="#0D9488" />
+            <Input value={editForm.color} {...f.fieldProps('color')} onChange={e => { f.clearField('color'); setEditForm(prev => ({ ...prev, color: e.target.value })) }} placeholder="#0D9488" />
+            <FieldError id={f.errorId('color')}>{f.errors.color}</FieldError>
           </FormGroup>
           <ActionsContainer>
             <Button variant="primary" type="submit" loading={updateMutation.isPending}>Save changes</Button>

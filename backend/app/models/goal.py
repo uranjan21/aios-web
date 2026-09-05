@@ -2,10 +2,17 @@ import uuid
 from datetime import date, datetime
 from typing import Optional
 from sqlmodel import SQLModel, Field, Column
-from sqlalchemy import Text
+from sqlalchemy import CheckConstraint, Text
 
 class MacroGoal(SQLModel, table=True):
     __tablename__ = "macro_goals"
+    # Mirrors migration m002_enum_checks.
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('active', 'completed', 'archived')",
+            name="ck_macro_goals_status",
+        ),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)

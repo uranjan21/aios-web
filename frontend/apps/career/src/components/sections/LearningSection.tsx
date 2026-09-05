@@ -10,7 +10,7 @@
  * named gap into a plan for it, and it is why this page leads with how many
  * of your Day-0 skills currently have something being done about them.
  */
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import styled from 'styled-components'
@@ -18,6 +18,7 @@ import { Button, Card, Dialog, EmptyState, Input, SegmentedControl, Select, Skel
 import { BookOpen, GraduationCap, Layers, Trash2 } from 'lucide-react'
 import { careerApi, type LearningResource } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
 
 const Root = styled.div`
@@ -92,6 +93,7 @@ export function LearningSection() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<LearningResource | null>(null)
   const [form, setForm] = useState({ ...EMPTY })
+  const f = useFieldErrors<'title' | 'progress_pct' | 'url'>('learning')
 
   const { data: resources, isLoading } = useQuery({
     queryKey: ['career', 'learning'],
@@ -113,8 +115,9 @@ export function LearningSection() {
     return all
   }, [all, filter])
 
-  const openNew = () => { setEditing(null); setForm({ ...EMPTY }); setOpen(true) }
-  const openEdit = (r: LearningResource) => {
+  const openNew = useCallback(() => { f.reset(); setEditing(null); setForm({ ...EMPTY }); setOpen(true) }, [f])
+  const openEdit = useCallback((r: LearningResource) => {
+    f.reset()
     setEditing(r)
     setForm({
       title: r.title, kind: r.kind, provider: r.provider ?? '', url: r.url ?? '',
@@ -122,11 +125,35 @@ export function LearningSection() {
       skill_id: r.skill_id ?? NO_SKILL, notes: r.notes ?? '',
     })
     setOpen(true)
-  }
+  }, [f])
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['career', 'learning'] })
     qc.invalidateQueries({ queryKey: ['career', 'skills'] })
+  }
+
+  /*
+   * `progress_pct` is `int = 0` server-side and the handler CLAMPS it with
+   * `max(0, min(100, …))` — so 500 is accepted and silently stored as 100,
+   * and `Number(x) || 0` here turns any non-number into 0. Neither is a
+   * message; both are now refused on the field instead.
+   */
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const pct = form.progress_pct.trim() === '' ? 0 : Number(form.progress_pct)
+    const link = form.url.trim()
+    const ok = f.submit({
+      title: form.title.trim() ? undefined : 'Give it a title.',
+      progress_pct: !Number.isFinite(pct)
+        ? 'Enter a number between 0 and 100.'
+        : pct < 0 || pct > 100
+          ? 'Progress runs from 0 to 100.'
+          : undefined,
+      url: link === '' || /^https?:\/\/\S+$/.test(link)
+        ? undefined
+        : 'Enter a full http:// or https:// link, or leave this blank.',
+    })
+    if (ok) save.mutate()
   }
 
   const save = useMutation({
@@ -228,7 +255,7 @@ export function LearningSection() {
       },
     ]
      
-  }, [all, visible, skills, filter])
+  }, [all, visible, skills, filter, openNew, openEdit])
 
   if (isLoading) return <SkeletonPage kpis={4} modules={[7, 5]} />
 
@@ -255,14 +282,11 @@ export function LearningSection() {
         onOpenChange={(o) => { if (!o) setOpen(false) }}
         size="md"
       >
-        <Form onSubmit={e => {
-          e.preventDefault()
-          if (!form.title.trim()) { toast.error('Give it a title'); return }
-          save.mutate()
-        }}>
+        <Form noValidate onSubmit={handleSubmit}>
           <div>
             <Label>Title</Label>
-            <Input value={form.title} onChange={(e: any) => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Certified Kubernetes Administrator" autoFocus required />
+            <Input value={form.title} {...f.fieldProps('title')} onChange={(e: any) => { f.clearField('title'); setForm(prev => ({ ...prev, title: e.target.value })) }} placeholder="Certified Kubernetes Administrator" autoFocus />
+            <FieldError id={f.errorId('title')}>{f.errors.title}</FieldError>
           </div>
 
           <Pair>
@@ -302,15 +326,18 @@ export function LearningSection() {
               <Input
                 type="number" min="0" max="100" step="5"
                 value={form.progress_pct}
-                onChange={(e: any) => setForm(f => ({ ...f, progress_pct: e.target.value }))}
+                {...f.fieldProps('progress_pct')}
+                onChange={(e: any) => { f.clearField('progress_pct'); setForm(prev => ({ ...prev, progress_pct: e.target.value })) }}
                 disabled={form.status === 'completed'}
               />
+              <FieldError id={f.errorId('progress_pct')}>{f.errors.progress_pct}</FieldError>
             </div>
           </Pair>
 
           <div>
             <Label>Link</Label>
-            <Input value={form.url} onChange={(e: any) => setForm(f => ({ ...f, url: e.target.value }))} placeholder="https://…" />
+            <Input value={form.url} {...f.fieldProps('url')} onChange={(e: any) => { f.clearField('url'); setForm(prev => ({ ...prev, url: e.target.value })) }} placeholder="https://…" />
+            <FieldError id={f.errorId('url')}>{f.errors.url}</FieldError>
           </div>
 
           <div>

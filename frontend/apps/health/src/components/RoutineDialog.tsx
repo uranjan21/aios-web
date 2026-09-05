@@ -17,7 +17,7 @@ import { Button, Dialog, Input } from '@ledgr/ui'
 import { Dumbbell, Plus, Trash2 } from 'lucide-react'
 import { healthApi, type WorkoutRoutine, type RoutinePayload } from '@ct/shared/api/areas'
 import { Popconfirm } from '@ct/shared/components/ui/Popconfirm'
-import { FieldError, useFieldErrors } from './forms/fieldErrors'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 
 /** 0 = Monday, matching the backend's date.weekday(). */
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']

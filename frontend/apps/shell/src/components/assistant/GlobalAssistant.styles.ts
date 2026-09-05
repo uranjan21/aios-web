@@ -222,13 +222,6 @@ export const HistoryHeader = styled.div`
   font-size: ${({ theme }) => theme.typography.fontSize.sm};
 `
 
-export const QuotaLine = styled.div`
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  color: ${({ theme }) => theme.color.mutedForeground};
-  text-align: right;
-  padding: ${({ theme }) => `0 ${theme.spacing[1]} ${theme.spacing[1]}`};
-`
-
 export const EmptyStateContainer = styled.div`
   display: flex;
   flex-direction: column;

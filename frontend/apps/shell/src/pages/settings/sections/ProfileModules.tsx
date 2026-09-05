@@ -19,8 +19,9 @@ import { Button, Dialog, Input } from '@ledgr/ui'
 import { api } from '@ct/shared/api/client'
 import { useAuthStore } from '@ct/shared/stores/authStore'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 
-const Form = styled.div`
+const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing[3]};
@@ -45,6 +46,7 @@ export function ProfileModules() {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [picture, setPicture] = useState('')
+  const f = useFieldErrors<'name' | 'picture_url'>('profile')
 
   /*
    * `@ledgr/ui` Dialog only ever fires onOpenChange(false), so the prefill has
@@ -55,7 +57,8 @@ export function ProfileModules() {
     if (!open) return
     setName(user?.name ?? '')
     setPicture(user?.picture_url ?? '')
-  }, [open, user?.name, user?.picture_url])
+    f.reset()
+  }, [open, user?.name, user?.picture_url, f])
 
   const save = useMutation({
     mutationFn: (payload: Record<string, unknown>) =>
@@ -67,6 +70,25 @@ export function ProfileModules() {
     },
     onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed to update profile'),
   })
+
+  /*
+   * Both rules mirror the server: `PATCH /auth/profile` 400s on a name that is
+   * empty after stripping, and its `picture_url` validator rejects anything
+   * non-empty that is not an http/https URL under 2048 characters. An empty
+   * avatar is legal — it clears the column.
+   */
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmedName = name.trim()
+    const url = picture.trim()
+    const ok = f.submit({
+      name: trimmedName ? undefined : 'Enter the name the app should call you.',
+      picture_url: url === '' || (/^https?:\/\/\S{1,2048}$/.test(url))
+        ? undefined
+        : 'Enter a full http:// or https:// image URL, or leave this blank.',
+    })
+    if (ok) save.mutate({ name: trimmedName, picture_url: url })
+  }
 
   /*
    * ONE card, and every row on it opens the editor.
@@ -122,40 +144,36 @@ export function ProfileModules() {
         title="Edit profile"
         description="Your name and avatar. Your email address and sign-in method are managed in Security."
       >
-        <Form>
+        <Form noValidate onSubmit={handleSubmit}>
           <div>
-            <Label>Display name</Label>
+            <Label htmlFor="profile-name-input">Display name</Label>
             <Input
+              id="profile-name-input"
               value={name}
-              onChange={(e: any) => setName(e.target.value)}
+              {...f.fieldProps('name')}
+              onChange={(e: any) => { f.clearField('name'); setName(e.target.value) }}
               placeholder="Your name"
               maxLength={80}
               autoFocus
             />
+            <FieldError id={f.errorId('name')}>{f.errors.name}</FieldError>
           </div>
           <div>
-            <Label>Avatar URL (optional)</Label>
+            <Label htmlFor="profile-picture-input">Avatar URL (optional)</Label>
             <Input
+              id="profile-picture-input"
               value={picture}
-              onChange={(e: any) => setPicture(e.target.value)}
+              {...f.fieldProps('picture_url')}
+              onChange={(e: any) => { f.clearField('picture_url'); setPicture(e.target.value) }}
               placeholder="https://…"
             />
+            <FieldError id={f.errorId('picture_url')}>{f.errors.picture_url}</FieldError>
           </div>
           <Actions>
-            <Button
-              variant="primary"
-              loading={save.isPending}
-              disabled={!name.trim()}
-              onClick={() => save.mutate({
-                name: name.trim(),
-                // Empty clears the avatar; the column is nullable and the
-                // validator only rejects a non-empty non-URL.
-                picture_url: picture.trim(),
-              })}
-            >
+            <Button type="submit" variant="primary" loading={save.isPending}>
               Save changes
             </Button>
-            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
           </Actions>
         </Form>
       </Dialog>

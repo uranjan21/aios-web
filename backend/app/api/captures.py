@@ -59,25 +59,35 @@ class ParseBody(BaseModel):
 
 @router.post("/parse")
 @limiter.limit("30/minute")
-async def parse_capture(request: Request, body: ParseBody, current_user=Depends(get_current_user)):
+async def parse_capture(request: Request, body: ParseBody, current_user=Depends(get_current_user), db=Depends(get_db)):
     """LLM-parse a quick-log line into a structured intent. Falls back to plain capture."""
     from app.core.config import get_settings
+    from app.services.ai.keys import get_user_api_key
     from app.services.ai.openai_client import get_openai_client
 
     fallback = {"domain": "capture", "fields": {"text": body.text}, "summary": "Save as note"}
     settings = get_settings()
-    if not settings.openai_api_key:
-        return fallback
+
+    # BYOK. This is the one interactive path that does NOT 428 on a missing key:
+    # the endpoint's contract is "structure this line if you can, otherwise save
+    # it as a note", and the note is the useful half. Refusing the request would
+    # break quick-log for every user who has not configured a provider, to tell
+    # them something the flag below already tells the UI. `needs_api_key` is the
+    # same machine-readable signal a 428 body would carry, so the client can
+    # still deep-link to Settings.
+    api_key = await get_user_api_key(db, current_user.id, "openai")
+    if not api_key:
+        return {**fallback, "needs_api_key": "openai"}
 
     try:
-        client = get_openai_client()
+        client = get_openai_client(api_key)
         resp = await client.chat.completions.create(
             # Small tier, not the chat default. This is strict-JSON extraction
             # from <=500 chars against a fixed schema — the same shape of task
             # the scheduled agents already run on `agent_openai_model`, at ~16x
             # less per call. It also matters because this endpoint is
-            # deliberately NOT metered against the AI quota (CAP-1): the rate
-            # limit is the only ceiling, so the per-call cost is the exposure.
+            # billed to the user's own key, so the small tier is chosen for
+            # their benefit rather than the operator's.
             model=settings.agent_openai_model,
             messages=[
                 {"role": "system", "content": _PARSE_SYSTEM},
@@ -85,7 +95,6 @@ async def parse_capture(request: Request, body: ParseBody, current_user=Depends(
             ],
             temperature=0,
             max_tokens=200,
-            timeout=15,
         )
         raw = (resp.choices[0].message.content or "").strip()
         if raw.startswith("```"):

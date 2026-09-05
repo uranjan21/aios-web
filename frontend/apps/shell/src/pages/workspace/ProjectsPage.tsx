@@ -7,7 +7,7 @@
  * the editor, and Delete moved into the dialog footer because a table row has
  * no action column to hang it off.
  */
-import { useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FolderKanban, Trash2 } from 'lucide-react'
 import { Button, Card, EmptyState, Input, Dialog, DialogFooter, Select, Label } from '@ledgr/ui'
@@ -18,6 +18,7 @@ import { workspaceApi, Project, ProjectPayload } from '@ct/shared/api/workspace'
 import { goalsApi } from '@ct/shared/api/goals'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { DOMAIN_OPTIONS, domainLabel } from '@ct/shared/config/domains'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 
 const FormGrid = styled.div`
   display: flex;
@@ -87,6 +88,7 @@ export function ProjectsSection({
   const [dueDate, setDueDate] = useState('')
   const [labels, setLabels] = useState('')
   const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const f = useFieldErrors<'name'>('project')
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['workspace', 'projects'],
@@ -108,12 +110,14 @@ export function ProjectsSection({
     if (!isGoalValid) setGoalId('')
   }
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setName(''); setDescription(''); setDomain('general'); setGoalId('')
     setStatus('active'); setPriority('medium'); setColor(''); setDueDate(''); setLabels('')
-  }
+    f.reset()
+  }, [f])
 
-  const openEdit = (p: Project) => {
+  const openEdit = useCallback((p: Project) => {
+    f.reset()
     setEditingProject(p)
     setName(p.name)
     setDescription(p.description || '')
@@ -124,7 +128,7 @@ export function ProjectsSection({
     setColor(p.color || '')
     setDueDate(p.due_date || '')
     setLabels(p.labels || '')
-  }
+  }, [f])
 
   const createMutation = useMutation({
     mutationFn: workspaceApi.createProject,
@@ -157,7 +161,17 @@ export function ProjectsSection({
     onError: () => toast.error('Could not delete project'),
   })
 
-  const handleSave = () => {
+  /*
+   * `name` is the only field either endpoint needs — but note `ProjectCreate.name`
+   * is a bare `str` server-side with no `min_length`, so an empty string would
+   * be accepted there. This check is the only thing stopping a nameless project,
+   * which is why it is a real validation rather than a disabled button.
+   * `due_date` parses as a `date`; a browser date input cannot produce anything
+   * else, so only its presence is optional and nothing else is asserted.
+   */
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!f.submit({ name: name.trim() ? undefined : 'Give the project a name.' })) return
     if (editingProject) {
       updateMutation.mutate({
         name, description: description || null, domain, status, priority,
@@ -230,8 +244,7 @@ export function ProjectsSection({
         : '—',
     ]),
     onRowClick: (i: number) => openEdit(rows[i]),
-     
-  }], [rows, domainFilter, statusFilter, filterNode])
+  }], [rows, domainFilter, statusFilter, filterNode, openEdit])
 
   return (
     <>
@@ -277,10 +290,11 @@ export function ProjectsSection({
         description="Organise work linked to goals, sprints, and tasks."
         size="md"
       >
-        <FormGrid>
+        <FormGrid as="form" noValidate onSubmit={handleSave}>
           <div>
             <Label htmlFor="proj-name">Project name</Label>
-            <Input id="proj-name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Q3 Marketing Push" autoFocus />
+            <Input id="proj-name" value={name} {...f.fieldProps('name')} onChange={e => { f.clearField('name'); setName(e.target.value) }} placeholder="e.g. Q3 Marketing Push" autoFocus />
+            <FieldError id={f.errorId('name')}>{f.errors.name}</FieldError>
           </div>
           <div>
             <Label htmlFor="proj-desc">Description</Label>
@@ -333,6 +347,7 @@ export function ProjectsSection({
           <DialogFooter>
             {editingProject && (
               <Button
+                type="button"
                 variant="destructive"
                 size="sm"
                 loading={deleteMutation.isPending}
@@ -345,12 +360,11 @@ export function ProjectsSection({
                 <Trash2 size={14} style={{ marginRight: 4 }} /> Delete
               </Button>
             )}
-            <Button variant="outline" onClick={() => handleDialogClose(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => handleDialogClose(false)}>Cancel</Button>
             <Button
+              type="submit"
               variant="primary"
-              disabled={!name.trim()}
               loading={createMutation.isPending || updateMutation.isPending}
-              onClick={handleSave}
             >
               {editingProject ? 'Save changes' : 'Create project'}
             </Button>

@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import styled from 'styled-components'
 import { ChevronRight, ChevronLeft, Plus, Check } from 'lucide-react'
 import { toast } from 'sonner'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { financeApi } from '@ct/shared/api/areas'
 
 export type Cat = { id: string; name: string; kind?: string; parent_id?: string | null; icon?: string | null }
@@ -120,6 +121,7 @@ export function CategoryPicker({
   const [drillParent, setDrillParent] = useState<string | null>(null) // mobile / active submenu
   const [pos, setPos] = useState({ top: 0, left: 0, width: 248 })
   const [creating, setCreating] = useState<{ parentId: string | null } | null>(null)
+  const f = useFieldErrors<'name'>('category-picker')
   const [draft, setDraft] = useState('')
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 560
 
@@ -157,14 +159,14 @@ export function CategoryPicker({
     return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onEsc) }
   }, [open])
 
-  const close = () => { setOpen(false); setDrillParent(null); setCreating(null); setDraft('') }
+  const close = () => { setOpen(false); setDrillParent(null); setCreating(null); setDraft(''); f.reset() }
 
   const createMutation = useMutation({
     mutationFn: (vars: { name: string; parent_id: string | null }) =>
       financeApi.createCategory({ name: vars.name, kind, parent_id: vars.parent_id, icon: null }),
     onSuccess: (cat: any) => {
       queryClient.invalidateQueries({ queryKey: ['finance', 'categories'] })
-      setCreating(null); setDraft('')
+      setCreating(null); setDraft(''); f.reset()
       onChange(cat.id)               // auto-select the new category
       if (!cat.parent_id) setDrillParent(cat.id)  // a new top-level → open it to add subs
       else close()
@@ -172,9 +174,12 @@ export function CategoryPicker({
     onError: (e: any) => toast.error(e?.response?.data?.detail || 'Could not create category'),
   })
 
+  /* An empty name used to return silently — the tick did nothing and said
+     nothing. The reason now appears under the field it belongs to. */
   const submitCreate = () => {
     const name = draft.trim()
-    if (!name || !creating) return
+    if (!creating) return
+    if (!f.submit({ name: name ? undefined : 'Type a name first.' })) return
     createMutation.mutate({ name, parent_id: creating.parentId })
   }
 
@@ -193,12 +198,17 @@ export function CategoryPicker({
       ))}
       <Divider />
       {creating?.parentId === null ? (
+        <>
         <InlineCreate>
           <input autoFocus placeholder="New category name" value={draft}
-            onChange={e => setDraft(e.target.value)}
+            aria-invalid={f.fieldProps('name').invalid}
+            aria-describedby={f.fieldProps('name')['aria-describedby']}
+            onChange={e => { f.clearField('name'); setDraft(e.target.value) }}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submitCreate() } }} />
           <Row as="button" type="button" $accent style={{ width: 'auto' }} onClick={submitCreate}><Check /></Row>
         </InlineCreate>
+        <FieldError id={f.errorId('name')}>{f.errors.name}</FieldError>
+        </>
       ) : (
         <Row type="button" $accent onClick={() => { setCreating({ parentId: null }); setDraft('') }}>
           <Plus /><span className="lbl">New category</span>
@@ -234,12 +244,17 @@ export function CategoryPicker({
         ))}
         <Divider />
         {creating?.parentId === parentId ? (
+          <>
           <InlineCreate>
             <input autoFocus placeholder="New subcategory" value={draft}
-              onChange={e => setDraft(e.target.value)}
+              aria-invalid={f.fieldProps('name').invalid}
+              aria-describedby={f.fieldProps('name')['aria-describedby']}
+              onChange={e => { f.clearField('name'); setDraft(e.target.value) }}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submitCreate() } }} />
             <Row as="button" type="button" $accent style={{ width: 'auto' }} onClick={submitCreate}><Check /></Row>
           </InlineCreate>
+          <FieldError id={f.errorId('name')}>{f.errors.name}</FieldError>
+          </>
         ) : (
           <Row type="button" $accent onClick={() => { setCreating({ parentId }); setDraft('') }}>
             <Plus /><span className="lbl">Add subcategory</span>

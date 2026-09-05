@@ -42,7 +42,7 @@ Close the audit. Nothing here is a feature; it's the cost of being a real SaaS.
 
 ### Phase 1 — Monetization & onboarding (Weeks 3–6) · *gate to charge*
 You cannot sell a subscription without a way to subscribe.
-- **Stripe Billing**: `subscriptions` table (`user_id`, `plan`, `status`, `current_period_end`, `stripe_customer_id`), Checkout, Customer Portal, webhook handler (idempotent), and a `require_plan("pro")` dependency for gating.
+- ~~**Stripe Billing**~~ — **REMOVED 2026-08-17.** The product is free for everyone, bring-your-own-API-key. No subscriptions, entitlements or metering; the tables were dropped. See `docs/DYNAMIC_PRICING_PLAN.md`.
 - **Plan design** (draft): **Free** (1 domain, 30-day history, manual entry) · **Pro ₹499/mo** (all domains, unlimited history, AI Discoveries, integrations, agents) · **Household ₹799/mo** (Pro + shared finance/tasks for 2). Annual = 2 months free.
 - **Self-serve signup + onboarding**: signup screen (wire the existing `/auth/signup`), email verification, a 4-step onboarding (pick domains → connect a bank/Google → log first entry → see first dashboard). Onboarding completion is the activation event.
 - **Exit criteria:** a stranger can sign up, hit the paywall, pay, and land in the app without you touching anything.
@@ -91,7 +91,7 @@ Functionality gets you a product; these get you a product people screenshot and 
 | **AI cost per user** — LLM calls on briefings + synergy + chat | Cap with per-user token budgets (already partially built), cache aggressively, and make the heaviest features Pro-only. |
 | **Insight quality** — bad correlations destroy trust | Statistical guardrails + human 👍/👎 loop + conservative thresholds from day one. |
 | **Scope creep across 5 domains** — each is a full app | Resist "feature parity with Monarch/Whoop/Notion." Compete on *connection between* domains, keep each domain "good enough," and let the engine be the star. |
-| **Single-founder velocity** | Sequence ruthlessly: isolation → billing → one retention hook → the engine. Don't start Phase 4 before Phase 3 proves the moat. |
+| **Single-founder velocity** | Sequence ruthlessly: isolation → one retention hook → the engine (billing is gone — the product is free/BYOK). Don't start Phase 4 before Phase 3 proves the moat. |
 
 ---
 

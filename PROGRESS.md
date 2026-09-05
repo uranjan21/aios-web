@@ -1,5 +1,68 @@
 # PROGRESS.md — Session Journal (append-only, newest on top)
 
+## 2026-08-22 — claude-code (login audit + a Guide page for users)
+
+**Ask.** Audit the login page; build a guide page for users.
+
+**Login — three real defects, not styling.**
+- **"Remember me" was a dead control.** The checkbox has existed since the page
+  was built and its state was never sent anywhere: `POST /auth/login` had no
+  such field and `_issue_cookie` hardcoded 7 days, so ticking it changed
+  nothing. Wired end to end — `LoginRequest.remember` → `_issue_cookie(days=)`,
+  30 days when remembered. **Unchecked is still exactly 7 days**, so no existing
+  session shortens. Covered both ways in `tests/test_auth.py`.
+- **A bounced deep link always landed on `/app`.** `RequireAuth` redirected to
+  `/login` with no state, so `/app/finance/transactions` → sign in → dashboard.
+  It now carries `from`, and LoginPage returns the user there. `from` is
+  accepted only when it starts with `/app` — an absolute URL in router state
+  would have made the form an open redirect.
+- **A signed-in user hitting `/login` saw the sign-out form.** Now redirects.
+- Also: `autoComplete` on all three fields (password managers could neither fill
+  nor offer to save — `username`/`current-password` on sign-in,
+  `email`/`new-password` on signup), `role="alert"` on the error box so a failed
+  attempt is announced, native `minLength={8}` on the signup password, and the
+  ticker's "8 agents on schedule" → **7**, which is both the real seed roster
+  and the number of ticks the page's own HUD ring draws.
+
+**Not changed, flagged instead:** the ambient HUD still draws five domain nodes
+including `business` and `content`, deleted 2026-07-21 — it is `aria-hidden`
+decoration and re-siting the composition is a design call. The hero also sells
+"Vault Synced" to every visitor while `VAULT_SYNC_ENABLED` is false in hosted
+prod; that is marketing copy, so it is Utsav's call, not a bug fix.
+
+**New `/app/guide`** (`apps/shell/src/pages/GuidePage.tsx`, nav entry in the
+System group, `g u`). `WelcomeWizard` runs once at signup and there is no docs
+site, so after that first minute nothing told a user which agents run on a
+schedule, where accounts are added, or what ⌘L does. Ten modules built from the
+module kit: Start here · Your day · Life areas · Workspace · The assistant ·
+Keyboard · Agents · Where each setting lives · Data and privacy · Still stuck.
+**Every row that names a destination navigates to it**; rows that describe
+something with no destination (the key caps) carry no handler and stay inert.
+Static — no API calls, so it renders the same for every account. Not
+module-gated: gating the page that explains the modules hides it from the people
+who need it.
+
+**Written around a moving target.** A parallel session removed billing entirely
+mid-task (`app/services/billing/`, `api/billing.py`, `PricingPage`,
+`PlanModules`, `lib/pricing.ts`, `m001_drop_billing`), which took
+`@ct/shared/lib/pricing` out from under a "What costs what" module this page
+had already been built with. That module is now **"Where each setting lives"**
+and the guide depends on no pricing, no free area and no Plan tab. Its "Start
+here" step 1 is email verification rather than choosing a free area, for the
+same reason.
+
+- Verified: backend **289 passing** (incl. the two new remember-me assertions);
+  tsc, `pnpm build`, vitest **32** all clean. Login walked live at 1280px and
+  375px — `autocomplete` reads `username`/`current-password`, no console errors,
+  `scrollWidth == clientWidth == 375`. Guide walked at 1440px: rows are real
+  `<button>`s and clicking one navigates (Goals → `/app/workspace/goals`), the
+  Keyboard module's rows are correctly NOT buttons, zero horizontally
+  overflowing elements. Cookie max-age asserted directly: 604800 / 2592000.
+- Blockers: none.
+- Next: decide the HUD / vault-copy questions above. Consider linking the Guide
+  from `WelcomeWizard`'s final step — the handoff exists conceptually but not in
+  the UI.
+
 ## 2026-08-10 — claude-code (dev dataset: seed every API surface)
 
 **Ask.** Seed dummy data so all frontend features can be tested.

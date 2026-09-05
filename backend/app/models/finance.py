@@ -4,7 +4,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Optional
 from sqlmodel import SQLModel, Field, Column, Relationship
-from sqlalchemy import Text, Numeric, UniqueConstraint, ForeignKey
+from sqlalchemy import CheckConstraint, Text, Numeric, UniqueConstraint, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 
@@ -36,6 +36,10 @@ class AccountType(str, Enum):
 
 class Account(SQLModel, table=True):
     __tablename__ = "finance_accounts"
+    # No CHECK on `type`: it is a native PostgreSQL ENUM (`accounttype`), so the
+    # column type already rejects anything outside the member set. It also
+    # persists member NAMES ('CHECKING'), not the lower-case values — a CHECK
+    # written against the values would reject every real row.
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
     name: str = Field(nullable=False)
@@ -87,6 +91,11 @@ class FinanceExpense(SQLModel, table=True):
     split_group_id: Optional[uuid.UUID] = Field(default=None)  # siblings of one split payment
     tags: Optional[str] = Field(default=None)  # comma-separated freeform labels
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow(), nullable=False)
+    # Soft delete (migration n001_soft_delete). NULL = live; a timestamp means the
+    # row is hidden from every read path but still recoverable, with the account
+    # balance effect already reversed. The GDPR erasure path in api/auth.py still
+    # hard-DELETEs, so this is not data retention.
+    deleted_at: Optional[datetime] = Field(default=None, index=True)
 
 
 class BudgetLimit(SQLModel, table=True):
@@ -137,6 +146,11 @@ class FinanceBill(SQLModel, table=True):
     )
     last_posted_period: Optional[str] = Field(default=None)  # "YYYY-MM" of last auto-posted expense
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    # Soft delete (migration n001_soft_delete). NULL = live; a timestamp means the
+    # row is hidden from every read path but still recoverable, with the account
+    # balance effect already reversed. The GDPR erasure path in api/auth.py still
+    # hard-DELETEs, so this is not data retention.
+    deleted_at: Optional[datetime] = Field(default=None, index=True)
 
 
 class FinanceIncome(SQLModel, table=True):
@@ -159,6 +173,11 @@ class FinanceIncome(SQLModel, table=True):
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     logged_at: datetime = Field(nullable=False)
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    # Soft delete (migration n001_soft_delete). NULL = live; a timestamp means the
+    # row is hidden from every read path but still recoverable, with the account
+    # balance effect already reversed. The GDPR erasure path in api/auth.py still
+    # hard-DELETEs, so this is not data retention.
+    deleted_at: Optional[datetime] = Field(default=None, index=True)
 
 
 class FinanceTransfer(SQLModel, table=True):
@@ -180,11 +199,24 @@ class FinanceTransfer(SQLModel, table=True):
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     logged_at: datetime = Field(nullable=False)
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    # Soft delete (migration n001_soft_delete). NULL = live; a timestamp means the
+    # row is hidden from every read path but still recoverable, with the account
+    # balance effect already reversed. The GDPR erasure path in api/auth.py still
+    # hard-DELETEs, so this is not data retention.
+    deleted_at: Optional[datetime] = Field(default=None, index=True)
 
 
 class FinanceInvestment(SQLModel, table=True):
     """Portfolio holding — like INDmoney/ET Money investment tracker."""
     __tablename__ = "finance_investments"
+    # Mirrors migration m002_enum_checks.
+    __table_args__ = (
+        CheckConstraint(
+            "type IN ('stock', 'mutual_fund', 'fd', 'fixed_deposit', 'ppf', "
+            "'nps', 'crypto', 'gold', 'bond', 'retirement', 'other')",
+            name="ck_finance_investments_type",
+        ),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True, nullable=False)
@@ -199,6 +231,11 @@ class FinanceInvestment(SQLModel, table=True):
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
     updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    # Soft delete (migration n001_soft_delete). NULL = live; a timestamp means the
+    # row is hidden from every read path but still recoverable, with the account
+    # balance effect already reversed. The GDPR erasure path in api/auth.py still
+    # hard-DELETEs, so this is not data retention.
+    deleted_at: Optional[datetime] = Field(default=None, index=True)
 
 
 class FinanceLoan(SQLModel, table=True):
@@ -225,6 +262,11 @@ class FinanceLoan(SQLModel, table=True):
     last_posted_period: Optional[str] = Field(default=None)  # "YYYY-MM" of last auto-posted EMI
     created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
     updated_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    # Soft delete (migration n001_soft_delete). NULL = live; a timestamp means the
+    # row is hidden from every read path but still recoverable, with the account
+    # balance effect already reversed. The GDPR erasure path in api/auth.py still
+    # hard-DELETEs, so this is not data retention.
+    deleted_at: Optional[datetime] = Field(default=None, index=True)
 
 class FinancePendingTransaction(SQLModel, table=True):
     """Transactions ingested from bank/CC email alerts (or AI agents) awaiting user review."""
@@ -233,6 +275,15 @@ class FinancePendingTransaction(SQLModel, table=True):
     # (manual / agent-queued rows) is exempt — Postgres treats NULLs as distinct.
     __table_args__ = (
         UniqueConstraint("user_id", "source_email_id", name="uq_pending_user_email"),
+        # Both mirror migration m002_enum_checks.
+        CheckConstraint(
+            "status IN ('pending', 'approved', 'dismissed')",
+            name="ck_finance_pending_transactions_status",
+        ),
+        CheckConstraint(
+            "transaction_type IN ('expense', 'income')",
+            name="ck_finance_pending_transactions_transaction_type",
+        ),
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)

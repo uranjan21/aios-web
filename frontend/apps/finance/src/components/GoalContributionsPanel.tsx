@@ -20,6 +20,7 @@ import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { Button, Input, SegmentedControl, Select } from '@ledgr/ui'
 import { Trash2 } from 'lucide-react'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { financeApi } from '@ct/shared/api/areas'
 import { formatCurrency } from '@ct/shared/lib/utils'
 
@@ -115,6 +116,7 @@ export function GoalContributionsPanel({ goalId }: { goalId: string }) {
   const qc = useQueryClient()
   const [direction, setDirection] = useState<'in' | 'out'>('in')
   const [amount, setAmount] = useState('')
+  const f = useFieldErrors<'amount' | 'when'>('goal-contribution')
   const [when, setWhen] = useState(dayjs().format('YYYY-MM-DD'))
   const [note, setNote] = useState('')
   const [accountId, setAccountId] = useState('')
@@ -146,7 +148,7 @@ export function GoalContributionsPanel({ goalId }: { goalId: string }) {
     onSuccess: () => {
       invalidate()
       toast.success(direction === 'in' ? 'Contribution added' : 'Withdrawal recorded')
-      setAmount(''); setNote('')
+      setAmount(''); setNote(''); f.reset()
     },
     onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to record that'),
   })
@@ -159,7 +161,15 @@ export function GoalContributionsPanel({ goalId }: { goalId: string }) {
 
   const submit = () => {
     const raw = parseFloat(amount)
-    if (Number.isNaN(raw) || raw <= 0) { toast.error('Enter an amount greater than zero'); return }
+    const ok = f.submit({
+      amount: amount.trim() === '' || !Number.isFinite(raw)
+        ? 'Enter an amount.'
+        : raw <= 0
+          ? 'Must be more than zero — the direction control says in or out.'
+          : undefined,
+      when: when ? undefined : 'Pick a date.',
+    })
+    if (!ok) return
     createMutation.mutate({
       // The control carries the direction; the user never types a minus sign.
       amount: direction === 'out' ? -raw : raw,
@@ -195,13 +205,16 @@ export function GoalContributionsPanel({ goalId }: { goalId: string }) {
             min="0.01"
             step="0.01"
             value={amount}
-            onChange={(e: any) => setAmount(e.target.value)}
+            {...f.fieldProps('amount')}
+            onChange={(e: any) => { f.clearField('amount'); setAmount(e.target.value) }}
             placeholder="0.00"
           />
+          <FieldError id={f.errorId('amount')}>{f.errors.amount}</FieldError>
         </div>
         <div>
           <Label>Date</Label>
-          <Input type="date" value={when} onChange={(e: any) => setWhen(e.target.value)} />
+          <Input type="date" value={when} {...f.fieldProps('when')} onChange={(e: any) => { f.clearField('when'); setWhen(e.target.value) }} />
+          <FieldError id={f.errorId('when')}>{f.errors.when}</FieldError>
         </div>
       </Row>
 

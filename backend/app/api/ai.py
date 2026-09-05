@@ -9,23 +9,28 @@ from sqlalchemy import func
 from sqlmodel import select, desc
 
 from app.core.deps import get_current_user, get_db
-from app.core.entitlements import require_module
-from app.services.billing.usage import enforce_ai_quota, record_ai_usage
 from app.core.rate_limit import limiter
 from app.services.ai.insights import generate_text
+from app.services.ai.keys import UserApiKeyMissing
 
-# Gated on the `chat` module, not on `require_plan("pro")`: the webhook sets
-# plan="pro" whenever ANY module is owned, so a $5 finance-only subscriber passed
-# the rank check and got LLM features priced under chat/agents. `require_module`
-# also honours GRACE_STATUSES, so a past_due user keeps AI along with their other
-# modules instead of 402-ing on this router alone. Declared here rather than at the
-# `include_router` in main.py so the gate travels with the router.
-router = APIRouter(
-    prefix="/api/ai",
-    tags=["ai"],
-    dependencies=[Depends(require_module("chat"))],
-)
+# No entitlement gate: every call here runs on the caller's own provider key, so
+# there is nothing of the operator's to protect. The only precondition is having
+# configured a key — surfaced as 428, never 402 (that was the billing status).
+router = APIRouter(prefix="/api/ai", tags=["ai"])
 logger = logging.getLogger(__name__)
+
+
+def _needs_key(exc: UserApiKeyMissing) -> HTTPException:
+    """428 Precondition Required — the account has no provider key yet.
+
+    Deliberately NOT 402: that code meant "pay us" and the billing system is
+    gone. The body carries a machine-readable code + provider so the client can
+    deep-link straight to the right field in Settings.
+    """
+    return HTTPException(
+        status_code=428,
+        detail={"error": "no_api_key", "provider": exc.provider, "message": str(exc)},
+    )
 
 
 class ExplainBody(BaseModel):
@@ -104,7 +109,7 @@ async def _health_facts(db, user_id: str) -> str:
 
 @router.post("/explain")
 @limiter.limit("10/minute")
-async def explain_area(request: Request, body: ExplainBody, current_user=Depends(get_current_user), db=Depends(get_db), _quota=Depends(enforce_ai_quota())):
+async def explain_area(request: Request, body: ExplainBody, current_user=Depends(get_current_user), db=Depends(get_db)):
     if body.area == "finance":
         facts = await _finance_facts(db, str(current_user.id))
         system = ("You are a sharp, friendly personal finance coach for a single user in India (amounts in INR ₹). "
@@ -119,8 +124,9 @@ async def explain_area(request: Request, body: ExplainBody, current_user=Depends
 
     try:
         text = await generate_text(system, facts, max_tokens=400, user_id=str(current_user.id))
-        await record_ai_usage(db, current_user.id, 1, "insights")
         return {"text": text, "facts": facts}
+    except UserApiKeyMissing as e:
+        raise _needs_key(e)
     except Exception as e:
         logger.warning("Explain failed: %s", e)
         raise HTTPException(status_code=503, detail="AI temporarily unavailable")
@@ -135,10 +141,13 @@ class SkillGapBody(BaseModel):
 
 @router.post("/skill-gap")
 @limiter.limit("10/minute")
-async def skill_gap(request: Request, body: SkillGapBody, current_user=Depends(get_current_user), db=Depends(get_db), _quota=Depends(enforce_ai_quota())):
+async def skill_gap(request: Request, body: SkillGapBody, current_user=Depends(get_current_user), db=Depends(get_db)):
     from app.models.career import SkillInventory
 
-    skills = (await db.execute(select(SkillInventory).where(SkillInventory.user_id == str(current_user.id)))).scalars().all()
+    # `user_id` is a UUID column — comparing it to str(...) raised
+    # AttributeError: 'str' object has no attribute 'hex' and made this
+    # endpoint a guaranteed 500. Pre-existing; surfaced by the BYOK tests.
+    skills = (await db.execute(select(SkillInventory).where(SkillInventory.user_id == current_user.id))).scalars().all()
     skill_lines = "\n".join(f"- {s.skill_name} ({s.category}): {s.level}" for s in skills) or "(no skills logged)"
 
     system = ("You are a senior engineering career mentor. Compare the user's current skills against the target role. "
@@ -148,8 +157,9 @@ async def skill_gap(request: Request, body: SkillGapBody, current_user=Depends(g
 
     try:
         text = await generate_text(system, user, max_tokens=700, user_id=str(current_user.id))
-        await record_ai_usage(db, current_user.id, 1, "insights")
         return {"text": text}
+    except UserApiKeyMissing as e:
+        raise _needs_key(e)
     except Exception as e:
         logger.warning("Skill-gap failed: %s", e)
         raise HTTPException(status_code=503, detail="AI temporarily unavailable")
@@ -164,7 +174,7 @@ class DraftBody(BaseModel):
 
 @router.post("/draft")
 @limiter.limit("10/minute")
-async def draft_content(request: Request, body: DraftBody, current_user=Depends(get_current_user), db=Depends(get_db), _quota=Depends(enforce_ai_quota())):
+async def draft_content(request: Request, body: DraftBody, current_user=Depends(get_current_user), db=Depends(get_db)):
     platform_rules = {
         "twitter": "a punchy 5-8 tweet thread; first tweet is a scroll-stopping hook; each tweet under 280 chars",
         "linkedin": "a LinkedIn post: strong 1-line hook, short paragraphs, line breaks for rhythm, light CTA at the end",
@@ -179,8 +189,9 @@ async def draft_content(request: Request, body: DraftBody, current_user=Depends(
 
     try:
         text = await generate_text(system, user, max_tokens=800, user_id=str(current_user.id))
-        await record_ai_usage(db, current_user.id, 1, "insights")
         return {"text": text}
+    except UserApiKeyMissing as e:
+        raise _needs_key(e)
     except Exception as e:
         logger.warning("Draft failed: %s", e)
         raise HTTPException(status_code=503, detail="AI temporarily unavailable")

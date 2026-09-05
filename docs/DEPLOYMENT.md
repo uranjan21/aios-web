@@ -320,11 +320,10 @@ switches the auth cookie to `Secure`, fixes the CSP `connect-src` for
 
 ## 5. Known constraints on this deployment
 
-- **Public signup is open.** With billing off, `AI_FREE_MONTHLY_CREDITS`
-  (default 200/user/month) is the only cap on LLM spend against your API key.
-  This cap is enforced *only* when `ENVIRONMENT=production` — running the box in
-  `development` mode gives every signup unlimited spend and re-enables the
-  legacy env-credential login path. Keep it on `production`.
+- **Public signup is open, and that is now cheap.** Users bring their own LLM
+  API key, so a signup cannot spend operator money on AI — there is no shared
+  key to drain and no quota to tune. Abuse controls still matter for storage,
+  email and CPU, but the unbounded-bill risk is gone by construction.
 - **Vault sync is off** and must stay off: it reads one shared filesystem for
   all users and is not tenant-isolated.
 - **Single box, no redundancy.** A deploy restarts the API; expect a few

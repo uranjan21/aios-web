@@ -1,4 +1,12 @@
-"""Daily and per-session token budget enforcement."""
+"""Token accounting for chat.
+
+BYOK note (2026-08): this module used to *enforce* a daily/session token budget
+on the operator's key — that was a spend cap, and with every call now billed to
+the user's own provider account there is nobody to protect from it. The counters
+are kept because they are also the only place the user can see their own
+consumption (`GET /api/chat/token-budget`, the line under the composer). So:
+accounting yes, enforcement no.
+"""
 import logging
 from datetime import date, datetime, timedelta
 from uuid import UUID
@@ -10,18 +18,6 @@ from app.db.session import AsyncSessionLocal
 from app.models.chat import DailyTokenUsage, ChatSession
 
 logger = logging.getLogger(__name__)
-
-ESTIMATED_TOKENS = 2000  # pre-debit amount per request
-
-
-class TokenBudgetExceeded(Exception):
-    def __init__(self, message: str, retry_after: int = 3600):
-        super().__init__(message)
-        self.retry_after = retry_after
-
-
-class SessionTokenLimitExceeded(Exception):
-    pass
 
 
 def _seconds_until_midnight() -> int:
@@ -44,72 +40,15 @@ async def get_session_tokens_used(user_id: UUID, session_id: UUID) -> int:
         return row.tokens_used if row else 0
 
 
-async def _refund_daily_reservation(user_id: UUID, day: date, amount: int) -> None:
-    async with AsyncSessionLocal() as db_session:
-        result = await db_session.execute(select(DailyTokenUsage).where(DailyTokenUsage.user_id == user_id).where(DailyTokenUsage.usage_date == day))
-        daily = result.scalar_one_or_none()
-        if daily:
-            daily.tokens_used = max(0, daily.tokens_used - amount)
-            daily.updated_at = datetime.utcnow()
-            db_session.add(daily)
-            await db_session.commit()
-
-
-from sqlalchemy.dialects.postgresql import insert
-
-async def reserve_budget(user_id: UUID, session_id: UUID, estimated_input: int = ESTIMATED_TOKENS) -> None:
-    """Atomically check + pre-debit budget. Raises if over limit.
-    
-    Uses ON CONFLICT DO UPDATE to avoid race conditions and unique constraint errors.
-    """
-    settings = get_settings()
-    today = date.today()
-    now = datetime.utcnow()
-
-    async with AsyncSessionLocal() as db_session:
-        async with db_session.begin():
-            stmt = insert(DailyTokenUsage).values(
-                user_id=user_id,
-                usage_date=today,
-                tokens_used=estimated_input,
-                updated_at=now
-            ).on_conflict_do_update(
-                index_elements=['usage_date', 'user_id'],
-                set_=dict(
-                    tokens_used=DailyTokenUsage.tokens_used + estimated_input,
-                    updated_at=now
-                )
-            ).returning(DailyTokenUsage.tokens_used)
-            
-            result = await db_session.execute(stmt)
-            daily_used_after = result.scalar_one()
-
-            if daily_used_after > settings.claude_daily_token_limit:
-                reset_in = _seconds_until_midnight()
-                raise TokenBudgetExceeded(
-                    f"Daily limit of {settings.claude_daily_token_limit:,} tokens reached. "
-                    f"Resets in {reset_in // 3600}h {(reset_in % 3600) // 60}m.",
-                    retry_after=reset_in,
-                )
-
-    session_used = await get_session_tokens_used(user_id, session_id)
-    if session_used + estimated_input > settings.claude_session_token_limit:
-        await _refund_daily_reservation(user_id, today, estimated_input)
-        raise SessionTokenLimitExceeded(
-            "Session context is full. Start a new session to continue."
-        )
-
-
 async def record_usage(
     user_id: UUID,
     session_id: UUID,
     input_tokens: int,
     output_tokens: int,
-    pre_reserved: int = ESTIMATED_TOKENS,
 ) -> None:
-    """Correct the pre-reserved budget to the actual token usage."""
+    """Record what a completed turn actually consumed. Never raises upward —
+    a failed counter must not lose the user a response they already paid for."""
     total_actual = input_tokens + output_tokens
-    delta = total_actual - pre_reserved
     today = date.today()
     now = datetime.utcnow()
 
@@ -117,9 +56,11 @@ async def record_usage(
         result = await session.execute(select(DailyTokenUsage).where(DailyTokenUsage.user_id == user_id).where(DailyTokenUsage.usage_date == today))
         daily = result.scalar_one_or_none()
         if daily:
-            daily.tokens_used = max(0, daily.tokens_used + delta)
+            daily.tokens_used = daily.tokens_used + total_actual
             daily.updated_at = now
-            session.add(daily)
+        else:
+            daily = DailyTokenUsage(user_id=user_id, usage_date=today, tokens_used=total_actual, updated_at=now)
+        session.add(daily)
 
         sess_result = await session.execute(select(ChatSession).where(ChatSession.user_id == user_id).where(ChatSession.id == session_id))
         chat_session = sess_result.scalar_one_or_none()
@@ -134,6 +75,8 @@ async def record_usage(
 
 
 async def get_token_budget_status(user_id: UUID) -> dict:
+    """The user's own consumption for today. `daily_limit` is a reference
+    figure for the UI gauge, not a cap — nothing rejects a request on it."""
     settings = get_settings()
     today = date.today()
     used = await get_daily_tokens_used(user_id, today)

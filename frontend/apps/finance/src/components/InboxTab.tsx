@@ -26,6 +26,7 @@ import { Button, Card, Dialog, EmptyState, Input, Select, SkeletonPage } from '@
 import { CheckSquare, Inbox as InboxIcon, Zap } from 'lucide-react'
 import { financeApi, type FinancePendingTransaction } from '@ct/shared/api/areas'
 import { agentsApi } from '@ct/shared/api/agents'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
 import { formatCurrency } from '@ct/shared/lib/utils'
 import { track } from '@ct/shared/lib/analytics'
@@ -85,6 +86,7 @@ export function InboxTab() {
   const navigate = useNavigate()
   const [editing, setEditing] = useState<FinancePendingTransaction | null>(null)
   const [edit, setEdit] = useState<Edit>({ amount: '', account_id: '', category_id: '', description: '' })
+  const f = useFieldErrors<'amount' | 'account_id'>('inbox-approve')
 
   const { data: pending, isLoading } = useQuery({
     queryKey: ['finance', 'pending'],
@@ -252,6 +254,7 @@ export function InboxTab() {
   const categoryName = (id: string | null) => (categories ?? []).find(c => c.id === id)?.name ?? null
 
   const openEdit = (tx: FinancePendingTransaction) => {
+    f.reset()
     setEditing(tx)
     setEdit({
       amount: String(tx.amount),
@@ -266,8 +269,10 @@ export function InboxTab() {
   const quickApprove = (tx: FinancePendingTransaction) => {
     const accountId = tx.account_id ?? tx.suggested_account_id
     if (!accountId) {
-      toast.error('Pick an account first')
+      /* Open the row's own dialog with the missing field marked, rather than a
+         toast next to a queue of rows that does not say which one, or why. */
       openEdit(tx)
+      f.submit({ account_id: 'This row has no account — pick the one it came from.' })
       return
     }
     approve.mutate({
@@ -277,6 +282,32 @@ export function InboxTab() {
         account_id: accountId,
         category_id: tx.category_id ?? null,
         description: tx.description,
+      },
+    })
+  }
+
+  /* The Approve button was `disabled` with no account and would post `NaN` for
+     a cleared amount. Both are field problems; the server's duplicate warning
+     stays where it is, since only the server knows about it. */
+  const approveEdited = () => {
+    if (!editing) return
+    const amount = Number(edit.amount)
+    const ok = f.submit({
+      amount: edit.amount.trim() === '' || !Number.isFinite(amount)
+        ? 'Enter the amount.'
+        : amount <= 0
+          ? 'Must be more than zero.'
+          : undefined,
+      account_id: edit.account_id ? undefined : 'Pick the account this came from.',
+    })
+    if (!ok) return
+    approve.mutate({
+      tx: editing,
+      payload: {
+        amount,
+        account_id: edit.account_id || null,
+        category_id: edit.category_id || null,
+        description: edit.description || editing.description,
       },
     })
   }
@@ -478,24 +509,27 @@ export function InboxTab() {
               min="0"
               step="0.01"
               value={edit.amount}
-              onChange={(e: any) => setEdit(s => ({ ...s, amount: e.target.value }))}
+              {...f.fieldProps('amount')}
+              onChange={(e: any) => { f.clearField('amount'); setEdit(prev => ({ ...prev, amount: e.target.value })) }}
             />
+            <FieldError id={f.errorId('amount')}>{f.errors.amount}</FieldError>
           </div>
           <div>
             <Label>Account</Label>
             <Select
               fullWidth
               value={edit.account_id}
-              onChange={(v: any) => setEdit(s => ({ ...s, account_id: String(v) }))}
+              onChange={(v: any) => { f.clearField('account_id'); setEdit(prev => ({ ...prev, account_id: String(v) })) }}
               options={accountOptions}
             />
+            <FieldError id={f.errorId('account_id')}>{f.errors.account_id}</FieldError>
           </div>
           <div>
             <Label>Category</Label>
             <Select
               fullWidth
               value={edit.category_id}
-              onChange={(v: any) => setEdit(s => ({ ...s, category_id: String(v) }))}
+              onChange={(v: any) => setEdit(prev => ({ ...prev, category_id: String(v) }))}
               options={categoryOptions}
             />
           </div>
@@ -503,25 +537,12 @@ export function InboxTab() {
             <Label>Description</Label>
             <Input
               value={edit.description}
-              onChange={(e: any) => setEdit(s => ({ ...s, description: e.target.value }))}
+              onChange={(e: any) => setEdit(prev => ({ ...prev, description: e.target.value }))}
               placeholder="Optional"
             />
           </div>
           <DialogActions>
-            <Button
-              variant="primary"
-              loading={approve.isPending}
-              disabled={!edit.account_id}
-              onClick={() => editing && approve.mutate({
-                tx: editing,
-                payload: {
-                  amount: Number(edit.amount),
-                  account_id: edit.account_id || null,
-                  category_id: edit.category_id || null,
-                  description: edit.description || editing.description,
-                },
-              })}
-            >
+            <Button variant="primary" loading={approve.isPending} onClick={approveEdited}>
               Approve
             </Button>
             <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>

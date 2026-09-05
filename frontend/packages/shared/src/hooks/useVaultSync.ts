@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@ct/shared/api/client'
 import { useFeatures } from '@ct/shared/hooks/useFeatures'
+import { reconnectDelay, shouldReconnect, WS_RECONNECT_CAP_MS } from '@ct/shared/hooks/useChat'
 import type { VaultSyncStatus } from '@ct/shared/types'
 
 type SyncState = 'synced' | 'syncing' | 'conflict' | 'error' | 'disconnected'
@@ -17,6 +18,8 @@ export function useVaultSync(): UseSyncResult {
   const [lastSynced, setLastSynced] = useState<string | null>(null)
   const [conflicts, setConflicts] = useState<VaultSyncStatus['conflicts']>([])
   const wsRef = useRef<WebSocket | null>(null)
+  const retryRef = useRef(0)
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const queryClient = useQueryClient()
   const { vault_sync: vaultSyncEnabled } = useFeatures()
 
@@ -27,11 +30,22 @@ export function useVaultSync(): UseSyncResult {
     const ws = new WebSocket(`${protocol}://${location.host}/ws/sync`)
     wsRef.current = ws
 
-    ws.onopen = () => setState('synced')
-    ws.onclose = () => {
+    ws.onopen = () => {
+      retryRef.current = 0
+      setState('synced')
+    }
+    ws.onclose = (evt) => {
       if (!isMounted.current) return
       setState('disconnected')
-      setTimeout(connect, 5000)
+      // 1008 (not entitled / not signed in) and 1000 (clean close) are terminal:
+      // retrying either just re-asks a question already answered. Everything
+      // else backs off with jitter so a restarting backend isn't stampeded.
+      if (!shouldReconnect(evt.code)) return
+      retryTimerRef.current = setTimeout(
+        connect,
+        reconnectDelay(retryRef.current, { base: 5000, cap: WS_RECONNECT_CAP_MS }),
+      )
+      retryRef.current += 1
     }
     ws.onerror = () => setState('error')
 
@@ -83,6 +97,7 @@ export function useVaultSync(): UseSyncResult {
       .catch(() => {})
     return () => {
       isMounted.current = false
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
       wsRef.current?.close()
     }
   }, [connect, vaultSyncEnabled])

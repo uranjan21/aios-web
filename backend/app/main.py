@@ -10,7 +10,6 @@ from slowapi.errors import RateLimitExceeded
 
 from app.core.config import get_settings
 from app.core.deps import ws_auth, require_verified
-from app.core.entitlements import require_module, ws_entitled
 from app.core.middleware import SecurityHeadersMiddleware, RequestLoggingMiddleware
 from app.core.rate_limit import limiter
 
@@ -31,7 +30,6 @@ from app.api.areas.career import router as career_router
 from app.api.captures import router as captures_router
 from app.api.push import router as push_router
 from app.api.ai import router as ai_router
-from app.api.billing import router as billing_router
 from app.api.admin import router as admin_router
 from app.api.goals import router as goals_router
 from app.api.forecasts import router as forecasts_router
@@ -40,6 +38,7 @@ from app.api.automations import router as automations_router
 from app.api.workspace import router as workspace_router
 from app.api.quotes import router as quotes_router
 from app.api.knowledge import router as knowledge_router
+from app.api.api_keys import router as api_keys_router
 def _configure_logging() -> None:
     """JSON structured logging for production; plain text for local dev."""
     import sys
@@ -270,8 +269,6 @@ def create_app() -> FastAPI:
         """Public feature flags so the frontend can hide self-host-only features."""
         return {
             "vault_sync": settings.vault_sync_enabled,
-            "billing_enabled": settings.billing_enabled,
-            "stripe_publishable_key": settings.stripe_publishable_key,
         }
 
     @app.websocket("/ws/sync")
@@ -295,9 +292,6 @@ def create_app() -> FastAPI:
         if not user.get("email_verified", True):
             await websocket.close(code=1008)
             return
-        if not await ws_entitled(user["sub"], "chat"):
-            await websocket.close(code=1008)
-            return
         await chat_ws_handler(websocket, user["sub"])
 
     @app.websocket("/ws/agents")
@@ -309,27 +303,24 @@ def create_app() -> FastAPI:
         if not user.get("email_verified", True):
             await websocket.close(code=1008)
             return
-        if not await ws_entitled(user["sub"], "agents"):
-            await websocket.close(code=1008)
-            return
         await agents_ws_handler(websocket, user["sub"])
 
     app.include_router(auth_router)
     app.include_router(sync_router)
-    # Module gating (Phase 0): every area + service router is entitlement-gated
-    # server-side. Inert until billing is enabled, so dev/self-host is unchanged.
+    # Control Tower is free for everyone (bring-your-own-API-key), so the only
+    # router-level gate left is the verified-email dependency.
     _verified = Depends(require_verified)
-    app.include_router(chat_router, dependencies=[Depends(require_module("chat")), _verified])
-    app.include_router(agents_router, dependencies=[Depends(require_module("agents")), _verified])
-    app.include_router(integrations_router, dependencies=[Depends(require_module("integrations")), _verified])
-    app.include_router(knowledge_router, dependencies=[Depends(require_module("integrations")), _verified])
-    app.include_router(finance_router, dependencies=[Depends(require_module("finance")), _verified])
-    app.include_router(health_router, dependencies=[Depends(require_module("health")), _verified])
-    app.include_router(career_router, dependencies=[Depends(require_module("career")), _verified])
+    app.include_router(chat_router, dependencies=[_verified])
+    app.include_router(agents_router, dependencies=[_verified])
+    app.include_router(integrations_router, dependencies=[_verified])
+    app.include_router(knowledge_router, dependencies=[_verified])
+    app.include_router(finance_router, dependencies=[_verified])
+    app.include_router(health_router, dependencies=[_verified])
+    app.include_router(career_router, dependencies=[_verified])
     app.include_router(captures_router, dependencies=[_verified])
     app.include_router(push_router)  # push subscriptions don't require verified email
     app.include_router(ai_router, dependencies=[_verified])
-    app.include_router(billing_router)  # webhook endpoint has no auth
+    app.include_router(api_keys_router, prefix="/api/keys", tags=["api-keys"], dependencies=[_verified])
     app.include_router(admin_router)    # admin already requires is_admin; admins are always verified
     app.include_router(goals_router, dependencies=[_verified])
     app.include_router(forecasts_router, dependencies=[_verified])

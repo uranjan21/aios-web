@@ -15,13 +15,14 @@
  * BACKEND FOLLOW-UP: `muscle_mass` and `hydration` log types would let this
  * render the canvas exactly.
  */
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback} from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { Scale, TrendingUp, Trash2, User } from 'lucide-react'
 import { Button, Card, Dialog, EmptyState, Input, Select, SkeletonPage } from '@ledgr/ui'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { healthApi } from '@ct/shared/api/areas'
 import type { HealthLog } from '@ct/shared/types'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
@@ -64,6 +65,7 @@ export function BodySection() {
   const qc = useQueryClient()
   const [logOpen, setLogOpen] = useState(false)
   const [entry, setEntry] = useState({ entry_type: 'weight', value: '', logged_on: '' })
+  const f = useFieldErrors<'value' | 'logged_on'>('body-measurement')
   /* Non-null puts the dialog into edit mode. A mistyped weight used to be
      permanent — nothing on this page could correct or remove a reading. */
   const [editing, setEditing] = useState<HealthLog | null>(null)
@@ -102,19 +104,39 @@ export function BodySection() {
     onError: () => toast.error('Could not log that measurement'),
   })
 
+  /* Save was `disabled` on an empty value and said nothing about zero, which
+     the server accepts and which is not a body measurement anyone has. */
+  const submitEntry = () => {
+    const value = Number(entry.value)
+    const ok = f.submit({
+      value: entry.value.trim() === '' || !Number.isFinite(value)
+        ? 'Enter the measurement.'
+        : value <= 0
+          ? 'Must be more than zero.'
+          : undefined,
+      logged_on: editing && !entry.logged_on ? 'Pick the date it was taken.' : undefined,
+    })
+    if (!ok) return
+    if (editing) update.mutate()
+    else create.mutate()
+  }
+
   const closeDialog = () => {
+    f.reset()
     setLogOpen(false)
     setEditing(null)
     setEntry({ entry_type: 'weight', value: '', logged_on: '' })
   }
 
-  const openAdd = () => {
+  const openAdd = useCallback(() => {
+    f.reset()
     setEditing(null)
     setEntry({ entry_type: 'weight', value: '', logged_on: '' })
     setLogOpen(true)
-  }
+  }, [f])
 
-  const openEdit = (l: HealthLog) => {
+  const openEdit = useCallback((l: HealthLog) => {
+    f.reset()
     setEditing(l)
     setEntry({
       entry_type: l.entry_type,
@@ -122,7 +144,7 @@ export function BodySection() {
       logged_on: dayjs(l.logged_at).format('YYYY-MM-DD'),
     })
     setLogOpen(true)
-  }
+  }, [f])
 
   const update = useMutation({
     mutationFn: () =>
@@ -309,7 +331,7 @@ export function BodySection() {
     })
 
     return specs
-  }, [weights, fatLogs, stepLogs, goals])
+  }, [weights, fatLogs, stepLogs, goals, openAdd, openEdit])
 
   if (isLoading) return <SkeletonPage kpis={4} modules={[7, 5, 12]} />
 
@@ -356,8 +378,10 @@ export function BodySection() {
               <Input
                 type="date"
                 value={entry.logged_on}
-                onChange={(e: any) => setEntry(s => ({ ...s, logged_on: e.target.value }))}
+                {...f.fieldProps('logged_on')}
+                onChange={(e: any) => { f.clearField('logged_on'); setEntry(s => ({ ...s, logged_on: e.target.value })) }}
               />
+              <FieldError id={f.errorId('logged_on')}>{f.errors.logged_on}</FieldError>
             </div>
           )}
           <div>
@@ -367,17 +391,18 @@ export function BodySection() {
               min="0"
               step="0.1"
               value={entry.value}
-              onChange={(e: any) => setEntry(s => ({ ...s, value: e.target.value }))}
+              {...f.fieldProps('value')}
+              onChange={(e: any) => { f.clearField('value'); setEntry(s => ({ ...s, value: e.target.value })) }}
               placeholder="74.5"
               autoFocus
             />
+            <FieldError id={f.errorId('value')}>{f.errors.value}</FieldError>
           </div>
           <Actions>
             <Button
               variant="primary"
               loading={create.isPending || update.isPending}
-              disabled={!entry.value}
-              onClick={() => (editing ? update.mutate() : create.mutate())}
+              onClick={submitEntry}
             >
               {editing ? 'Save changes' : 'Save'}
             </Button>

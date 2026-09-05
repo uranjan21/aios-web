@@ -10,8 +10,7 @@ from app.models.captures import Capture
 from app.models.insights import BriefingPreference, Briefing
 from app.services.ai.insights import generate_text
 from app.services.notifications.push import send_push_to_all
-from app.core.entitlements import get_entitled_modules
-from app.services.billing.usage import ai_allowed, record_ai_usage
+from app.services.ai.keys import list_user_providers
 
 logger = logging.getLogger(__name__)
 
@@ -80,9 +79,9 @@ async def generate_briefing(user_id: uuid.UUID) -> bool:
         if not user:
             return False
             
-        entitled = await get_entitled_modules(session, user)
-        # LLM phrasing is a metered "agents" feature; everyone else gets the facts-only text.
-        can_use_ai = "agents" in entitled and await ai_allowed(session, user)
+        # LLM phrasing runs on the user's own key; without one they get the
+        # facts-only text. Scheduled job — degrade, never raise.
+        can_use_ai = bool(await list_user_providers(session, user.id))
 
         if can_use_ai:
             system = (
@@ -93,7 +92,6 @@ async def generate_briefing(user_id: uuid.UUID) -> bool:
             import json
             try:
                 content_md = await generate_text(system, json.dumps(facts), max_tokens=250, user_id=str(user.id))
-                await record_ai_usage(session, user_id, 1, "briefing")
             except Exception as e:
                 logger.warning("Briefing LLM failed, using static text: %s", e)
                 content_md = _fallback_briefing_text(facts)

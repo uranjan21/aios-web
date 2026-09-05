@@ -2,8 +2,8 @@ import uuid
 from datetime import datetime, date, time
 from typing import Optional
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, ForeignKey
-from sqlalchemy.dialects.postgresql import TIMESTAMP, UUID as PG_UUID
+from sqlalchemy import CheckConstraint, Column, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 
 class Project(SQLModel, table=True):
@@ -21,8 +21,8 @@ class Project(SQLModel, table=True):
     due_date: Optional[date] = None
     labels: Optional[str] = None  # comma-separated labels
 
-    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
-    updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class Sprint(SQLModel, table=True):
@@ -40,12 +40,25 @@ class Sprint(SQLModel, table=True):
     status: str = Field(default="planned")  # planned, active, completed
     capacity: Optional[int] = None  # story points / task capacity target
 
-    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
-    updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class Task(SQLModel, table=True):
     __tablename__ = "tasks"
+    # Mirrors migration m002_enum_checks. Project/Sprint carry the same words
+    # but nothing validates them anywhere, so they are left unconstrained
+    # until a writer is pinned down — see the note at the end of that file.
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('todo', 'in_progress', 'done')",
+            name="ck_tasks_status",
+        ),
+        CheckConstraint(
+            "priority IN ('low', 'medium', 'high', 'urgent')",
+            name="ck_tasks_priority",
+        ),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True)
@@ -67,8 +80,8 @@ class Task(SQLModel, table=True):
     due_date: Optional[date] = None
     labels: Optional[str] = None  # comma-separated labels
 
-    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
-    updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class Milestone(SQLModel, table=True):
@@ -85,6 +98,13 @@ class Milestone(SQLModel, table=True):
     """
 
     __tablename__ = "workspace_milestones"
+    # Mirrors migration m002_enum_checks.
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('upcoming', 'at_risk', 'hit', 'missed')",
+            name="ck_workspace_milestones_status",
+        ),
+    )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True)
@@ -100,8 +120,8 @@ class Milestone(SQLModel, table=True):
     status: str = Field(default="upcoming")  # upcoming, at_risk, hit, missed
     position: int = Field(default=0)
 
-    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
-    updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class PlanBlock(SQLModel, table=True):
@@ -134,5 +154,5 @@ class PlanBlock(SQLModel, table=True):
     # The single thing that must happen that day. At most one per date.
     is_priority: bool = Field(default=False)
 
-    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
-    updated_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(TIMESTAMP(timezone=True)))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)

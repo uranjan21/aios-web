@@ -4,11 +4,11 @@ import time
 from collections import OrderedDict
 from typing import Optional
 
-from openai import AsyncOpenAI
 from sqlalchemy import text
 
-from app.core.config import get_settings
 from app.db.session import AsyncSessionLocal
+from app.services.ai.keys import get_user_api_key
+from app.services.ai.openai_client import get_openai_client
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +16,11 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 DEFAULT_MIN_SIMILARITY = 0.70
 MAX_TOP_K = 10
 
-_openai_client: Optional[AsyncOpenAI] = None
-
 # The chat turn embeds the user message for context RAG and the model may then
 # call search_vault with the same text — memoize so one turn costs one embed.
-_embed_cache: OrderedDict[str, list[float]] = OrderedDict()
+# Keyed by (user_id, query): under BYOK a cache hit would otherwise let one user
+# ride another user's paid-for embedding.
+_embed_cache: OrderedDict[tuple[str, str], list[float]] = OrderedDict()
 _EMBED_CACHE_MAX = 64
 
 # Chunk-presence memo: skip embedding entirely for users with no indexed
@@ -30,27 +30,23 @@ _chunk_presence: dict[str, tuple[bool, float]] = {}
 _CHUNKLESS_RECHECK_SECONDS = 300.0
 
 
-def _get_openai_client() -> Optional[AsyncOpenAI]:
-    global _openai_client
-    settings = get_settings()
-    if not settings.openai_api_key:
-        return None
-    if _openai_client is None:
-        _openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
-    return _openai_client
-
-
-async def _embed_query(query: str) -> Optional[list[float]]:
-    cached = _embed_cache.get(query)
+async def _embed_query(query: str, user_id) -> Optional[list[float]]:
+    """Embed on the searching user's own key. None when they have not set one —
+    retrieval then returns no results rather than raising, because every caller
+    (chat context build, agent research) is an enrichment step."""
+    cache_key = (str(user_id), query)
+    cached = _embed_cache.get(cache_key)
     if cached is not None:
-        _embed_cache.move_to_end(query)
+        _embed_cache.move_to_end(cache_key)
         return cached
-    client = _get_openai_client()
-    if client is None:
+    async with AsyncSessionLocal() as session:
+        api_key = await get_user_api_key(session, user_id, "openai")
+    if not api_key:
         return None
+    client = get_openai_client(api_key)
     response = await client.embeddings.create(model=EMBEDDING_MODEL, input=[query])
     embedding = response.data[0].embedding
-    _embed_cache[query] = embedding
+    _embed_cache[cache_key] = embedding
     while len(_embed_cache) > _EMBED_CACHE_MAX:
         _embed_cache.popitem(last=False)
     return embedding
@@ -86,7 +82,7 @@ async def search(
         logger.warning("retriever.search called without user_id — returning no results")
         return []
     top_k = min(top_k, MAX_TOP_K)
-    embedding = await _embed_query(query)
+    embedding = await _embed_query(query, user_id)
     if embedding is None:
         return []
 

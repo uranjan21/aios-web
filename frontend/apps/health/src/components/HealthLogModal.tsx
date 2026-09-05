@@ -1,9 +1,10 @@
 
 import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Dialog, SegmentedControl, Input, Button } from '@ledgr/ui'
+import { Dialog, SegmentedControl, Input, Button, Textarea } from '@ledgr/ui'
 import { toast } from 'sonner'
 import { healthApi } from '@ct/shared/api/areas'
+import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { Plus } from 'lucide-react'
 import styled from 'styled-components'
 
@@ -34,39 +35,6 @@ const StyledInputWrapper = styled.div`
   gap: 0.25rem;
 `;
 
-const StyledErrorMessage = styled.span`
-  font-size: ${({ theme }) => theme.typography.fontSize.xs};
-  color: ${({ theme }) => theme.color?.destructive || 'var(--destructive)'};
-  padding-left: 0.25rem;
-`;
-
-const StyledTextarea = styled.textarea`
-  display: flex;
-  min-height: 60px;
-  width: 100%;
-  border-radius: 0.375rem;
-  border: 1px solid ${({ theme }) => theme.color?.border || 'var(--border)'};
-  background-color: transparent;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: ${({ theme }) => theme.color?.foreground || 'var(--foreground)'};
-  box-shadow: ${({ theme }) => theme.elevation[1]};
-  
-  &::placeholder {
-    color: ${({ theme }) => theme.color?.mutedForeground || 'var(--muted-foreground)'};
-  }
-  
-  &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 1px ${({ theme }) => theme.color?.ring || 'var(--ring)'};
-  }
-  
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-`;
-
 const StyledButtonGroup = styled.div`
   display: flex;
   justify-content: flex-end;
@@ -85,15 +53,16 @@ export function HealthLogModal({ open, onClose }: { open: boolean; onClose: () =
   const queryClient = useQueryClient()
   const [logValue, setLogValue] = useState('')
   const [logNote, setLogNote] = useState('')
-  const [valueError, setValueError] = useState('')
+  const f = useFieldErrors<'value'>('health-log')
 
   useEffect(() => {
     if (open) {
       setActiveTab('gym')
       setLogValue('')
       setLogNote('')
-      setValueError('')
+      f.reset()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- f is stable; adding it re-runs the reset on every error change
   }, [open])
 
   const addLog = useMutation({
@@ -106,19 +75,26 @@ export function HealthLogModal({ open, onClose }: { open: boolean; onClose: () =
       queryClient.invalidateQueries({ queryKey: ['health'] })
       setLogValue('')
       setLogNote('')
-      setValueError('')
+      f.reset()
       toast.success(`${activeTab === 'gym' ? 'Gym session' : activeTab === 'weight' ? 'Weight' : 'Water'} logged`)
       onClose()
     },
     onError: () => toast.error('Failed to log entry') })
 
+  /* Weight and water are quantities: a blank, a non-number and a zero are all
+     wrong, and "Enter a valid number" said nothing about the last of those. */
   const handleLog = () => {
-    if (activeTab !== 'gym' && (!logValue || isNaN(parseFloat(logValue)))) {
-      setValueError('Enter a valid number')
-      return
-    }
-    setValueError('')
-    addLog.mutate()
+    if (activeTab === 'gym') { f.reset(); addLog.mutate(); return }
+    const value = parseFloat(logValue)
+    const unit = activeTab === 'weight' ? 'weight in kg' : 'water in litres'
+    const ok = f.submit({
+      value: logValue.trim() === '' || !Number.isFinite(value)
+        ? `Enter the ${unit}.`
+        : value <= 0
+          ? 'Must be more than zero.'
+          : undefined,
+    })
+    if (ok) addLog.mutate()
   }
 
   return (
@@ -133,7 +109,7 @@ export function HealthLogModal({ open, onClose }: { open: boolean; onClose: () =
             value={activeTab}
             onChange={v => {
               setActiveTab(v as any)
-              setValueError('')
+              f.reset()
             }}
             style={{ width: '100%', display: 'flex' }}
           />
@@ -144,16 +120,18 @@ export function HealthLogModal({ open, onClose }: { open: boolean; onClose: () =
             <StyledInputWrapper>
               <Input
                 type="number"
+                min="0"
+                step="0.01"
                 placeholder={activeTab === 'weight' ? 'Enter weight in kg' : 'Enter water in litres'}
                 value={logValue}
-                onChange={e => { setLogValue(e.target.value); setValueError('') }}
-                style={valueError ? { borderColor: 'var(--destructive)' } : {}}
+                {...f.fieldProps('value')}
+                onChange={e => { f.clearField('value'); setLogValue(e.target.value) }}
               />
-              {valueError && <StyledErrorMessage>{valueError}</StyledErrorMessage>}
+              <FieldError id={f.errorId('value')}>{f.errors.value}</FieldError>
             </StyledInputWrapper>
           )}
           
-          <StyledTextarea
+          <Textarea
             placeholder="Note (optional)"
             value={logNote}
             onChange={e => setLogNote(e.target.value)}
