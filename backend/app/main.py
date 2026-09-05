@@ -12,6 +12,7 @@ from app.core.config import get_settings
 from app.core.deps import ws_auth, require_verified
 from app.core.middleware import SecurityHeadersMiddleware, RequestLoggingMiddleware
 from app.core.rate_limit import limiter
+from app.core.spa import mount_spa
 
 from app.api.auth import router as auth_router
 from app.api.sync import router as sync_router, sync_ws_handler
@@ -328,6 +329,12 @@ def create_app() -> FastAPI:
     app.include_router(automations_router, dependencies=[_verified])
     app.include_router(workspace_router, dependencies=[_verified])
     app.include_router(quotes_router, dependencies=[_verified])
+
+    # LAST. This mounts at "/" and Starlette matches routes in registration
+    # order, so every API route, WebSocket and /health above wins first. Move
+    # this line up and it swallows the entire API.
+    mount_spa(app, settings.spa_dist_dir)
+
     return app
 
 

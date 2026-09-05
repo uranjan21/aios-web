@@ -2,11 +2,12 @@ import asyncio
 from logging.config import fileConfig
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy.ext.asyncio import create_async_engine
 from alembic import context
 
 from app.core.config import get_settings
 from app.db.base import SQLModel  # noqa — imports all models
+from app.db.url import normalize_database_url
 
 config = context.config
 
@@ -16,7 +17,18 @@ if config.config_file_name is not None:
 target_metadata = SQLModel.metadata
 
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+
+# The engine is built directly from the normalized URL rather than round-tripped
+# through config.set_main_option(). Two reasons: alembic.ini is read by
+# configparser, which treats '%' in a password as interpolation syntax and
+# raises; and the connect_args that make a transaction-mode pooler work cannot
+# be expressed in an ini value at all.
+_url, _connect_args = normalize_database_url(settings.database_url)
+# render_as_string(hide_password=False) — plain str(URL) renders the password
+# as "***", which would hand offline mode a URL that cannot authenticate.
+config.set_main_option(
+    "sqlalchemy.url", _url.render_as_string(hide_password=False).replace("%", "%%")
+)
 
 
 def run_migrations_offline() -> None:
@@ -38,10 +50,10 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_async_migrations() -> None:
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
+    connectable = create_async_engine(
+        _url,
         poolclass=pool.NullPool,
+        connect_args=_connect_args,
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)

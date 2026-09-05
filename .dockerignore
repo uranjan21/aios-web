@@ -1,0 +1,35 @@
+# Build context for the root Dockerfile is the REPO ROOT, because the image
+# builds the frontend and the backend together.
+
+.git
+.github
+.claude
+.gemini
+.agents
+
+# Deny-by-default: never let a real env file into an image layer.
+.env
+.env.*
+!.env.example
+!.env.prod.example
+
+**/node_modules
+**/dist
+**/.vite
+**/*.tsbuildinfo
+
+**/__pycache__
+**/*.py[cod]
+**/.venv
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+
+backend/tests
+docs
+frontend/docs
+deploy
+
+*.md
+**/*.md
+.DS_Store

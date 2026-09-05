@@ -32,7 +32,24 @@ class Settings(BaseSettings):
     allow_insecure_http: bool = False
 
     # Database
+    #
+    # A managed provider (Supabase, Neon, Railway) prints a libpq-style URI.
+    # Swap the scheme for postgresql+asyncpg:// and keep the rest — app/db/url.py
+    # translates sslmode, drops parameters asyncpg cannot accept, and turns on
+    # the transaction-pooler workarounds when the port says it needs them.
     database_url: str = "postgresql+asyncpg://localhost:5432/aios_web"
+
+    # SQLAlchemy connection pool, per worker process. Total server-side
+    # connections is roughly WEB_CONCURRENCY x (db_pool_size + db_max_overflow),
+    # which is the number that has to fit under the provider's connection cap:
+    # Supabase's free tier allows 60 direct connections, so 4 workers x (5 + 5)
+    # already sits at the ceiling. Point DATABASE_URL at the transaction pooler
+    # (port 6543) instead of raising these.
+    db_pool_size: int = 5
+    db_max_overflow: int = 5
+    # Below any provider-side idle timeout so we close the socket first rather
+    # than discovering it dead mid-request.
+    db_pool_recycle_seconds: int = 1800
 
     # Redis — REQUIRED for rate limiting across >1 worker (autoscaled/multi-worker
     # deploys). When unset the limiter uses per-process memory (fine for a single
@@ -96,6 +113,17 @@ class Settings(BaseSettings):
     vapid_public_key: str = ""
     vapid_private_key: str = ""
     vapid_subject: str = "mailto:utsavranjan.sk@gmail.com"
+
+    # Extra hosts appended to the CSP connect-src, space-separated. This is
+    # where a Sentry ingest host or a PostHog host goes; the SPA may otherwise
+    # only reach its own origin and the two currency APIs.
+    csp_connect_extra: str = ""
+
+    # Where the built SPA lives. The API process serves it so the frontend and
+    # the API share one origin (required: relative /api baseURL, location.host
+    # WebSockets, SameSite=Strict cookie). Absent in local dev, where Vite
+    # serves the frontend and proxies to this process.
+    spa_dist_dir: str = "/app/static"
 
     # Observability (Sentry). Unset → no error reporting (dev/test stay silent).
     sentry_dsn: str = ""
