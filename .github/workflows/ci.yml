@@ -12,31 +12,33 @@ jobs:
   backend:
     name: Backend (Python)
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: pgvector/pgvector:pg15
-        env:
-          POSTGRES_USER: control_tower
-          POSTGRES_PASSWORD: control_tower
-          POSTGRES_DB: control_tower_test
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    # No Postgres service. conftest.py builds the suite's engine from a
+    # hardcoded in-memory SQLite URL, so no test could reach a real database
+    # even when one was running — it was 25s of setup per run for nothing, and
+    # its own log showed only the health probe failing with
+    # 'role "root" does not exist'. The one place Postgres genuinely matters is
+    # the image job below, which starts its own pgvector container and boots the
+    # real application against it.
 
-    env:
-      DATABASE_URL: postgresql+asyncpg://control_tower:control_tower@localhost:5432/control_tower_test
-      APP_SECRET_KEY: ci-test-secret-key-32-chars-minimum
-      # APP_PASSWORD is deliberately NOT set here. tests/conftest.py does
-      # os.environ.setdefault("APP_PASSWORD", "testpass") and test_auth.py logs
-      # in with "testpass" — setting it here makes the setdefault a no-op and
-      # every auth test 401s. Same for APP_EMAIL (conftest → admin@example.com).
-      ANTHROPIC_API_KEY: sk-placeholder
-      ALLOWED_ORIGIN: http://localhost:5173
-      VAULT_PATH: /tmp/vault
-      TOKEN_ENCRYPTION_KEY: ${{ secrets.TOKEN_ENCRYPTION_KEY || 'dGVzdC1rZXktZm9yLWNpLW9ubHktZG8tbm90LXVzZS1pbi1wcm9k' }}
+    # tests/conftest.py configures the whole suite with os.environ.setdefault,
+    # so ANY variable set here silently WINS over the value the tests expect.
+    # That is not theoretical: TOKEN_ENCRYPTION_KEY and VAULT_PATH were both set
+    # here to values the suite cannot work with, and CI was red on every single
+    # run for months because of it.
+    #
+    # The rule: if conftest.py sets it, do not set it here. It already covers
+    # DATABASE_URL, APP_SECRET_KEY, APP_EMAIL, APP_PASSWORD, LLM_PROVIDER,
+    # ALLOWED_ORIGIN, VAULT_PATH and TOKEN_ENCRYPTION_KEY — which is everything
+    # the suite needs, so this job needs no env block at all.
+    #
+    #   TOKEN_ENCRYPTION_KEY was 'dGVzdC1rZXktZm9y…' — valid base64, but it
+    #   decodes to 39 bytes and Fernet requires exactly 32, so constructing the
+    #   cipher raised and every BYOK, agent and write-tool test died with it.
+    #   Tests must not depend on a repo secret for this either: the key has to
+    #   be deterministic, and conftest.py has a real generated one.
+    #
+    #   VAULT_PATH was /tmp/vault while conftest.py uses /tmp/vault-test, so the
+    #   vault write tests asserted against a directory nothing wrote to.
 
     steps:
       - uses: actions/checkout@v4
