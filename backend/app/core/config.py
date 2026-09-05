@@ -112,7 +112,10 @@ class Settings(BaseSettings):
     # Web push (VAPID)
     vapid_public_key: str = ""
     vapid_private_key: str = ""
-    vapid_subject: str = "mailto:utsavranjan.sk@gmail.com"
+    # Contact URI the push service can reach the operator at (mailto: or https:).
+    # Deliberately empty: a wrong address here is worse than none, and pushes are
+    # off until VAPID keys are configured anyway.
+    vapid_subject: str = ""
 
     # Extra hosts appended to the CSP connect-src, space-separated. This is
     # where a Sentry ingest host or a PostHog host goes; the SPA may otherwise
@@ -165,10 +168,9 @@ class Settings(BaseSettings):
                     f"ALLOWED_ORIGIN is {self.allowed_origin!r} — not https. The auth cookie "
                     "cannot carry the Secure flag over plain http, so every JWT (and all "
                     "financial and health data) crosses the network in cleartext.\n"
-                    "  Fix: point a hostname at this server and set SITE_ADDRESS=<host> plus "
-                    "ALLOWED_ORIGIN=https://<host>. Caddy provisions the certificate itself, "
-                    "and a Hostinger VPS already has a free srvNNNNNN.hstgr.cloud hostname "
-                    "that Let's Encrypt accepts — see docs/DEPLOYMENT.md §4.\n"
+                    "  Fix: set ALLOWED_ORIGIN to the https URL users actually visit. "
+                    "Render, Railway and Fly all terminate TLS for you and give every "
+                    "service an https hostname by default — see docs/DEPLOYMENT.md.\n"
                     "  To ship on cleartext anyway, set ALLOW_INSECURE_HTTP=true."
                 )
             if not self.token_encryption_key:

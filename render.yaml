@@ -1,0 +1,109 @@
+# =============================================================================
+# Control Tower — Render Blueprint
+#
+# One web service (the SPA and API share it, which the frontend requires) plus
+# a Key Value instance for rate limiting. The database is NOT defined here:
+# it lives in Supabase, and DATABASE_URL is set by hand.
+#
+#   1. Create the Supabase project first and copy its connection string.
+#   2. Render Dashboard → New → Blueprint → point at this repo.
+#   3. Fill in every `sync: false` variable when prompted.
+#
+# Full walkthrough, including how to shape the Supabase URL: docs/DEPLOYMENT.md
+# =============================================================================
+
+services:
+  - type: web
+    name: control-tower
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # Returns 503 when Postgres is unreachable, so a bad DATABASE_URL fails the
+    # deploy instead of going live and 500ing on every request.
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+
+      # ---- Supabase -------------------------------------------------------
+      # Take the URI from Supabase → Project Settings → Database and change the
+      # scheme to postgresql+asyncpg://. Prefer the transaction pooler (port
+      # 6543): it is IPv4-reachable and holds far fewer server connections.
+      # app/db/url.py detects that port and applies the pooler workarounds.
+      #   postgresql+asyncpg://postgres.<ref>:<pw>@aws-0-<region>.pooler.supabase.com:6543/postgres?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+
+      # ---- Managed Key Value ----------------------------------------------
+      # Wired automatically from the service below. Required in production:
+      # more than one worker means rate-limit counters must be shared, or each
+      # worker enforces its own limit and the real limit is N times the
+      # configured one.
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: control-tower-kv
+          property: connectionString
+
+      # ---- Identity of the deployment -------------------------------------
+      # ALLOWED_ORIGIN must be exactly what users type in the browser, scheme
+      # included. It drives CORS, the CSP connect-src, and whether the auth
+      # cookie carries Secure. Wrong value = login silently fails.
+      # Set it to https://<your-service>.onrender.com, or your custom domain.
+      - key: ALLOWED_ORIGIN
+        sync: false
+
+      # ---- Secrets — generate these, never reuse an example ----------------
+      # python -c "import secrets; print(secrets.token_urlsafe(48))"
+      - key: APP_SECRET_KEY
+        generateValue: true
+      - key: APP_PASSWORD
+        generateValue: true
+      # python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+      # NOT generateValue: this must be a valid Fernet key, and rotating it
+      # makes every stored API key and OAuth token permanently unreadable.
+      # Back it up wherever you keep secrets.
+      - key: TOKEN_ENCRYPTION_KEY
+        sync: false
+
+      # ---- Email — required in production ----------------------------------
+      # Signup is gated on a verified address, so the app refuses to boot
+      # without a way to send. Free tier at https://resend.com.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+
+      # ---- Vault sync — must stay off on a shared deployment ---------------
+      # It is single-tenant: one filesystem shared by every user. The backend
+      # refuses to start with it on in production unless explicitly
+      # acknowledged, which is the guard, not a suggestion.
+      - key: VAULT_SYNC_ENABLED
+        value: "false"
+
+      # ---- Sizing ----------------------------------------------------------
+      # Each worker keeps its own database pool. Total connections is roughly
+      # WEB_CONCURRENCY x (DB_POOL_SIZE + DB_MAX_OVERFLOW); keep that under the
+      # Supabase limit, or use the transaction pooler and stop worrying.
+      - key: WEB_CONCURRENCY
+        value: "2"
+
+      # ---- Observability — set this before you have real users -------------
+      # Unset means production errors are invisible: there is no metrics
+      # endpoint, and container logs are all you get.
+      - key: SENTRY_DSN
+        sync: false
+      # A browser cannot reach an origin the CSP does not list. If SENTRY_DSN
+      # is set, put its ingest host here or every frontend error report is
+      # blocked and the backend looks like the only thing that ever fails.
+      #   https://<key>@o123456.ingest.sentry.io/456 → https://o123456.ingest.sentry.io
+      - key: CSP_CONNECT_EXTRA
+        sync: false
+
+  - type: keyvalue
+    name: control-tower-kv
+    plan: starter
+    # Empty list = reachable only from inside the Render private network.
+    ipAllowList: []

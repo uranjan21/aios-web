@@ -83,6 +83,17 @@ async def send_push_to_all(user_id: uuid.UUID, title: str, body: str, url: str =
     if not settings.vapid_private_key or not settings.vapid_public_key:
         logger.debug("Push skipped — VAPID keys not configured")
         return 0
+    if not settings.vapid_subject:
+        # The subject goes into the VAPID JWT as its "sub" claim, and push
+        # services reject a token whose sub is empty or not a mailto:/https:
+        # URI. Sending anyway costs a round trip per subscription and returns an
+        # opaque 403, so refuse here where the reason can be said out loud.
+        logger.warning(
+            "Push skipped — VAPID_SUBJECT is not set. It must be a contact URI "
+            "you own (mailto:you@example.com or https://example.com); push "
+            "services reject tokens without one."
+        )
+        return 0
 
     async with AsyncSessionLocal() as session:
         subs = (await session.execute(select(PushSubscription).where(PushSubscription.user_id == user_id))).scalars().all()

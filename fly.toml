@@ -1,0 +1,55 @@
+# =============================================================================
+# Control Tower — Fly.io
+#
+# One machine serving both the SPA and the API. The database is Supabase; a
+# Redis (Upstash via `fly redis create`, or any managed instance) provides the
+# shared rate-limit counters production requires.
+#
+#   fly launch --no-deploy --copy-config
+#   fly secrets set DATABASE_URL=... REDIS_URL=... ALLOWED_ORIGIN=... \
+#                   APP_SECRET_KEY=... APP_PASSWORD=... \
+#                   TOKEN_ENCRYPTION_KEY=... RESEND_API_KEY=... EMAIL_FROM=...
+#   fly deploy
+#
+# Full walkthrough: docs/DEPLOYMENT.md
+# =============================================================================
+
+app = "control-tower"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  ENVIRONMENT = "production"
+  PORT = "8000"
+  # Vault sync is single-tenant — one filesystem shared across all users. The
+  # backend refuses to boot with it on in production without an explicit
+  # acknowledgement, which is the point.
+  VAULT_SYNC_ENABLED = "false"
+  # Each worker holds its own database pool; see docs/DEPLOYMENT.md on sizing.
+  WEB_CONCURRENCY = "2"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # Never suspend to zero. A stopped machine runs no scheduler, so the daily
+  # agents, the briefing job and the hourly automation tick simply do not fire —
+  # and the app would look fine while quietly doing nothing.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  # WebSockets (/ws/chat, /ws/agents, /ws/sync) are proxied natively; chat
+  # streams can idle between tokens, so do not add a short idle timeout here.
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "10s"
+    grace_period = "40s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
