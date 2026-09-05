@@ -78,5 +78,9 @@ and `fly.toml` are ready to use.
 
 ## Licence
 
-No licence has been chosen yet, so default copyright applies: the source is
-readable but not licensed for reuse. Add a `LICENSE` file to change that.
+[GNU AGPL v3.0](LICENSE). You may use, modify and redistribute this, but if you
+run a modified version as a network service, you must make your source available
+to its users. That last clause is the point of choosing AGPL over MIT: it keeps
+a hosted fork open rather than letting it close.
+
+Copyright © 2026 Utsav Ranjan.
