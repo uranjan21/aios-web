@@ -45,15 +45,18 @@ jobs:
         with:
           version: "latest"
 
+      # `uv sync --frozen`, not `uv pip install -e ".[dev]"`. The latter
+      # re-resolves against the index, so CI tested whatever had been published
+      # that morning rather than what uv.lock pins — and the deployable image
+      # resolved separately again. --frozen also fails loudly if uv.lock and
+      # pyproject.toml have drifted apart, instead of silently relocking.
       - name: Install dependencies
         working-directory: backend
-        run: uv pip install -e ".[dev]" --system
+        run: uv sync --frozen --extra dev
 
-      # `python -m pytest`, not `uv run pytest` — uv run would build a second,
-      # separate venv that never got the [dev] extras installed above.
       - name: Run tests
         working-directory: backend
-        run: python -m pytest tests/ -v --tb=short
+        run: uv run --no-sync pytest tests/ -v --tb=short
 
   frontend:
     name: Frontend (TypeScript + Build)

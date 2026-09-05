@@ -48,10 +48,13 @@ cd frontend && pnpm dev       # frontend still runs on the host
 ## Tests
 
 ```bash
-cd backend  && uv run pytest              # 362 tests
-cd frontend && pnpm exec vitest --run     # 81 tests
+cd backend  && uv sync --frozen --extra dev && uv run --no-sync pytest   # 362 tests
+cd frontend && pnpm exec vitest --run                                    # 81 tests
 cd frontend && pnpm typecheck && pnpm lint && node scripts/token-lint.mjs
 ```
+
+Both sides install from a committed lockfile — `uv.lock` and `pnpm-lock.yaml` —
+in CI and in the production image alike, so what ships is what was tested.
 
 CI runs all of the above, then builds the deployable image and boots it against
 a real pgvector database to prove migrations apply and both surfaces serve.

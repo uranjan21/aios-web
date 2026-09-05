@@ -28,6 +28,11 @@ key. See the box in `CLAUDE.md` for why this one is not negotiable.
 git-ignored by default; check your diff before committing, especially
 `seed_dummy_data.py`.
 
+**Dependencies come from the lockfiles.** `uv sync --frozen` on the backend,
+`pnpm install --frozen-lockfile` on the frontend, in CI and in the image alike.
+If you change a dependency, update the lockfile in the same commit — a resolve
+that happens at build time means production runs versions nothing tested.
+
 **Do not weaken a guard to make a deploy easier.** The startup checks in
 `backend/app/core/config.py` — Redis required, https required, vault sync
 refused, secret strength enforced — each exist because the alternative was a

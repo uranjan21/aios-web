@@ -61,21 +61,35 @@ RUN pnpm build:ui && pnpm --filter @ct/shell build
 # ---- 2. build the Python environment ----------------------------------------
 FROM python:3.11-slim AS deps
 
+# Both variables point at the same venv on purpose: `uv sync` targets
+# UV_PROJECT_ENVIRONMENT and ignores VIRTUAL_ENV, while `uv pip install` reads
+# VIRTUAL_ENV and errors out without it. Set only one and half the install
+# lands somewhere else.
 ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_LINK_MODE=copy \
-    VIRTUAL_ENV=/opt/venv
+    VIRTUAL_ENV=/opt/venv \
+    UV_PROJECT_ENVIRONMENT=/opt/venv
 
 RUN pip install --no-cache-dir uv==0.4.27
 WORKDIR /build
 
-# Install against a stub package so this layer is keyed on pyproject.toml alone.
-# gunicorn is the production process manager and is deliberately not a project
-# dependency — local development runs uvicorn directly.
-COPY backend/pyproject.toml ./
-RUN mkdir -p app && touch app/__init__.py \
- && uv venv "$VIRTUAL_ENV" \
- && uv pip install --no-cache . "gunicorn==23.0.0"
+# Dependencies come from uv.lock, not from a fresh resolve. `uv pip install .`
+# re-resolves at build time, so the image would get whatever was published since
+# CI last ran — the lockfile was committed and then ignored by every consumer,
+# which is how anthropic drifted nine minor versions between what the tests ran
+# against and what would have shipped.
+#
+# --frozen fails if uv.lock disagrees with pyproject.toml rather than quietly
+# updating it. --no-install-project keeps this layer keyed on the manifests
+# alone, so editing Python source does not reinstall every wheel.
+COPY backend/pyproject.toml backend/uv.lock ./
+RUN uv venv "$VIRTUAL_ENV" \
+ && uv sync --frozen --no-dev --no-install-project \
+ && uv pip install --no-cache "gunicorn==23.0.0"
 
+# The source layer: the app package over the cached dependencies. gunicorn is
+# the production process manager and deliberately not a project dependency —
+# local development runs uvicorn directly.
 COPY backend/app ./app
 RUN uv pip install --no-cache --no-deps .
 

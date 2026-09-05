@@ -100,6 +100,12 @@ check `api/agents.py` if a new user has no agents.
 - **Never resolve a network resource at import time.** A module-level call that
   reaches out turns a cold cache into a crash on boot — this took the whole
   backend down once. `core/tokens.py` is the pattern: resolve lazily, degrade.
+- **Install from `uv.lock`, never re-resolve.** CI and the production image both
+  use `uv sync --frozen`. `uv pip install .` resolves against the index at run
+  time, which means the versions under test and the versions deployed are two
+  independent draws — that is how `anthropic` came to differ by nine minor
+  versions between them. After changing a dependency, run `uv lock` and commit
+  the result; `--frozen` fails loudly if you forget.
 
 ---
 
