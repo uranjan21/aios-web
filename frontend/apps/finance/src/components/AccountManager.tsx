@@ -11,7 +11,7 @@ import dayjs from 'dayjs'
 import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { financeApi } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
-import { formatCurrency } from '@ct/shared/lib/utils'
+import { errorMessage, formatCurrency } from '@ct/shared/lib/utils'
 import { TransactionModal, type Txn, type Kind } from './TransactionsTab'
 import type { LedgerEntry } from '@ct/shared/types'
 
@@ -84,9 +84,12 @@ const FullWidth = styled.div`
   grid-column: 1 / -1;
 `
 
+/* Destructive left, primary right — the two are far enough apart that deleting
+   an account is never a mis-aimed click on "Save changes". */
 const SaveRow = styled.div`
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
   gap: ${({ theme }) => `${theme.spacing[2]}`};
   padding-top: ${({ theme }) => `${theme.spacing[1]}`};
 `
@@ -271,6 +274,22 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
     onError: (e: any) => toast.error(e?.response?.data?.detail || 'Failed to update account'),
   })
 
+  /* The endpoint has existed since the accounts API shipped and nothing ever
+     called it, so an account added by mistake could not be removed from
+     anywhere in the app. A 409 here is expected, not exceptional: the transfer
+     FK is RESTRICT because a transfer with one side missing is meaningless, and
+     the server's message names how many transfers are in the way. Surface it
+     verbatim rather than flattening it to "Failed to delete". */
+  const deleteAccountMutation = useMutation({
+    mutationFn: (id: string) => financeApi.deleteAccount(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['finance'] })
+      toast.success('Account deleted')
+      onClose()
+    },
+    onError: (e) => toast.error(errorMessage(e, 'Failed to delete account')),
+  })
+
   const deleteTxnMutation = useMutation({
     mutationFn: ({ id, kind }: { id: string; kind: string }) => {
       if (kind === 'expense') return financeApi.deleteExpense(id)
@@ -378,6 +397,20 @@ function AccountSidePanel({ account, onClose }: AccountSidePanelProps) {
               </FullWidth>
             </FormGrid>
             <SaveRow>
+              <Popconfirm
+                title="Delete this account?"
+                description="Its transactions are kept and detach from the account."
+                okButtonProps={{ danger: true }}
+                onConfirm={() => { if (account) deleteAccountMutation.mutate(account.id) }}
+              >
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  loading={deleteAccountMutation.isPending}
+                >
+                  Delete account
+                </Button>
+              </Popconfirm>
               <Button
                 variant="primary"
                 size="sm"

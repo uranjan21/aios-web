@@ -203,11 +203,20 @@ def create_app() -> FastAPI:
     from app.core.observability import init_sentry
     init_sentry()
 
+    # /docs, /redoc and /openapi.json publish the complete API surface — every
+    # route, every request and response schema, every parameter — to anyone who
+    # asks. That is exactly what you want while developing and an unnecessary
+    # gift to anyone probing a public deployment, so production serves none of
+    # them. Set ENABLE_API_DOCS=true to override for a staging environment.
+    _docs_enabled = settings.enable_api_docs or settings.environment != "production"
     app = FastAPI(
-        title="AIOS Web",
-        description="Personal command center on top of AI OS",
+        title="Control Tower",
+        description="Personal command center — finance, health and career in one place",
         version="0.1.0",
         lifespan=lifespan,
+        docs_url="/docs" if _docs_enabled else None,
+        redoc_url="/redoc" if _docs_enabled else None,
+        openapi_url="/openapi.json" if _docs_enabled else None,
     )
 
     app.state.limiter = limiter

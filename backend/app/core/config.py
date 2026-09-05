@@ -117,6 +117,11 @@ class Settings(BaseSettings):
     # off until VAPID keys are configured anyway.
     vapid_subject: str = ""
 
+    # Serve /docs, /redoc and /openapi.json in production too. Off by default:
+    # they map the entire API surface for anyone who asks. Non-production
+    # environments always serve them regardless of this flag.
+    enable_api_docs: bool = False
+
     # Extra hosts appended to the CSP connect-src, space-separated. This is
     # where a Sentry ingest host or a PostHog host goes; the SPA may otherwise
     # only reach its own origin and the two currency APIs.
