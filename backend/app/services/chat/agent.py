@@ -6,9 +6,9 @@ from typing import AsyncGenerator
 from uuid import UUID
 
 import anthropic
-import tiktoken
 
 from app.core.config import get_settings
+from app.core.tokens import count_tokens
 from app.services.ai.keys import get_user_api_key, list_user_providers
 from app.services.ai.openai_client import LLM_STREAM_TIMEOUT_SECONDS, get_anthropic_client
 from app.services.chat.context_builder import build_prompt
@@ -22,16 +22,9 @@ _RETRYABLE = (anthropic.RateLimitError, anthropic.APIConnectionError)
 _HISTORY_TOKEN_LIMIT = 24_000  # trim history above this estimate
 _CACHE_MARKER = {"type": "ephemeral"}
 
-try:
-    _encoding = tiktoken.get_encoding("cl100k_base")
-except Exception:
-    _encoding = None
-
 
 def _count_tokens(text: str) -> int:
-    if _encoding:
-        return len(_encoding.encode(text))
-    return len(text) // 4  # fallback: ~4 chars/token
+    return count_tokens(text)
 
 
 def _trim_history(history: list[dict]) -> list[dict]:

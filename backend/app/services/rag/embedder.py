@@ -3,10 +3,10 @@ import logging
 import uuid
 from datetime import datetime
 
-import tiktoken
 from sqlalchemy import delete as sa_delete
 from sqlmodel import select
 
+from app.core.tokens import chunk_text as split_into_chunks
 from app.db.session import AsyncSessionLocal
 from app.models.vault import VaultChunk, VaultFile
 from app.services.ai.keys import get_user_api_key
@@ -18,19 +18,9 @@ CHUNK_TOKENS = 500
 OVERLAP_TOKENS = 50
 EMBEDDING_MODEL = "text-embedding-3-small"
 
-_encoder = tiktoken.get_encoding("cl100k_base")
-
 
 def _chunk_text(text: str) -> list[str]:
-    tokens = _encoder.encode(text)
-    chunks = []
-    start = 0
-    while start < len(tokens):
-        end = start + CHUNK_TOKENS
-        chunk_tokens = tokens[start:end]
-        chunks.append(_encoder.decode(chunk_tokens))
-        start += CHUNK_TOKENS - OVERLAP_TOKENS
-    return chunks
+    return split_into_chunks(text, CHUNK_TOKENS, OVERLAP_TOKENS)
 
 
 async def _embed_texts(texts: list[str], api_key: str) -> list[list[float]]:
