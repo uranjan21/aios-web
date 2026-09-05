@@ -245,11 +245,11 @@ def create_app() -> FastAPI:
         allow_headers=["Content-Type", "Cookie", "X-Requested-With"],
     )
 
-    # Deliberately NOT rate-limited. This is the liveness probe that
-    # deploy/deploy.sh polls and that the external uptime monitor hits; putting
-    # it behind the limiter means a rate-limiter storage failure makes the app
-    # look dead and the next deploy roll back for the wrong reason. The handler
-    # is a single `SELECT 1` and is cheap enough to serve unthrottled.
+    # Deliberately NOT rate-limited. This is the platform's health check and
+    # whatever uptime monitor points at it; putting it behind the limiter means
+    # a rate-limiter storage failure makes a healthy app look dead and takes the
+    # deployment down with it. The handler is a single `SELECT 1`, cheap enough
+    # to serve unthrottled.
     @app.get("/health")
     @app.get("/api/health")
     async def health(request: Request):

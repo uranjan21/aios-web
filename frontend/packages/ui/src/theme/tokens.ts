@@ -27,7 +27,7 @@
  * 2026-07-21 change (which had moved 13–14px -> 16px to stop the UI reading as
  * an admin panel). The reversal is deliberate and user-confirmed: the sizes
  * below are lifted from the Control Tower Redesign design canvas, which is now
- * the visual target. See `frontend/docs/DC_REDESIGN_IMPLEMENTATION_PLAN.md` §1
+ * the visual target. This file is the authoritative record of it
  * decision 1. The role NAMES are unchanged, so call sites follow automatically
  * — do not reintroduce raw px to get the old size back.
  *

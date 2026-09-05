@@ -1,292 +1,123 @@
-# Control Tower Web — Production Runbook
+# Production runbook
 
-**Audience:** On-call engineer. Assume you have SSH/kubectl access and the `.env.prod` file.
+Operating Control Tower once it is live. Setup is `DEPLOYMENT.md`.
 
----
+## Where things are
 
-## 0. Before you take real users
-
-Four items. Until all four are done you cannot detect an incident and cannot
-recover from one. None takes more than 15 minutes.
-
-**1 · Error tracking.** Free tier at sentry.io → Project → Client Keys.
-
-```bash
-# On the VPS, in /opt/control-tower/.env.prod
-SENTRY_DSN=https://<key>@o123456.ingest.sentry.io/456
-CSP_CONNECT_EXTRA=https://o123456.ingest.sentry.io   # or the browser blocks FE reports
-docker compose -f docker-compose.prod.yml up -d backend web   # `restart` does NOT re-read env_file
-```
-
-Frontend is **build-time**: add `VITE_SENTRY_DSN` as a GitHub repo secret
-(Settings → Secrets → Actions), then re-run the deploy workflow. Verify both
-arrive by forcing one error and checking the Sentry issue stream.
-
-**2 · Uptime monitor.** Nothing currently watches `/health`. Point a free
-external check (UptimeRobot / BetterStack / Healthchecks.io) at
-`https://<SITE_ADDRESS>/health`, 1–5 min interval, alerting to email **and** SMS.
-Alert on non-200 **and** on the body containing `"db": false` — the endpoint
-returns `degraded` when Postgres is unreachable while the process is alive.
-
-```bash
-curl -sf https://<SITE_ADDRESS>/health | jq .
-# {"status":"ok","service":"control-tower","db":true,"watcher":false}
-```
-
-**3 · Off-box backups.** `BACKUP_REMOTE` unset ⇒ dumps sit on the database's own
-disk and losing the VPS loses the data permanently.
-
-```bash
-curl https://rclone.org/install.sh | sudo bash
-rclone config                                    # add an s3/b2/drive remote
-echo 'BACKUP_REMOTE=s3:my-bucket/control-tower' >> /opt/control-tower/.env.prod
-BACKUP_REMOTE=s3:my-bucket/control-tower APP_DIR=/opt/control-tower \
-  /opt/control-tower/deploy/backup-db.sh        # run once by hand
-rclone ls s3:my-bucket/control-tower             # prove the object landed
-```
-
-`deploy.sh` reinstalls the nightly cron with `BACKUP_REMOTE` baked into the line,
-so re-run a deploy (or `crontab -e`) after setting it.
-
-**4 · One restore drill.** An untested backup is a guess. Restore a real dump
-into a throwaway container and record the wall-clock time — that number is your
-RTO. Do it once now, not during the incident.
-
-```bash
-docker run -d --name restore-drill -e POSTGRES_PASSWORD=x pgvector/pgvector:pg15
-sleep 10
-time (gzip -dc /var/backups/control-tower/control_tower-<stamp>.sql.gz \
-      | docker exec -i restore-drill psql -U postgres postgres)
-docker exec restore-drill psql -U postgres postgres -c '\dt' | wc -l   # expect ~77 tables
-docker rm -f restore-drill
-```
-
-Write the measured RTO and the dump size here: `RTO = ____ · size = ____`.
-
-> **The dump → verify → restore path has been exercised end to end (2026-08-21)**,
-> against the dev database rather than production, so the *mechanism* is proven
-> even though the production number below is still yours to measure.
->
-> | Step | Result |
-> |---|---|
-> | `pg_dump \| gzip -9` | 0.9 s → **169 KB** (77 tables, 5 users, 17 accounts, 330 expenses) |
-> | Integrity check (`grep "PostgreSQL database dump"`) | **PASS** |
-> | Restore into a scratch database | 0.9 s |
-> | Row counts after restore | **exact match** on users / accounts / expenses / table count |
-> | `alembic_version` | preserved (`c003`) — the restored DB knows its own migration state |
->
-> So **RTO at this data size is ~2 s**, and that number is close to meaningless —
-> it scales with your data, and the restore above ran against a warm local
-> container, not a cold VPS after a disk loss. What the drill actually proves is
-> the part that was previously unknown: **the dumps are valid, the verification
-> catches a truncated dump, and a restore reproduces the data exactly.**
->
-> Re-run this against a *production* dump once real data exists, and write the
-> real number in the blank above. Also note the restore target must already have
-> the `vector` extension available — that is why the drill uses the
-> `pgvector/pgvector` image and not stock `postgres`.
-
----
-
-## 1. Required environment variables
-
-Set these in `.env.prod` before first deploy. Missing any will cause the backend to refuse to start.
-
-| Variable | Notes |
+| | |
 |---|---|
-| `ENVIRONMENT` | Must be `production` |
-| `APP_SECRET_KEY` | Min 32 chars, random. `python -c "import secrets; print(secrets.token_urlsafe(48))"`. **One value for the whole fleet** — every worker signs JWTs with it, so a per-worker value 401s roughly half of all requests. Production refuses to boot if it is unset. |
-| `APP_PASSWORD` | Not a default value. Used only for the legacy env-credential login (dev-only anyway). |
-| `DATABASE_URL` | Required by the backend, but **injected by `docker-compose.prod.yml` `environment:`** from `DB_USER`/`DB_PASSWORD`/`DB_NAME`. Do not set it in `.env.prod` — compose's `environment:` outranks `env_file`, so it would be ignored. |
-| `REDIS_URL` | Same — injected by compose as `redis://redis:6379/0`. Required for distributed rate limiting; production refuses to boot without it. |
-| `BACKUP_REMOTE` | rclone remote or `s3://` URL. Unset means dumps never leave the DB's own disk. |
-| `SENTRY_DSN` | Unset means production errors are invisible. See §0. |
-| `RESEND_API_KEY` | For transactional email (verification). Get at resend.com. |
-| `ALLOWED_ORIGIN` | Your deployed frontend URL, no trailing slash. No `localhost`. |
-| `VAULT_SYNC_ENABLED` | `false` for public multi-tenant SaaS. |
-| `STRIPE_SECRET_KEY` | Must start `sk_live_` in production. |
-| `STRIPE_PUBLISHABLE_KEY` | Starts `pk_live_`. |
-| `TOKEN_ENCRYPTION_KEY` | **Required.** Encrypts users' own LLM API keys and OAuth tokens. Rotating it forces every user to re-enter their key. |
-| `WEB_CONCURRENCY` | Number of gunicorn workers (default 4). Set to `2×vCPUs`. |
+| App | One container on your PaaS |
+| Database | Supabase — SQL editor, logs and backups in its dashboard |
+| Redis | Your platform's managed instance |
+| Errors | Sentry, if `SENTRY_DSN` is set |
+| Logs | Your platform's log stream — structured JSON, one line per request |
 
----
+Every request log carries an `X-Request-ID`, and the response returns it. When a
+user reports a failure, ask for the time and search the logs around it.
 
-## 2. Deploy procedure
+## Health
 
 ```bash
-# 1. Pull the new image
-docker pull ghcr.io/your-org/control-tower:latest
-
-# 2. Bring up the stack (migrations run automatically via entrypoint.sh)
-docker compose -f docker-compose.prod.yml up -d
-
-# 3. Tail logs briefly to confirm startup
-docker compose -f docker-compose.prod.yml logs -f backend --tail=50
+curl -s https://<origin>/health
 ```
 
-`entrypoint.sh` runs `alembic upgrade head` before starting gunicorn. If migrations fail the container exits and the orchestrator will not route traffic to it.
+- `{"status":"ok","db":true}` — serving normally.
+- `{"status":"degraded","db":false}` with **503** — the app is up, Postgres is
+  not. Check Supabase first: project paused, connection limit reached, or
+  credentials rotated.
 
----
+`/health` is deliberately not rate-limited. It is a single `SELECT 1`, and
+putting it behind the limiter means a rate-limiter failure makes a healthy app
+look dead — and takes the platform's health check down with it.
 
-## 3. Database migration (manual)
+## Common failures
 
-```bash
-# Against a running container
-docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
+### Login appears to do nothing
 
-# Review pending migrations first
-docker compose -f docker-compose.prod.yml exec backend alembic history --verbose
-docker compose -f docker-compose.prod.yml exec backend alembic current
+Almost always `ALLOWED_ORIGIN` not matching the address users actually type,
+scheme included. The server returns 200 with a valid `Set-Cookie`; the browser
+declines to store it; every later request is anonymous; nothing is logged as an
+error.
 
-# Rollback one revision (careful — data loss if migration has destructive ops)
-docker compose -f docker-compose.prod.yml exec backend alembic downgrade -1
+Check the response headers of `POST /api/auth/login` in devtools. If the cookie
+is set but never sent back, this is the cause.
+
+### The container will not start
+
+Read the first lines of the log. The production guards in
+`backend/app/core/config.py` raise with a message that names the variable and
+explains what it protects. They are guards, not obstacles — fix the variable
+rather than removing the check.
+
+If it starts and then exits, `alembic upgrade head` failed. The traceback names
+the revision. The container deliberately dies rather than serving against a
+stale schema.
+
+### `DuplicatePreparedStatementError`
+
+You are pointed at a transaction pooler that was not detected as one. Supabase's
+pooler is port 6543 and `app/db/url.py` recognises it; another provider may use
+a different port. Add `?pgbouncer=true` to `DATABASE_URL`, which forces the same
+handling.
+
+### Rate limits fire too early
+
+`REDIS_URL` is unset or unreachable, so each worker counts separately and the
+effective limit is a fraction of the configured one. Production refuses to boot
+without it, so this means Redis became unreachable after startup.
+
+### Scheduled agents stopped running
+
+Only the worker holding the Postgres advisory lock runs the scheduler. Check the
+startup logs for `SCHEDULER LEADER`. If no instance claims it, the lock is held
+by a connection that never closed — restart the service.
+
+On Fly, also check the machine has not auto-stopped. `fly.toml` sets
+`auto_stop_machines = false` for exactly this reason: a stopped machine runs no
+scheduler, and the app looks healthy while doing nothing.
+
+### A user says the assistant does not respond
+
+Most often they have not added their own API key: Settings → AI & knowledge.
+There is no server-side key by design, so an unconfigured user gets no model
+calls. Beyond that, check the WebSocket connects at all — a failing
+`/ws/chat` handshake usually traces back to `ALLOWED_ORIGIN` or a CSP
+`connect-src` that does not include the origin.
+
+## Routine tasks
+
+**Deploy.** Push to `main`. CI runs the suites, builds the image and boots it
+against a real database before anything ships.
+
+**Roll back.** Use your platform's redeploy-previous control. Note that
+migrations are **not** reversed by rolling back the image — if the bad deploy
+included a schema change, downgrade it deliberately with `alembic downgrade`.
+
+**Rotate `APP_SECRET_KEY`.** Signs out every user. Safe, just disruptive.
+
+**Rotate `TOKEN_ENCRYPTION_KEY`.** Do not, unless it has leaked. It makes every
+stored API key and OAuth token permanently unreadable and every user has to
+re-enter theirs. There is no re-encryption path.
+
+**Make someone an admin.** Through the Supabase SQL editor:
+
+```sql
+UPDATE users SET is_admin = true WHERE email = 'you@example.com';
 ```
 
-**Always review autogenerated migrations for unintended `DROP TABLE` ops before running.**
+## Backups
 
----
+Supabase owns them. Check what your plan retains — the free tier's window is
+short and has no point-in-time recovery.
 
-## 4. Secret rotation
+**Test a restore before you need one.** An untested backup is a belief, not a
+backup.
 
-### APP_SECRET_KEY rotation (invalidates all active JWTs)
+## Security posture
 
-All users will be logged out immediately.
-
-```bash
-# 1. Generate a new key
-python -c "import secrets; print(secrets.token_urlsafe(48))"
-
-# 2. Update .env.prod
-# 3. Rolling restart (zero-downtime if behind a load balancer)
-docker compose -f docker-compose.prod.yml up -d --no-deps backend
-```
-
-### Database password rotation
-
-1. Update the password in PostgreSQL: `ALTER USER control_tower WITH PASSWORD 'new_pass';`
-2. Update `DATABASE_URL` in `.env.prod`.
-3. Restart backend (asyncpg reconnects using the new URL on next connection).
-
----
-
-## 5. Database backup and restore
-
-### Backup
-
-```bash
-# Dump to a timestamped file
-docker compose -f docker-compose.prod.yml exec db \
-  pg_dump -U control_tower control_tower | gzip > "control_tower_$(date +%Y%m%d_%H%M%S).sql.gz"
-```
-
-Set up a daily cron or use managed DB snapshots (RDS, Supabase, Neon, etc.).
-
-### Restore
-
-```bash
-# Restore from a dump (DESTRUCTIVE — drops all existing data)
-gunzip -c control_tower_20260714_000000.sql.gz | \
-  docker compose -f docker-compose.prod.yml exec -T db psql -U control_tower control_tower
-```
-
----
-
-## 6. Redis failover
-
-Redis is used for:
-- HTTP rate limiting (slowapi, shared counters across workers — `app/core/rate_limit.py`)
-- WebSocket chat rate limiting (per-user sliding window — `app/api/chat.py`)
-- Pending chat tool-call confirmations (300s TTL keys)
-- **Not** APScheduler leader election — that is a Postgres `pg_try_advisory_lock`.
-
-### What actually happens when Redis goes down
-
-Two different paths, and they behave differently. Know which one you are looking at.
-
-| Path | Behaviour |
-|---|---|
-| **HTTP endpoints** (`app/core/rate_limit.py`) | The limiter is built with `in_memory_fallback_enabled=True`, so it **degrades to per-process counters** and requests keep serving. Limits become per-worker, i.e. effectively `WEB_CONCURRENCY ×` more permissive. |
-| **WebSocket chat** (`app/api/chat.py`) | Redis calls are wrapped in `try/except` — **fail-open**, all messages allowed, per-connection deque fallback. |
-| **Pending tool confirmations** | Fall back to a per-connection dict; a confirmation will not survive a WS reconnect. |
-
-No data loss either way — Redis holds no durable state.
-
-> ⚠️ **This section previously documented fail-open for everything.** That was
-> only ever true of the WebSocket path. Before the 2026-08-16 fix the HTTP
-> limiter ran on slowapi's defaults (`swallow_errors=False`, no fallback), so a
-> Redis outage **500'd every rate-limited endpoint** — and `/health` was itself
-> rate-limited, so `deploy.sh wait_healthy()` failed and the next deploy rolled
-> back blaming the new image. `/health` is no longer rate-limited, for exactly
-> that reason: it must report on the app, not on the rate limiter.
-
-**Triage:** if HTTP endpoints are 500ing, Redis is *not* the cause — look at
-Postgres and the app logs. Rate-limit counters resetting or users reporting
-looser limits than configured is the real Redis-down signature.
-
-```bash
-docker compose -f docker-compose.prod.yml exec redis redis-cli ping   # expect PONG
-docker compose -f docker-compose.prod.yml logs redis --tail=50
-```
-
-**Recovery:** restart the Redis container. The limiter reconnects on its own and
-resumes using shared storage; no backend restart needed.
-
----
-
-## 7. LLM quota incident
-
-### Symptoms
-- Chat responses return `{"type": "error", "code": "ai_quota_exceeded"}` for all users.
-- A user reports AI features returning 428 `no_api_key` — they have not added their
-  own provider key yet (Settings → AI & knowledge). This is expected, not an incident.
-
-### Triage
-
-```bash
-# Check top consumers this month
-docker compose -f docker-compose.prod.yml exec db psql -U control_tower control_tower -c \
-  "SELECT user_id, SUM(units) AS total FROM ai_usage_records
-   WHERE created_at >= date_trunc('month', now()) GROUP BY user_id ORDER BY total DESC LIMIT 10;"
-```
-
-### Remediation
-
-- There is no usage cap to raise: every user's AI usage is billed by their own
-  provider to their own key. Operator spend on LLMs is structurally zero.
-- Or reset a specific user's usage counter by deleting their records for the current month (rare, manual operation).
-
----
-
-## 8. Health check
-
-```bash
-curl -sf https://your-domain.com/api/health | jq .
-# Expected: {"status":"ok","service":"control-tower","db":true,"watcher":false}
-```
-
-`db: false` means the backend cannot reach PostgreSQL. Check database container and connection string.
-
----
-
-## 9. Rollback
-
-```bash
-# Roll back to the previous image tag
-docker compose -f docker-compose.prod.yml \
-  up -d --no-deps --pull never backend  # with previous image pinned in compose
-
-# Or roll back Alembic one step and restart
-docker compose -f docker-compose.prod.yml exec backend alembic downgrade -1
-docker compose -f docker-compose.prod.yml restart backend
-```
-
----
-
-## 10. On-call escalation
-
-1. Check `/api/health` for `db` status.
-2. Check backend logs: `docker compose logs backend --tail=100 | grep -i error`.
-3. (Billing was removed 2026-08-17 — there are no webhooks or payment failures to check.)
-4. If an agent run is spinning: `SELECT * FROM agents WHERE is_active=true AND last_run_at < now() - interval '2 hours';`
-
-Contact: utsavranjan.sk@gmail.com
+- `/docs`, `/redoc` and `/openapi.json` are not served in production.
+- The document and API share one CSP: no inline script, no framing.
+- Admin endpoints require `is_admin` and are rate-limited.
+- Account deletion derives its table list from live ORM metadata, so a new table
+  is included automatically rather than being silently missed.
+- Vault sync must stay off. It shares one filesystem across all users.

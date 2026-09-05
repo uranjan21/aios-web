@@ -1,7 +1,7 @@
 """Finance: the schema the redesign canvas asks for.
 
 Closes five of the sixteen documented departures in
-`frontend/docs/DC_REDESIGN_IMPLEMENTATION_PLAN.md` §8b. Each addition exists
+the Finance area redesign. Each addition exists
 because a scalar the app already stores discards the dimension the canvas
 draws:
 

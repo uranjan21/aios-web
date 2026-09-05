@@ -1,100 +1,70 @@
-# Control Tower Web — Product Vision & Roadmap
+# Roadmap
 
-**Date:** 2026-06-21 · **Owner:** Utsav · **Horizon:** 6 months to credible paid launch
+Honest state of what is missing, roughly in the order it is worth doing.
+Shipped functionality is in `FEATURES.md`.
 
-This document defines *what Control Tower becomes* and *how it gets there*. It assumes the ship-blockers documented in `CLAUDE.md` § "ship-readiness audit" are fixed first — none of the growth work below matters while the app leaks tenant data and can't take a payment.
+## Correctness
 
----
+**"Today" is the server's local date in ~20 places.** Every timestamp is naive
+UTC, but around twenty call sites compute the current day with `date.today()`.
+On a UTC host they agree; elsewhere they diverge for the length of the offset.
 
-## 1. The thesis — why Control Tower is worth paying for
+The fix is not a mechanical sweep to `utcnow()` — that would move every user's
+day boundary to UTC midnight, which for an IST user is 05:30 local, a worse bug
+than the one being fixed. The right answer is a `user_today(user)` helper
+resolving through `BriefingPreference.tz`, which already exists and already
+drives agent crons, applied to the human-facing sites while UTC stays where the
+comparison is against a stored instant. Sites are listed in `backend/CLAUDE.md`.
 
-Every category Control Tower touches already has a great single-purpose app: Monarch/Copilot for money, Whoop/Apple Health for the body, Notion for work, Linear for tasks. **Control Tower does not win by being a better budget app.** It wins on the one thing none of them can do:
+**The original TIMESTAMPTZ → TIMESTAMP conversions cannot be audited.** Two
+early migrations converted without an explicit `USING` clause, so Postgres used
+whatever the session's `TimeZone` was and nothing in the row records it. On a
+UTC host they are fine, and the available cross-checks agree — but "almost
+certainly" is not an audit, and the shift is undetectable from the data alone.
+Settling it requires correlating a row against an external record of the same
+event on a pre-conversion restore. Guessing an offset would turn a suspicion
+into corruption.
 
-> **Cross-domain intelligence — connecting your money, body, work, and content into a single model of your life, and surfacing the patterns no single-purpose app can see.**
+## Backend capability with no interface
 
-"You complete 40% fewer tasks after nights under 6 hours of sleep." "Weeks you spend >₹3k on dining out, your weight trends up 0.4kg." That insight is the product. Everything else (logging, dashboards, agents) exists to feed the engine that produces it.
+Each of these has working, tested endpoints and no screen. Either build the UI
+or remove the endpoint; leaving them is what produced this list.
 
-**Positioning:** *Personal Operating System — the AI command center for your whole life.* Premium, calm, editorial, single-user-first with household as the expansion.
+- **Credit-card bills** — full CRUD, no UI.
+- **Categorisation rules** — create and delete, no UI. Transactions are
+  categorised server-side by `match_suggested_category`, but the rules behind it
+  cannot be edited.
+- **What-if simulator** — a Monte-Carlo cash-flow projection with an endpoint
+  and no screen since the Finance IA was redesigned.
+- **Forecasts and the discoveries feed** — endpoints survive; the dashboard
+  components that rendered them were removed.
+- **Career events** — the timelines that read `career_events` were deleted.
+  `CareerLogModal.tsx` is still on disk, unreferenced, for whenever a surface
+  that shows them comes back.
+- **Saved quotes** — a complete, isolated, tested API whose UI was deleted. The
+  backend was kept because it is woven through the isolation, export and
+  timestamp tests as a representative table.
+- **Financial health score** — `financeApi.healthScore()` has no caller and the
+  route is untouched.
 
----
+## Product gaps
 
-## 2. North-star & guardrail metrics
+- **Custom foods can be created but not edited or deleted.** A meal log can now
+  save into the catalogue; `patchFood` and `deleteFood` still have no UI.
+- **Nothing syncs account balances from an institution.** Balances are entered
+  and then adjusted by the ledger. The accounts table has no `credit_limit`, so
+  credit utilisation cannot be shown.
+- **Content metrics were always manual** and the Content area is gone; its
+  tables remain so historical rows still render.
 
-| Metric | Why | Launch target |
-|---|---|---|
-| **Weekly Active Logging** (days/wk a user logs ≥1 entry in any domain) | The engine is worthless without data; this predicts retention | ≥ 4 days/wk for activated users |
-| **Time-to-first-insight** | The "magic moment"; must happen in week 1 | < 7 days |
-| **D30 retention** | SaaS survival | > 40% |
-| **Free → paid conversion** | Monetization | > 5% |
-| **Insight usefulness rate** (👍 on AI Discoveries) | Guardrail against AI slop | > 60% positive |
+## Platform
 
----
-
-## 3. Roadmap — five phases
-
-### Phase 0 — Make it shippable (Weeks 1–3) · *blocker work*
-Close the audit. Nothing here is a feature; it's the cost of being a real SaaS.
-- Fix C1–C5 (tenant isolation on chat, captures, push, integrations, vault).
-- Fix H1–H4 (remove prod backdoor, `ENVIRONMENT=production`, Redis OAuth state, token revocation).
-- Add **multi-tenant isolation test suite** — for every router, "user A cannot see user B's rows." Wire into CI as a merge gate.
-- Fix the test harness (schema setup in conftest) so the suite actually runs.
-- **Exit criteria:** isolation tests green in CI; pen-test of IDOR on every `/{id}` route passes; cookies `Secure` in prod.
-
-### Phase 1 — Monetization & onboarding (Weeks 3–6) · *gate to charge*
-You cannot sell a subscription without a way to subscribe.
-- ~~**Stripe Billing**~~ — **REMOVED 2026-08-17.** The product is free for everyone, bring-your-own-API-key. No subscriptions, entitlements or metering; the tables were dropped. See `docs/DYNAMIC_PRICING_PLAN.md`.
-- **Plan design** (draft): **Free** (1 domain, 30-day history, manual entry) · **Pro ₹499/mo** (all domains, unlimited history, AI Discoveries, integrations, agents) · **Household ₹799/mo** (Pro + shared finance/tasks for 2). Annual = 2 months free.
-- **Self-serve signup + onboarding**: signup screen (wire the existing `/auth/signup`), email verification, a 4-step onboarding (pick domains → connect a bank/Google → log first entry → see first dashboard). Onboarding completion is the activation event.
-- **Exit criteria:** a stranger can sign up, hit the paywall, pay, and land in the app without you touching anything.
-
-### Phase 2 — Engagement & retention (Weeks 6–10) · *make them come back*
-From the existing SaaS plan — these are the daily-habit hooks.
-- **Daily Executive Briefing** (push + email): yesterday's recap + today's outlook, LLM-summarized, per-user delivery time. (`BriefingPreference` table; APScheduler cron already exists.)
-- **GitHub-style Life Heatmap + Streaks**: visual consistency of logging across domains; the dopamine loop that drives Weekly Active Logging.
-- **Make agents real (M2)** or hide them. Wire the 8 scheduled agents to actually call the AI services (morning brief, finance snapshot, content performance) and write real output. Per-user seeding.
-- **Exit criteria:** D7 retention measurably up vs. Phase 1 baseline; briefing open rate > 30%.
-
-### Phase 3 — The moat: cross-domain Synergy Engine (Weeks 10–16) · *the reason to pay*
-The headline differentiator. A nightly batch job that correlates domains and produces empathetic, human-readable insights.
-- **Synergy Engine**: extract 30–90 days across finance/health/business → compute correlations (Pearson/rolling) → if signal is strong (e.g. |r| > 0.6 with enough samples), pass to the LLM to phrase it → store in an `insights` table.
-- **AI Discoveries feed** on the dashboard with 👍/👎 (feeds the usefulness guardrail and tunes the threshold).
-- **Frictionless finance via Plaid** (read-only bank sync + auto-categorization) — kills the #1 finance-app churn reason (manual entry) and feeds the engine richer data.
-- **Rigor guardrails:** require a minimum sample size, correct for multiple comparisons, never imply causation, and always let the user dismiss/mute a pattern. One absurd insight destroys trust.
-- **Exit criteria:** > 60% of insights rated useful; Pro users who see ≥1 insight retain measurably better.
-
-### Phase 4 — Network effects: Household multiplayer (Weeks 16–24) · *growth & churn-lock*
-Lock in couples/families; turn one account into two.
-- `Household` + `HouseholdMember` tables; **shared** finance/tasks carry an optional `household_id`; **private** domains (health, career notes) stay strictly individual — no `household_id` column, ever.
-- Row-level access: `WHERE user_id = X OR household_id IN (…)` for shared tables only.
-- Invitation flow (signed JWT link → join on signup) + a Personal/Household context switcher in the TopBar + a joint dashboard.
-- **Exit criteria:** invited partners convert; household accounts churn lower than solo.
-
----
-
-## 4. "Award-worthy & premium" — the polish bar
-
-Functionality gets you a product; these get you a product people screenshot and recommend.
-
-- **One signature magic moment.** The AI Discoveries insight *is* the moment — invest in its copy, timing, and a beautiful reveal animation. This is what wins design awards and word-of-mouth.
-- **Calm, editorial, fast.** Keep the Premium Black + Gold system. Enforce: every view has a real empty state (not a spinner-to-blank), optimistic updates on every mutation, skeletons that match final layout, and `prefers-reduced-motion` respected. Target < 200ms perceived interaction latency.
-- **Trust as a feature.** A visible privacy posture: "your data is encrypted, never sold, never used to train models; export or delete everything in one click." For a life-OS holding finance + health, trust *is* the product. Ship a real DPA, data export (GDPR-style), and one-click account deletion.
-- **Mobile-first capture, desktop-first review.** People log on their phone and reflect on a laptop. The PWA + ⌘L capture should feel native on mobile; the dashboards should feel like a cockpit on desktop.
-- **Accessibility pass** (WCAG AA): focus rings everywhere, keyboard nav through every flow, contrast checked against the gold/black palette.
-
----
-
-## 5. Risks & open decisions
-
-| Risk / decision | Recommendation |
-|---|---|
-| **Vault sync vs. SaaS** — global FS doesn't fit multi-tenant | Decide now: per-user vault roots, or make vault a self-host-only feature and drop it from the hosted product. Don't ship it half-tenant. |
-| **AI cost per user** — LLM calls on briefings + synergy + chat | Cap with per-user token budgets (already partially built), cache aggressively, and make the heaviest features Pro-only. |
-| **Insight quality** — bad correlations destroy trust | Statistical guardrails + human 👍/👎 loop + conservative thresholds from day one. |
-| **Scope creep across 5 domains** — each is a full app | Resist "feature parity with Monarch/Whoop/Notion." Compete on *connection between* domains, keep each domain "good enough," and let the engine be the star. |
-| **Single-founder velocity** | Sequence ruthlessly: isolation → one retention hook → the engine (billing is gone — the product is free/BYOK). Don't start Phase 4 before Phase 3 proves the moat. |
-
----
-
-## 6. The one-line plan
-
-**Fix the leaks → take a payment → build the daily habit → ship the cross-domain engine that no one else can → expand to households.** Everything in this doc serves that sentence, in that order.
+- **No `LICENSE` file.** The repository is public, so default copyright applies
+  and nobody may reuse the code. Pick a licence.
+- **The frontend has no end-to-end test.** Coverage is 81 unit tests plus
+  `test_api_mappings.py`, which checks that every frontend call site matches a
+  real backend route. Nothing exercises a real browser session.
+- **ESLint carries 289 warnings**, almost all `no-explicit-any`. The ratchet
+  stops it growing; reducing it is untouched work.
+- **The main bundle is 893 kB** (265 kB gzipped) after chunking. Route-level
+  code splitting would help most.

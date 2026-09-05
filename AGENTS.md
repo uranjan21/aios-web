@@ -1,43 +1,66 @@
-# AGENTS.md — Working Agreement for ALL AI Tools
+# AGENTS.md — working agreement
 
-> Applies to every AI working in this repo: Claude Code, Codex, Antigravity, Cursor, anything.
-> This repo is one organ of Utsav's larger AI OS (Obsidian vault). Follow this contract so the OS stays aware of this project.
+Applies to everyone changing this repo, human or AI (Claude Code, Codex, Cursor,
+anything else).
 
-## MANDATORY — end-of-session duty
+## Read the right file first
 
-Before finishing ANY work session, append one entry to the TOP of `PROGRESS.md` (below its header):
-
-```
-## YYYY-MM-DD — <tool: claude-code | codex | antigravity | ...>
-- Shipped: <what actually got built/fixed, 1–3 lines>
-- Blockers: <what's stuck, or "none">
-- Next: <the logical next step>
-```
-
-Also update `FEATURES.md` (if features changed) and the relevant doc under `docs/`.
-
-**Why:** Utsav's AI OS syncs from this repo by reading `git log` + `PROGRESS.md` + repo docs. Commits show WHAT changed; PROGRESS.md carries blockers and intent that commits can't. Skip it and the sync is blind.
-
-## Where the rules live
-
-Context is split per folder (restructured 2026-07-28). Read the file for the
-side you are touching **before** writing code:
-
-| File | Covers |
+| Before you touch | Read |
 |---|---|
-| `CLAUDE.md` | Product, stack, deploy topology, change history, backlog |
-| `frontend/CLAUDE.md` + `frontend/AGENTS.md` | Design system, UI/UX rules, monorepo graph, React conventions |
-| `backend/CLAUDE.md` + `backend/AGENTS.md` | FastAPI/SQLModel conventions, migrations, multi-tenancy |
+| Anything | `CLAUDE.md` |
+| `backend/` | `backend/CLAUDE.md` |
+| `frontend/` | `frontend/CLAUDE.md` |
+| Docker, CI, env vars | `docs/DEPLOYMENT.md` |
 
-Add new rules to the file that owns them. Do not copy them upward into this one.
+Add a new rule to the file that owns it. Do not restate it upward.
 
-## Repo rules
+## Non-negotiables
 
-- Conventional commits: `feat:` / `fix:` / `refactor:` / `chore:` / `test:` / `docs:`
-- NEVER commit secrets, API keys, or Utsav's personal data (a seed-script leak happened once — check before committing)
-- Architecture context: `SYSTEM_DESIGN.md` · Features: `FEATURES.md` · Deployment: `docs/DEPLOYMENT.md` · Roadmap: `docs/PRODUCT_ROADMAP.md`
+**Multi-tenant isolation.** Every user-data table has `user_id`; every query
+filters on it. A new user-data endpoint needs a case in
+`backend/tests/test_isolation.py`. Cross-tenant access must return 404, not 403 —
+a 403 confirms the row exists.
 
-> The old `.agent/AGENTS.md` was folded into these files on 2026-07-28. It
-> pointed at `SAAS_IMPLEMENTATION_PLAN.md` and `lessons.md`, neither of which
-> exists in this repo; its live rules now sit in the per-folder files above, and
-> the colour-palette preference lives in Utsav's global user memory.
+**No server-side LLM key.** Every model call runs on the authenticated user's own
+key. See the box in `CLAUDE.md` for why this one is not negotiable.
+
+**Never commit secrets or personal data.** The repository is public. `.env.*` is
+git-ignored by default; check your diff before committing, especially
+`seed_dummy_data.py`.
+
+**Do not weaken a guard to make a deploy easier.** The startup checks in
+`backend/app/core/config.py` — Redis required, https required, vault sync
+refused, secret strength enforced — each exist because the alternative was a
+silent failure. Every one is covered both ways in `tests/test_config_guards.py`.
+
+## Verify, don't assert
+
+State what you actually ran. "Backend 362 passed; tsc and vitest clean" is a
+claim someone can check. "Should work" is not.
+
+Before saying a change works:
+
+```bash
+cd backend  && uv run pytest
+cd frontend && pnpm typecheck && pnpm exec vitest --run && pnpm lint
+cd frontend && node scripts/token-lint.mjs && pnpm build
+```
+
+For anything touching how the app is served — routing, static files, headers,
+Docker — run it and make the request. Several bugs in this repo's history looked
+correct in the source and failed in the browser.
+
+## Commits
+
+Conventional prefixes: `feat:` `fix:` `refactor:` `chore:` `test:` `docs:` `build:`
+
+Write the body for someone who has the diff but not the context: what was wrong,
+why the fix is shaped this way, and what you verified. Note anything you
+deliberately did *not* change and why — that is usually the most useful line in
+the message.
+
+## Scope
+
+Fix what you were asked to fix. If you find something else broken, say so rather
+than quietly widening the change. If you cannot finish part of the work, finish
+the rest and state plainly what you left and why.
