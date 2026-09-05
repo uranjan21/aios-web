@@ -12,31 +12,33 @@ jobs:
   backend:
     name: Backend (Python)
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: pgvector/pgvector:pg15
-        env:
-          POSTGRES_USER: control_tower
-          POSTGRES_PASSWORD: control_tower
-          POSTGRES_DB: control_tower_test
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    # No Postgres service. conftest.py builds the suite's engine from a
+    # hardcoded in-memory SQLite URL, so no test could reach a real database
+    # even when one was running — it was 25s of setup per run for nothing, and
+    # its own log showed only the health probe failing with
+    # 'role "root" does not exist'. The one place Postgres genuinely matters is
+    # the image job below, which starts its own pgvector container and boots the
+    # real application against it.
 
-    env:
-      DATABASE_URL: postgresql+asyncpg://control_tower:control_tower@localhost:5432/control_tower_test
-      APP_SECRET_KEY: ci-test-secret-key-32-chars-minimum
-      # APP_PASSWORD is deliberately NOT set here. tests/conftest.py does
-      # os.environ.setdefault("APP_PASSWORD", "testpass") and test_auth.py logs
-      # in with "testpass" — setting it here makes the setdefault a no-op and
-      # every auth test 401s. Same for APP_EMAIL (conftest → admin@example.com).
-      ANTHROPIC_API_KEY: sk-placeholder
-      ALLOWED_ORIGIN: http://localhost:5173
-      VAULT_PATH: /tmp/vault
-      TOKEN_ENCRYPTION_KEY: ${{ secrets.TOKEN_ENCRYPTION_KEY || 'dGVzdC1rZXktZm9yLWNpLW9ubHktZG8tbm90LXVzZS1pbi1wcm9k' }}
+    # tests/conftest.py configures the whole suite with os.environ.setdefault,
+    # so ANY variable set here silently WINS over the value the tests expect.
+    # That is not theoretical: TOKEN_ENCRYPTION_KEY and VAULT_PATH were both set
+    # here to values the suite cannot work with, and CI was red on every single
+    # run for months because of it.
+    #
+    # The rule: if conftest.py sets it, do not set it here. It already covers
+    # DATABASE_URL, APP_SECRET_KEY, APP_EMAIL, APP_PASSWORD, LLM_PROVIDER,
+    # ALLOWED_ORIGIN, VAULT_PATH and TOKEN_ENCRYPTION_KEY — which is everything
+    # the suite needs, so this job needs no env block at all.
+    #
+    #   TOKEN_ENCRYPTION_KEY was 'dGVzdC1rZXktZm9y…' — valid base64, but it
+    #   decodes to 39 bytes and Fernet requires exactly 32, so constructing the
+    #   cipher raised and every BYOK, agent and write-tool test died with it.
+    #   Tests must not depend on a repo secret for this either: the key has to
+    #   be deterministic, and conftest.py has a real generated one.
+    #
+    #   VAULT_PATH was /tmp/vault while conftest.py uses /tmp/vault-test, so the
+    #   vault write tests asserted against a directory nothing wrote to.
 
     steps:
       - uses: actions/checkout@v4
@@ -45,15 +47,18 @@ jobs:
         with:
           version: "latest"
 
+      # `uv sync --frozen`, not `uv pip install -e ".[dev]"`. The latter
+      # re-resolves against the index, so CI tested whatever had been published
+      # that morning rather than what uv.lock pins — and the deployable image
+      # resolved separately again. --frozen also fails loudly if uv.lock and
+      # pyproject.toml have drifted apart, instead of silently relocking.
       - name: Install dependencies
         working-directory: backend
-        run: uv pip install -e ".[dev]" --system
+        run: uv sync --frozen --extra dev
 
-      # `python -m pytest`, not `uv run pytest` — uv run would build a second,
-      # separate venv that never got the [dev] extras installed above.
       - name: Run tests
         working-directory: backend
-        run: python -m pytest tests/ -v --tb=short
+        run: uv run --no-sync pytest tests/ -v --tb=short
 
   frontend:
     name: Frontend (TypeScript + Build)
@@ -122,3 +127,96 @@ jobs:
       # dev is on pnpm 11, which is why this passed on a laptop and failed here.
       - name: Unit tests
         run: pnpm exec vitest --run
+
+  image:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # The deployable artifact is ONE image built from the repo root: it
+      # compiles the SPA and installs the backend, and the API process serves
+      # both so they share an origin. Building it here means a broken Dockerfile
+      # fails the pull request rather than the deploy.
+      - name: Build deployable image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: control-tower:ci
+          cache-from: type=gha,scope=image
+          cache-to: type=gha,scope=image,mode=max
+
+      # A boot check, not just a build check. The image must start, run
+      # `alembic upgrade head` against a real pgvector database, and answer
+      # /health — which is where a bad migration chain or a missing runtime file
+      # actually shows up.
+      - name: Boot the image against a clean database
+        run: |
+          set -euo pipefail
+          docker network create ct-ci
+          docker run -d --name ct-db --network ct-ci \
+            -e POSTGRES_USER=ct -e POSTGRES_PASSWORD=ct -e POSTGRES_DB=ct \
+            pgvector/pgvector:pg15
+          docker run -d --name ct-redis --network ct-ci redis:7-alpine
+
+          # `cmd && break` under `set -e` depends on a subtle exemption rule;
+          # spell the condition out instead.
+          echo "waiting for postgres"
+          for _ in $(seq 1 60); do
+            if docker exec ct-db pg_isready -U ct -d ct >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+
+          docker run -d --name ct-app --network ct-ci -p 8000:8000 \
+            -e ENVIRONMENT=production \
+            -e DATABASE_URL='postgresql+asyncpg://ct:ct@ct-db:5432/ct' \
+            -e REDIS_URL='redis://ct-redis:6379/0' \
+            -e ALLOWED_ORIGIN='https://ci.example.com' \
+            -e APP_SECRET_KEY='ci-only-secret-key-at-least-32-characters-long' \
+            -e APP_PASSWORD='ci-only-not-a-default' \
+            -e TOKEN_ENCRYPTION_KEY='dGVzdC1rZXktZm9yLWNpLW9ubHktZG8tbm90LXVzZS1pbi1wcm9k' \
+            -e RESEND_API_KEY='ci-placeholder' \
+            -e VAULT_SYNC_ENABLED=false \
+            -e WEB_CONCURRENCY=1 \
+            control-tower:ci
+
+          echo "waiting for /health"
+          ok=""
+          for _ in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8000/health >/dev/null; then ok=1; break; fi
+            sleep 2
+          done
+          if [ -z "$ok" ]; then
+            echo "::error::the image never became healthy"
+            docker logs ct-app
+            exit 1
+          fi
+
+          echo "--- /health ---"
+          curl -sf http://127.0.0.1:8000/health
+          echo
+
+          # The SPA must be served by the same process, or the frontend's
+          # relative /api baseURL and location.host WebSockets have no origin.
+          echo "--- SPA document ---"
+          curl -sf http://127.0.0.1:8000/ | grep -q '<div id="root">' \
+            || { echo "::error::the API process is not serving the SPA"; exit 1; }
+
+          # Refreshing a client route must return the shell, not a 404.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/app/workspace/goals)" = "200" \
+            || { echo "::error::client-side routes 404 on refresh"; exit 1; }
+
+          # ...and an unknown API path must NOT return the shell, or the
+          # frontend gets HTML where it expects JSON.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/nope)" = "404" \
+            || { echo "::error::unknown API paths are served the SPA shell"; exit 1; }
+
+          echo "image boots, migrates, and serves both surfaces"
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs ct-app || true

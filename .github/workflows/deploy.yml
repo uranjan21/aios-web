@@ -1,58 +1,56 @@
 name: Deploy
 
-# Push to main → build images on GitHub's runners → push to GHCR → VPS pulls.
-# The build never runs on the VPS: the Vite/tsc build needs ~2GB and would
-# contend with Postgres on a small box.
+# Push to main → CI must pass → publish the deployable image to GHCR, then let
+# the hosting platform take it.
+#
+# There is no server to SSH into any more. The app runs on a PaaS against
+# Supabase Postgres:
+#
+#   Render / Railway  — deploy themselves from this repo on every commit
+#                       (render.yaml sets autoDeployTrigger: commit). Nothing
+#                       here needs to run for them; the GHCR image is a
+#                       convenience and a build gate.
+#   Fly.io            — needs a push, so this workflow does it when
+#                       FLY_API_TOKEN is configured. Without that secret the
+#                       job is skipped, not failed.
+#
+# See docs/DEPLOYMENT.md.
+
 on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      skip_tests:
-        description: "Deploy without waiting for CI (emergency only)"
-        type: boolean
-        default: false
 
 concurrency:
-  # Never let two deploys race for the same server.
   group: deploy-production
   cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE_NAME: ${{ github.repository }}-backend
-  FRONTEND_IMAGE_NAME: ${{ github.repository }}-web
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # Gate the deploy on the existing CI workflow's checks.
   test:
-    if: ${{ !inputs.skip_tests }}
     uses: ./.github/workflows/ci.yml
 
-  build:
+  publish:
     needs: [test]
-    # `always()` + explicit result check so skip_tests can bypass the gate.
-    if: ${{ always() && (needs.test.result == 'success' || inputs.skip_tests) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     outputs:
-      backend_image: ${{ steps.tags.outputs.backend }}
-      frontend_image: ${{ steps.tags.outputs.frontend }}
+      image: ${{ steps.tags.outputs.image }}
     steps:
       - uses: actions/checkout@v4
 
       - id: tags
+        # Lowercase: GHCR rejects uppercase path segments and GitHub usernames
+        # may contain them.
         run: |
-          # Lowercase — GHCR rejects uppercase path segments, and GitHub
-          # usernames can contain them.
-          BE="${REGISTRY}/$(echo "${BACKEND_IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
-          FE="${REGISTRY}/$(echo "${FRONTEND_IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
-          echo "backend=${BE}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-          echo "frontend=${FE}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-          echo "backend_repo=${BE}" >> "$GITHUB_OUTPUT"
-          echo "frontend_repo=${FE}" >> "$GITHUB_OUTPUT"
+          IMG="${REGISTRY}/$(echo "${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
+          echo "image=${IMG}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "repo=${IMG}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -62,73 +60,47 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & push backend
+      - name: Build & push
         uses: docker/build-push-action@v6
         with:
-          context: ./backend
+          context: .
           push: true
           tags: |
-            ${{ steps.tags.outputs.backend }}
-            ${{ steps.tags.outputs.backend_repo }}:latest
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,scope=backend,mode=max
-
-      - name: Build & push web
-        uses: docker/build-push-action@v6
-        with:
-          # frontend/ — the Dockerfile needs the whole pnpm workspace, whose
-          # root moved from the repo root to frontend/ on 2026-07-28.
-          context: ./frontend
-          file: ./frontend/apps/shell/Dockerfile
-          push: true
-          # Vite inlines these at build time — a runtime env var cannot turn
-          # frontend analytics on. Unset repo secrets resolve to "" here, which
-          # keeps Sentry and PostHog off exactly as before.
+            ${{ steps.tags.outputs.image }}
+            ${{ steps.tags.outputs.repo }}:latest
+          # Vite inlines import.meta.env.VITE_* at BUILD time. Setting them on
+          # the running container does nothing, so they have to be build args
+          # and therefore repo secrets. Unset resolves to "" — analytics off,
+          # which is the default and harmless.
           build-args: |
             VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }}
             VITE_POSTHOG_KEY=${{ secrets.VITE_POSTHOG_KEY }}
             VITE_POSTHOG_HOST=${{ secrets.VITE_POSTHOG_HOST }}
-          tags: |
-            ${{ steps.tags.outputs.frontend }}
-            ${{ steps.tags.outputs.frontend_repo }}:latest
-          cache-from: type=gha,scope=web
-          cache-to: type=gha,scope=web,mode=max
+          cache-from: type=gha,scope=image
+          cache-to: type=gha,scope=image,mode=max
 
-  deploy:
-    needs: [build]
+  fly:
+    needs: [publish]
     runs-on: ubuntu-latest
-    environment: production
     steps:
       - uses: actions/checkout@v4
 
-      # Keep the server's compose file and deploy script in lockstep with the
-      # repo, so infra changes ship with the same push as code changes.
-      - name: Copy compose + deploy script to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_SSH_PORT || 22 }}
-          source: "docker-compose.prod.yml,deploy/deploy.sh"
-          target: /opt/control-tower
-          overwrite: true
+      - id: guard
+        # Secrets cannot be evaluated in a job-level `if`, so the check happens
+        # here and the remaining steps read its output. A repo that does not use
+        # Fly skips this quietly rather than failing every push to main.
+        run: |
+          if [ -n "${{ secrets.FLY_API_TOKEN }}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "FLY_API_TOKEN not set — skipping Fly deploy." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
-      - name: Pull & restart on VPS
-        uses: appleboy/ssh-action@v1.2.0
+      - if: steps.guard.outputs.configured == 'true'
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - if: steps.guard.outputs.configured == 'true'
+        run: flyctl deploy --remote-only
         env:
-          BACKEND_IMAGE: ${{ needs.build.outputs.backend_image }}
-          FRONTEND_IMAGE: ${{ needs.build.outputs.frontend_image }}
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_SSH_PORT || 22 }}
-          envs: BACKEND_IMAGE,FRONTEND_IMAGE
-          command_timeout: 15m
-          script: |
-            set -euo pipefail
-            cd /opt/control-tower
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-            chmod +x deploy/deploy.sh
-            ./deploy/deploy.sh "$BACKEND_IMAGE" "$FRONTEND_IMAGE"
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

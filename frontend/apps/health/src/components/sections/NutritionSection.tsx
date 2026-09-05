@@ -12,7 +12,8 @@ import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import styled from 'styled-components'
 import { BarChart3, Circle, ClipboardList, Flag } from 'lucide-react'
-import { Button, Dialog, Input, Select, SkeletonPage } from '@ledgr/ui'
+import { Button, Checkbox, Dialog, Input, Select, SkeletonPage, textRole } from '@ledgr/ui'
+import { errorMessage } from '@ct/shared/lib/utils'
 import { FieldError, useFieldErrors } from '@ct/shared/components/forms/fieldErrors'
 import { healthApi, type MealPlan, type MealPlanToday } from '@ct/shared/api/areas'
 import { ModuleGrid, type ModuleSpec } from '@ct/shared/components/modules'
@@ -54,6 +55,24 @@ const Actions = styled.div`
   align-items: center;
   gap: ${({ theme }) => theme.spacing[2]};
   padding-top: ${({ theme }) => theme.spacing[2]};
+`
+
+const SaveToListRow = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: ${({ theme }) => theme.spacing[2]};
+`
+
+const SaveToListLabel = styled.label`
+  ${textRole('body-s')};
+  color: ${({ theme }) => theme.color.foreground};
+  cursor: pointer;
+`
+
+const SaveToListHint = styled.span`
+  display: block;
+  ${textRole('micro')};
+  color: ${({ theme }) => theme.color.mutedForeground};
 `
 
 /** Atwater factors — the standard kcal per gram for each macro. */
@@ -151,6 +170,38 @@ export function NutritionSection() {
     if (ok) logMeal.mutate()
   }
 
+  /* The catalogue FoodPicker searches could only ever be empty: POST
+     /areas/health/foods has existed since the catalogue shipped, the picker
+     even badges an entry as "· yours", and nothing in the app could create
+     one. Its empty state read "Your food catalogue is empty" with no way out.
+     Logging a meal is the moment the macros are already in hand, so that is
+     where the catalogue gets filled. */
+  const [alsoSaveFood, setAlsoSaveFood] = useState(false)
+
+  const saveToCatalogue = useMutation({
+    /* Catalogue macros are stored PER 100g, but what is typed here is for the
+       portion actually eaten. Recording serving_grams = 100 makes the two
+       agree: picking this food at 1 serving scales by 100/100 and returns
+       exactly these numbers, and 2 servings doubles them. Storing the portion
+       figures as if they were per-100g without that would silently misreport
+       every future use of the entry. */
+    mutationFn: () => healthApi.createFood({
+      name: meal.food_name.trim(),
+      calories: Number(meal.calories) || 0,
+      protein: Number(meal.protein) || 0,
+      carbs: Number(meal.carbs) || 0,
+      fat: Number(meal.fat) || 0,
+      serving_desc: '1 serving',
+      serving_grams: 100,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['health', 'foods'] }) },
+    onError: (e) => {
+      // A 409 means it is already saved, which is not a failure of the meal
+      // log — say what happened without turning it into an error.
+      toast.message(errorMessage(e, 'Meal logged, but it could not be added to your food list'))
+    },
+  })
+
   const logMeal = useMutation({
     mutationFn: () => healthApi.logMeal({
       food_name: meal.food_name.trim(),
@@ -161,9 +212,13 @@ export function NutritionSection() {
       meal_type: meal.meal_type,
     }),
     onSuccess: () => {
+      // Only after the log succeeds: a failed meal must not leave a catalogue
+      // entry behind for something that was never recorded.
+      if (alsoSaveFood && meal.food_name.trim()) saveToCatalogue.mutate()
       qc.invalidateQueries({ queryKey: ['health'] })
       setLogOpen(false)
       setMeal({ ...EMPTY_MEAL })
+      setAlsoSaveFood(false)
       f.reset()
       toast.success('Meal logged')
     },
@@ -471,6 +526,18 @@ export function NutritionSection() {
             <Input type="number" min="0" step="0.1" value={meal.fat} {...f.fieldProps('fat')} onChange={(e: any) => { f.clearField('fat'); setMeal(m => ({ ...m, fat: e.target.value })) }} placeholder="0" />
               <FieldError id={f.errorId('fat')}>{f.errors.fat}</FieldError>
           </div>
+          <SaveToListRow>
+            <Checkbox
+              size="sm"
+              id="also-save-food"
+              checked={alsoSaveFood}
+              onChange={e => setAlsoSaveFood(e.target.checked)}
+            />
+            <SaveToListLabel htmlFor="also-save-food">
+              Also add this to my food list
+              <SaveToListHint>Search for it next time instead of retyping the macros.</SaveToListHint>
+            </SaveToListLabel>
+          </SaveToListRow>
           <Actions>
             <Button
               variant="primary"

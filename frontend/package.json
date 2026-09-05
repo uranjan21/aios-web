@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @ct/shell dev",
-    "build": "pnpm --filter @ledgr/ui build && pnpm --filter @ct/shell build",
+    "build": "pnpm build:ui && pnpm --filter @ct/shell build",
+    "build:ui": "pnpm --filter @ledgr/ui build",
+    "typecheck": "tsc -p tsconfig.json",
+    "prepare": "pnpm build:ui",
     "preview": "pnpm --filter @ct/shell preview",
     "lint": "eslint apps packages --max-warnings=289",
     "lint:report": "eslint apps packages",

@@ -1,10 +1,11 @@
 # Environment Variables
-# Deny-by-default: .env.prod was NOT matched by the old explicit list, so the
-# file docker-compose.prod.yml loads (every production secret) was committable.
+# Deny-by-default. An explicit list of filenames misses the next one someone
+# invents, and this repository is public — a single committed .env would publish
+# the signing key, the encryption key and the database password at once.
 .env
 .env.*
 !.env.example
-!.env.prod.example
+!.env.production.example
 
 # Python
 *.pyc

@@ -32,7 +32,24 @@ class Settings(BaseSettings):
     allow_insecure_http: bool = False
 
     # Database
+    #
+    # A managed provider (Supabase, Neon, Railway) prints a libpq-style URI.
+    # Swap the scheme for postgresql+asyncpg:// and keep the rest — app/db/url.py
+    # translates sslmode, drops parameters asyncpg cannot accept, and turns on
+    # the transaction-pooler workarounds when the port says it needs them.
     database_url: str = "postgresql+asyncpg://localhost:5432/aios_web"
+
+    # SQLAlchemy connection pool, per worker process. Total server-side
+    # connections is roughly WEB_CONCURRENCY x (db_pool_size + db_max_overflow),
+    # which is the number that has to fit under the provider's connection cap:
+    # Supabase's free tier allows 60 direct connections, so 4 workers x (5 + 5)
+    # already sits at the ceiling. Point DATABASE_URL at the transaction pooler
+    # (port 6543) instead of raising these.
+    db_pool_size: int = 5
+    db_max_overflow: int = 5
+    # Below any provider-side idle timeout so we close the socket first rather
+    # than discovering it dead mid-request.
+    db_pool_recycle_seconds: int = 1800
 
     # Redis — REQUIRED for rate limiting across >1 worker (autoscaled/multi-worker
     # deploys). When unset the limiter uses per-process memory (fine for a single
@@ -95,7 +112,26 @@ class Settings(BaseSettings):
     # Web push (VAPID)
     vapid_public_key: str = ""
     vapid_private_key: str = ""
-    vapid_subject: str = "mailto:utsavranjan.sk@gmail.com"
+    # Contact URI the push service can reach the operator at (mailto: or https:).
+    # Deliberately empty: a wrong address here is worse than none, and pushes are
+    # off until VAPID keys are configured anyway.
+    vapid_subject: str = ""
+
+    # Serve /docs, /redoc and /openapi.json in production too. Off by default:
+    # they map the entire API surface for anyone who asks. Non-production
+    # environments always serve them regardless of this flag.
+    enable_api_docs: bool = False
+
+    # Extra hosts appended to the CSP connect-src, space-separated. This is
+    # where a Sentry ingest host or a PostHog host goes; the SPA may otherwise
+    # only reach its own origin and the two currency APIs.
+    csp_connect_extra: str = ""
+
+    # Where the built SPA lives. The API process serves it so the frontend and
+    # the API share one origin (required: relative /api baseURL, location.host
+    # WebSockets, SameSite=Strict cookie). Absent in local dev, where Vite
+    # serves the frontend and proxies to this process.
+    spa_dist_dir: str = "/app/static"
 
     # Observability (Sentry). Unset → no error reporting (dev/test stay silent).
     sentry_dsn: str = ""
@@ -137,10 +173,9 @@ class Settings(BaseSettings):
                     f"ALLOWED_ORIGIN is {self.allowed_origin!r} — not https. The auth cookie "
                     "cannot carry the Secure flag over plain http, so every JWT (and all "
                     "financial and health data) crosses the network in cleartext.\n"
-                    "  Fix: point a hostname at this server and set SITE_ADDRESS=<host> plus "
-                    "ALLOWED_ORIGIN=https://<host>. Caddy provisions the certificate itself, "
-                    "and a Hostinger VPS already has a free srvNNNNNN.hstgr.cloud hostname "
-                    "that Let's Encrypt accepts — see docs/DEPLOYMENT.md §4.\n"
+                    "  Fix: set ALLOWED_ORIGIN to the https URL users actually visit. "
+                    "Render, Railway and Fly all terminate TLS for you and give every "
+                    "service an https hostname by default — see docs/DEPLOYMENT.md.\n"
                     "  To ship on cleartext anyway, set ALLOW_INSECURE_HTTP=true."
                 )
             if not self.token_encryption_key:

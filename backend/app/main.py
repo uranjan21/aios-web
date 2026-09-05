@@ -12,6 +12,7 @@ from app.core.config import get_settings
 from app.core.deps import ws_auth, require_verified
 from app.core.middleware import SecurityHeadersMiddleware, RequestLoggingMiddleware
 from app.core.rate_limit import limiter
+from app.core.spa import mount_spa
 
 from app.api.auth import router as auth_router
 from app.api.sync import router as sync_router, sync_ws_handler
@@ -202,11 +203,20 @@ def create_app() -> FastAPI:
     from app.core.observability import init_sentry
     init_sentry()
 
+    # /docs, /redoc and /openapi.json publish the complete API surface — every
+    # route, every request and response schema, every parameter — to anyone who
+    # asks. That is exactly what you want while developing and an unnecessary
+    # gift to anyone probing a public deployment, so production serves none of
+    # them. Set ENABLE_API_DOCS=true to override for a staging environment.
+    _docs_enabled = settings.enable_api_docs or settings.environment != "production"
     app = FastAPI(
-        title="AIOS Web",
-        description="Personal command center on top of AI OS",
+        title="Control Tower",
+        description="Personal command center — finance, health and career in one place",
         version="0.1.0",
         lifespan=lifespan,
+        docs_url="/docs" if _docs_enabled else None,
+        redoc_url="/redoc" if _docs_enabled else None,
+        openapi_url="/openapi.json" if _docs_enabled else None,
     )
 
     app.state.limiter = limiter
@@ -235,11 +245,11 @@ def create_app() -> FastAPI:
         allow_headers=["Content-Type", "Cookie", "X-Requested-With"],
     )
 
-    # Deliberately NOT rate-limited. This is the liveness probe that
-    # deploy/deploy.sh polls and that the external uptime monitor hits; putting
-    # it behind the limiter means a rate-limiter storage failure makes the app
-    # look dead and the next deploy roll back for the wrong reason. The handler
-    # is a single `SELECT 1` and is cheap enough to serve unthrottled.
+    # Deliberately NOT rate-limited. This is the platform's health check and
+    # whatever uptime monitor points at it; putting it behind the limiter means
+    # a rate-limiter storage failure makes a healthy app look dead and takes the
+    # deployment down with it. The handler is a single `SELECT 1`, cheap enough
+    # to serve unthrottled.
     @app.get("/health")
     @app.get("/api/health")
     async def health(request: Request):
@@ -328,6 +338,12 @@ def create_app() -> FastAPI:
     app.include_router(automations_router, dependencies=[_verified])
     app.include_router(workspace_router, dependencies=[_verified])
     app.include_router(quotes_router, dependencies=[_verified])
+
+    # LAST. This mounts at "/" and Starlette matches routes in registration
+    # order, so every API route, WebSocket and /health above wins first. Move
+    # this line up and it swallows the entire API.
+    mount_spa(app, settings.spa_dist_dir)
+
     return app
 
 

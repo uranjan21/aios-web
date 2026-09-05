@@ -1,202 +1,126 @@
-# Control Tower Web System Design & Architecture
+# System design
 
-This document provides a comprehensive technical overview of the `control-tower` system architecture. It outlines every major architectural decision, how data flows through the application, and precisely how `control-tower` interfaces with the broader local Obsidian Control Tower Vault.
+How Control Tower is put together and why. Conventions for changing each side
+live in `backend/CLAUDE.md` and `frontend/CLAUDE.md`.
 
----
+## Shape
 
-## 1. High-Level Architecture Overview
+One container. The FastAPI process serves both the JSON API and the compiled
+single-page app, backed by Postgres and Redis.
 
-`control-tower` is a multi-tenant SaaS layer built on top of a local markdown vault. It provides relational data querying, an interactive web UI, and background autonomous AI processing, while continuously syncing back to plain text files.
-
-### 1.1 Architecture Diagram
-
-```mermaid
-graph TD
-    %% Frontend Layer
-    subgraph Client [Frontend / UI Layer]
-        React[React 18 + Vite SPA]
-        Zustand[Zustand - Global State]
-        RQ[React Query - Server State]
-        UI[@ledgr/ui Design System]
-        
-        React --> Zustand
-        React --> RQ
-        React --> UI
-    end
-
-    %% Network
-    Client -- "REST API (JWT Auth)" --> API
-    Client -- "WebSockets (Sync/Chat)" --> API
-
-    %% Backend Layer
-    subgraph Backend [Backend / API Layer - FastAPI]
-        API[FastAPI Routers]
-        Auth[JWT Auth Middleware]
-        Services[Service Logic]
-        SQLModel[SQLModel ORM]
-        Agents[Background Agents/APScheduler]
-        Chat[Multi-LLM Engine]
-        
-        API --> Auth
-        Auth --> Services
-        Services --> SQLModel
-        Services --> Chat
-        Agents --> SQLModel
-        Agents --> Chat
-    end
-
-    %% Persistence Layer
-    subgraph Storage [Data Persistence]
-        DB[(PostgreSQL 15 + pgvector)]
-    end
-
-    %% External Systems
-    subgraph External [AI Providers & External APIs]
-        OpenAI[OpenAI API]
-        Anthropic[Anthropic API]
-        Stripe[Stripe Billing]
-    end
-
-    %% Sync Layer
-    subgraph Sync [Vault Sync Engine]
-        Watcher[watcher.py]
-        Parser[parser.py]
-        Writer[writer.py]
-        Guard[VaultWriteGuard]
-    end
-
-    %% Local Vault
-    subgraph Obsidian [Local Obsidian Vault - Control Tower]
-        MD[Markdown Files]
-        Frontmatter[YAML Frontmatter]
-    end
-
-    SQLModel <--> DB
-    Chat <--> OpenAI
-    Chat <--> Anthropic
-    Services <--> Stripe
-    
-    %% Sync Connections
-    Services --> Writer
-    Writer --> Guard
-    Guard --> MD
-    
-    MD --> Watcher
-    Watcher --> Parser
-    Parser --> Services
+```
+                    ┌──────────────────────────────────────┐
+   browser ────────▶│  Container                           │
+   (https)          │                                      │
+                    │   gunicorn → N uvicorn workers       │
+                    │        │                             │
+                    │        ├── /api/*   routers          │
+                    │        ├── /ws/*    WebSockets        │
+                    │        ├── /health  liveness         │
+                    │        └── /        the built SPA    │
+                    │                                      │
+                    │   one worker also runs APScheduler   │
+                    └───────┬──────────────────┬───────────┘
+                            │                  │
+                   Supabase Postgres        Redis
+                   (+ pgvector)         (rate limits,
+                                      pending tool calls)
 ```
 
----
+**Why one container.** The frontend uses a relative `/api` baseURL, dials
+WebSockets at `location.host`, and authenticates with a `SameSite=Strict`
+cookie. All three depend on the SPA and the API sharing an origin. A VPS
+provided that with a reverse proxy beside the app; a PaaS gives one container
+one port, so the app serves its own static bundle instead
+(`backend/app/core/spa.py`). Split them across hosts and login stops working.
 
-## 2. Core Architectural Decisions
+The static mount is registered **last**, after every router, because it matches
+`/`. It also refuses to answer anything under `/api/` or `/ws/`: returning the
+HTML shell for a missing endpoint would hand the frontend a document where it
+expects JSON, and the parse error would surface nowhere near the cause.
 
-### 2.1 Multi-Tenant Database Isolation
-- **Decision:** Shift from a single-user local tool to a multi-tenant SaaS application.
-- **Implementation:** PostgreSQL is the core database, managed via SQLModel (SQLAlchemy). Every single user-data table contains a strict `user_id` foreign key.
-- **Security:** The backend enforces data isolation at the route/service level. The `current_user` is extracted from the HttpOnly Strict JWT cookie, and all queries append `.where(Model.user_id == current_user.id)`.
+## Request flow
 
-### 2.2 Design System & Theming
-- **Decision:** Fully remove Tailwind in favor of a strict token-based custom component library.
-- **Implementation:** `@ledgr/ui` is used alongside `styled-components`. A global `ThemeProvider` injects the "Premium Black + Gold" theme.
-- **Why:** Ensures absolute design consistency, prevents utility-class clutter in React components, and enforces strict brand guidelines (e.g., specific HEX values instead of generic HSL variables).
+1. **`SecurityHeadersMiddleware`** — one CSP for both the document and the API.
+   `script-src 'self'` with no `unsafe-inline` (the SPA has no inline script);
+   `style-src` allows inline for styled-components and `fonts.googleapis.com`;
+   `font-src` allows `fonts.gstatic.com`. Drop either font host and the whole
+   type system silently falls back to system UI.
+2. **`RequestLoggingMiddleware`** — attaches an `X-Request-ID` and logs method,
+   path, status and duration as structured JSON.
+3. **CORS** — a single allowed origin, credentials on.
+4. **Rate limiting** — slowapi, counters in Redis so they are shared across
+   workers. Per-process counters would mean each worker enforces the limit
+   separately and the real limit is N times what was configured.
+5. **Routers** — `/api/*`. Most carry a `require_verified` dependency.
+6. **SPA** — everything else.
 
-### 2.3 State Management Split
-- **Decision:** Separate server state from client/UI state.
-- **Implementation:** 
-  - **Zustand** is used for ephemeral UI state (e.g., active tabs, dark mode, modal visibility).
-  - **React Query (TanStack)** is used for all server data. This eliminates `useEffect` fetching boilerplate, handles caching, and provides loading/error states out of the box.
+## Authentication
 
----
+A JWT in an httpOnly, `SameSite=Strict` cookie named `aios_token`. Password
+login and Google OAuth both issue it. `Secure` is derived from the
+`ALLOWED_ORIGIN` scheme, never from `ENVIRONMENT` — keying it on the environment
+makes login fail silently on any deploy not behind TLS.
 
-## 3. Vault Synchronization Flow
+`token_version` on the user row allows revocation. WebSocket connections
+authenticate through the same cookie **before** any frame is accepted, and
+mirror the verified-email gate; otherwise the HTTP gate is bypassable over
+WebSocket.
 
-The most unique architectural aspect of `control-tower` is its two-way synchronization with a local Obsidian markdown vault. The Postgres database acts as a fast, relational cache and UI backend, while the Vault acts as the durable, user-owned source of truth.
+## Multi-tenancy
 
-### 3.1 Two-Way Sync Data Flow
+Every user-data table carries `user_id`, and every query filters on the
+authenticated user. Cross-tenant access returns **404**, not 403 — a 403 tells
+the caller the row exists.
 
-```mermaid
-sequenceDiagram
-    participant User as User / Browser
-    participant API as FastAPI Backend
-    participant DB as PostgreSQL
-    participant Sync as Vault Sync Engine
-    participant Vault as Obsidian (.md)
+This is asserted, not assumed: `tests/test_isolation.py` and
+`test_isolation_extended.py` create two real users and have one attempt to read
+and write the other's rows across every surface.
 
-    %% Web to Vault Flow
-    rect rgb(20, 30, 40)
-    Note over User, Vault: Flow 1: Web Interface -> Obsidian Vault
-    User->>API: POST /api/finance/transaction (JWT)
-    API->>DB: Validate & Insert (user_id)
-    API->>Sync: Trigger writer.py
-    Sync->>Sync: VaultWriteGuard (Concurrency Lock)
-    Sync->>Vault: Write/Update Markdown file
-    end
+## Background work
 
-    %% Vault to Web Flow
-    rect rgb(30, 20, 20)
-    Note over User, Vault: Flow 2: Obsidian Vault -> Web Interface
-    Vault-->>Sync: watcher.py detects file save event
-    Sync->>Sync: parser.py extracts YAML Frontmatter
-    Sync->>API: Internal API call to update record
-    API->>DB: Update corresponding row
-    API-->>User: WebSocket broadcast (UI auto-refreshes)
-    end
-```
+APScheduler runs inside the web process, but only in the worker that wins a
+Postgres advisory lock. Without that election every autoscaled worker fires
+every job — duplicate LLM calls, duplicate push notifications.
 
-### 3.2 Vault Write Tools & Safety
-The background AI agents and the Chat Assistant are equipped with "Active Write Tools" (e.g., `create_action`, `log_transaction`). 
-- When an AI triggers a write, it goes through the `VaultWriteGuard`.
-- This guard implements SQLite/Postgres concurrency locks and checks for path traversals to ensure the AI doesn't corrupt the vault or overwrite files simultaneously.
+Fourteen global jobs cover recurring finance posts, bill reminders, email
+ingestion, briefings, anomaly scans, forecasts, Google sync and the automation
+tick. On top of those, each active user agent registers its own cron in the
+user's timezone.
 
----
+## AI
 
-## 4. Background Agents & Multi-LLM Engine
+Every model call runs on the authenticated user's own provider key, stored
+Fernet-encrypted in `user_api_keys`. There is no server-side key and no fallback
+to one. That single decision is why the app needs no quota system, no usage
+metering and no per-user spend cap, and why public signup is safe to leave open.
 
-`control-tower` employs a swarm of background autonomous agents that execute tasks via APScheduler.
+Chat streams over `/ws/chat` with a tool loop. The system prompt is split into a
+byte-stable static prefix plus a per-turn context block, so provider prefix
+caching actually hits. Retrieval uses pgvector over the user's own indexed
+content.
 
-### 4.1 Agent Execution Flow
+## Data
 
-```mermaid
-graph LR
-    subgraph Scheduler
-        Cron[APScheduler (Cron Jobs)]
-    end
-    
-    subgraph Agent Runner
-        Context[Context Builder]
-        LLM[OpenAI / Claude API]
-        Tools[Write Tools Execution]
-    end
-    
-    subgraph Outputs
-        DB[(PostgreSQL)]
-        Sync[Vault Sync]
-        UI[Live Terminal UI]
-    end
+PostgreSQL 15 with pgvector. 73 tables, 83 Alembic migrations on a single head.
+Migrations run from the container entrypoint on every boot, and a failure kills
+the container rather than serving against a stale schema.
 
-    Cron -- "Triggers at scheduled time" --> Context
-    Context -- "Fetches domain-scoped facts" --> LLM
-    LLM -- "Decides on Action" --> Tools
-    Tools -- "Writes Data" --> DB
-    Tools -- "Syncs Data" --> Sync
-    LLM -- "Streams logs via WS" --> UI
-```
+Two schema-wide rules, both with tests that pin them:
 
-### 4.2 Agent Architectural Principles
-- **Domain-Scoped Isolation:** An agent designed for the "Finance" domain (e.g., `ct-monthly-finance`) is strictly sandboxed. Its context window is only populated with financial facts, and it cannot access health or career data.
-- **Graceful Fallbacks:** If an LLM API fails (e.g., quota exceeded), the agent catches the exception and falls back to a deterministic, rule-based execution, prefixing logs with a standard warning so the user knows it ran in fallback mode.
-- **Stream Options & Token Accounting:** Deeply integrated logic tracks token usage precisely across streaming API responses to monitor costs and prevent overflow errors.
+- **Every datetime column is `TIMESTAMP WITHOUT TIME ZONE` holding UTC.**
+- **Soft delete exists on six financial tables only**, and a soft delete still
+  reverses the account balance.
 
----
+Both are explained in `backend/CLAUDE.md`.
 
-## 5. Deployment & Infrastructure
+## What is deliberately absent
 
-- **Containerization:** The entire stack is containerized via `docker-compose.yml`.
-  - Service 1: `frontend` (Vite dev server or Nginx production build)
-  - Service 2: `backend` (Uvicorn + FastAPI)
-  - Service 3: `postgres` (with `pgvector` extensions for RAG/Embeddings)
-- **Hot Reloading Context:** Backend hot-reloading is disabled in Docker to prevent Vault Watcher memory leaks and race conditions. Any Python edit requires an explicit `docker compose restart backend`.
-- **Migrations:** Handled strictly by Alembic (`alembic upgrade head`).
-
----
-*Generated by Antigravity AI — Control Tower Architecture Documentation*
+- **No billing.** No Stripe, no subscriptions, no entitlements, no metering.
+- **No server LLM key.** See above.
+- **No vault sync in hosted deployments.** It is single-tenant — one shared
+  filesystem across all users — so production refuses to start with it enabled
+  unless explicitly acknowledged.
+- **No public API docs in production.** `/docs`, `/redoc` and `/openapi.json`
+  map the entire API surface; they are served only outside production, or when
+  `ENABLE_API_DOCS` is set.
